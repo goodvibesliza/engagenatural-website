@@ -1,13 +1,42 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { auth, db } from '../lib/firebase'
-import { doc, getDoc } from 'firebase/firestore'
+import { auth, db, storage } from '../lib/firebase'
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { signOut } from 'firebase/auth'
 
-export default function RetailerProfile() {
+export default function EnhancedRetailerProfile() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('profile')
+  const [showCamera, setShowCamera] = useState(false)
+  const [profileImage, setProfileImage] = useState(null)
+  const [aboutMe, setAboutMe] = useState({
+    interests: '',
+    location: '',
+    story: ''
+  })
+  const [uploading, setUploading] = useState(false)
+  const [verificationPhoto, setVerificationPhoto] = useState(null)
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false)
+  
   const navigate = useNavigate()
+  const videoRef = useRef(null)
+  const canvasRef = useRef(null)
+  const fileInputRef = useRef(null)
+
+  const avatarOptions = [
+    '👤', '👨‍💼', '👩‍💼', '👨‍🔬', '👩‍🔬', '👨‍⚕️', '👩‍⚕️', '🧑‍🌾', '👨‍🍳', '👩‍🍳',
+    '🌱', '🥬', '🥕', '🍎', '🥑', '🌿', '🌾', '🍯', '🧘‍♀️', '🧘‍♂️'
+  ]
+
+  const communities = [
+    { id: 1, name: 'Supplement Specialists', members: 1250, active: true },
+    { id: 2, name: 'Organic Produce Experts', members: 890, active: true },
+    { id: 3, name: 'Natural Health Advocates', members: 2100, active: false },
+    { id: 4, name: 'Store Display Masters', members: 650, active: true },
+    { id: 5, name: 'Customer Service Champions', members: 1800, active: false }
+  ]
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -15,22 +44,37 @@ export default function RetailerProfile() {
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
           if (userDoc.exists()) {
+            const userData = userDoc.data()
             setUser({
               uid: currentUser.uid,
               email: currentUser.email,
-              ...userDoc.data()
+              ...userData
             })
+            setAboutMe({
+              interests: userData.interests || '',
+              location: userData.location || '',
+              story: userData.story || ''
+            })
+            setProfileImage(userData.profileImage || null)
           } else {
-            setUser({
+            // Create new user document
+            const newUser = {
               uid: currentUser.uid,
               email: currentUser.email,
-              name: 'New User',
+              name: currentUser.displayName || 'New User',
               storeName: 'Unknown Store',
               verified: false,
               verificationStatus: 'not_submitted',
               points: 0,
-              level: 1
-            })
+              level: 1,
+              profileImage: null,
+              interests: '',
+              location: '',
+              story: '',
+              joinedCommunities: []
+            }
+            await setDoc(doc(db, 'users', currentUser.uid), newUser)
+            setUser(newUser)
           }
         } catch (error) {
           console.error('Error fetching user data:', error)
@@ -44,12 +88,162 @@ export default function RetailerProfile() {
     return () => unsubscribe()
   }, [navigate])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary"></div>
-      </div>
-    )
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth)
+      navigate('/')
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 640, height: 480 } 
+      })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        setShowCamera(true)
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error)
+      alert('Unable to access camera. Please check permissions or use file upload instead.')
+    }
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current
+      const video = videoRef.current
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(video, 0, 0)
+      
+      canvas.toBlob((blob) => {
+        setVerificationPhoto(blob)
+        stopCamera()
+      }, 'image/jpeg', 0.8)
+    }
+  }
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks()
+      tracks.forEach(track => track.stop())
+      videoRef.current.srcObject = null
+    }
+    setShowCamera(false)
+  }
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      setVerificationPhoto(file)
+    }
+  }
+
+  const submitVerification = async () => {
+    if (!verificationPhoto) {
+      alert('Please take a photo or upload an image first.')
+      return
+    }
+
+    setUploading(true)
+    try {
+      // Generate daily verification code
+      const today = new Date()
+      const verificationCode = `ENG-${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}`
+      
+      // Upload photo to Firebase Storage
+      const photoRef = ref(storage, `verification/${user.uid}/${Date.now()}.jpg`)
+      await uploadBytes(photoRef, verificationPhoto)
+      const photoURL = await getDownloadURL(photoRef)
+      
+      // Create verification request
+      const verificationRequest = {
+        userId: user.uid,
+        userEmail: user.email,
+        userName: user.name,
+        storeName: user.storeName,
+        photoURL: photoURL,
+        verificationCode: verificationCode,
+        submittedAt: new Date(),
+        status: 'pending',
+        adminNotes: ''
+      }
+      
+      await addDoc(collection(db, 'verification_requests'), verificationRequest)
+      
+      // Update user status
+      await updateDoc(doc(db, 'users', user.uid), {
+        verificationStatus: 'pending',
+        lastVerificationSubmission: new Date()
+      })
+      
+      setUser(prev => ({ ...prev, verificationStatus: 'pending' }))
+      setVerificationPhoto(null)
+      alert('Verification submitted successfully! We\'ll review your submission within 1-2 business days.')
+      
+    } catch (error) {
+      console.error('Error submitting verification:', error)
+      alert('Error submitting verification. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const uploadProfileImage = async (file) => {
+    setUploading(true)
+    try {
+      const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}.jpg`)
+      await uploadBytes(imageRef, file)
+      const imageURL = await getDownloadURL(imageRef)
+      
+      await updateDoc(doc(db, 'users', user.uid), {
+        profileImage: imageURL
+      })
+      
+      setProfileImage(imageURL)
+      setUser(prev => ({ ...prev, profileImage: imageURL }))
+    } catch (error) {
+      console.error('Error uploading profile image:', error)
+      alert('Error uploading image. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const selectAvatar = async (avatar) => {
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        profileImage: avatar
+      })
+      
+      setProfileImage(avatar)
+      setUser(prev => ({ ...prev, profileImage: avatar }))
+      setShowAvatarSelector(false)
+    } catch (error) {
+      console.error('Error selecting avatar:', error)
+    }
+  }
+
+  const updateAboutMe = async () => {
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        interests: aboutMe.interests,
+        location: aboutMe.location,
+        story: aboutMe.story
+      })
+      
+      setUser(prev => ({ ...prev, ...aboutMe }))
+      alert('About Me section updated successfully!')
+    } catch (error) {
+      console.error('Error updating about me:', error)
+      alert('Error updating information. Please try again.')
+    }
   }
 
   const getStatusBadge = () => {
@@ -66,111 +260,56 @@ export default function RetailerProfile() {
     }
   }
 
-  const challenges = [
-    {
-      id: 1,
-      title: "Share Product Knowledge",
-      description: "Help 3 customers learn about natural products",
-      points: 50,
-      progress: 2,
-      total: 3,
-      status: "active",
-      category: "Customer Service"
-    },
-    {
-      id: 2,
-      title: "Store Display Excellence",
-      description: "Create an eye-catching product display",
-      points: 100,
-      progress: 0,
-      total: 1,
-      status: "available",
-      category: "Visual Merchandising"
-    },
-    {
-      id: 3,
-      title: "Health & Wellness Expert",
-      description: "Complete 5 product training modules",
-      points: 200,
-      progress: 5,
-      total: 5,
-      status: "completed",
-      category: "Education"
-    },
-    {
-      id: 4,
-      title: "Social Media Star",
-      description: "Share store content on social media",
-      points: 60,
-      progress: 0,
-      total: 1,
-      status: "locked",
-      category: "Marketing"
-    }
-  ]
+  const getVerificationBenefits = () => {
+    const isVerified = user?.verificationStatus === 'approved'
+    
+    return (
+      <div className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 rounded-lg p-6 border border-brand-primary/20">
+        <h3 className="font-heading text-lg font-semibold mb-4">
+          {isVerified ? '🎉 Verified Benefits' : '🔒 Verification Benefits'}
+        </h3>
+        
+        <div className="space-y-3">
+          <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
+            <span>{isVerified ? '✅' : '🔒'}</span>
+            <span>Access to free product samples</span>
+          </div>
+          <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
+            <span>{isVerified ? '✅' : '🔒'}</span>
+            <span>Exclusive contests and giveaways</span>
+          </div>
+          <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
+            <span>{isVerified ? '✅' : '🔒'}</span>
+            <span>Premium educational content</span>
+          </div>
+          <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
+            <span>{isVerified ? '✅' : '🔒'}</span>
+            <span>Full community access and features</span>
+          </div>
+          <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
+            <span>{isVerified ? '✅' : '🔒'}</span>
+            <span>Priority customer support</span>
+          </div>
+        </div>
+        
+        {!isVerified && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-yellow-800 text-sm">
+              <strong>Current Status:</strong> You have limited access. Get verified to unlock all features!
+            </p>
+          </div>
+        )}
+      </div>
+    )
+  }
 
-  const communityPosts = [
-    {
-      id: 1,
-      author: "Sarah M.",
-      store: "Whole Foods Market",
-      content: "Just helped a customer find the perfect probiotic for their digestive health! Love seeing their excitement when they find exactly what they need. 🌱",
-      likes: 12,
-      comments: 3,
-      time: "2 hours ago",
-      verified: true
-    },
-    {
-      id: 2,
-      author: "Mike R.",
-      store: "Sprouts Farmers Market",
-      content: "Our new organic produce display is getting amazing feedback from customers! The key is making it colorful and accessible. 🥬🥕",
-      likes: 8,
-      comments: 5,
-      time: "4 hours ago",
-      verified: true
-    },
-    {
-      id: 3,
-      author: "Emma L.",
-      store: "Natural Grocers",
-      content: "Completed my first product knowledge challenge today! Learned so much about adaptogens and how they can help with stress management.",
-      likes: 15,
-      comments: 2,
-      time: "1 day ago",
-      verified: true
-    }
-  ]
-
-  const learningResources = [
-    {
-      id: 1,
-      title: "Supplement Basics Certification",
-      description: "Learn the fundamentals of vitamins, minerals, and supplements",
-      progress: 75,
-      modules: 8,
-      completed: 6,
-      points: 150
-    },
-    {
-      id: 2,
-      title: "Organic Product Knowledge",
-      description: "Understanding organic certifications and benefits",
-      progress: 100,
-      modules: 5,
-      completed: 5,
-      points: 100
-    },
-    {
-      id: 3,
-      title: "Customer Service Excellence",
-      description: "Advanced techniques for helping health-conscious customers",
-      progress: 30,
-      modules: 10,
-      completed: 3,
-      points: 200
-    }
-  ]
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary"></div>
+      </div>
+    )
+  }
 
   const TabButton = ({ id, label, icon, isActive, onClick }) => (
     <button
@@ -186,141 +325,35 @@ export default function RetailerProfile() {
     </button>
   )
 
-  const ChallengeCard = ({ challenge }) => {
-    const getStatusColor = () => {
-      switch (challenge.status) {
-        case 'completed': return 'bg-green-500'
-        case 'active': return 'bg-blue-500'
-        case 'available': return 'bg-gray-400'
-        case 'locked': return 'bg-gray-300'
-        default: return 'bg-gray-400'
-      }
-    }
-
-    const getStatusText = () => {
-      switch (challenge.status) {
-        case 'completed': return 'Completed'
-        case 'active': return 'In Progress'
-        case 'available': return 'Start Challenge'
-        case 'locked': return 'Locked'
-        default: return 'Available'
-      }
-    }
-
-    return (
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="font-heading text-lg font-semibold text-gray-900 mb-2">{challenge.title}</h3>
-            <p className="text-gray-600 text-sm mb-2">{challenge.description}</p>
-            <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-              {challenge.category}
-            </span>
-          </div>
-          <div className="text-right">
-            <div className="bg-brand-primary text-white px-3 py-1 rounded-full text-sm font-medium">
-              {challenge.points} pts
-            </div>
-          </div>
-        </div>
-        
-        {challenge.status === 'active' && (
-          <div className="mb-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Progress</span>
-              <span>{challenge.progress}/{challenge.total}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(challenge.progress / challenge.total) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
-        
-        <button 
-          className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors ${getStatusColor()} text-white`}
-          disabled={challenge.status === 'locked' || challenge.status === 'completed'}
-        >
-          {getStatusText()}
-        </button>
-      </div>
-    )
-  }
-
-  const CommunityPost = ({ post }) => (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-      <div className="flex items-start space-x-3">
-        <div className="w-10 h-10 bg-brand-primary rounded-full flex items-center justify-center text-white font-medium">
-          {post.author.charAt(0)}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-2">
-            <h4 className="font-medium text-gray-900">{post.author}</h4>
-            {post.verified && <span className="text-green-500">✓</span>}
-            <span className="text-gray-500 text-sm">•</span>
-            <span className="text-gray-500 text-sm">{post.store}</span>
-            <span className="text-gray-500 text-sm">•</span>
-            <span className="text-gray-500 text-sm">{post.time}</span>
-          </div>
-          <p className="text-gray-700 mb-3">{post.content}</p>
-          <div className="flex items-center space-x-4 text-sm text-gray-500">
-            <button className="flex items-center space-x-1 hover:text-brand-primary">
-              <span>❤️</span>
-              <span>{post.likes}</span>
-            </button>
-            <button className="flex items-center space-x-1 hover:text-brand-primary">
-              <span>💬</span>
-              <span>{post.comments}</span>
-            </button>
-            <button className="hover:text-brand-primary">Share</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
-  const LearningCard = ({ resource }) => (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-      <h3 className="font-heading text-lg font-semibold text-gray-900 mb-2">{resource.title}</h3>
-      <p className="text-gray-600 text-sm mb-4">{resource.description}</p>
-      
-      <div className="mb-4">
-        <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span>Progress</span>
-          <span>{resource.completed}/{resource.modules} modules</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="bg-brand-primary h-2 rounded-full transition-all duration-300"
-            style={{ width: `${resource.progress}%` }}
-          ></div>
-        </div>
-      </div>
-      
-      <div className="flex justify-between items-center">
-        <span className="text-brand-primary font-medium">{resource.points} points</span>
-        <button className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-primary/90 transition-colors">
-          {resource.progress === 100 ? 'Review' : 'Continue'}
-        </button>
-      </div>
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-heading font-bold text-gray-900">Welcome back, {user?.name}!</h1>
-              <p className="text-gray-600 mt-1">{user?.storeName}</p>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/')}
+                className="text-brand-primary hover:text-brand-primary/80 font-medium"
+              >
+                ← Back to Home
+              </button>
+              <div>
+                <h1 className="text-3xl font-heading font-bold text-gray-900">Welcome back, {user?.name}!</h1>
+                <p className="text-gray-600 mt-1">{user?.storeName}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-brand-primary">{user?.points || 0} pts</div>
-              <div className="text-sm text-gray-600">Level {user?.level || 1}</div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <div className="text-2xl font-bold text-brand-primary">{user?.points || 0} pts</div>
+                <div className="text-sm text-gray-600">Level {user?.level || 1}</div>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </div>
@@ -338,24 +371,31 @@ export default function RetailerProfile() {
               onClick={setActiveTab}
             />
             <TabButton
+              id="verification"
+              label="Verification"
+              icon="🔐"
+              isActive={activeTab === 'verification'}
+              onClick={setActiveTab}
+            />
+            <TabButton
+              id="about"
+              label="About Me"
+              icon="📝"
+              isActive={activeTab === 'about'}
+              onClick={setActiveTab}
+            />
+            <TabButton
+              id="communities"
+              label="Communities"
+              icon="👥"
+              isActive={activeTab === 'communities'}
+              onClick={setActiveTab}
+            />
+            <TabButton
               id="challenges"
               label="Challenges"
               icon="🎯"
               isActive={activeTab === 'challenges'}
-              onClick={setActiveTab}
-            />
-            <TabButton
-              id="community"
-              label="Community"
-              icon="👥"
-              isActive={activeTab === 'community'}
-              onClick={setActiveTab}
-            />
-            <TabButton
-              id="learning"
-              label="Learning"
-              icon="📚"
-              isActive={activeTab === 'learning'}
               onClick={setActiveTab}
             />
           </div>
@@ -369,6 +409,79 @@ export default function RetailerProfile() {
             <div className="md:col-span-1">
               <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                 <h2 className="font-heading text-xl font-semibold mb-4">Profile Information</h2>
+                
+                {/* Profile Image Section */}
+                <div className="text-center mb-6">
+                  <div className="relative inline-block">
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-4xl overflow-hidden">
+                      {profileImage ? (
+                        profileImage.startsWith('http') ? (
+                          <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{profileImage}</span>
+                        )
+                      ) : (
+                        <span>👤</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setShowAvatarSelector(true)}
+                      className="absolute -bottom-2 -right-2 bg-brand-primary text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-brand-primary/90"
+                    >
+                      ✏️
+                    </button>
+                  </div>
+                  
+                  {showAvatarSelector && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="font-heading text-lg font-semibold mb-4">Choose Profile Picture</h3>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Upload Photo</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (e.target.files[0]) {
+                                  uploadProfileImage(e.target.files[0])
+                                  setShowAvatarSelector(false)
+                                }
+                              }}
+                              className="w-full"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Or Choose Avatar</label>
+                            <div className="grid grid-cols-5 gap-2">
+                              {avatarOptions.map((avatar, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => selectAvatar(avatar)}
+                                  className="w-12 h-12 text-2xl hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                  {avatar}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-end mt-6">
+                          <button
+                            onClick={() => setShowAvatarSelector(false)}
+                            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-gray-500">Name</p>
@@ -399,119 +512,259 @@ export default function RetailerProfile() {
             </div>
             
             <div className="md:col-span-2">
-              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                <h2 className="font-heading text-xl font-semibold mb-4">Verification Status</h2>
+              {getVerificationBenefits()}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'verification' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="font-heading text-2xl font-bold mb-6">Verification Center</h2>
+              
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="font-heading text-lg font-semibold mb-4">Current Status</h3>
+                  <div className="mb-4">{getStatusBadge()}</div>
+                  
+                  {user?.verificationStatus === 'not_submitted' && (
+                    <div className="space-y-4">
+                      <p>To get verified, you need to:</p>
+                      <ol className="list-decimal pl-5 space-y-2 text-sm">
+                        <li>Take a photo in your store wearing your name tag/apron</li>
+                        <li>Include today's verification code: <strong>ENG-{String(new Date().getDate()).padStart(2, '0')}{String(new Date().getMonth() + 1).padStart(2, '0')}</strong></li>
+                        <li>Submit the photo for review</li>
+                      </ol>
+                    </div>
+                  )}
+                  
+                  {user?.verificationStatus === 'pending' && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                      <p className="text-yellow-800">
+                        Your verification is under review. We'll notify you within 1-2 business days.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {user?.verificationStatus === 'approved' && (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                      <p className="text-green-800">
+                        🎉 Congratulations! Your account is verified and you have full access to all features.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {user?.verificationStatus === 'rejected' && (
+                    <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                      <p className="text-red-800 mb-2">Your verification was rejected:</p>
+                      <p className="text-red-700 text-sm">{user?.rejectionReason || "Please ensure your photo meets all requirements and try again."}</p>
+                    </div>
+                  )}
+                </div>
                 
-                {user?.verificationStatus === 'not_submitted' && (
-                  <div className="space-y-4">
-                    <p>To get verified and access exclusive content, you need to:</p>
-                    <ol className="list-decimal pl-5 space-y-2">
-                      <li>Take a photo in your store wearing your name tag/apron</li>
-                      <li>Include today's verification code in the photo</li>
-                      <li>Submit the photo for review</li>
-                    </ol>
-                    <button 
-                      onClick={() => navigate('/verification')}
-                      className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/90 transition-colors"
+                <div>
+                  {(user?.verificationStatus === 'not_submitted' || user?.verificationStatus === 'rejected') && (
+                    <div className="space-y-4">
+                      <h3 className="font-heading text-lg font-semibold">Submit Verification Photo</h3>
+                      
+                      <div className="space-y-3">
+                        <button
+                          onClick={startCamera}
+                          className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 transition-colors"
+                        >
+                          📷 Take Photo with Camera
+                        </button>
+                        
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                          📁 Upload from Computer
+                        </button>
+                        
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </div>
+                      
+                      {verificationPhoto && (
+                        <div className="space-y-3">
+                          <p className="text-sm text-green-600">✓ Photo ready for submission</p>
+                          <button
+                            onClick={submitVerification}
+                            disabled={uploading}
+                            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                          >
+                            {uploading ? 'Submitting...' : 'Submit Verification'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-8">
+                {getVerificationBenefits()}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'about' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="font-heading text-2xl font-bold mb-6">About Me</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Interests</label>
+                  <textarea
+                    value={aboutMe.interests}
+                    onChange={(e) => setAboutMe(prev => ({ ...prev, interests: e.target.value }))}
+                    placeholder="What are you passionate about? (e.g., natural health, organic foods, fitness, etc.)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                    rows="3"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                  <input
+                    type="text"
+                    value={aboutMe.location}
+                    onChange={(e) => setAboutMe(prev => ({ ...prev, location: e.target.value }))}
+                    placeholder="City, State (e.g., Austin, TX)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">My Story</label>
+                  <textarea
+                    value={aboutMe.story}
+                    onChange={(e) => setAboutMe(prev => ({ ...prev, story: e.target.value }))}
+                    placeholder="Tell us about your journey in natural retail, what motivates you, and what you love about helping customers..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                    rows="5"
+                  />
+                </div>
+                
+                <button
+                  onClick={updateAboutMe}
+                  className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 transition-colors"
+                >
+                  Save About Me
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'communities' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="font-heading text-2xl font-bold mb-6">My Communities</h2>
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                {communities.map(community => (
+                  <div key={community.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-heading text-lg font-semibold">{community.name}</h3>
+                      <span className={`px-3 py-1 rounded-full text-sm ${
+                        community.active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {community.active ? 'Active' : 'Available'}
+                      </span>
+                    </div>
+                    
+                    <p className="text-gray-600 text-sm mb-3">
+                      {community.members.toLocaleString()} members
+                    </p>
+                    
+                    <button
+                      className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                        community.active
+                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-brand-primary text-white hover:bg-brand-primary/90'
+                      }`}
                     >
-                      Start Verification
+                      {community.active ? 'View Community' : 'Join Community'}
                     </button>
                   </div>
-                )}
-                
-                {user?.verificationStatus === 'pending' && (
-                  <div className="space-y-4">
-                    <p>Your verification is currently under review. This typically takes 1-2 business days.</p>
-                    <div className="flex items-center justify-center py-8">
-                      <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 text-2xl mb-4">
-                          ⏳
-                        </div>
-                        <p className="text-lg font-medium">Under Review</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {user?.verificationStatus === 'approved' && (
-                  <div className="space-y-4">
-                    <p>Congratulations! Your account is verified and you have full access to all features.</p>
-                    <div className="flex items-center justify-center py-8">
-                      <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-2xl mb-4">
-                          ✅
-                        </div>
-                        <p className="text-lg font-medium">Verified</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {user?.verificationStatus === 'rejected' && (
-                  <div className="space-y-4">
-                    <p>Your verification was rejected for the following reason:</p>
-                    <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-800">
-                      {user?.rejectionReason || "The photo did not meet our verification requirements."}
-                    </div>
-                    <p>Please try again with a new photo that meets all requirements.</p>
-                    <button 
-                      onClick={() => navigate('/verification')}
-                      className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/90 transition-colors"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                )}
+                ))}
+              </div>
+              
+              <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-heading text-lg font-semibold text-blue-900 mb-2">
+                  🌟 Unlock More Communities
+                </h3>
+                <p className="text-blue-800 text-sm">
+                  Get verified to access exclusive communities and connect with top performers in your field!
+                </p>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'challenges' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="font-heading text-2xl font-bold text-gray-900 mb-2">Challenges</h2>
-              <p className="text-gray-600">Complete challenges to earn points and unlock exclusive content!</p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {challenges.map(challenge => (
-                <ChallengeCard key={challenge.id} challenge={challenge} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'community' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="font-heading text-2xl font-bold text-gray-900 mb-2">Community</h2>
-              <p className="text-gray-600">Connect with fellow retail professionals and share your experiences!</p>
-            </div>
-            
-            <div className="space-y-6">
-              {communityPosts.map(post => (
-                <CommunityPost key={post.id} post={post} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'learning' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="font-heading text-2xl font-bold text-gray-900 mb-2">Learning Resources</h2>
-              <p className="text-gray-600">Expand your knowledge with our comprehensive training modules!</p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {learningResources.map(resource => (
-                <LearningCard key={resource.id} resource={resource} />
-              ))}
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="font-heading text-2xl font-bold mb-6">Challenges</h2>
+              <p className="text-gray-600 mb-6">Complete challenges to earn points and unlock exclusive content!</p>
+              
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🎯</div>
+                <h3 className="font-heading text-xl font-semibold mb-2">Challenges Coming Soon!</h3>
+                <p className="text-gray-600">
+                  We're preparing exciting challenges for you. Get verified to be the first to access them!
+                </p>
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Camera Modal */}
+      {showCamera && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <h3 className="font-heading text-lg font-semibold mb-4">Take Verification Photo</h3>
+            
+            <div className="space-y-4">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full rounded-lg"
+              />
+              
+              <canvas ref={canvasRef} className="hidden" />
+              
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={capturePhoto}
+                  className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/90"
+                >
+                  📷 Capture Photo
+                </button>
+                <button
+                  onClick={stopCamera}
+                  className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
