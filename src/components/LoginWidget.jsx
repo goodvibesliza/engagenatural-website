@@ -5,7 +5,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Dialog, DialogContent, DialogTrigger } from './ui/dialog'
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from './ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Alert, AlertDescription } from './ui/alert'
 import { LogIn, UserPlus, AlertCircle } from 'lucide-react'
@@ -137,6 +137,9 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
+        {/* Added DialogTitle for accessibility */}
+        <DialogTitle className="sr-only">Authentication</DialogTitle>
+        
         <div className="p-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
