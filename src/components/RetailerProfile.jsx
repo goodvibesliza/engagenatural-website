@@ -19,8 +19,11 @@ export default function EnhancedRetailerProfile() {
   const [uploading, setUploading] = useState(false)
   const [verificationPhoto, setVerificationPhoto] = useState(null)
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
+  const [editingAboutMe, setEditingAboutMe] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState('')
   
-  // Easter egg state - FIXED: Added missing imports and proper placement
+  // Easter egg state
   const [foundEasterEggs, setFoundEasterEggs] = useState([])
   const [showEasterEgg, setShowEasterEgg] = useState(null)
   const [easterEggProgress, setEasterEggProgress] = useState(0)
@@ -29,13 +32,24 @@ export default function EnhancedRetailerProfile() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
+  const avatarFileInputRef = useRef(null)
 
   const avatarOptions = [
     '👤', '👨‍💼', '👩‍💼', '👨‍🔬', '👩‍🔬', '👨‍⚕️', '👩‍⚕️', '🧑‍🌾', '👨‍🍳', '👩‍🍳',
     '🌱', '🥬', '🥕', '🍎', '🥑', '🌿', '🌾', '🍯', '🧘‍♀️', '🧘‍♂️'
   ]
 
-  // FIXED: Moved communities array to proper location with updated structure
+  // Brand verification codes
+  const brandCodes = [
+    { id: 'nature-made', name: 'Nature Made', description: 'Get your code from your Nature Made brand representative' },
+    { id: 'garden-of-life', name: 'Garden of Life', description: 'Request code from Garden of Life regional manager' },
+    { id: 'new-chapter', name: 'New Chapter', description: 'Contact New Chapter sales team for verification code' },
+    { id: 'rainbow-light', name: 'Rainbow Light', description: 'Get code from Rainbow Light territory manager' },
+    { id: 'nordic-naturals', name: 'Nordic Naturals', description: 'Request from Nordic Naturals brand ambassador' },
+    { id: 'store-manager', name: 'Store Manager', description: 'Get verification code from your store manager' }
+  ]
+
+  // Updated communities with new structure
   const communities = [
     { 
       id: 'whats-good', 
@@ -49,9 +63,9 @@ export default function EnhancedRetailerProfile() {
       badge: "🌟 Open to All"
     },
     { 
-      id: 'supplement-scoop', 
-      name: 'The Supplement Scoop', 
-      description: "Stop guessing about supplements and start getting insider intel from the pros who sell $10M+ in products every year.",
+      id: 'daily-stack', 
+      name: 'The Daily Stack', 
+      description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
       members: 850, 
       active: false,
       isPublic: false,
@@ -73,13 +87,65 @@ export default function EnhancedRetailerProfile() {
     { 
       id: 'good-vibes', 
       name: 'Good Vibes', 
-      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose. Connect with positive, high-performing natural health retailers who celebrate wins together.",
+      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose.",
       members: 1800, 
       active: false,
       isPublic: false,
       requiresVerification: true,
       hasEasterEggs: false,
       badge: "🔒 Verification Required"
+    }
+  ]
+
+  // Example challenges for verified users
+  const exampleChallenges = [
+    {
+      id: 'nature-made-quiz',
+      brand: 'Nature Made',
+      title: 'Vitamin D Knowledge Challenge',
+      description: 'Test your knowledge about Vitamin D benefits and dosing recommendations',
+      points: 150,
+      difficulty: 'Intermediate',
+      timeLimit: '10 minutes',
+      questions: 15,
+      badge: '🏆 Vitamin D Expert',
+      requiresVerification: true
+    },
+    {
+      id: 'garden-of-life-product',
+      brand: 'Garden of Life',
+      title: 'Probiotic Product Training',
+      description: 'Learn about the latest probiotic formulations and customer recommendations',
+      points: 200,
+      difficulty: 'Advanced',
+      timeLimit: '15 minutes',
+      questions: 20,
+      badge: '🌱 Probiotic Pro',
+      requiresVerification: true
+    },
+    {
+      id: 'nordic-naturals-omega',
+      brand: 'Nordic Naturals',
+      title: 'Omega-3 Sales Mastery',
+      description: 'Master the art of selling omega-3 supplements with confidence',
+      points: 175,
+      difficulty: 'Intermediate',
+      timeLimit: '12 minutes',
+      questions: 18,
+      badge: '🐟 Omega Expert',
+      requiresVerification: true
+    },
+    {
+      id: 'new-chapter-herbs',
+      brand: 'New Chapter',
+      title: 'Herbal Supplement Specialist',
+      description: 'Become an expert in herbal supplements and their traditional uses',
+      points: 225,
+      difficulty: 'Advanced',
+      timeLimit: '20 minutes',
+      questions: 25,
+      badge: '🌿 Herb Master',
+      requiresVerification: true
     }
   ]
 
@@ -102,7 +168,7 @@ export default function EnhancedRetailerProfile() {
     }
   }
 
-  // FIXED: Function to check for easter eggs - added missing closing braces
+  // Function to check for easter eggs
   const checkForEasterEgg = async (communityId) => {
     if (communityId === 'whats-good' && user?.uid) {
       // 15% chance to find an easter egg
@@ -156,8 +222,8 @@ export default function EnhancedRetailerProfile() {
           }
         }
       }
-    } // FIXED: Added missing closing brace
-  } // FIXED: Added missing closing brace
+    }
+  }
 
   // Copy easter egg code to clipboard
   const copyEasterEggCode = (code) => {
@@ -304,22 +370,34 @@ export default function EnhancedRetailerProfile() {
     }
   }
 
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      await uploadProfileImage(file)
+      setShowAvatarSelector(false)
+    }
+  }
+
   const submitVerification = async () => {
-    if (!verificationPhoto) {
-      alert('Please take a photo or upload an image first.')
+    if (!verificationPhoto && !verificationCode) {
+      alert('Please take a photo/upload an image OR enter a verification code.')
       return
     }
 
     setUploading(true)
     try {
+      let photoURL = null
+      
+      // Upload photo if provided
+      if (verificationPhoto) {
+        const photoRef = ref(storage, `verification/${user.uid}/${Date.now()}.jpg`)
+        await uploadBytes(photoRef, verificationPhoto)
+        photoURL = await getDownloadURL(photoRef)
+      }
+      
       // Generate daily verification code
       const today = new Date()
-      const verificationCode = `ENG-${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}`
-      
-      // Upload photo to Firebase Storage
-      const photoRef = ref(storage, `verification/${user.uid}/${Date.now()}.jpg`)
-      await uploadBytes(photoRef, verificationPhoto)
-      const photoURL = await getDownloadURL(photoRef)
+      const dailyCode = `ENG-${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}`
       
       // Create verification request
       const verificationRequest = {
@@ -328,7 +406,9 @@ export default function EnhancedRetailerProfile() {
         userName: user.name,
         storeName: user.storeName,
         photoURL: photoURL,
-        verificationCode: verificationCode,
+        verificationCode: dailyCode,
+        brandCode: verificationCode,
+        selectedBrand: selectedBrand,
         submittedAt: new Date(),
         status: 'pending',
         adminNotes: ''
@@ -344,6 +424,8 @@ export default function EnhancedRetailerProfile() {
       
       setUser(prev => ({ ...prev, verificationStatus: 'pending' }))
       setVerificationPhoto(null)
+      setVerificationCode('')
+      setSelectedBrand('')
       alert('Verification submitted successfully! We\'ll review your submission within 1-2 business days.')
       
     } catch (error) {
@@ -398,6 +480,7 @@ export default function EnhancedRetailerProfile() {
       })
       
       setUser(prev => ({ ...prev, ...aboutMe }))
+      setEditingAboutMe(false)
       alert('About Me section updated successfully!')
     } catch (error) {
       console.error('Error updating about me:', error)
@@ -424,7 +507,7 @@ export default function EnhancedRetailerProfile() {
     
     return (
       <div className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 rounded-lg p-6 border border-brand-primary/20">
-        <h3 className="font-heading text-lg font-semibold mb-4">
+        <h3 className="font-heading text-lg font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>
           {isVerified ? '🎉 Verified Benefits' : '🔒 Verification Benefits'}
         </h3>
         
@@ -435,11 +518,19 @@ export default function EnhancedRetailerProfile() {
           </div>
           <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
             <span>{isVerified ? '✅' : '🔒'}</span>
-            <span>Exclusive product training and insider intel</span>
+            <span>Exclusive brand challenges and training content</span>
           </div>
           <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
             <span>{isVerified ? '✅' : '🔒'}</span>
-            <span>Free product samples and exclusive contests</span>
+            <span>Earn points to stand out to brands and become a super user</span>
+          </div>
+          <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
+            <span>{isVerified ? '✅' : '🔒'}</span>
+            <span>Special access to prizes and exclusive product launches</span>
+          </div>
+          <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
+            <span>{isVerified ? '✅' : '🔒'}</span>
+            <span>Career advancement - status follows you to help get jobs and negotiate raises</span>
           </div>
           <div className="flex items-center space-x-3 text-green-700">
             <span>✅</span>
@@ -450,7 +541,7 @@ export default function EnhancedRetailerProfile() {
         {!isVerified && (
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
             <p className="text-yellow-800 text-sm">
-              <strong>Current Status:</strong> You have access to "What's Good" community. Get verified to unlock premium communities!
+              <strong>Current Status:</strong> You have access to "What's Good" community. Get verified to unlock premium communities and advance your career!
             </p>
           </div>
         )}
@@ -489,7 +580,7 @@ export default function EnhancedRetailerProfile() {
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-2">
-              <h3 className="font-heading text-lg font-semibold text-gray-900">{community.name}</h3>
+              <h3 className="font-heading text-lg font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{community.name}</h3>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                 community.isPublic 
                   ? 'bg-green-100 text-green-800' 
@@ -534,6 +625,62 @@ export default function EnhancedRetailerProfile() {
     )
   }
 
+  const ChallengeCard = ({ challenge }) => {
+    const canAccess = user?.verificationStatus === 'approved'
+    
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              <h3 className="font-heading text-lg font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{challenge.title}</h3>
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                {challenge.brand}
+              </span>
+            </div>
+            <p className="text-gray-600 text-sm mb-3">{challenge.description}</p>
+            <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+              <span>🏆 {challenge.points} points</span>
+              <span>⏱️ {challenge.timeLimit}</span>
+              <span>❓ {challenge.questions} questions</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                challenge.difficulty === 'Advanced' ? 'bg-red-100 text-red-800' :
+                challenge.difficulty === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-green-100 text-green-800'
+              }`}>
+                {challenge.difficulty}
+              </span>
+              <span className="text-xs text-gray-500">{challenge.badge}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-between items-center">
+          <div>
+            {!canAccess && (
+              <p className="text-sm text-orange-600 mb-2">
+                🔒 Verification required to access brand challenges
+              </p>
+            )}
+          </div>
+          
+          <button
+            onClick={() => canAccess ? alert('Challenge feature coming soon!') : setActiveTab('verification')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              canAccess
+                ? 'bg-brand-primary text-white hover:bg-brand-primary/90'
+                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+            }`}
+          >
+            {canAccess ? 'Start Challenge' : 'Get Verified'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -548,7 +695,7 @@ export default function EnhancedRetailerProfile() {
                 ← Back to Home
               </button>
               <div>
-                <h1 className="text-3xl font-heading font-bold text-gray-900">Welcome back, {user?.name}!</h1>
+                <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '700', letterSpacing: '-0.025em' }}>Welcome back, {user?.name}!</h1>
                 <p className="text-gray-600 mt-1">{user?.storeName}</p>
               </div>
             </div>
@@ -590,13 +737,6 @@ export default function EnhancedRetailerProfile() {
               onClick={setActiveTab}
             />
             <TabButton
-              id="about"
-              label="About Me"
-              icon="📝"
-              isActive={activeTab === 'about'}
-              onClick={setActiveTab}
-            />
-            <TabButton
               id="communities"
               label="Communities"
               icon="👥"
@@ -620,7 +760,7 @@ export default function EnhancedRetailerProfile() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
               <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                <h2 className="font-heading text-xl font-semibold mb-4">Profile Information</h2>
+                <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>Profile Information</h2>
                 
                 {/* Profile Image Section */}
                 <div className="text-center mb-6">
@@ -661,18 +801,106 @@ export default function EnhancedRetailerProfile() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files[0]
-                          if (file) uploadProfileImage(file)
-                        }}
-                        className="text-sm"
+                        onChange={handleAvatarUpload}
+                        ref={avatarFileInputRef}
+                        className="hidden"
                       />
+                      <button
+                        onClick={() => avatarFileInputRef.current?.click()}
+                        className="w-full bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 mb-2"
+                      >
+                        📁 Upload Custom Photo
+                      </button>
+                      <button
+                        onClick={() => setShowAvatarSelector(false)}
+                        className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   )}
                   
-                  <h2 className="font-heading text-xl font-semibold text-gray-900">{user?.name}</h2>
+                  <h2 className="text-xl font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{user?.name}</h2>
                   <p className="text-gray-600">{user?.storeName}</p>
                   <div className="mt-2">{getStatusBadge()}</div>
+                </div>
+
+                {/* About Me Section - Integrated */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>About Me</h3>
+                    <button
+                      onClick={() => setEditingAboutMe(!editingAboutMe)}
+                      className="text-brand-primary hover:text-brand-primary/80 text-sm"
+                    >
+                      {editingAboutMe ? 'Cancel' : 'Edit'}
+                    </button>
+                  </div>
+                  
+                  {editingAboutMe ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Interests</label>
+                        <textarea
+                          value={aboutMe.interests}
+                          onChange={(e) => setAboutMe(prev => ({ ...prev, interests: e.target.value }))}
+                          placeholder="What products are you passionate about?"
+                          className="w-full p-2 border border-gray-300 rounded text-sm"
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                        <input
+                          type="text"
+                          value={aboutMe.location}
+                          onChange={(e) => setAboutMe(prev => ({ ...prev, location: e.target.value }))}
+                          placeholder="City, State"
+                          className="w-full p-2 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Your Story</label>
+                        <textarea
+                          value={aboutMe.story}
+                          onChange={(e) => setAboutMe(prev => ({ ...prev, story: e.target.value }))}
+                          placeholder="Tell us about your journey..."
+                          className="w-full p-2 border border-gray-300 rounded text-sm"
+                          rows={3}
+                        />
+                      </div>
+                      <button
+                        onClick={updateAboutMe}
+                        className="w-full bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 text-sm"
+                      >
+                        💾 Save Changes
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 text-sm">
+                      {aboutMe.interests && (
+                        <div>
+                          <span className="font-medium text-gray-700">Interests:</span>
+                          <p className="text-gray-600 mt-1">{aboutMe.interests}</p>
+                        </div>
+                      )}
+                      {aboutMe.location && (
+                        <div>
+                          <span className="font-medium text-gray-700">Location:</span>
+                          <p className="text-gray-600 mt-1">{aboutMe.location}</p>
+                        </div>
+                      )}
+                      {aboutMe.story && (
+                        <div>
+                          <span className="font-medium text-gray-700">Story:</span>
+                          <p className="text-gray-600 mt-1">{aboutMe.story}</p>
+                        </div>
+                      )}
+                      {!aboutMe.interests && !aboutMe.location && !aboutMe.story && (
+                        <p className="text-gray-500 italic">Click "Edit" to add your information</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -685,158 +913,151 @@ export default function EnhancedRetailerProfile() {
         {activeTab === 'verification' && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-              <h2 className="font-heading text-2xl font-semibold mb-4">Photo Verification</h2>
-              
-              <div className="mb-6">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <h3 className="font-medium text-blue-900 mb-2">📸 Verification Instructions</h3>
-                  <p className="text-blue-800 text-sm">
-                    Take a photo of yourself <strong>in-store with your name tag or apron visible</strong>. 
-                    Include today's verification code <strong>ENG-{String(new Date().getDate()).padStart(2, '0')}{String(new Date().getMonth() + 1).padStart(2, '0')}</strong> 
-                    written on a piece of paper in the photo.
-                  </p>
-                </div>
-              </div>
-
-              {!showCamera && !verificationPhoto && (
-                <div className="space-y-4">
-                  <button
-                    onClick={startCamera}
-                    className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 transition-colors"
-                  >
-                    📷 Take Photo with Camera
-                  </button>
-                  
-                  <div className="text-center text-gray-500">or</div>
-                  
-                  <label className="block">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      ref={fileInputRef}
-                    />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      📁 Upload from Computer
-                    </button>
-                  </label>
-                </div>
-              )}
-
-              {showCamera && (
-                <div className="space-y-4">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full rounded-lg"
-                  />
-                  <canvas ref={canvasRef} className="hidden" />
-                  <div className="flex space-x-4">
-                    <button
-                      onClick={capturePhoto}
-                      className="flex-1 bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90"
-                    >
-                      📸 Capture Photo
-                    </button>
-                    <button
-                      onClick={stopCamera}
-                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
-                    >
-                      ❌ Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {verificationPhoto && (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <p className="text-green-600 font-medium mb-2">✅ Photo ready for submission</p>
-                    {verificationPhoto instanceof File && (
-                      <img
-                        src={URL.createObjectURL(verificationPhoto)}
-                        alt="Verification preview"
-                        className="max-w-full h-48 object-cover rounded-lg mx-auto"
-                      />
-                    )}
-                  </div>
-                  <div className="flex space-x-4">
-                    <button
-                      onClick={submitVerification}
-                      disabled={uploading}
-                      className="flex-1 bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 disabled:opacity-50"
-                    >
-                      {uploading ? '⏳ Submitting...' : '✅ Submit Verification'}
-                    </button>
-                    <button
-                      onClick={() => setVerificationPhoto(null)}
-                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
-                    >
-                      🔄 Retake Photo
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'about' && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-              <h2 className="font-heading text-2xl font-semibold mb-4">About Me</h2>
+              <h2 className="text-2xl font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>Verification Options</h2>
               
               <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Interests & Specialties
-                  </label>
-                  <textarea
-                    value={aboutMe.interests}
-                    onChange={(e) => setAboutMe(prev => ({ ...prev, interests: e.target.value }))}
-                    placeholder="What products or areas are you most passionate about?"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-                    rows={3}
-                  />
+                {/* Photo Verification */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>📸 Photo Verification</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p className="text-blue-800 text-sm">
+                      Take a photo of yourself <strong>in-store with your name tag or apron visible</strong>. 
+                      Include today's verification code <strong>ENG-{String(new Date().getDate()).padStart(2, '0')}{String(new Date().getMonth() + 1).padStart(2, '0')}</strong> 
+                      written on a piece of paper in the photo.
+                    </p>
+                  </div>
+
+                  {!showCamera && !verificationPhoto && (
+                    <div className="space-y-4">
+                      <button
+                        onClick={startCamera}
+                        className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 transition-colors"
+                      >
+                        📷 Take Photo with Camera
+                      </button>
+                      
+                      <div className="text-center text-gray-500">or</div>
+                      
+                      <label className="block">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          ref={fileInputRef}
+                        />
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                          📁 Upload from Computer
+                        </button>
+                      </label>
+                    </div>
+                  )}
+
+                  {showCamera && (
+                    <div className="space-y-4">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full rounded-lg"
+                      />
+                      <canvas ref={canvasRef} className="hidden" />
+                      <div className="flex space-x-4">
+                        <button
+                          onClick={capturePhoto}
+                          className="flex-1 bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90"
+                        >
+                          📸 Capture Photo
+                        </button>
+                        <button
+                          onClick={stopCamera}
+                          className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
+                        >
+                          ❌ Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {verificationPhoto && (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <p className="text-green-600 font-medium mb-2">✅ Photo ready for submission</p>
+                        {verificationPhoto instanceof File && (
+                          <img
+                            src={URL.createObjectURL(verificationPhoto)}
+                            alt="Verification preview"
+                            className="max-w-full h-48 object-cover rounded-lg mx-auto"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={aboutMe.location}
-                    onChange={(e) => setAboutMe(prev => ({ ...prev, location: e.target.value }))}
-                    placeholder="City, State or Region"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-                  />
+
+                {/* Code Verification */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>🔑 Brand/Manager Code Verification</h3>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Get a verification code from your store manager or brand representative.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Select Brand/Source</label>
+                      <select
+                        value={selectedBrand}
+                        onChange={(e) => setSelectedBrand(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                      >
+                        <option value="">Choose brand or source...</option>
+                        {brandCodes.map(brand => (
+                          <option key={brand.id} value={brand.id}>{brand.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {selectedBrand && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-sm text-gray-700">
+                          {brandCodes.find(b => b.id === selectedBrand)?.description}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
+                      <input
+                        type="text"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value)}
+                        placeholder="Enter your verification code"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                      />
+                    </div>
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Your Story
-                  </label>
-                  <textarea
-                    value={aboutMe.story}
-                    onChange={(e) => setAboutMe(prev => ({ ...prev, story: e.target.value }))}
-                    placeholder="Tell us about your journey in natural health retail..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-                    rows={4}
-                  />
-                </div>
-                
+
+                {/* Submit Button */}
                 <button
-                  onClick={updateAboutMe}
-                  className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 transition-colors"
+                  onClick={submitVerification}
+                  disabled={uploading || (!verificationPhoto && !verificationCode)}
+                  className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  💾 Save About Me
+                  {uploading ? '⏳ Submitting...' : '✅ Submit Verification'}
                 </button>
+                
+                {verificationPhoto && (
+                  <button
+                    onClick={() => setVerificationPhoto(null)}
+                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
+                  >
+                    🔄 Clear Photo
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -845,7 +1066,7 @@ export default function EnhancedRetailerProfile() {
         {activeTab === 'communities' && (
           <div>
             <div className="mb-6">
-              <h2 className="font-heading text-2xl font-bold text-gray-900 mb-2">Communities</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '700', letterSpacing: '-0.025em' }}>Communities</h2>
               <p className="text-gray-600">
                 Join communities to connect with fellow retail professionals and access exclusive content!
               </p>
@@ -867,12 +1088,26 @@ export default function EnhancedRetailerProfile() {
         )}
 
         {activeTab === 'challenges' && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🎯</div>
-            <h2 className="font-heading text-2xl font-bold text-gray-900 mb-4">Challenges Coming Soon!</h2>
-            <p className="text-gray-600 max-w-md mx-auto">
-              We're working on exciting challenges that will help you earn points, learn new skills, and compete with other retailers.
-            </p>
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '700', letterSpacing: '-0.025em' }}>Brand Challenges</h2>
+              <p className="text-gray-600">
+                Complete brand challenges to earn points, badges, and advance your career in natural health retail!
+              </p>
+              {user?.verificationStatus !== 'approved' && (
+                <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="text-orange-800 text-sm">
+                    🔒 Get verified to unlock exclusive brand challenges and training content!
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6">
+              {exampleChallenges.map(challenge => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -882,7 +1117,7 @@ export default function EnhancedRetailerProfile() {
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center">
             <div className="text-6xl mb-4">🎉</div>
-            <h3 className="font-heading text-xl font-bold mb-4">{showEasterEgg.title}</h3>
+            <h3 className="text-xl font-bold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{showEasterEgg.title}</h3>
             <p className="text-gray-700 mb-6">{showEasterEgg.content}</p>
             
             {showEasterEgg.code && (
@@ -914,4 +1149,5 @@ export default function EnhancedRetailerProfile() {
     </div>
   )
 }
+
 
