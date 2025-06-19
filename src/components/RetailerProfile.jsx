@@ -51,7 +51,7 @@ export default function RetailerProfile() {
     { 
       id: 'daily-stack', 
       name: 'The Daily Stack', 
-      description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
+      description: "Stop guessing about supplements and start getting insider intel from the pros who sell $10M+ in products every year.",
       members: 850, 
       active: false,
       isPublic: false,
@@ -62,7 +62,7 @@ export default function RetailerProfile() {
     { 
       id: 'fresh-finds', 
       name: 'Fresh Finds', 
-      description: "Quit losing customers to competitors who know which organic products are trending before you do.",
+      description: "Quit losing customers to competitors who know which natural and organic products are trending before you do.",
       members: 1200, 
       active: false,
       isPublic: false,
@@ -73,7 +73,7 @@ export default function RetailerProfile() {
     { 
       id: 'good-vibes', 
       name: 'Good Vibes', 
-      description: "Stop fumbling through wellness conversations when customers ask tough questions about natural health solutions.",
+      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose. Connect with positive, high-performing natural health retailers who celebrate wins together.",
       members: 1800, 
       active: false,
       isPublic: false,
