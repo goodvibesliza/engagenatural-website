@@ -49,9 +49,9 @@ export default function EnhancedRetailerProfile() {
       badge: "🌟 Open to All"
     },
     { 
-      id: 'daily-stack', 
-      name: 'The Daily Stack', 
-      description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
+      id: 'supplement-scoop', 
+      name: 'The Supplement Scoop'
+      description: "Stop guessing about supplements and start getting insider intel from the pros who sell $10M+ in products every year.",
       members: 850, 
       active: false,
       isPublic: false,
@@ -73,7 +73,7 @@ export default function EnhancedRetailerProfile() {
     { 
       id: 'good-vibes', 
       name: 'Good Vibes', 
-      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose.",
+      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose. Connect with positive, high-performing natural health retailers who celebrate wins together.",
       members: 1800, 
       active: false,
       isPublic: false,
