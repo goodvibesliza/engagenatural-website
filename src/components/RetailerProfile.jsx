@@ -50,7 +50,7 @@ export default function EnhancedRetailerProfile() {
     },
     { 
       id: 'supplement-scoop', 
-      name: 'The Supplement Scoop',
+      name: 'The Supplement Scoop', 
       description: "Stop guessing about supplements and start getting insider intel from the pros who sell $10M+ in products every year.",
       members: 850, 
       active: false,
