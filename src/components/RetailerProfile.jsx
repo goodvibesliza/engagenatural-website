@@ -168,7 +168,7 @@ export default function EnhancedRetailerProfile() {
     }
   }
 
-  // Function to check for easter eggs
+  // FIXED: Function to check for easter eggs - only when actually joining
   const checkForEasterEgg = async (communityId) => {
     if (communityId === 'whats-good' && user?.uid) {
       // 15% chance to find an easter egg
@@ -231,7 +231,7 @@ export default function EnhancedRetailerProfile() {
     alert('Code copied to clipboard!')
   }
 
-  // Join community function
+  // FIXED: Join community function - only trigger easter egg when actually joining
   const joinCommunity = async (communityId) => {
     const community = communities.find(c => c.id === communityId)
     
@@ -243,20 +243,30 @@ export default function EnhancedRetailerProfile() {
     }
     
     try {
-      // Update user's joined communities
+      // Check if user is already a member
       const currentCommunities = user.joinedCommunities || []
-      if (!currentCommunities.includes(communityId)) {
-        const updatedCommunities = [...currentCommunities, communityId]
-        await updateDoc(doc(db, 'users', user.uid), {
-          joinedCommunities: updatedCommunities
-        })
-        setUser(prev => ({ ...prev, joinedCommunities: updatedCommunities }))
-        
-        // Check for easter eggs
-        await checkForEasterEgg(communityId)
+      if (currentCommunities.includes(communityId)) {
+        // Already a member, just show community (no easter egg)
+        alert(`You're already a member of ${community.name}! Community features coming soon.`)
+        return
       }
+      
+      // Actually join the community
+      const updatedCommunities = [...currentCommunities, communityId]
+      await updateDoc(doc(db, 'users', user.uid), {
+        joinedCommunities: updatedCommunities
+      })
+      setUser(prev => ({ ...prev, joinedCommunities: updatedCommunities }))
+      
+      // Only check for easter eggs when actually joining for the first time
+      await checkForEasterEgg(communityId)
+      
+      // Show success message
+      alert(`Welcome to ${community.name}! You've successfully joined the community.`)
+      
     } catch (error) {
       console.error('Error joining community:', error)
+      alert('Error joining community. Please try again.')
     }
   }
 
@@ -282,7 +292,7 @@ export default function EnhancedRetailerProfile() {
             // Load user's easter egg progress
             await loadEasterEggProgress(currentUser.uid)
           } else {
-            // Create new user document
+            // Create new user document - don't auto-join communities
             const newUser = {
               uid: currentUser.uid,
               email: currentUser.email,
@@ -296,7 +306,7 @@ export default function EnhancedRetailerProfile() {
               interests: '',
               location: '',
               story: '',
-              joinedCommunities: ['whats-good'] // Auto-join public community
+              joinedCommunities: [] // Start with no communities
             }
             await setDoc(doc(db, 'users', currentUser.uid), newUser)
             setUser(newUser)
@@ -370,11 +380,33 @@ export default function EnhancedRetailerProfile() {
     }
   }
 
+  // FIXED: Avatar upload function
   const handleAvatarUpload = async (event) => {
     const file = event.target.files[0]
     if (file) {
-      await uploadProfileImage(file)
-      setShowAvatarSelector(false)
+      setUploading(true)
+      try {
+        // Upload to Firebase Storage
+        const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${file.name}`)
+        const uploadResult = await uploadBytes(imageRef, file)
+        const imageURL = await getDownloadURL(uploadResult.ref)
+        
+        // Update user profile
+        await updateDoc(doc(db, 'users', user.uid), {
+          profileImage: imageURL
+        })
+        
+        setProfileImage(imageURL)
+        setUser(prev => ({ ...prev, profileImage: imageURL }))
+        setShowAvatarSelector(false)
+        alert('Profile photo uploaded successfully!')
+        
+      } catch (error) {
+        console.error('Error uploading avatar:', error)
+        alert('Error uploading photo. Please try again.')
+      } finally {
+        setUploading(false)
+      }
     }
   }
 
@@ -507,7 +539,7 @@ export default function EnhancedRetailerProfile() {
     
     return (
       <div className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 rounded-lg p-6 border border-brand-primary/20">
-        <h3 className="font-heading text-lg font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>
+        <h3 className="font-heading text-lg font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>
           {isVerified ? '🎉 Verified Benefits' : '🔒 Verification Benefits'}
         </h3>
         
@@ -580,7 +612,7 @@ export default function EnhancedRetailerProfile() {
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-2">
-              <h3 className="font-heading text-lg font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{community.name}</h3>
+              <h3 className="font-heading text-lg font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>{community.name}</h3>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                 community.isPublic 
                   ? 'bg-green-100 text-green-800' 
@@ -633,7 +665,7 @@ export default function EnhancedRetailerProfile() {
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-2">
-              <h3 className="font-heading text-lg font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{challenge.title}</h3>
+              <h3 className="font-heading text-lg font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>{challenge.title}</h3>
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                 {challenge.brand}
               </span>
@@ -695,7 +727,7 @@ export default function EnhancedRetailerProfile() {
                 ← Back to Home
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '700', letterSpacing: '-0.025em' }}>Welcome back, {user?.name}!</h1>
+                <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>Welcome back, {user?.name}!</h1>
                 <p className="text-gray-600 mt-1">{user?.storeName}</p>
               </div>
             </div>
@@ -760,7 +792,7 @@ export default function EnhancedRetailerProfile() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
               <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>Profile Information</h2>
+                <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>Profile Information</h2>
                 
                 {/* Profile Image Section */}
                 <div className="text-center mb-6">
@@ -807,9 +839,10 @@ export default function EnhancedRetailerProfile() {
                       />
                       <button
                         onClick={() => avatarFileInputRef.current?.click()}
-                        className="w-full bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 mb-2"
+                        disabled={uploading}
+                        className="w-full bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 mb-2 disabled:opacity-50"
                       >
-                        📁 Upload Custom Photo
+                        {uploading ? '⏳ Uploading...' : '📁 Upload Custom Photo'}
                       </button>
                       <button
                         onClick={() => setShowAvatarSelector(false)}
@@ -820,7 +853,7 @@ export default function EnhancedRetailerProfile() {
                     </div>
                   )}
                   
-                  <h2 className="text-xl font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{user?.name}</h2>
+                  <h2 className="text-xl font-semibold text-gray-900" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>{user?.name}</h2>
                   <p className="text-gray-600">{user?.storeName}</p>
                   <div className="mt-2">{getStatusBadge()}</div>
                 </div>
@@ -828,7 +861,7 @@ export default function EnhancedRetailerProfile() {
                 {/* About Me Section - Integrated */}
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>About Me</h3>
+                    <h3 className="text-lg font-semibold" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>About Me</h3>
                     <button
                       onClick={() => setEditingAboutMe(!editingAboutMe)}
                       className="text-brand-primary hover:text-brand-primary/80 text-sm"
@@ -913,12 +946,12 @@ export default function EnhancedRetailerProfile() {
         {activeTab === 'verification' && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>Verification Options</h2>
+              <h2 className="text-2xl font-semibold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>Verification Options</h2>
               
               <div className="space-y-6">
                 {/* Photo Verification */}
                 <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>📸 Photo Verification</h3>
+                  <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>📸 Photo Verification</h3>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                     <p className="text-blue-800 text-sm">
                       Take a photo of yourself <strong>in-store with your name tag or apron visible</strong>. 
@@ -1000,7 +1033,7 @@ export default function EnhancedRetailerProfile() {
 
                 {/* Code Verification */}
                 <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>🔑 Brand/Manager Code Verification</h3>
+                  <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>🔑 Brand/Manager Code Verification</h3>
                   <p className="text-gray-600 text-sm mb-4">
                     Get a verification code from your store manager or brand representative.
                   </p>
@@ -1066,7 +1099,7 @@ export default function EnhancedRetailerProfile() {
         {activeTab === 'communities' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '700', letterSpacing: '-0.025em' }}>Communities</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>Communities</h2>
               <p className="text-gray-600">
                 Join communities to connect with fellow retail professionals and access exclusive content!
               </p>
@@ -1090,7 +1123,7 @@ export default function EnhancedRetailerProfile() {
         {activeTab === 'challenges' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '700', letterSpacing: '-0.025em' }}>Brand Challenges</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>Brand Challenges</h2>
               <p className="text-gray-600">
                 Complete brand challenges to earn points, badges, and advance your career in natural health retail!
               </p>
@@ -1117,7 +1150,7 @@ export default function EnhancedRetailerProfile() {
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center">
             <div className="text-6xl mb-4">🎉</div>
-            <h3 className="text-xl font-bold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '600', letterSpacing: '-0.025em' }}>{showEasterEgg.title}</h3>
+            <h3 className="text-xl font-bold mb-4" style={{ fontFamily: 'Playfair Display, serif', fontWeight: '500', letterSpacing: '0.01em', lineHeight: '1.3' }}>{showEasterEgg.title}</h3>
             <p className="text-gray-700 mb-6">{showEasterEgg.content}</p>
             
             {showEasterEgg.code && (
