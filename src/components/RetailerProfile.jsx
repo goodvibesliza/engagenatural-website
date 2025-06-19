@@ -29,7 +29,21 @@ export default function EnhancedRetailerProfile() {
     '👤', '👨‍💼', '👩‍💼', '👨‍🔬', '👩‍🔬', '👨‍⚕️', '👩‍⚕️', '🧑‍🌾', '👨‍🍳', '👩‍🍳',
     '🌱', '🥬', '🥕', '🍎', '🥑', '🌿', '🌾', '🍯', '🧘‍♀️', '🧘‍♂️'
   ]
+const [foundEasterEggs, setFoundEasterEggs] = useState([])
+const [showEasterEgg, setShowEasterEgg] = useState(null)
 
+// Function to check for easter eggs
+const checkForEasterEgg = async (communityId) => {
+  if (communityId === 'whats-good') {
+    // Random chance to find an easter egg
+    if (Math.random() < 0.1) { // 10% chance
+      // Show easter egg popup
+      setShowEasterEgg({
+        title: "🎉 Hidden Gem Alert!",
+        content: "You found a secret!(BRANDS INSERT PRIZE HERE) E.G. Use code INSIDER20 for 20% off your next supplement purchase!",
+        code: "INSIDER20"
+      })
+    
   const communities = [
   { 
     id: 'whats-good', 
