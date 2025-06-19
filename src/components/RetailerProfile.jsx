@@ -31,12 +31,47 @@ export default function EnhancedRetailerProfile() {
   ]
 
   const communities = [
-    { id: 1, name: 'Supplement Specialists', members: 1250, active: true },
-    { id: 2, name: 'Organic Produce Experts', members: 890, active: true },
-    { id: 3, name: 'Natural Health Advocates', members: 2100, active: false },
-    { id: 4, name: 'Store Display Masters', members: 650, active: true },
-    { id: 5, name: 'Customer Service Champions', members: 1800, active: false }
-  ]
+  { 
+    id: 'whats-good', 
+    name: "What's Good", 
+    description: "Check out What's Good for the latest product drops and industry buzz!",
+    members: 2500, 
+    active: true,
+    isPublic: true,
+    requiresVerification: false,
+    hasEasterEggs: true
+  },
+  { 
+    id: 'daily-stack', 
+    name: 'The Daily Stack', 
+    description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
+    members: 850, 
+    active: false,
+    isPublic: false,
+    requiresVerification: true,
+    hasEasterEggs: false
+  },
+  { 
+    id: 'fresh-finds', 
+    name: 'Fresh Finds', 
+    description: "Quit losing customers to competitors who know which natural/organic products are trending before you do.",
+    members: 1200, 
+    active: false,
+    isPublic: false,
+    requiresVerification: true,
+    hasEasterEggs: false
+  },
+  { 
+    id: 'good-vibes', 
+    name: 'Good Vibes', 
+    description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose. Connect with positive, high-performing natural health retailers who celebrate wins together.",
+    members: 1800, 
+    active: false,
+    isPublic: false,
+    requiresVerification: true,
+    hasEasterEggs: false
+  }
+]
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
