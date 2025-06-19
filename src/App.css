@@ -3,6 +3,7 @@
 @import "@fontsource/playfair-display/400.css";
 @import "@fontsource/playfair-display/600.css";
 @import "@fontsource/playfair-display/700.css";
+@import "@fontsource/playfair-display/800.css"; /* Added 800 weight for bold titles */
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
@@ -130,28 +131,54 @@
     font-family: 'Inter', sans-serif;
   }
   
-  /* Typography matching Flutter app */
+  /* UPDATED Typography - Bold and Readable Playfair Display */
   .font-heading {
     font-family: 'Playfair Display', serif;
-    color: #000000 !important; /* Make Playfair font black for better readability */
-    font-weight: 600; /* Make it slightly bolder */
+    color: #000000 !important;
+    font-weight: 700 !important; /* Increased from 600 to 700 */
+    letter-spacing: -0.02em !important; /* Added tighter letter spacing */
+    line-height: 1.2 !important; /* Improved line height */
   }
   
   .font-body {
     font-family: 'Inter', sans-serif;
   }
   
-  h1, h2, h3, h4, h5, h6 {
+  /* Main titles - Extra bold like "Reveal Radiance" */
+  h1, .text-4xl, .text-3xl {
     font-family: 'Playfair Display', serif;
-    color: #000000 !important; /* Make all headings black for better readability */
-    font-weight: 600; /* Make headings slightly bolder */
+    color: #000000 !important;
+    font-weight: 800 !important; /* Extra bold for main titles */
+    letter-spacing: -0.015em !important; /* Tight spacing */
+    line-height: 1.1 !important; /* Compact line height */
   }
   
-  /* Override any colored headings */
+  /* Section headings - Bold and readable */
+  h2, .text-2xl, .text-xl {
+    font-family: 'Playfair Display', serif;
+    color: #000000 !important;
+    font-weight: 700 !important; /* Bold for section headings */
+    letter-spacing: -0.02em !important; /* Tighter spacing */
+    line-height: 1.2 !important; /* Good readability */
+  }
+  
+  /* Subsection titles - Medium weight */
+  h3, h4, h5, h6, .text-lg {
+    font-family: 'Playfair Display', serif;
+    color: #000000 !important;
+    font-weight: 600 !important; /* Medium weight for subtitles */
+    letter-spacing: -0.01em !important; /* Slight tightening */
+    line-height: 1.3 !important; /* Comfortable reading */
+  }
+  
+  /* Override any colored headings to maintain readability */
   .text-brand-primary.font-heading,
   .text-brand-secondary.font-heading,
   .text-blue-600.font-heading,
-  .text-purple-600.font-heading {
+  .text-purple-600.font-heading,
+  h1.text-brand-primary,
+  h2.text-brand-primary,
+  h3.text-brand-primary {
     color: #000000 !important;
   }
   
@@ -176,3 +203,4 @@
     border-color: #755851;
   }
 }
+
