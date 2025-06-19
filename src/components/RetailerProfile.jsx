@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, whe
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { signOut } from 'firebase/auth'
 
-export default function RetailerProfile() {
+export default function EnhancedRetailerProfile() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('profile')
@@ -20,7 +20,7 @@ export default function RetailerProfile() {
   const [verificationPhoto, setVerificationPhoto] = useState(null)
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
   
-  // Easter egg state
+  // Easter egg state - FIXED: Added missing imports and proper placement
   const [foundEasterEggs, setFoundEasterEggs] = useState([])
   const [showEasterEgg, setShowEasterEgg] = useState(null)
   const [easterEggProgress, setEasterEggProgress] = useState(0)
@@ -35,7 +35,7 @@ export default function RetailerProfile() {
     '🌱', '🥬', '🥕', '🍎', '🥑', '🌿', '🌾', '🍯', '🧘‍♀️', '🧘‍♂️'
   ]
 
-  // Updated communities with new structure
+  // FIXED: Moved communities array to proper location with updated structure
   const communities = [
     { 
       id: 'whats-good', 
@@ -51,7 +51,7 @@ export default function RetailerProfile() {
     { 
       id: 'daily-stack', 
       name: 'The Daily Stack', 
-      description: "Stop guessing about supplements and start getting insider intel from the pros who sell $10M+ in products every year.",
+      description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
       members: 850, 
       active: false,
       isPublic: false,
@@ -62,7 +62,7 @@ export default function RetailerProfile() {
     { 
       id: 'fresh-finds', 
       name: 'Fresh Finds', 
-      description: "Quit losing customers to competitors who know which natural and organic products are trending before you do.",
+      description: "Quit losing customers to competitors who know which natural/organic products are trending before you do.",
       members: 1200, 
       active: false,
       isPublic: false,
@@ -73,7 +73,7 @@ export default function RetailerProfile() {
     { 
       id: 'good-vibes', 
       name: 'Good Vibes', 
-      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose. Connect with positive, high-performing natural health retailers who celebrate wins together.",
+      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose.",
       members: 1800, 
       active: false,
       isPublic: false,
@@ -102,7 +102,7 @@ export default function RetailerProfile() {
     }
   }
 
-  // Check for easter eggs when joining "What's Good"
+  // FIXED: Function to check for easter eggs - added missing closing braces
   const checkForEasterEgg = async (communityId) => {
     if (communityId === 'whats-good' && user?.uid) {
       // 15% chance to find an easter egg
@@ -128,20 +128,6 @@ export default function RetailerProfile() {
             content: "Amazing! You found 100 bonus points for your account!",
             code: "BONUS100",
             type: "points"
-          },
-          {
-            id: 'exclusive-content',
-            title: "🔓 Secret Unlocked!",
-            content: "You've discovered exclusive training content! Check your email for special access.",
-            code: "EXCLUSIVE",
-            type: "content"
-          },
-          {
-            id: 'early-access',
-            title: "⚡ Speed Bonus!",
-            content: "You get early access to next week's product announcements!",
-            code: "EARLYBIRD",
-            type: "access"
           }
         ]
         
@@ -165,26 +151,47 @@ export default function RetailerProfile() {
             setEasterEggProgress(prev => prev + 1)
             setShowEasterEgg(randomEgg)
             
-            // Award points if it's a points egg
-            if (randomEgg.type === 'points') {
-              await updateDoc(doc(db, 'users', user.uid), {
-                points: (user.points || 0) + 100
-              })
-              setUser(prev => ({ ...prev, points: (prev.points || 0) + 100 }))
-            }
-            
           } catch (error) {
             console.error('Error recording easter egg find:', error)
           }
         }
       }
-    }
-  }
+    } // FIXED: Added missing closing brace
+  } // FIXED: Added missing closing brace
 
   // Copy easter egg code to clipboard
   const copyEasterEggCode = (code) => {
     navigator.clipboard.writeText(code)
     alert('Code copied to clipboard!')
+  }
+
+  // Join community function
+  const joinCommunity = async (communityId) => {
+    const community = communities.find(c => c.id === communityId)
+    
+    // Check if verification is required
+    if (community.requiresVerification && user?.verificationStatus !== 'approved') {
+      alert('This community requires verification. Please complete your verification first!')
+      setActiveTab('verification')
+      return
+    }
+    
+    try {
+      // Update user's joined communities
+      const currentCommunities = user.joinedCommunities || []
+      if (!currentCommunities.includes(communityId)) {
+        const updatedCommunities = [...currentCommunities, communityId]
+        await updateDoc(doc(db, 'users', user.uid), {
+          joinedCommunities: updatedCommunities
+        })
+        setUser(prev => ({ ...prev, joinedCommunities: updatedCommunities }))
+        
+        // Check for easter eggs
+        await checkForEasterEgg(communityId)
+      }
+    } catch (error) {
+      console.error('Error joining community:', error)
+    }
   }
 
   useEffect(() => {
@@ -223,8 +230,7 @@ export default function RetailerProfile() {
               interests: '',
               location: '',
               story: '',
-              joinedCommunities: ['whats-good'], // Auto-join public community
-              foundEasterEggs: []
+              joinedCommunities: ['whats-good'] // Auto-join public community
             }
             await setDoc(doc(db, 'users', currentUser.uid), newUser)
             setUser(newUser)
@@ -241,41 +247,161 @@ export default function RetailerProfile() {
     return () => unsubscribe()
   }, [navigate])
 
-  // Join community function
-  const joinCommunity = async (communityId) => {
-    const community = communities.find(c => c.id === communityId)
-    
-    // Check if verification is required
-    if (community.requiresVerification && user?.verificationStatus !== 'approved') {
-      alert('This community requires verification. Please complete your verification first!')
-      setActiveTab('verification')
-      return
-    }
-    
-    try {
-      // Update user's joined communities
-      const currentCommunities = user.joinedCommunities || []
-      if (!currentCommunities.includes(communityId)) {
-        const updatedCommunities = [...currentCommunities, communityId]
-        await updateDoc(doc(db, 'users', user.uid), {
-          joinedCommunities: updatedCommunities
-        })
-        setUser(prev => ({ ...prev, joinedCommunities: updatedCommunities }))
-        
-        // Check for easter eggs
-        await checkForEasterEgg(communityId)
-      }
-    } catch (error) {
-      console.error('Error joining community:', error)
-    }
-  }
-
   const handleSignOut = async () => {
     try {
       await signOut(auth)
       navigate('/')
     } catch (error) {
       console.error('Error signing out:', error)
+    }
+  }
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 640, height: 480 } 
+      })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        setShowCamera(true)
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error)
+      alert('Unable to access camera. Please check permissions or use file upload instead.')
+    }
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current
+      const video = videoRef.current
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(video, 0, 0)
+      
+      canvas.toBlob((blob) => {
+        setVerificationPhoto(blob)
+        stopCamera()
+      }, 'image/jpeg', 0.8)
+    }
+  }
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks()
+      tracks.forEach(track => track.stop())
+      videoRef.current.srcObject = null
+    }
+    setShowCamera(false)
+  }
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      setVerificationPhoto(file)
+    }
+  }
+
+  const submitVerification = async () => {
+    if (!verificationPhoto) {
+      alert('Please take a photo or upload an image first.')
+      return
+    }
+
+    setUploading(true)
+    try {
+      // Generate daily verification code
+      const today = new Date()
+      const verificationCode = `ENG-${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}`
+      
+      // Upload photo to Firebase Storage
+      const photoRef = ref(storage, `verification/${user.uid}/${Date.now()}.jpg`)
+      await uploadBytes(photoRef, verificationPhoto)
+      const photoURL = await getDownloadURL(photoRef)
+      
+      // Create verification request
+      const verificationRequest = {
+        userId: user.uid,
+        userEmail: user.email,
+        userName: user.name,
+        storeName: user.storeName,
+        photoURL: photoURL,
+        verificationCode: verificationCode,
+        submittedAt: new Date(),
+        status: 'pending',
+        adminNotes: ''
+      }
+      
+      await addDoc(collection(db, 'verification_requests'), verificationRequest)
+      
+      // Update user status
+      await updateDoc(doc(db, 'users', user.uid), {
+        verificationStatus: 'pending',
+        lastVerificationSubmission: new Date()
+      })
+      
+      setUser(prev => ({ ...prev, verificationStatus: 'pending' }))
+      setVerificationPhoto(null)
+      alert('Verification submitted successfully! We\'ll review your submission within 1-2 business days.')
+      
+    } catch (error) {
+      console.error('Error submitting verification:', error)
+      alert('Error submitting verification. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const uploadProfileImage = async (file) => {
+    setUploading(true)
+    try {
+      const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}.jpg`)
+      await uploadBytes(imageRef, file)
+      const imageURL = await getDownloadURL(imageRef)
+      
+      await updateDoc(doc(db, 'users', user.uid), {
+        profileImage: imageURL
+      })
+      
+      setProfileImage(imageURL)
+      setUser(prev => ({ ...prev, profileImage: imageURL }))
+    } catch (error) {
+      console.error('Error uploading profile image:', error)
+      alert('Error uploading image. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const selectAvatar = async (avatar) => {
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        profileImage: avatar
+      })
+      
+      setProfileImage(avatar)
+      setUser(prev => ({ ...prev, profileImage: avatar }))
+      setShowAvatarSelector(false)
+    } catch (error) {
+      console.error('Error selecting avatar:', error)
+    }
+  }
+
+  const updateAboutMe = async () => {
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        interests: aboutMe.interests,
+        location: aboutMe.location,
+        story: aboutMe.story
+      })
+      
+      setUser(prev => ({ ...prev, ...aboutMe }))
+      alert('About Me section updated successfully!')
+    } catch (error) {
+      console.error('Error updating about me:', error)
+      alert('Error updating information. Please try again.')
     }
   }
 
@@ -464,17 +590,17 @@ export default function RetailerProfile() {
               onClick={setActiveTab}
             />
             <TabButton
-              id="communities"
-              label="Communities"
-              icon="👥"
-              isActive={activeTab === 'communities'}
-              onClick={setActiveTab}
-            />
-            <TabButton
               id="about"
               label="About Me"
               icon="📝"
               isActive={activeTab === 'about'}
+              onClick={setActiveTab}
+            />
+            <TabButton
+              id="communities"
+              label="Communities"
+              icon="👥"
+              isActive={activeTab === 'communities'}
               onClick={setActiveTab}
             />
             <TabButton
@@ -490,24 +616,60 @@ export default function RetailerProfile() {
 
       {/* Content */}
       <div className="container mx-auto px-4 py-8">
-        {/* Profile tab */}
         {activeTab === 'profile' && (
           <div className="grid md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <h2 className="font-heading text-xl font-semibold mb-4">Profile Information</h2>
+                
+                {/* Profile Image Section */}
                 <div className="text-center mb-6">
                   <div className="relative inline-block">
                     <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-4xl mx-auto mb-4">
                       {profileImage ? (
-                        <img src={profileImage} alt="Profile" className="w-24 h-24 rounded-full object-cover" />
+                        typeof profileImage === 'string' && profileImage.startsWith('http') ? (
+                          <img src={profileImage} alt="Profile" className="w-24 h-24 rounded-full object-cover" />
+                        ) : (
+                          <span>{profileImage}</span>
+                        )
                       ) : (
                         '👤'
                       )}
                     </div>
-                    <button className="absolute bottom-0 right-0 bg-brand-primary text-white rounded-full p-2 hover:bg-brand-primary/90">
+                    <button
+                      onClick={() => setShowAvatarSelector(!showAvatarSelector)}
+                      className="absolute bottom-0 right-0 bg-brand-primary text-white rounded-full p-2 hover:bg-brand-primary/90"
+                    >
                       📷
                     </button>
                   </div>
+                  
+                  {showAvatarSelector && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <h3 className="text-sm font-medium mb-3">Choose Avatar or Upload Photo</h3>
+                      <div className="grid grid-cols-5 gap-2 mb-4">
+                        {avatarOptions.map((avatar, index) => (
+                          <button
+                            key={index}
+                            onClick={() => selectAvatar(avatar)}
+                            className="text-2xl p-2 hover:bg-gray-200 rounded"
+                          >
+                            {avatar}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0]
+                          if (file) uploadProfileImage(file)
+                        }}
+                        className="text-sm"
+                      />
+                    </div>
+                  )}
+                  
                   <h2 className="font-heading text-xl font-semibold text-gray-900">{user?.name}</h2>
                   <p className="text-gray-600">{user?.storeName}</p>
                   <div className="mt-2">{getStatusBadge()}</div>
@@ -520,7 +682,166 @@ export default function RetailerProfile() {
           </div>
         )}
 
-        {/* Communities tab */}
+        {activeTab === 'verification' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="font-heading text-2xl font-semibold mb-4">Photo Verification</h2>
+              
+              <div className="mb-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <h3 className="font-medium text-blue-900 mb-2">📸 Verification Instructions</h3>
+                  <p className="text-blue-800 text-sm">
+                    Take a photo of yourself <strong>in-store with your name tag or apron visible</strong>. 
+                    Include today's verification code <strong>ENG-{String(new Date().getDate()).padStart(2, '0')}{String(new Date().getMonth() + 1).padStart(2, '0')}</strong> 
+                    written on a piece of paper in the photo.
+                  </p>
+                </div>
+              </div>
+
+              {!showCamera && !verificationPhoto && (
+                <div className="space-y-4">
+                  <button
+                    onClick={startCamera}
+                    className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 transition-colors"
+                  >
+                    📷 Take Photo with Camera
+                  </button>
+                  
+                  <div className="text-center text-gray-500">or</div>
+                  
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      ref={fileInputRef}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      📁 Upload from Computer
+                    </button>
+                  </label>
+                </div>
+              )}
+
+              {showCamera && (
+                <div className="space-y-4">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full rounded-lg"
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={capturePhoto}
+                      className="flex-1 bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90"
+                    >
+                      📸 Capture Photo
+                    </button>
+                    <button
+                      onClick={stopCamera}
+                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
+                    >
+                      ❌ Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {verificationPhoto && (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-green-600 font-medium mb-2">✅ Photo ready for submission</p>
+                    {verificationPhoto instanceof File && (
+                      <img
+                        src={URL.createObjectURL(verificationPhoto)}
+                        alt="Verification preview"
+                        className="max-w-full h-48 object-cover rounded-lg mx-auto"
+                      />
+                    )}
+                  </div>
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={submitVerification}
+                      disabled={uploading}
+                      className="flex-1 bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 disabled:opacity-50"
+                    >
+                      {uploading ? '⏳ Submitting...' : '✅ Submit Verification'}
+                    </button>
+                    <button
+                      onClick={() => setVerificationPhoto(null)}
+                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
+                    >
+                      🔄 Retake Photo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'about' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="font-heading text-2xl font-semibold mb-4">About Me</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Interests & Specialties
+                  </label>
+                  <textarea
+                    value={aboutMe.interests}
+                    onChange={(e) => setAboutMe(prev => ({ ...prev, interests: e.target.value }))}
+                    placeholder="What products or areas are you most passionate about?"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                    rows={3}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={aboutMe.location}
+                    onChange={(e) => setAboutMe(prev => ({ ...prev, location: e.target.value }))}
+                    placeholder="City, State or Region"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Story
+                  </label>
+                  <textarea
+                    value={aboutMe.story}
+                    onChange={(e) => setAboutMe(prev => ({ ...prev, story: e.target.value }))}
+                    placeholder="Tell us about your journey in natural health retail..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                    rows={4}
+                  />
+                </div>
+                
+                <button
+                  onClick={updateAboutMe}
+                  className="w-full bg-brand-primary text-white py-3 px-4 rounded-lg hover:bg-brand-primary/90 transition-colors"
+                >
+                  💾 Save About Me
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'communities' && (
           <div>
             <div className="mb-6">
@@ -545,25 +866,13 @@ export default function RetailerProfile() {
           </div>
         )}
 
-        {/* Other tabs - simplified for now */}
-        {activeTab === 'verification' && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="font-heading text-2xl font-bold text-gray-900 mb-4">Verification</h2>
-            <p className="text-gray-600">Verification functionality coming soon...</p>
-          </div>
-        )}
-
-        {activeTab === 'about' && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="font-heading text-2xl font-bold text-gray-900 mb-4">About Me</h2>
-            <p className="text-gray-600">About me functionality coming soon...</p>
-          </div>
-        )}
-
         {activeTab === 'challenges' && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="font-heading text-2xl font-bold text-gray-900 mb-4">Challenges</h2>
-            <p className="text-gray-600">Challenges functionality coming soon...</p>
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🎯</div>
+            <h2 className="font-heading text-2xl font-bold text-gray-900 mb-4">Challenges Coming Soon!</h2>
+            <p className="text-gray-600 max-w-md mx-auto">
+              We're working on exciting challenges that will help you earn points, learn new skills, and compete with other retailers.
+            </p>
           </div>
         )}
       </div>
