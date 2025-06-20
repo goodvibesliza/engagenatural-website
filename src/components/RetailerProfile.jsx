@@ -4,30 +4,34 @@ import { auth, db, storage } from '../lib/firebase'
 import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { signOut } from 'firebase/auth'
+import { moderateHealthContent, filterPostContent } from '../utils/ContentModeration'
 
-// Updated font styles to match the readable Playfair Display
+// FIXED font styles - Headlines thicker, subheadings Inter
 const fontStyles = {
   mainTitle: {
     fontFamily: 'Playfair Display, serif',
-    fontWeight: '800',
+    fontWeight: '900', // Increased to 900 for thicker headlines
     letterSpacing: '-0.015em',
-    lineHeight: '1.1'
+    lineHeight: '1.1',
+    color: '#000000'
   },
   sectionHeading: {
     fontFamily: 'Playfair Display, serif',
-    fontWeight: '700',
+    fontWeight: '800', // Thick but not as thick as main titles
     letterSpacing: '-0.02em',
-    lineHeight: '1.2'
+    lineHeight: '1.2',
+    color: '#000000'
   },
   subsectionTitle: {
-    fontFamily: 'Playfair Display, serif',
-    fontWeight: '600',
-    letterSpacing: '-0.01em',
-    lineHeight: '1.3'
+    fontFamily: 'Inter, sans-serif', // FIXED: Back to Inter for subheadings
+    fontWeight: '700',
+    letterSpacing: '-0.005em',
+    lineHeight: '1.3',
+    color: '#000000'
   }
 }
 
-export default function EnhancedRetailerProfile() {
+export default function CompleteRetailerProfile() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('profile')
@@ -38,10 +42,15 @@ export default function EnhancedRetailerProfile() {
     location: '',
     story: ''
   })
+  const [userInfo, setUserInfo] = useState({
+    name: '',
+    storeName: ''
+  })
   const [uploading, setUploading] = useState(false)
   const [verificationPhoto, setVerificationPhoto] = useState(null)
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
   const [editingAboutMe, setEditingAboutMe] = useState(false)
+  const [editingUserInfo, setEditingUserInfo] = useState(false) // NEW: For editing names
   const [verificationCode, setVerificationCode] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('')
   
@@ -71,7 +80,7 @@ export default function EnhancedRetailerProfile() {
     { id: 'store-manager', name: 'Store Manager', description: 'Get verification code from your store manager' }
   ]
 
-  // Updated communities with new structure
+  // UPDATED communities with new names and descriptions
   const communities = [
     { 
       id: 'whats-good', 
@@ -85,8 +94,8 @@ export default function EnhancedRetailerProfile() {
       badge: "🌟 Open to All"
     },
     { 
-      id: 'daily-stack', 
-      name: 'The Daily Stack', 
+      id: 'supplement-scoop', // UPDATED: Changed from 'daily-stack'
+      name: 'Supplement Scoop', // UPDATED: New name
       description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
       members: 850, 
       active: false,
@@ -109,7 +118,7 @@ export default function EnhancedRetailerProfile() {
     { 
       id: 'good-vibes', 
       name: 'Good Vibes', 
-      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose.",
+      description: "Stop struggling alone with difficult customers and impossible sales targets while feeling burnt out and disconnected from your purpose. Connect with positive, high-performing natural health retailers.", // UPDATED: New description
       members: 1800, 
       active: false,
       isPublic: false,
@@ -190,7 +199,7 @@ export default function EnhancedRetailerProfile() {
     }
   }
 
-  // FIXED: Function to check for easter eggs - only when actually joining
+  // Function to check for easter eggs - only when actually joining
   const checkForEasterEgg = async (communityId) => {
     if (communityId === 'whats-good' && user?.uid) {
       // 15% chance to find an easter egg
@@ -253,7 +262,7 @@ export default function EnhancedRetailerProfile() {
     alert('Code copied to clipboard!')
   }
 
-  // UPDATED: Join community function - navigate to community page
+  // Join community function - navigate to community page
   const joinCommunity = async (communityId) => {
     const community = communities.find(c => c.id === communityId)
     
@@ -309,12 +318,16 @@ export default function EnhancedRetailerProfile() {
               location: userData.location || '',
               story: userData.story || ''
             })
+            setUserInfo({
+              name: userData.name || currentUser.displayName || 'New User',
+              storeName: userData.storeName || 'Unknown Store'
+            })
             setProfileImage(userData.profileImage || null)
             
             // Load user's easter egg progress
             await loadEasterEggProgress(currentUser.uid)
           } else {
-            // Create new user document - don't auto-join communities
+            // Create new user document
             const newUser = {
               uid: currentUser.uid,
               email: currentUser.email,
@@ -328,10 +341,14 @@ export default function EnhancedRetailerProfile() {
               interests: '',
               location: '',
               story: '',
-              joinedCommunities: [] // Start with no communities
+              joinedCommunities: []
             }
             await setDoc(doc(db, 'users', currentUser.uid), newUser)
             setUser(newUser)
+            setUserInfo({
+              name: newUser.name,
+              storeName: newUser.storeName
+            })
           }
         } catch (error) {
           console.error('Error fetching user data:', error)
@@ -402,16 +419,26 @@ export default function EnhancedRetailerProfile() {
     }
   }
 
-  // FIXED: Avatar upload function
+  // IMPROVED: Avatar upload function with better error handling
   const handleAvatarUpload = async (event) => {
     const file = event.target.files[0]
     if (file) {
       setUploading(true)
       try {
+        // Check if storage is available
+        if (!storage) {
+          throw new Error('Firebase Storage not initialized')
+        }
+
         // Upload to Firebase Storage
         const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${file.name}`)
+        console.log('Uploading to:', imageRef.fullPath)
+        
         const uploadResult = await uploadBytes(imageRef, file)
+        console.log('Upload successful:', uploadResult)
+        
         const imageURL = await getDownloadURL(uploadResult.ref)
+        console.log('Download URL:', imageURL)
         
         // Update user profile
         await updateDoc(doc(db, 'users', user.uid), {
@@ -425,7 +452,7 @@ export default function EnhancedRetailerProfile() {
         
       } catch (error) {
         console.error('Error uploading avatar:', error)
-        alert('Error uploading photo. Please try again.')
+        alert(`Error uploading photo: ${error.message}. Please check Firebase Storage setup.`)
       } finally {
         setUploading(false)
       }
@@ -444,6 +471,10 @@ export default function EnhancedRetailerProfile() {
       
       // Upload photo if provided
       if (verificationPhoto) {
+        if (!storage) {
+          throw new Error('Firebase Storage not initialized')
+        }
+        
         const photoRef = ref(storage, `verification/${user.uid}/${Date.now()}.jpg`)
         await uploadBytes(photoRef, verificationPhoto)
         photoURL = await getDownloadURL(photoRef)
@@ -484,28 +515,7 @@ export default function EnhancedRetailerProfile() {
       
     } catch (error) {
       console.error('Error submitting verification:', error)
-      alert('Error submitting verification. Please try again.')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const uploadProfileImage = async (file) => {
-    setUploading(true)
-    try {
-      const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}.jpg`)
-      await uploadBytes(imageRef, file)
-      const imageURL = await getDownloadURL(imageRef)
-      
-      await updateDoc(doc(db, 'users', user.uid), {
-        profileImage: imageURL
-      })
-      
-      setProfileImage(imageURL)
-      setUser(prev => ({ ...prev, profileImage: imageURL }))
-    } catch (error) {
-      console.error('Error uploading profile image:', error)
-      alert('Error uploading image. Please try again.')
+      alert(`Error submitting verification: ${error.message}`)
     } finally {
       setUploading(false)
     }
@@ -542,6 +552,23 @@ export default function EnhancedRetailerProfile() {
     }
   }
 
+  // NEW: Update user info (name and store name)
+  const updateUserInfo = async () => {
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        name: userInfo.name,
+        storeName: userInfo.storeName
+      })
+      
+      setUser(prev => ({ ...prev, name: userInfo.name, storeName: userInfo.storeName }))
+      setEditingUserInfo(false)
+      alert('Profile information updated successfully!')
+    } catch (error) {
+      console.error('Error updating user info:', error)
+      alert('Error updating information. Please try again.')
+    }
+  }
+
   const getStatusBadge = () => {
     const baseClasses = "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
     switch (user?.verificationStatus) {
@@ -568,7 +595,7 @@ export default function EnhancedRetailerProfile() {
         <div className="space-y-3">
           <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
             <span>{isVerified ? '✅' : '🔒'}</span>
-            <span>Access to premium communities (The Daily Stack, Fresh Finds, Good Vibes)</span>
+            <span>Access to premium communities (Supplement Scoop, Fresh Finds, Good Vibes)</span>
           </div>
           <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
             <span>{isVerified ? '✅' : '🔒'}</span>
@@ -875,9 +902,53 @@ export default function EnhancedRetailerProfile() {
                     </div>
                   )}
                   
-                  <h2 className="text-xl text-gray-900" style={fontStyles.subsectionTitle}>{user?.name}</h2>
-                  <p className="text-gray-600">{user?.storeName}</p>
-                  <div className="mt-2">{getStatusBadge()}</div>
+                  {/* NEW: Editable User Info */}
+                  {editingUserInfo ? (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={userInfo.name}
+                        onChange={(e) => setUserInfo(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded text-center font-medium"
+                        placeholder="Your Name"
+                      />
+                      <input
+                        type="text"
+                        value={userInfo.storeName}
+                        onChange={(e) => setUserInfo(prev => ({ ...prev, storeName: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded text-center text-gray-600"
+                        placeholder="Store Name"
+                      />
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={updateUserInfo}
+                          className="flex-1 bg-brand-primary text-white py-1 px-3 rounded text-sm hover:bg-brand-primary/90"
+                        >
+                          💾 Save
+                        </button>
+                        <button
+                          onClick={() => setEditingUserInfo(false)}
+                          className="flex-1 bg-gray-100 text-gray-700 py-1 px-3 rounded text-sm hover:bg-gray-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-center space-x-2">
+                        <h2 className="text-xl text-gray-900" style={fontStyles.subsectionTitle}>{user?.name}</h2>
+                        <button
+                          onClick={() => setEditingUserInfo(true)}
+                          className="text-brand-primary hover:text-brand-primary/80 text-sm"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                      <p className="text-gray-600">{user?.storeName}</p>
+                      <div className="mt-2">{getStatusBadge()}</div>
+                    </div>
+                  )}
                 </div>
 
                 {/* About Me Section - Integrated */}
@@ -1204,5 +1275,4 @@ export default function EnhancedRetailerProfile() {
     </div>
   )
 }
-
 
