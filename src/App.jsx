@@ -10,6 +10,9 @@ import BrandsLanding from './components/BrandsLanding'
 import AdminDashboard from './components/AdminDashboard'
 import AdminLogin from './components/AdminLogin'
 import RetailerProfile from './components/RetailerProfile'
+import CommunityPage from './components/CommunityPage'
+
+
 
 function App() {
   const [user, setUser] = useState(null)
@@ -55,7 +58,10 @@ function App() {
         <Routes>
           {/* Public website route */}
           <Route path="/" element={<PublicWebsite />} />
-          
+
+          // Add this route to your router:
+<Route path="/community/:communityId" element={<CommunityPage />} />
+                    
           {/* Hidden brands landing page - only accessible via direct link */}
           <Route path="/brands" element={<BrandsLanding />} />
           
