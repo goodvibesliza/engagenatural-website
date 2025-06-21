@@ -459,68 +459,120 @@ export default function CompleteRetailerProfile() {
     }
   }
 
-  const submitVerification = async () => {
-    if (!verificationPhoto && !verificationCode) {
-      alert('Please take a photo/upload an image OR enter a verification code.')
-      return
-    }
-
-    setUploading(true)
-    try {
-      let photoURL = null
-      
-      // Upload photo if provided
-      if (verificationPhoto) {
-        if (!storage) {
-          throw new Error('Firebase Storage not initialized')
-        }
-        
-        const photoRef = ref(storage, `verification/${user.uid}/${Date.now()}.jpg`)
-        await uploadBytes(photoRef, verificationPhoto)
-        photoURL = await getDownloadURL(photoRef)
-      }
-      
-      // Generate daily verification code
-      const today = new Date()
-      const dailyCode = `ENG-${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}`
-      
-      // Create verification request
-      const verificationRequest = {
-        userId: user.uid,
-        userEmail: user.email,
-        userName: user.name,
-        storeName: user.storeName,
-        photoURL: photoURL,
-        verificationCode: dailyCode,
-        brandCode: verificationCode,
-        selectedBrand: selectedBrand,
-        submittedAt: new Date(),
-        status: 'pending',
-        adminNotes: ''
-      }
-      
-      await addDoc(collection(db, 'verification_requests'), verificationRequest)
-      
-      // Update user status
-      await updateDoc(doc(db, 'users', user.uid), {
-        verificationStatus: 'pending',
-        lastVerificationSubmission: new Date()
-      })
-      
-      setUser(prev => ({ ...prev, verificationStatus: 'pending' }))
-      setVerificationPhoto(null)
-      setVerificationCode('')
-      setSelectedBrand('')
-      alert('Verification submitted successfully! We\'ll review your submission within 1-2 business days.')
-      
-    } catch (error) {
-      console.error('Error submitting verification:', error)
-      alert(`Error submitting verification: ${error.message}`)
-    } finally {
-      setUploading(false)
-    }
+ const submitVerification = async () => {
+  if (!verificationPhoto && !verificationCode) {
+    alert('Please take a photo/upload an image OR enter a verification code.')
+    return
   }
 
+  setUploading(true)
+  try {
+    let photoURL = null
+    
+    // Upload photo if provided
+    if (verificationPhoto) {
+      console.log('Starting photo upload...')
+      
+      if (!storage) {
+        throw new Error('Firebase Storage not initialized. Please check your Firebase configuration.')
+      }
+      
+      if (!auth.currentUser) {
+        throw new Error('User not authenticated. Please log in again.')
+      }
+      
+      console.log('User authenticated:', auth.currentUser.uid)
+      
+      const fileName = `${Date.now()}_verification.jpg`
+      const photoRef = ref(storage, `verification/${auth.currentUser.uid}/${fileName}`)
+      
+      console.log('Upload path:', photoRef.fullPath)
+      console.log('File size:', verificationPhoto.size, 'bytes')
+      console.log('File type:', verificationPhoto.type)
+      
+      // Add file size check
+      if (verificationPhoto.size > 10 * 1024 * 1024) { // 10MB limit
+        throw new Error('File size too large. Please choose a file smaller than 10MB.')
+      }
+      
+      // Add file type check
+      if (!verificationPhoto.type.startsWith('image/')) {
+        throw new Error('Please select a valid image file.')
+      }
+      
+      console.log('Uploading file...')
+      const uploadResult = await uploadBytes(photoRef, verificationPhoto)
+      console.log('Upload successful:', uploadResult)
+      
+      console.log('Getting download URL...')
+      photoURL = await getDownloadURL(photoRef)
+      console.log('Download URL obtained:', photoURL)
+    }
+    
+    // Generate daily verification code
+    const today = new Date()
+    const dailyCode = `ENG-${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}`
+    
+    console.log('Creating verification request...')
+    
+    // Create verification request
+    const verificationRequest = {
+      userId: auth.currentUser.uid,
+      userEmail: auth.currentUser.email,
+      userName: user.name,
+      storeName: user.storeName,
+      photoURL: photoURL,
+      verificationCode: dailyCode,
+      brandCode: verificationCode,
+      selectedBrand: selectedBrand,
+      submittedAt: new Date(),
+      status: 'pending',
+      adminNotes: ''
+    }
+    
+    console.log('Adding to Firestore...')
+    await addDoc(collection(db, 'verification_requests'), verificationRequest)
+    
+    console.log('Updating user status...')
+    // Update user status
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+      verificationStatus: 'pending',
+      lastVerificationSubmission: new Date()
+    })
+    
+    setUser(prev => ({ ...prev, verificationStatus: 'pending' }))
+    setVerificationPhoto(null)
+    setVerificationCode('')
+    setSelectedBrand('')
+    
+    console.log('Verification submitted successfully!')
+    alert('Verification submitted successfully! We\'ll review your submission within 1-2 business days.')
+    
+  } catch (error) {
+    console.error('Detailed error submitting verification:', error)
+    
+    // Provide specific error messages based on error type
+    let errorMessage = 'Error submitting verification: '
+    
+    if (error.code === 'storage/unauthorized') {
+      errorMessage += 'Permission denied. Please check your authentication status.'
+    } else if (error.code === 'storage/canceled') {
+      errorMessage += 'Upload was canceled. Please try again.'
+    } else if (error.code === 'storage/unknown') {
+      errorMessage += 'Unknown storage error. Please check your internet connection and try again.'
+    } else if (error.message.includes('Firebase Storage not initialized')) {
+      errorMessage += 'Storage configuration error. Please contact support.'
+    } else if (error.message.includes('not authenticated')) {
+      errorMessage += 'Please log out and log back in, then try again.'
+    } else {
+      errorMessage += error.message
+    }
+    
+    alert(errorMessage)
+  } finally {
+    setUploading(false)
+  }
+}
   const selectAvatar = async (avatar) => {
     try {
       await updateDoc(doc(db, 'users', user.uid), {
