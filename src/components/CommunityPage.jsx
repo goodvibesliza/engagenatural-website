@@ -43,7 +43,7 @@ export default function CommunityPage() {
 
   // Helper function to display profile image properly
   const getProfileImageDisplay = (user) => {
-    if (!user) return '👤'
+    if (!user) return null
     
     // If profileImage is a URL, return an img element
     if (user.profileImage && (user.profileImage.startsWith('http') || user.profileImage.startsWith('data:'))) {
@@ -60,11 +60,10 @@ export default function CommunityPage() {
       )
     }
     
-    // If it's just a filename or emoji, return the emoji or default
-    return user.profileImage || '👤'
+    return null
   }
 
-  // FIXED: Simple navigation - all logged-in users can access profile
+  // Simple navigation - all logged-in users can access profile
   const handleBackToProfile = () => {
     console.log('Navigating to profile...')
     
@@ -77,70 +76,48 @@ export default function CommunityPage() {
     }
   }
 
-  // FIXED: Navigate to community homepage with fallback
-  const handleCommunityHomepage = () => {
-    console.log('Navigating to community homepage...')
-    
-    // Try multiple possible routes for communities page
-    try {
-      // First try the main communities route
-      navigate('/communities')
-    } catch (error) {
-      console.log('Communities route not found, trying alternatives...')
-      
-      // Fallback options
-      try {
-        // Try retailer profile as fallback (where communities might be listed)
-        navigate('/retailer/profile')
-      } catch (error2) {
-        // Last resort - go to homepage
-        navigate('/')
-      }
-    }
-  }
-
   // Sample posts for "What's Good" community
   const samplePosts = [
     {
       id: 'post-1',
       author: 'Sarah M.',
       authorRole: 'Supplement Specialist',
-      authorAvatar: '👩‍💼',
+      authorAvatar: null,
       verified: true,
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      content: "🔥 JUST IN: New Nordic Naturals Omega-3 formula just dropped! The bioavailability is incredible - customers are already asking for it by name. Anyone else seeing the buzz?",
+      content: "JUST IN: New Nordic Naturals Omega-3 formula just dropped! The bioavailability is incredible - customers are already asking for it by name. Anyone else seeing the buzz?",
       likes: 23,
       comments: 8,
       shares: 5,
-      tags: ['#ProductDrop', '#Omega3', '#NordicNaturals'],
+      tags: ['ProductDrop', 'Omega3', 'NordicNaturals'],
       type: 'product-drop'
     },
     {
       id: 'post-2',
       author: 'Mike R.',
       authorRole: 'Store Manager',
-      authorAvatar: '👨‍💼',
+      authorAvatar: null,
       verified: true,
       timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      content: "Industry insider tip: Adaptogenic herbs are about to EXPLODE this quarter. Stock up on ashwagandha, rhodiola, and holy basil now. Trust me on this one! 📈",
+      content: "Industry insider tip: Adaptogenic herbs are about to EXPLODE this quarter. Stock up on ashwagandha, rhodiola, and holy basil now. Trust me on this one!",
       likes: 45,
       comments: 12,
       shares: 18,
-      tags: ['#IndustryBuzz', '#Adaptogens', '#StockTip'],
+      tags: ['IndustryBuzz', 'Adaptogens', 'StockTip'],
       type: 'industry-buzz'
     },
     {
       id: 'post-3',
       author: 'Jessica L.',
       authorRole: 'Natural Health Advisor',
-      authorAvatar: '🌿',
+      authorAvatar: null,
       verified: true,
       timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-      content: "🎉 EASTER EGG ALERT! 🥚 Found a hidden discount code in the new Garden of Life display - SPRING25 for 25% off! Shh... don't tell everyone 😉",
+      content: "EASTER EGG ALERT! Found a hidden discount code in the new Garden of Life display - SPRING25 for 25% off! Shh... don't tell everyone.",
       likes: 67,
       comments: 24,
       shares: 31,
-      tags: ['#EasterEgg', '#DiscountCode', '#GardenOfLife'],
+      tags: ['EasterEgg', 'DiscountCode', 'GardenOfLife'],
       type: 'easter-egg',
       isEasterEgg: true
     },
@@ -148,28 +125,28 @@ export default function CommunityPage() {
       id: 'post-4',
       author: 'David K.',
       authorRole: 'Vitamin Specialist',
-      authorAvatar: '💊',
+      authorAvatar: null,
       verified: true,
       timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-      content: "Breaking: FDA just approved new health claims for Vitamin D3. This is HUGE for our sales pitch! Customers can now legally hear about immune support benefits. Game changer! 🚀",
+      content: "Breaking: FDA just approved new health claims for Vitamin D3. This is HUGE for our sales pitch! Customers can now legally hear about immune support benefits. Game changer!",
       likes: 89,
       comments: 34,
       shares: 42,
-      tags: ['#FDA', '#VitaminD3', '#HealthClaims', '#GameChanger'],
+      tags: ['FDA', 'VitaminD3', 'HealthClaims', 'GameChanger'],
       type: 'industry-buzz'
     },
     {
       id: 'post-5',
       author: 'Amanda T.',
       authorRole: 'Organic Produce Expert',
-      authorAvatar: '🥬',
+      authorAvatar: null,
       verified: true,
       timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
-      content: "🌟 NEW PRODUCT SPOTLIGHT: Just tried the new collagen peptides from Vital Proteins. The vanilla flavor is incredible and mixes perfectly in coffee. Customers are going to love this!",
+      content: "NEW PRODUCT SPOTLIGHT: Just tried the new collagen peptides from Vital Proteins. The vanilla flavor is incredible and mixes perfectly in coffee. Customers are going to love this!",
       likes: 34,
       comments: 15,
       shares: 9,
-      tags: ['#ProductSpotlight', '#Collagen', '#VitalProteins'],
+      tags: ['ProductSpotlight', 'Collagen', 'VitalProteins'],
       type: 'product-drop'
     }
   ]
@@ -184,11 +161,11 @@ export default function CommunityPage() {
       isPublic: true,
       requiresVerification: false,
       hasEasterEggs: true,
-      badge: "🌟 Open to All",
-      coverImage: "🌟",
-      viewOnlyForUnverified: true, // NEW: View-only for unverified users
-      allowedPostTypes: ['product-drop', 'industry-buzz', 'community-shoutout', 'affirmation'], // NEW: Restricted post types
-      adminOnly: false, // NEW: Will be set to true for admin-only posting
+      badge: "Open to All",
+      coverImage: null,
+      viewOnlyForUnverified: true,
+      allowedPostTypes: ['product-drop', 'industry-buzz', 'community-shoutout', 'affirmation'],
+      adminOnly: false,
       rules: [
         "Share the latest product drops and industry news",
         "Community shout-outs and affirmations welcome",
@@ -206,7 +183,7 @@ export default function CommunityPage() {
       isPublic: false,
       requiresVerification: true,
       hasEasterEggs: false,
-      badge: "🔒 Verification Required",
+      badge: "Verification Required",
       viewOnlyForUnverified: false,
       allowedPostTypes: ['all'],
       adminOnly: false
@@ -346,7 +323,7 @@ export default function CommunityPage() {
       id: `post-${Date.now()}`,
       author: user.name,
       authorRole: user.role || 'Community Member',
-      authorAvatar: user.profileImage || '👤',
+      authorAvatar: user.profileImage || null,
       verified: user.verified || false,
       timestamp: new Date(),
       content: newPost,
@@ -374,18 +351,6 @@ export default function CommunityPage() {
       return `${minutes}m ago`
     } else {
       return 'Just now'
-    }
-  }
-
-  const getPostTypeIcon = (type) => {
-    switch (type) {
-      case 'product-drop': return '🔥'
-      case 'industry-buzz': return '📈'
-      case 'easter-egg': return '🥚'
-      case 'community-shoutout': return '📣'
-      case 'affirmation': return '💪'
-      case 'user-post': return '💬'
-      default: return '📝'
     }
   }
 
@@ -427,7 +392,7 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* REDESIGNED Header with EngageNatural Branding */}
+      {/* ELEGANT Header with EngageNatural Branding */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-6">
           {/* Top Row: EngageNatural Logo and User Info */}
@@ -446,13 +411,17 @@ export default function CommunityPage() {
 
           {/* Community Info Row */}
           <div className="flex items-center space-x-4 mb-4">
-            <div className="text-4xl">{community.coverImage}</div>
+            <div className="w-16 h-16 bg-gradient-to-br from-brand-primary to-brand-primary/80 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xl" style={fontStyles.subsectionTitle}>
+                {community.name.charAt(0)}
+              </span>
+            </div>
             <div className="flex-1">
               <h2 className="text-3xl text-gray-900" style={fontStyles.mainTitle}>{community.name}</h2>
               <p className="text-gray-600 mt-1">{community.description}</p>
               <div className="flex items-center space-x-4 mt-2">
-                <span className="text-sm text-gray-500">👥 {community.members.toLocaleString()} members</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                <span className="text-sm text-gray-500">{community.members.toLocaleString()} members</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                   community.isPublic 
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-blue-100 text-blue-800'
@@ -460,37 +429,26 @@ export default function CommunityPage() {
                   {community.badge}
                 </span>
                 {community.viewOnlyForUnverified && (
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                    📖 View-Only for Unverified
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    View-Only for Unverified
                   </span>
                 )}
                 {user && !user.verified && (
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    🔒 Get Verified for Full Access
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    Get Verified for Full Access
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Navigation Links Row - MOVED HERE */}
-          <div className="flex items-center space-x-6 pt-4 border-t border-gray-100">
+          {/* Navigation Links Row - SIMPLIFIED */}
+          <div className="flex items-center pt-4 border-t border-gray-100">
             <button
               onClick={handleBackToProfile}
-              className="flex items-center space-x-2 text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
+              className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
             >
-              <span>←</span>
-              <span>{user ? 'Back to Profile' : 'Sign In'}</span>
-            </button>
-            
-            <span className="text-gray-300">|</span>
-            
-            <button
-              onClick={handleCommunityHomepage}
-              className="flex items-center space-x-2 text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
-            >
-              <span>🏠</span>
-              <span>Community Homepage</span>
+              ← {user ? 'Back to Profile' : 'Sign In'}
             </button>
           </div>
         </div>
@@ -511,13 +469,12 @@ export default function CommunityPage() {
                   >
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                        {typeof getProfileImageDisplay(user) === 'string' ? (
-                          getProfileImageDisplay(user)
-                        ) : (
-                          <>
-                            {getProfileImageDisplay(user)}
-                            <span className="hidden">👤</span>
-                          </>
+                        {getProfileImageDisplay(user) || (
+                          <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex items-center justify-center">
+                            <span className="text-white text-sm font-medium">
+                              {user.name?.charAt(0) || 'U'}
+                            </span>
+                          </div>
                         )}
                       </div>
                       <span className="text-gray-500">
@@ -532,13 +489,12 @@ export default function CommunityPage() {
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                        {typeof getProfileImageDisplay(user) === 'string' ? (
-                          getProfileImageDisplay(user)
-                        ) : (
-                          <>
-                            {getProfileImageDisplay(user)}
-                            <span className="hidden">👤</span>
-                          </>
+                        {getProfileImageDisplay(user) || (
+                          <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex items-center justify-center">
+                            <span className="text-white text-sm font-medium">
+                              {user.name?.charAt(0) || 'U'}
+                            </span>
+                          </div>
                         )}
                       </div>
                       <div>
@@ -588,9 +544,6 @@ export default function CommunityPage() {
                   : 'bg-orange-50 border-orange-200'
               }`}>
                 <div className="flex items-center space-x-2">
-                  <span className={!user ? 'text-blue-600' : 'text-orange-600'}>
-                    {!user ? '👋' : 'ℹ️'}
-                  </span>
                   <p className={`text-sm ${
                     !user ? 'text-blue-800' : 'text-orange-800'
                   }`}>
@@ -611,35 +564,35 @@ export default function CommunityPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl overflow-hidden">
-                          {typeof post.authorAvatar === 'string' && (post.authorAvatar.startsWith('http') || post.authorAvatar.startsWith('data:')) ? (
-                            <>
-                              <img 
-                                src={post.authorAvatar} 
-                                alt="Profile" 
-                                className="w-full h-full object-cover rounded-full"
-                                onError={(e) => {
-                                  e.target.style.display = 'none'
-                                  e.target.nextSibling.style.display = 'flex'
-                                }}
-                              />
-                              <span className="hidden">👤</span>
-                            </>
+                          {post.authorAvatar && (post.authorAvatar.startsWith('http') || post.authorAvatar.startsWith('data:')) ? (
+                            <img 
+                              src={post.authorAvatar} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover rounded-full"
+                              onError={(e) => {
+                                e.target.style.display = 'none'
+                                e.target.nextSibling.style.display = 'flex'
+                              }}
+                            />
                           ) : (
-                            post.authorAvatar
+                            <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex items-center justify-center">
+                              <span className="text-white font-medium">
+                                {post.author.charAt(0)}
+                              </span>
+                            </div>
                           )}
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
                             <span className="font-medium text-gray-900">{post.author}</span>
-                            {post.verified && <span className="text-green-600">✓</span>}
+                            {post.verified && <span className="text-green-600 text-sm">✓ Verified</span>}
                           </div>
                           <div className="text-sm text-gray-500">{post.authorRole}</div>
                           <div className="text-xs text-gray-400">{formatTimeAgo(post.timestamp)}</div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-lg">{getPostTypeIcon(post.type)}</span>
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-medium">
                           {getPostTypeLabel(post.type)}
                         </span>
                       </div>
@@ -655,7 +608,7 @@ export default function CommunityPage() {
                       <div className="flex flex-wrap gap-2 mt-3">
                         {post.tags.map((tag, index) => (
                           <span key={index} className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                            {tag}
+                            #{tag}
                           </span>
                         ))}
                       </div>
@@ -670,24 +623,24 @@ export default function CommunityPage() {
                           onClick={() => handleLike(post.id)}
                           className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
                         >
-                          <span>❤️</span>
-                          <span className="text-sm">{post.likes}</span>
+                          <span className="text-sm">Like</span>
+                          <span className="text-sm font-medium">{post.likes}</span>
                         </button>
                         <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
-                          <span>💬</span>
-                          <span className="text-sm">{post.comments}</span>
+                          <span className="text-sm">Comment</span>
+                          <span className="text-sm font-medium">{post.comments}</span>
                         </button>
                         <button
                           onClick={() => handleShare(post.id)}
                           className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors"
                         >
-                          <span>🔄</span>
-                          <span className="text-sm">{post.shares}</span>
+                          <span className="text-sm">Share</span>
+                          <span className="text-sm font-medium">{post.shares}</span>
                         </button>
                       </div>
                       {post.isEasterEgg && (
                         <div className="text-xs text-purple-600 font-medium">
-                          🥚 Easter Egg Found!
+                          Special Offer Found!
                         </div>
                       )}
                     </div>
@@ -706,7 +659,7 @@ export default function CommunityPage() {
                 <ul className="space-y-2 text-sm text-gray-600">
                   {community.rules?.map((rule, index) => (
                     <li key={index} className="flex items-start space-x-2">
-                      <span className="text-green-600 mt-1">•</span>
+                      <span className="text-brand-primary mt-1 font-bold">•</span>
                       <span>{rule}</span>
                     </li>
                   ))}
@@ -716,7 +669,7 @@ export default function CommunityPage() {
               {/* Verification Prompt for Unverified Users */}
               {user && !user.verified && (
                 <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow-md p-6 border border-yellow-200">
-                  <h3 className="text-lg mb-3" style={fontStyles.subsectionTitle}>🔓 Get Verified</h3>
+                  <h3 className="text-lg mb-3" style={fontStyles.subsectionTitle}>Get Verified</h3>
                   <p className="text-sm text-gray-700 mb-4">
                     Unlock your full potential! Verified users get access to exclusive communities, advanced features, and priority support.
                   </p>
@@ -732,12 +685,12 @@ export default function CommunityPage() {
               {/* Easter Egg Tracker */}
               {community.hasEasterEggs && (
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-md p-6 border border-purple-200">
-                  <h3 className="text-lg mb-4" style={fontStyles.subsectionTitle}>🥚 Easter Egg Hunt</h3>
+                  <h3 className="text-lg mb-4" style={fontStyles.subsectionTitle}>Special Offers Hunt</h3>
                   <p className="text-sm text-gray-600 mb-3">
-                    Hidden treasures are scattered throughout this community! Keep an eye out for special posts and codes.
+                    Hidden treasures are scattered throughout this community! Keep an eye out for special posts and discount codes.
                   </p>
                   <div className="text-xs text-purple-600">
-                    Found: {posts.filter(p => p.isEasterEgg).length} eggs in this community
+                    Found: {posts.filter(p => p.isEasterEgg).length} special offers in this community
                   </div>
                 </div>
               )}
@@ -779,4 +732,5 @@ export default function CommunityPage() {
     </div>
   )
 }
+
 
