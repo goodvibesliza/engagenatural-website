@@ -58,15 +58,15 @@ export default function CommunityPage() {
     return user.profileImage || '👤'
   }
 
-  // FIXED navigation function that works for both authenticated and unauthenticated users
+  // FIXED: Use the correct profile route from App.jsx
   const handleBackToProfile = () => {
     console.log('Attempting to navigate to profile...')
     
-    // If user is logged in, go to profile
+    // If user is logged in, go to the CORRECT profile route
     if (user) {
       try {
-        navigate('/profile')
-        console.log('Navigating to profile for authenticated user')
+        navigate('/retailer/profile')  // ← FIXED: Use the actual route from App.jsx
+        console.log('Navigating to /retailer/profile for authenticated user')
         return
       } catch (error) {
         console.error('Profile navigation failed:', error)
