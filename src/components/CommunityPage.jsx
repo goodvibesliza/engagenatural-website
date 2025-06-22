@@ -1,27 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { auth, db } from '../lib/firebase'
-import { doc, getDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 
 // Font styles matching the updated App.css
 const fontStyles = {
   mainTitle: {
     fontFamily: 'Playfair Display, serif',
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: '-0.015em',
-    lineHeight: '1.1'
+    lineHeight: '1.1',
+    color: '#000000'
   },
   sectionHeading: {
     fontFamily: 'Playfair Display, serif',
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: '-0.02em',
-    lineHeight: '1.2'
+    lineHeight: '1.2',
+    color: '#000000'
   },
   subsectionTitle: {
-    fontFamily: 'Playfair Display, serif',
-    fontWeight: '600',
-    letterSpacing: '-0.01em',
-    lineHeight: '1.3'
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: '700',
+    letterSpacing: '-0.005em',
+    lineHeight: '1.3',
+    color: '#000000'
   }
 }
 
@@ -41,10 +44,10 @@ export default function CommunityPage() {
       id: 'post-1',
       author: 'Sarah M.',
       authorRole: 'Supplement Specialist',
-      authorAvatar: '👩‍💼',
+      authorAvatar: '👩‍⚕️',
       verified: true,
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      content: "🔥 JUST IN: New Nordic Naturals Omega-3 formula just dropped! The bioavailability is incredible - customers are already asking for it by name. Anyone else seeing the buzz?",
+      content: "🔥 JUST IN: New Nordic Naturals Omega-3 formula just dropped! The bioavailability is incredible - customers are already asking for it by name. Stock up now!",
       likes: 23,
       comments: 8,
       shares: 5,
@@ -58,7 +61,7 @@ export default function CommunityPage() {
       authorAvatar: '👨‍💼',
       verified: true,
       timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      content: "Industry insider tip: Adaptogenic herbs are about to EXPLODE this quarter. Stock up on ashwagandha, rhodiola, and holy basil now. Trust me on this one! 📈",
+      content: "Industry insider tip: Adaptogenic herbs are about to EXPLODE this quarter. Stock up on ashwagandha, rhodiola, and holy basil NOW. You heard it here first! 📈",
       likes: 45,
       comments: 12,
       shares: 18,
@@ -68,50 +71,35 @@ export default function CommunityPage() {
     {
       id: 'post-3',
       author: 'Jessica L.',
-      authorRole: 'Natural Health Advisor',
-      authorAvatar: '🌿',
+      authorRole: 'Brand Ambassador',
+      authorAvatar: '🌟',
       verified: true,
       timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-      content: "🎉 EASTER EGG ALERT! 🥚 Found a hidden discount code in the new Garden of Life display - SPRING25 for 25% off! Shh... don't tell everyone 😉",
+      content: "Shoutout to everyone crushing their Q1 goals! 💪 Remember: we're not just selling supplements, we're changing lives. Every customer interaction matters. Keep being amazing! ✨",
       likes: 67,
-      comments: 24,
-      shares: 31,
-      tags: ['#EasterEgg', '#DiscountCode', '#GardenOfLife'],
-      type: 'easter-egg',
-      isEasterEgg: true
+      comments: 15,
+      shares: 22,
+      tags: ['#Motivation', '#TeamWork', '#Q1Goals'],
+      type: 'community-shoutout'
     },
     {
       id: 'post-4',
-      author: 'David K.',
-      authorRole: 'Vitamin Specialist',
-      authorAvatar: '💊',
+      author: 'Garden of Life',
+      authorRole: 'Brand Partner',
+      authorAvatar: '🌱',
       verified: true,
       timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-      content: "Breaking: FDA just approved new health claims for Vitamin D3. This is HUGE for our sales pitch! Customers can now legally hear about immune support benefits. Game changer! 🚀",
+      content: "NEW LAUNCH ALERT! 🚨 Our Raw Organic Perfect Food Green Superfood is now available with enhanced digestive enzymes. Perfect for customers looking to boost their daily nutrition naturally!",
       likes: 89,
-      comments: 34,
-      shares: 42,
-      tags: ['#FDA', '#VitaminD3', '#HealthClaims', '#GameChanger'],
-      type: 'industry-buzz'
-    },
-    {
-      id: 'post-5',
-      author: 'Amanda T.',
-      authorRole: 'Organic Produce Expert',
-      authorAvatar: '🥬',
-      verified: true,
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
-      content: "🌟 NEW PRODUCT SPOTLIGHT: Just tried the new collagen peptides from Vital Proteins. The vanilla flavor is incredible and mixes perfectly in coffee. Customers are going to love this!",
-      likes: 34,
-      comments: 15,
-      shares: 9,
-      tags: ['#ProductSpotlight', '#Collagen', '#VitalProteins'],
-      type: 'product-drop'
+      comments: 24,
+      shares: 31,
+      tags: ['#NewLaunch', '#GreenSuperfood', '#Organic'],
+      type: 'brand-announcement'
     }
   ]
 
   // Community data
-  const communityData = {
+  const communities = {
     'whats-good': {
       id: 'whats-good',
       name: "What's Good",
@@ -121,23 +109,141 @@ export default function CommunityPage() {
       requiresVerification: false,
       hasEasterEggs: true,
       badge: "🌟 Open to All",
-      coverImage: "🌟",
       rules: [
         "Share the latest product drops and industry news",
         "Be respectful and professional",
         "No spam or self-promotion",
         "Keep posts relevant to natural health retail"
-      ]
+      ],
+      allowedPostTypes: ['product-drop', 'industry-buzz', 'community-shoutout', 'brand-announcement'],
+      viewOnlyForUnverified: true // NEW: View-only for unverified users
     },
-    'daily-stack': {
-      id: 'daily-stack',
-      name: 'The Daily Stack',
-      description: "Stop guessing what supplements actually work and start getting insider intel from the pros.",
+    'supplement-scoop': {
+      id: 'supplement-scoop',
+      name: 'Supplement Scoop',
+      description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
       members: 850,
       isPublic: false,
       requiresVerification: true,
       hasEasterEggs: false,
-      badge: "🔒 Verification Required"
+      badge: "🔒 Verification Required",
+      rules: [
+        "Share proven supplement strategies",
+        "Back claims with sales data",
+        "Respect competitor information",
+        "Focus on customer success stories"
+      ],
+      allowedPostTypes: ['strategy', 'data-insight', 'success-story'],
+      viewOnlyForUnverified: false
+    }
+  }
+
+  // Get post type icon
+  const getPostTypeIcon = (type) => {
+    const icons = {
+      'product-drop': '🔥',
+      'industry-buzz': '📈',
+      'community-shoutout': '💪',
+      'brand-announcement': '🚨',
+      'strategy': '🎯',
+      'data-insight': '📊',
+      'success-story': '🏆'
+    }
+    return icons[type] || '💬'
+  }
+
+  // Get post type label
+  const getPostTypeLabel = (type) => {
+    const labels = {
+      'product-drop': 'Product Drop',
+      'industry-buzz': 'Industry Buzz',
+      'community-shoutout': 'Community Shoutout',
+      'brand-announcement': 'Brand Announcement',
+      'strategy': 'Strategy',
+      'data-insight': 'Data Insight',
+      'success-story': 'Success Story'
+    }
+    return labels[type] || 'Post'
+  }
+
+  // Format time ago
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date()
+    const diff = now - timestamp
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+    return `${days}d ago`
+  }
+
+  // Handle like
+  const handleLike = (postId) => {
+    setPosts(posts.map(post => 
+      post.id === postId 
+        ? { ...post, likes: post.likes + 1 }
+        : post
+    ))
+  }
+
+  // Handle share
+  const handleShare = (postId) => {
+    setPosts(posts.map(post => 
+      post.id === postId 
+        ? { ...post, shares: post.shares + 1 }
+        : post
+    ))
+  }
+
+  // Check if user can post in this community
+  const canUserPost = () => {
+    if (!user || !community) return false
+    
+    // For "What's Good" community - only verified users and admins can post
+    if (community.id === 'whats-good') {
+      return user.verified || user.role === 'admin' || user.role === 'brand'
+    }
+    
+    // For other communities, check verification requirements
+    if (community.requiresVerification) {
+      return user.verified || user.verificationStatus === 'approved'
+    }
+    
+    return true
+  }
+
+  // Submit new post
+  const submitPost = async () => {
+    if (!newPost.trim() || !canUserPost()) return
+
+    try {
+      const post = {
+        content: newPost,
+        author: user.name,
+        authorRole: user.role || 'Community Member',
+        authorAvatar: user.profileImage || '👤',
+        verified: user.verified || false,
+        timestamp: new Date(),
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        communityId: communityId,
+        userId: user.uid,
+        type: 'general'
+      }
+
+      await addDoc(collection(db, 'posts'), post)
+      
+      // Add to local state
+      setPosts([{ ...post, id: Date.now().toString() }, ...posts])
+      setNewPost('')
+      setShowNewPost(false)
+      
+    } catch (error) {
+      console.error('Error posting:', error)
+      alert('Error posting. Please try again.')
     }
   }
 
@@ -147,10 +253,11 @@ export default function CommunityPage() {
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
           if (userDoc.exists()) {
+            const userData = userDoc.data()
             setUser({
               uid: currentUser.uid,
               email: currentUser.email,
-              ...userDoc.data()
+              ...userData
             })
           }
         } catch (error) {
@@ -159,7 +266,6 @@ export default function CommunityPage() {
       } else {
         navigate('/login')
       }
-      setLoading(false)
     })
 
     return () => unsubscribe()
@@ -167,100 +273,50 @@ export default function CommunityPage() {
 
   useEffect(() => {
     if (communityId) {
-      const communityInfo = communityData[communityId]
-      if (communityInfo) {
-        setCommunity(communityInfo)
-        // For demo purposes, use sample posts for "What's Good"
+      const communityData = communities[communityId]
+      if (communityData) {
+        setCommunity(communityData)
+        
+        // For "What's Good", use sample posts
         if (communityId === 'whats-good') {
           setPosts(samplePosts)
+        } else {
+          // For other communities, load from database
+          loadCommunityPosts()
         }
+      } else {
+        navigate('/profile')
       }
+      setLoading(false)
     }
-  }, [communityId])
+  }, [communityId, navigate])
 
-  const handleLike = async (postId) => {
-    setPosts(prevPosts => 
-      prevPosts.map(post => 
-        post.id === postId 
-          ? { ...post, likes: post.likes + 1 }
-          : post
+  const loadCommunityPosts = async () => {
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        where('communityId', '==', communityId),
+        orderBy('timestamp', 'desc')
       )
-    )
-  }
-
-  const handleShare = async (postId) => {
-    setPosts(prevPosts => 
-      prevPosts.map(post => 
-        post.id === postId 
-          ? { ...post, shares: post.shares + 1 }
-          : post
-      )
-    )
-    alert('Post shared! (Feature coming soon)')
-  }
-
-  const createPost = async () => {
-    if (!newPost.trim()) return
-
-    const post = {
-      id: `post-${Date.now()}`,
-      author: user.name,
-      authorRole: user.role || 'Community Member',
-      authorAvatar: user.profileImage || '👤',
-      verified: user.verified || false,
-      timestamp: new Date(),
-      content: newPost,
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      tags: [],
-      type: 'user-post'
-    }
-
-    setPosts(prevPosts => [post, ...prevPosts])
-    setNewPost('')
-    setShowNewPost(false)
-  }
-
-  const formatTimeAgo = (timestamp) => {
-    const now = new Date()
-    const diff = now - timestamp
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor(diff / (1000 * 60))
-    
-    if (hours > 0) {
-      return `${hours}h ago`
-    } else if (minutes > 0) {
-      return `${minutes}m ago`
-    } else {
-      return 'Just now'
-    }
-  }
-
-  const getPostTypeIcon = (type) => {
-    switch (type) {
-      case 'product-drop': return '🔥'
-      case 'industry-buzz': return '📈'
-      case 'easter-egg': return '🥚'
-      case 'user-post': return '💬'
-      default: return '📝'
-    }
-  }
-
-  const getPostTypeLabel = (type) => {
-    switch (type) {
-      case 'product-drop': return 'Product Drop'
-      case 'industry-buzz': return 'Industry Buzz'
-      case 'easter-egg': return 'Easter Egg'
-      case 'user-post': return 'Community Post'
-      default: return 'Post'
+      const querySnapshot = await getDocs(q)
+      const communityPosts = []
+      querySnapshot.forEach((doc) => {
+        communityPosts.push({ id: doc.id, ...doc.data() })
+      })
+      setPosts(communityPosts)
+    } catch (error) {
+      console.error('Error loading posts:', error)
+      setPosts([])
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading community...</p>
+        </div>
       </div>
     )
   }
@@ -269,10 +325,10 @@ export default function CommunityPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl text-gray-900 mb-4" style={fontStyles.sectionHeading}>Community Not Found</h1>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Community Not Found</h2>
           <button
             onClick={() => navigate('/profile')}
-            className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/90"
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
           >
             Back to Profile
           </button>
@@ -284,51 +340,63 @@ export default function CommunityPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-6">
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
+            <button
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+              onClick={() => navigate('/profile')}
+            >
+              <span>←</span>
+              <span>Back to Profile</span>
+            </button>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/profile')}
-                className="text-brand-primary hover:text-brand-primary/80 font-medium"
-              >
-                ← Back to Profile
-              </button>
-              <div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-4xl">{community.coverImage}</div>
-                  <div>
-                    <h1 className="text-3xl text-gray-900" style={fontStyles.mainTitle}>{community.name}</h1>
-                    <p className="text-gray-600 mt-1">{community.description}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className="text-sm text-gray-500">👥 {community.members.toLocaleString()} members</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        community.isPublic 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {community.badge}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+              <div className="text-right">
+                <div className="font-bold text-lg">{user?.points || 0} pts</div>
+                <div className="text-sm text-gray-500">Level {user?.level || 1}</div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-brand-primary">{user?.points || 0} pts</div>
-              <div className="text-sm text-gray-600">Level {user?.level || 1}</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Community Content */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-4 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {/* New Post Section */}
-            {user && (
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white shadow-sm border-b border-gray-200">
+        <div className="px-4 py-3">
+          <button
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            onClick={() => navigate('/profile')}
+          >
+            <span>←</span>
+            <span>← Back to Profile</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Feed */}
+          <div className="lg:col-span-2">
+            {/* Community Header */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mb-6">
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="text-4xl">🌟</div>
+                <div>
+                  <h1 className="text-2xl mb-2" style={fontStyles.mainTitle}>{community.name}</h1>
+                  <p className="text-gray-600 mb-3">{community.description}</p>
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <span>👥 {community.members.toLocaleString()} members</span>
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                      {community.badge}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* New Post Section - Only show if user can post */}
+            {user && canUserPost() && (
               <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mb-6">
                 {!showNewPost ? (
                   <button
@@ -336,8 +404,21 @@ export default function CommunityPage() {
                     className="w-full text-left p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        {user.profileImage || '👤'}
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                        {user.profileImage ? (
+                          <img 
+                            src={user.profileImage} 
+                            alt="Profile" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.nextSibling.style.display = 'flex'
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full flex items-center justify-center text-lg ${user.profileImage ? 'hidden' : ''}`}>
+                          👤
+                        </div>
                       </div>
                       <span className="text-gray-500">What's good in your store today?</span>
                     </div>
@@ -345,8 +426,21 @@ export default function CommunityPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        {user.profileImage || '👤'}
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                        {user.profileImage ? (
+                          <img 
+                            src={user.profileImage} 
+                            alt="Profile" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.nextSibling.style.display = 'flex'
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full flex items-center justify-center text-lg ${user.profileImage ? 'hidden' : ''}`}>
+                          👤
+                        </div>
                       </div>
                       <div>
                         <div className="font-medium">{user.name}</div>
@@ -358,43 +452,74 @@ export default function CommunityPage() {
                       onChange={(e) => setNewPost(e.target.value)}
                       placeholder="Share the latest product drops, industry buzz, or what's working in your store..."
                       className="w-full p-4 border border-gray-300 rounded-lg resize-none"
-                      rows={4}
+                      rows="4"
                     />
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        onClick={() => {
-                          setShowNewPost(false)
-                          setNewPost('')
-                        }}
-                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={createPost}
-                        disabled={!newPost.trim()}
-                        className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/90 disabled:opacity-50"
-                      >
-                        Post
-                      </button>
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-500">
+                        {community.id === 'whats-good' ? 'Posts are curated for quality content' : 'Share your insights with the community'}
+                      </div>
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => {
+                            setShowNewPost(false)
+                            setNewPost('')
+                          }}
+                          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={submitPost}
+                          disabled={!newPost.trim()}
+                          className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Post
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             )}
 
+            {/* View-only message for unverified users in What's Good */}
+            {user && community.id === 'whats-good' && !canUserPost() && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center space-x-2">
+                  <span className="text-blue-600">ℹ️</span>
+                  <div>
+                    <p className="text-blue-800 font-medium">View-Only Access</p>
+                    <p className="text-blue-700 text-sm">
+                      Complete your verification to post in this community. For now, enjoy the latest product drops and industry buzz!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Posts Feed */}
             <div className="space-y-6">
               {posts.map((post) => (
-                <div key={post.id} className={`bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden ${
-                  post.isEasterEgg ? 'ring-2 ring-purple-200 bg-gradient-to-r from-purple-50 to-pink-50' : ''
-                }`}>
+                <div key={post.id} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
                   {/* Post Header */}
                   <div className="p-6 pb-4">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl">
-                          {post.authorAvatar}
+                      <div className="flex items-start space-x-3">
+                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                          {typeof post.authorAvatar === 'string' && post.authorAvatar.startsWith('http') ? (
+                            <img 
+                              src={post.authorAvatar} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none'
+                                e.target.nextSibling.style.display = 'flex'
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-full h-full flex items-center justify-center text-lg ${typeof post.authorAvatar === 'string' && post.authorAvatar.startsWith('http') ? 'hidden' : ''}`}>
+                            {post.authorAvatar || '👤'}
+                          </div>
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
@@ -499,20 +624,16 @@ export default function CommunityPage() {
                 <h3 className="text-lg mb-4" style={fontStyles.subsectionTitle}>Community Stats</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Total Posts</span>
+                    <span className="text-gray-600">Total Members</span>
+                    <span className="font-medium">{community.members.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Posts Today</span>
                     <span className="font-medium">{posts.length}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Active Today</span>
-                    <span className="font-medium">{Math.floor(community.members * 0.15)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Product Drops</span>
-                    <span className="font-medium">{posts.filter(p => p.type === 'product-drop').length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Industry Buzz</span>
-                    <span className="font-medium">{posts.filter(p => p.type === 'industry-buzz').length}</span>
+                    <span className="text-gray-600">Active Now</span>
+                    <span className="font-medium">{Math.floor(community.members * 0.05).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
