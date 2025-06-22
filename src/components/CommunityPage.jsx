@@ -58,29 +58,47 @@ export default function CommunityPage() {
     return user.profileImage || '👤'
   }
 
-  // FIXED: Use the correct profile route from App.jsx
+  // SMART NAVIGATION: Handle different user types appropriately
   const handleBackToProfile = () => {
     console.log('Attempting to navigate to profile...')
     
-    // If user is logged in, go to the CORRECT profile route
-    if (user) {
+    if (!user) {
+      // Not logged in - go to login
+      console.log('No user, navigating to login')
+      navigate('/login')
+      return
+    }
+
+    if (user.verified) {
+      // Verified user - can access full profile
+      console.log('Verified user, navigating to /retailer/profile')
       try {
-        navigate('/retailer/profile')  // ← FIXED: Use the actual route from App.jsx
-        console.log('Navigating to /retailer/profile for authenticated user')
-        return
+        navigate('/retailer/profile')
       } catch (error) {
         console.error('Profile navigation failed:', error)
+        navigate('/')
       }
-    }
-    
-    // If user is not logged in, go to login page
-    try {
-      navigate('/login')
-      console.log('Navigating to login for unauthenticated user')
-    } catch (error) {
-      console.error('Login navigation failed:', error)
-      // Fallback to homepage
-      navigate('/')
+    } else {
+      // Unverified user - show helpful message and redirect to verification
+      console.log('Unverified user, showing verification prompt')
+      
+      // Create a user-friendly modal or alert
+      const shouldVerify = window.confirm(
+        "🔒 Complete your verification to access your full profile!\n\n" +
+        "Verified users get access to:\n" +
+        "• Full retailer profile features\n" +
+        "• Exclusive communities\n" +
+        "• Advanced networking tools\n" +
+        "• Priority support\n\n" +
+        "Would you like to start the verification process now?"
+      )
+      
+      if (shouldVerify) {
+        // Navigate to verification page or show verification info
+        // For now, we'll navigate to the main site where they can find verification info
+        navigate('/')
+      }
+      // If they choose not to verify, stay on current page
     }
   }
 
@@ -198,7 +216,7 @@ export default function CommunityPage() {
     }
   }
 
-  // FIXED: Set community data first, then handle authentication
+  // Set community data first, then handle authentication
   useEffect(() => {
     if (communityId) {
       const communityInfo = communityData[communityId]
@@ -212,7 +230,7 @@ export default function CommunityPage() {
     }
   }, [communityId])
 
-  // FIXED: Authentication logic that doesn't automatically redirect
+  // Authentication logic that doesn't automatically redirect
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
@@ -229,7 +247,7 @@ export default function CommunityPage() {
           console.error('Error fetching user data:', error)
         }
       } else {
-        // FIXED: Don't automatically redirect to login
+        // Don't automatically redirect to login
         // Only redirect if the community requires authentication
         if (community && community.requiresVerification) {
           console.log('Community requires verification, redirecting to login')
@@ -422,7 +440,7 @@ export default function CommunityPage() {
                 className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
                 style={{ textDecoration: 'none' }}
               >
-                ← {user ? 'Back to Profile' : 'Sign In'}
+                ← {user ? (user.verified ? 'Back to Profile' : 'Get Verified') : 'Sign In'}
               </button>
               <div>
                 <div className="flex items-center space-x-3">
@@ -442,6 +460,11 @@ export default function CommunityPage() {
                       {community.viewOnlyForUnverified && (
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                           📖 View-Only for Unverified
+                        </span>
+                      )}
+                      {user && !user.verified && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          🔒 Get Verified for Full Access
                         </span>
                       )}
                     </div>
@@ -673,6 +696,22 @@ export default function CommunityPage() {
                   ))}
                 </ul>
               </div>
+
+              {/* Verification Prompt for Unverified Users */}
+              {user && !user.verified && (
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow-md p-6 border border-yellow-200">
+                  <h3 className="text-lg mb-3" style={fontStyles.subsectionTitle}>🔓 Get Verified</h3>
+                  <p className="text-sm text-gray-700 mb-4">
+                    Unlock your full potential! Verified users get access to exclusive communities, advanced features, and priority support.
+                  </p>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="w-full bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium"
+                  >
+                    Start Verification Process
+                  </button>
+                </div>
+              )}
 
               {/* Easter Egg Tracker */}
               {community.hasEasterEggs && (
