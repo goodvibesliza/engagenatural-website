@@ -58,36 +58,29 @@ export default function CommunityPage() {
     return user.profileImage || '👤'
   }
 
-  // ENHANCED navigation function with multiple fallback methods
+  // FIXED navigation function that works for both authenticated and unauthenticated users
   const handleBackToProfile = () => {
     console.log('Attempting to navigate to profile...')
     
-    // Method 1: Try React Router navigate first
-    try {
-      navigate('/profile', { replace: true })
-      console.log('React Router navigation attempted')
-      return
-    } catch (error) {
-      console.error('React Router navigation failed:', error)
+    // If user is logged in, go to profile
+    if (user) {
+      try {
+        navigate('/profile')
+        console.log('Navigating to profile for authenticated user')
+        return
+      } catch (error) {
+        console.error('Profile navigation failed:', error)
+      }
     }
     
-    // Method 2: If React Router fails, try window.location
+    // If user is not logged in, go to login page
     try {
-      window.location.href = '/profile'
-      console.log('Window location navigation attempted')
-      return
+      navigate('/login')
+      console.log('Navigating to login for unauthenticated user')
     } catch (error) {
-      console.error('Window location navigation failed:', error)
-    }
-    
-    // Method 3: Last resort - try relative path
-    try {
-      window.location.pathname = '/profile'
-      console.log('Pathname navigation attempted')
-    } catch (error) {
-      console.error('All navigation methods failed:', error)
-      // If all else fails, at least log the issue
-      alert('Navigation failed. Please manually navigate to your profile.')
+      console.error('Login navigation failed:', error)
+      // Fallback to homepage
+      navigate('/')
     }
   }
 
@@ -205,6 +198,21 @@ export default function CommunityPage() {
     }
   }
 
+  // FIXED: Set community data first, then handle authentication
+  useEffect(() => {
+    if (communityId) {
+      const communityInfo = communityData[communityId]
+      if (communityInfo) {
+        setCommunity(communityInfo)
+        // For demo purposes, use sample posts for "What's Good"
+        if (communityId === 'whats-good') {
+          setPosts(samplePosts)
+        }
+      }
+    }
+  }, [communityId])
+
+  // FIXED: Authentication logic that doesn't automatically redirect
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
@@ -219,32 +227,24 @@ export default function CommunityPage() {
           }
         } catch (error) {
           console.error('Error fetching user data:', error)
-          // Don't redirect on error, just log it
         }
       } else {
-        // Only redirect to login if we're not on a public page
-        if (window.location.pathname !== '/') {
+        // FIXED: Don't automatically redirect to login
+        // Only redirect if the community requires authentication
+        if (community && community.requiresVerification) {
+          console.log('Community requires verification, redirecting to login')
           navigate('/login')
+        } else {
+          console.log('Public community access allowed')
+          // For public communities, allow access without login
+          setUser(null)
         }
       }
       setLoading(false)
     })
 
     return () => unsubscribe()
-  }, [navigate])
-
-  useEffect(() => {
-    if (communityId) {
-      const communityInfo = communityData[communityId]
-      if (communityInfo) {
-        setCommunity(communityInfo)
-        // For demo purposes, use sample posts for "What's Good"
-        if (communityId === 'whats-good') {
-          setPosts(samplePosts)
-        }
-      }
-    }
-  }, [communityId])
+  }, [navigate, community])
 
   // Check if user can post in this community
   const canUserPost = () => {
@@ -281,7 +281,11 @@ export default function CommunityPage() {
 
   // Get posting restrictions message
   const getPostingRestrictionMessage = () => {
-    if (!user || !community) return ''
+    if (!community) return ''
+    
+    if (!user) {
+      return "Sign in to join the conversation and share your insights!"
+    }
     
     if (community.id === 'whats-good') {
       if (!user.verified && user.role !== 'brand') {
@@ -396,10 +400,10 @@ export default function CommunityPage() {
         <div className="text-center">
           <h1 className="text-2xl text-gray-900 mb-4" style={fontStyles.sectionHeading}>Community Not Found</h1>
           <button
-            onClick={handleBackToProfile}
+            onClick={() => navigate('/')}
             className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/90"
           >
-            Back to Profile
+            Back to Home
           </button>
         </div>
       </div>
@@ -418,7 +422,7 @@ export default function CommunityPage() {
                 className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
                 style={{ textDecoration: 'none' }}
               >
-                ← Back to Profile
+                ← {user ? 'Back to Profile' : 'Sign In'}
               </button>
               <div>
                 <div className="flex items-center space-x-3">
@@ -538,11 +542,21 @@ export default function CommunityPage() {
             )}
 
             {/* Posting Restriction Message */}
-            {user && !canUserPost() && getPostingRestrictionMessage() && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            {getPostingRestrictionMessage() && (
+              <div className={`border rounded-lg p-4 mb-6 ${
+                !user 
+                  ? 'bg-blue-50 border-blue-200' 
+                  : 'bg-orange-50 border-orange-200'
+              }`}>
                 <div className="flex items-center space-x-2">
-                  <span className="text-orange-600">ℹ️</span>
-                  <p className="text-orange-800 text-sm">{getPostingRestrictionMessage()}</p>
+                  <span className={!user ? 'text-blue-600' : 'text-orange-600'}>
+                    {!user ? '👋' : 'ℹ️'}
+                  </span>
+                  <p className={`text-sm ${
+                    !user ? 'text-blue-800' : 'text-orange-800'
+                  }`}>
+                    {getPostingRestrictionMessage()}
+                  </p>
                 </div>
               </div>
             )}
