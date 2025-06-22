@@ -22,6 +22,12 @@ const fontStyles = {
     fontWeight: '600',
     letterSpacing: '-0.01em',
     lineHeight: '1.3'
+  },
+  logo: {
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '700',
+    letterSpacing: '-0.01em',
+    lineHeight: '1.2'
   }
 }
 
@@ -71,12 +77,26 @@ export default function CommunityPage() {
     }
   }
 
-  // NEW: Navigate to community homepage
+  // FIXED: Navigate to community homepage with fallback
   const handleCommunityHomepage = () => {
     console.log('Navigating to community homepage...')
-    // Navigate to communities listing page
-    // You can change this route to whatever your communities page is called
-    navigate('/communities')
+    
+    // Try multiple possible routes for communities page
+    try {
+      // First try the main communities route
+      navigate('/communities')
+    } catch (error) {
+      console.log('Communities route not found, trying alternatives...')
+      
+      // Fallback options
+      try {
+        // Try retailer profile as fallback (where communities might be listed)
+        navigate('/retailer/profile')
+      } catch (error2) {
+        // Last resort - go to homepage
+        navigate('/')
+      }
+    }
   }
 
   // Sample posts for "What's Good" community
@@ -407,63 +427,71 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* REDESIGNED Header with EngageNatural Branding */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {/* Navigation Links */}
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleBackToProfile}
-                  className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
-                  style={{ textDecoration: 'none' }}
-                >
-                  ← {user ? 'Back to Profile' : 'Sign In'}
-                </button>
-                <span className="text-gray-300">|</span>
-                <button
-                  onClick={handleCommunityHomepage}
-                  className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
-                  style={{ textDecoration: 'none' }}
-                >
-                  🏠 Community Homepage
-                </button>
-              </div>
-              <div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-4xl">{community.coverImage}</div>
-                  <div>
-                    <h1 className="text-3xl text-gray-900" style={fontStyles.mainTitle}>{community.name}</h1>
-                    <p className="text-gray-600 mt-1">{community.description}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className="text-sm text-gray-500">👥 {community.members.toLocaleString()} members</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        community.isPublic 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {community.badge}
-                      </span>
-                      {community.viewOnlyForUnverified && (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          📖 View-Only for Unverified
-                        </span>
-                      )}
-                      {user && !user.verified && (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          🔒 Get Verified for Full Access
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* Top Row: EngageNatural Logo and User Info */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl text-brand-primary" style={fontStyles.logo}>
+                EngageNatural
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">Natural Health Retail Community</p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-brand-primary">{user?.points || 0} pts</div>
               <div className="text-sm text-gray-600">Level {user?.level || 1}</div>
             </div>
+          </div>
+
+          {/* Community Info Row */}
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="text-4xl">{community.coverImage}</div>
+            <div className="flex-1">
+              <h2 className="text-3xl text-gray-900" style={fontStyles.mainTitle}>{community.name}</h2>
+              <p className="text-gray-600 mt-1">{community.description}</p>
+              <div className="flex items-center space-x-4 mt-2">
+                <span className="text-sm text-gray-500">👥 {community.members.toLocaleString()} members</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  community.isPublic 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {community.badge}
+                </span>
+                {community.viewOnlyForUnverified && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    📖 View-Only for Unverified
+                  </span>
+                )}
+                {user && !user.verified && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    🔒 Get Verified for Full Access
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Links Row - MOVED HERE */}
+          <div className="flex items-center space-x-6 pt-4 border-t border-gray-100">
+            <button
+              onClick={handleBackToProfile}
+              className="flex items-center space-x-2 text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
+            >
+              <span>←</span>
+              <span>{user ? 'Back to Profile' : 'Sign In'}</span>
+            </button>
+            
+            <span className="text-gray-300">|</span>
+            
+            <button
+              onClick={handleCommunityHomepage}
+              className="flex items-center space-x-2 text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
+            >
+              <span>🏠</span>
+              <span>Community Homepage</span>
+            </button>
           </div>
         </div>
       </div>
