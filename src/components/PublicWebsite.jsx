@@ -142,7 +142,26 @@ export default function PublicWebsite() {
           </div>
         </div>
       </section>
-
+{/* Download App Section */}
+<div className="mt-8 text-center">
+  <p className="text-gray-600 mb-4">Get the mobile app for the full experience</p>
+  <div className="flex justify-center space-x-4">
+    <button className="bg-black text-white px-6 py-3 rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors">
+      <span>📱</span>
+      <div className="text-left">
+        <div className="text-xs">Download on the</div>
+        <div className="text-sm font-semibold">App Store</div>
+      </div>
+    </button>
+    <button className="bg-black text-white px-6 py-3 rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors">
+      <span>🤖</span>
+      <div className="text-left">
+        <div className="text-xs">Get it on</div>
+        <div className="text-sm font-semibold">Google Play</div>
+      </div>
+    </button>
+  </div>
+</div>
       {/* Features Section */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
