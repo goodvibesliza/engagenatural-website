@@ -32,7 +32,6 @@ export default function CommunityPage() {
   const [loading, setLoading] = useState(true)
   const [newPost, setNewPost] = useState('')
   const [showNewPost, setShowNewPost] = useState(false)
-  const [isNavigating, setIsNavigating] = useState(false) // NEW: Track navigation state
   const navigate = useNavigate()
   const { communityId } = useParams()
 
@@ -59,11 +58,37 @@ export default function CommunityPage() {
     return user.profileImage || '👤'
   }
 
-  // Enhanced navigation function that preserves authentication
+  // ENHANCED navigation function with multiple fallback methods
   const handleBackToProfile = () => {
-    setIsNavigating(true)
-    // Use window.location for more reliable navigation
-    window.location.href = '/profile'
+    console.log('Attempting to navigate to profile...')
+    
+    // Method 1: Try React Router navigate first
+    try {
+      navigate('/profile', { replace: true })
+      console.log('React Router navigation attempted')
+      return
+    } catch (error) {
+      console.error('React Router navigation failed:', error)
+    }
+    
+    // Method 2: If React Router fails, try window.location
+    try {
+      window.location.href = '/profile'
+      console.log('Window location navigation attempted')
+      return
+    } catch (error) {
+      console.error('Window location navigation failed:', error)
+    }
+    
+    // Method 3: Last resort - try relative path
+    try {
+      window.location.pathname = '/profile'
+      console.log('Pathname navigation attempted')
+    } catch (error) {
+      console.error('All navigation methods failed:', error)
+      // If all else fails, at least log the issue
+      alert('Navigation failed. Please manually navigate to your profile.')
+    }
   }
 
   // Sample posts for "What's Good" community
@@ -182,9 +207,6 @@ export default function CommunityPage() {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      // Don't redirect to login if user is navigating away
-      if (isNavigating) return
-      
       if (currentUser) {
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
@@ -200,8 +222,8 @@ export default function CommunityPage() {
           // Don't redirect on error, just log it
         }
       } else {
-        // Only redirect to login if not navigating and no user
-        if (!isNavigating) {
+        // Only redirect to login if we're not on a public page
+        if (window.location.pathname !== '/') {
           navigate('/login')
         }
       }
@@ -209,7 +231,7 @@ export default function CommunityPage() {
     })
 
     return () => unsubscribe()
-  }, [navigate, isNavigating])
+  }, [navigate])
 
   useEffect(() => {
     if (communityId) {
@@ -393,7 +415,8 @@ export default function CommunityPage() {
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleBackToProfile}
-                className="text-brand-primary hover:text-brand-primary/80 font-medium"
+                className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
+                style={{ textDecoration: 'none' }}
               >
                 ← Back to Profile
               </button>
