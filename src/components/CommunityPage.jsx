@@ -58,48 +58,25 @@ export default function CommunityPage() {
     return user.profileImage || '👤'
   }
 
-  // SMART NAVIGATION: Handle different user types appropriately
+  // FIXED: Simple navigation - all logged-in users can access profile
   const handleBackToProfile = () => {
-    console.log('Attempting to navigate to profile...')
+    console.log('Navigating to profile...')
     
-    if (!user) {
-      // Not logged in - go to login
-      console.log('No user, navigating to login')
-      navigate('/login')
-      return
-    }
-
-    if (user.verified) {
-      // Verified user - can access full profile
-      console.log('Verified user, navigating to /retailer/profile')
-      try {
-        navigate('/retailer/profile')
-      } catch (error) {
-        console.error('Profile navigation failed:', error)
-        navigate('/')
-      }
+    if (user) {
+      // Any logged-in user can access their profile
+      navigate('/retailer/profile')
     } else {
-      // Unverified user - show helpful message and redirect to verification
-      console.log('Unverified user, showing verification prompt')
-      
-      // Create a user-friendly modal or alert
-      const shouldVerify = window.confirm(
-        "🔒 Complete your verification to access your full profile!\n\n" +
-        "Verified users get access to:\n" +
-        "• Full retailer profile features\n" +
-        "• Exclusive communities\n" +
-        "• Advanced networking tools\n" +
-        "• Priority support\n\n" +
-        "Would you like to start the verification process now?"
-      )
-      
-      if (shouldVerify) {
-        // Navigate to verification page or show verification info
-        // For now, we'll navigate to the main site where they can find verification info
-        navigate('/')
-      }
-      // If they choose not to verify, stay on current page
+      // Not logged in - go to login
+      navigate('/login')
     }
+  }
+
+  // NEW: Navigate to community homepage
+  const handleCommunityHomepage = () => {
+    console.log('Navigating to community homepage...')
+    // Navigate to communities listing page
+    // You can change this route to whatever your communities page is called
+    navigate('/communities')
   }
 
   // Sample posts for "What's Good" community
@@ -435,13 +412,24 @@ export default function CommunityPage() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBackToProfile}
-                className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
-                style={{ textDecoration: 'none' }}
-              >
-                ← {user ? (user.verified ? 'Back to Profile' : 'Get Verified') : 'Sign In'}
-              </button>
+              {/* Navigation Links */}
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleBackToProfile}
+                  className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
+                  style={{ textDecoration: 'none' }}
+                >
+                  ← {user ? 'Back to Profile' : 'Sign In'}
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={handleCommunityHomepage}
+                  className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors"
+                  style={{ textDecoration: 'none' }}
+                >
+                  🏠 Community Homepage
+                </button>
+              </div>
               <div>
                 <div className="flex items-center space-x-3">
                   <div className="text-4xl">{community.coverImage}</div>
