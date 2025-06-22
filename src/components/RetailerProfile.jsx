@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { auth, db, storage } from '../lib/firebase'
 import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { storage } from '../lib/firebase'
 import { signOut } from 'firebase/auth'
 import { moderateHealthContent, filterPostContent } from '../ContentModeration'
 
