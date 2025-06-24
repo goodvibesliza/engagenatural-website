@@ -3,6 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { auth } from './lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import './App.css'
+import BrandContentUploader from './pages/BrandContentUploader';
+import BrandDashboard      from './pages/BrandDashboard';
+import BrandHome from './pages/BrandHome';
+import BrandMenu from './pages/BrandMenu';
 
 // Import contexts
 import { AuthProvider } from './contexts/auth-context'
@@ -132,6 +136,12 @@ function App() {
               path="/admin/dashboard" 
               element={<Navigate to="/admin" replace />}
             />
+
+            {/* New Brand Routes without Layout */}
+<Route path="/brand/:brandId" element={<BrandHome />} />
+<Route path="/brand/:brandId/menu" element={<BrandMenu />} />
+<Route path="/brand/:brandId/upload" element={<BrandContentUploader />} />
+<Route path="/brand/:brandId/dashboard" element={<BrandDashboard />} />
 
             {/* New Admin Routes with Layout */}
             <Route 
