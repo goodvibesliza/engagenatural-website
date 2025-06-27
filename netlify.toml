@@ -6,5 +6,5 @@
 [build]
   environment = {
     NODE_VERSION = "18",
-    PNPM_VERSION = "8.x.x" # Or the specific version your project uses, e.g., "8.15.6"
+    PNPM_VERSION = "8"
   }
