@@ -7,6 +7,8 @@ import BrandContentUploader from './pages/BrandContentUploader';
 import BrandDashboard      from './pages/BrandDashboard';
 import BrandHome from './pages/BrandHome';
 import BrandMenu from './pages/BrandMenu';
+import BrandChallenges from './pages/BrandChallenges';
+import BrandConfiguration from './pages/BrandConfiguration';
 
 // Import contexts
 import { AuthProvider } from './contexts/auth-context'
@@ -18,6 +20,7 @@ import AdminDashboard from './components/AdminDashboard'
 import AdminLogin from './components/AdminLogin'
 import RetailerProfile from './components/RetailerProfile'
 import CommunityPage from './components/CommunityPage'
+import AutoRedirect from './components/AutoRedirect' // Add this import
 
 // Import new auth components
 import LoginForm from './components/auth/login-form'
@@ -76,6 +79,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <AutoRedirect /> {/* Add this component for auto-redirect */}
         <div className="min-h-screen bg-white">
           <Routes>
             {/* Public website route */}
@@ -138,10 +142,12 @@ function App() {
             />
 
             {/* New Brand Routes without Layout */}
-<Route path="/brand/:brandId" element={<BrandHome />} />
-<Route path="/brand/:brandId/menu" element={<BrandMenu />} />
-<Route path="/brand/:brandId/upload" element={<BrandContentUploader />} />
-<Route path="/brand/:brandId/dashboard" element={<BrandDashboard />} />
+            <Route path="/brand/:brandId" element={<BrandHome />} />
+            <Route path="/brand/:brandId/menu" element={<BrandMenu />} />
+            <Route path="/brand/:brandId/upload" element={<BrandContentUploader />} />
+            <Route path="/brand/:brandId/dashboard" element={<BrandDashboard />} />
+            <Route path="/brand/:brandId/challenges" element={<BrandChallenges />} />
+            <Route path="/brand/:brandId/configuration" element={<BrandConfiguration />} />
 
             {/* New Admin Routes with Layout */}
             <Route 

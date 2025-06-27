@@ -12,7 +12,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import ChallengeEditor from "../components/brand/ChallengeEditor";
+import ChallengeEditor from "../components/brand/ChallengeEditor2";
 
 export default function BrandChallenges() {
   const { brandId } = useParams();
