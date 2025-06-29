@@ -1,14 +1,23 @@
+# Netlify configuration for the EngageNatural Vite React App
+
+# Build settings for Netlify.
+[build]
+  # Command to build the project. It first installs dependencies with pnpm,
+  # then runs the build script defined in package.json.
+  command = "pnpm install && pnpm build"
+  
+  # The directory that contains the built site. Vite's default is "dist".
+  publish = "dist"
+
+  # Environment variables needed for the build process.
+  [build.environment]
+    NODE_VERSION = "18"
+    PNPM_VERSION = "8"
+
+# Redirect rule for Single Page Applications (SPAs).
+# This ensures that all routes are handled by index.html, allowing
+# client-side routing (like React Router) to work correctly.
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[build]
-
-[[build.environment]]
-  key = "NODE_VERSION"
-  value = "18"
-
-[[build.environment]]
-  key = "PNPM_VERSION"
-  value = "8"
