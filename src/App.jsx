@@ -9,6 +9,7 @@ import BrandHome from './pages/BrandHome';
 import BrandMenu from './pages/BrandMenu';
 import BrandChallenges from './pages/BrandChallenges';
 import BrandConfiguration from './pages/BrandConfiguration';
+import EnhancedAnalyticsDashboard from './components/admin/analytics/enhanced-analytics-dashboard';
 
 // Import contexts
 import { AuthProvider } from './contexts/auth-context'

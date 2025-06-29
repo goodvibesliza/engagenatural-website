@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Existing user rules
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // BRANDS COLLECTION RULES
+    match /brands/{brandId} {
+      // Anyone can read brand info (public brands)
+      allow read: if true;
+      
+      // Only brand managers can write/update/delete brand info
+      allow write: if request.auth != null &&
+        exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+
+      // Brand users subcollection - only managers can manage users
+      match /users/{userId} {
+        allow read: if request.auth != null &&
+          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+        
+        allow write: if request.auth != null &&
+          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+      }
+
+      // Brand content subcollection
+      match /content/{contentId} {
+        // Anyone can read published content
+        allow read: if resource.data.isPublished == true;
+        
+        // Brand managers can read all content (published and unpublished)
+        allow read: if request.auth != null &&
+          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+        
+        // Only brand managers can create/update/delete content
+        allow write: if request.auth != null &&
+          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+      }
+    }
+
+    // Existing easter eggs rules
+    match /easter_eggs/{eggId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'];
+    }
+
+    // Existing user easter eggs rules
+    match /user_easter_eggs/{userEggId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+
+    // Existing communities rules
+    match /communities/{communityId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'];
+    }
+
+    // Your temporary catch-all rule (expires July 17, 2025)
+    // This should be removed before expiration and replaced with specific rules
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2025, 7, 17);
+    }
+  }
+}

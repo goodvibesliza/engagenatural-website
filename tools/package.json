@@ -1,0 +1,12 @@
+{
+  "name": "engagenatural-tools",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "seed:emulator": "node setup-firebase.js --emulator"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

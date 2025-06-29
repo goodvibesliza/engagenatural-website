@@ -1,0 +1,85 @@
+{
+  "users": [
+    {
+      "displayName": "Liza Admin",
+      "email": "liza@example.com",
+      "role": "admin",
+      "country": "US",
+      "createdAt": {
+        "_seconds": 1609459200,
+        "_nanoseconds": 0
+      },
+      "lastActive": {
+        "_seconds": 1719580800,
+        "_nanoseconds": 0
+      }
+    },
+    {
+      "displayName": "Michael Brand",
+      "email": "michael@greenleaf.com",
+      "role": "brand",
+      "brandIds": [
+        "brand_greenleaf"
+      ],
+      "country": "US",
+      "createdAt": {
+        "_seconds": 1612137600,
+        "_nanoseconds": 0
+      },
+      "lastActive": {
+        "_seconds": 1719494400,
+        "_nanoseconds": 0
+      }
+    }
+  ],
+  "brands": [
+    {
+      "name": "GreenLeaf Organics",
+      "category": "Organic Foods",
+      "isActive": true,
+      "revenueShare": 0.18,
+      "conversionRate": 3.2,
+      "createdAt": {
+        "_seconds": 1609459200,
+        "_nanoseconds": 0
+      }
+    }
+  ],
+  "verifications": [
+    {
+      "userId": "user_1",
+      "brandId": "brand_greenleaf",
+      "status": "pending",
+      "timestamp": {
+        "_seconds": 1719580800,
+        "_nanoseconds": 0
+      }
+    }
+  ],
+  "content": [
+    {
+      "title": "Sustainable Practices Guide",
+      "type": "article",
+      "brandId": "brand_greenleaf",
+      "authorId": "user_1",
+      "views": 12450,
+      "engagement": 8.7,
+      "createdAt": {
+        "_seconds": 1609545600,
+        "_nanoseconds": 0
+      }
+    }
+  ],
+  "communities": [
+    {
+      "name": "Sustainability Champions",
+      "brandId": "brand_greenleaf",
+      "isActive": true,
+      "members": 4560,
+      "createdAt": {
+        "_seconds": 1609545600,
+        "_nanoseconds": 0
+      }
+    }
+  ]
+}
