@@ -2,9 +2,8 @@
 
 # Build settings for Netlify.
 [build]
-  # Command to build the project. It first installs dependencies with pnpm,
-  # then runs the build script defined in package.json.
-  command = "pnpm install && pnpm build"
+  # Command to build the project using npm to avoid pnpm hash-mismatch issues.
+  command = "npm install && npm run build"
   
   # The directory that contains the built site. Vite's default is "dist".
   publish = "dist"
@@ -12,7 +11,6 @@
   # Environment variables needed for the build process.
   [build.environment]
     NODE_VERSION = "18"
-    PNPM_VERSION = "8"
 
 # Redirect rule for Single Page Applications (SPAs).
 # This ensures that all routes are handled by index.html, allowing
