@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/auth-context";
 import BrandDashboard from "./BrandDashboard";
 import BrandChallenges from "./BrandChallenges";
@@ -8,10 +8,42 @@ import BrandConfiguration from "./BrandConfiguration";
 import BrandPosting from "./BrandPosting";
 import CommunityFeed from "./CommunityFeed";
 
+// Imports for the enhanced dropdown and other UI components
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuGroup,
+} from '../components/ui/dropdown-menu';
+import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import {
+  User,
+  ShieldCheck,
+  Users,
+  Trophy,
+  LogOut,
+  Settings,
+  Star,
+  BookOpen,
+  Building,
+  UserPlus,
+  LifeBuoy,
+} from 'lucide-react';
+
+
 export default function BrandHome() {
   const { brandId } = useParams();
   const authContext = useAuth();
+  const navigate = useNavigate();
   
+  // State for the new dropdown menu
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
   // Handle both old and new auth context structures
   const {
     hasPermission = () => true, // Default fallback
@@ -20,167 +52,181 @@ export default function BrandHome() {
     isBrandManager = () => false,
     isSuperAdmin = () => false,
     userProfile = {},
+    role,
+    signOut,
     PERMISSIONS = {
       VIEW_ANALYTICS: 'view_analytics',
+      CREATE_CHALLENGES: 'create_challenges',
       UPLOAD_CONTENT: 'upload_content',
-      VIEW_COMMUNITIES: 'view_communities'
+      VIEW_COMMUNITIES: 'view_communities',
+      POST_AS_BRAND: 'post_as_brand',
+      MANAGE_BRAND_CONFIG: 'manage_brand_config'
     }
   } = authContext || {};
-  
+
+  const TABS = [
+    { key: "analytics", label: "Analytics", permission: PERMISSIONS.VIEW_ANALYTICS },
+    { key: "challenges", label: "Challenges", permission: PERMISSIONS.CREATE_CHALLENGES },
+    { key: "upload", label: "Content Upload", permission: PERMISSIONS.UPLOAD_CONTENT },
+    { key: "community", label: "Community", permission: PERMISSIONS.VIEW_COMMUNITIES },
+    { key: "brand-posting", label: "Post as Brand", permission: PERMISSIONS.POST_AS_BRAND },
+    { key: "configuration", label: "Configuration", permission: PERMISSIONS.MANAGE_BRAND_CONFIG },
+  ];
+
   const [tab, setTab] = useState("analytics");
 
-  // Check if user has access to this brand
-  if (isBrandManager() && userProfile?.brandId !== brandId) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md">
-          <h2 className="text-xl font-bold text-red-600 mb-4">Access Restricted</h2>
-          <p className="text-gray-600 mb-4">
-            You can only access your own brand dashboard.
-          </p>
-          <button 
-            onClick={() => window.location.href = `/brand/${userProfile.brandId}`}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Go to Your Brand Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
+  /* ------------------------------------------------------------------
+   * HANDLERS
+   * ------------------------------------------------------------------ */
 
-  // Build tabs array based on permissions
-  const buildTabs = () => {
-    const tabs = [];
-    
-    // Analytics tab - available if user has analytics permission or fallback
-    if (hasPermission(PERMISSIONS.VIEW_ANALYTICS)) {
-      tabs.push({ key: "analytics", label: "Analytics" });
-    }
-    
-    // Challenges tab - available if user can create challenges or fallback
-    if (canCreateChallenge()) {
-      tabs.push({ key: "challenges", label: "Challenges" });
-    }
-    
-    // Upload tab - available if user can upload content or fallback
-    if (hasPermission(PERMISSIONS.UPLOAD_CONTENT)) {
-      tabs.push({ key: "upload", label: "Content Upload" });
-    }
-    
-    // Community tab - available if user can view communities or fallback
-    if (hasPermission(PERMISSIONS.VIEW_COMMUNITIES)) {
-      tabs.push({ key: "community", label: "Community" });
-    }
-    
-    // Brand Posting tab - available if user can post as brand
-    if (canPostAsBrand()) {
-      tabs.push({ key: "brand-posting", label: "Post as Brand" });
-    }
-    
-    // Configuration tab - available for brand managers and super admins
-    if (isBrandManager() || isSuperAdmin()) {
-      tabs.push({ key: "configuration", label: "Configuration" });
-    }
-    
-    // If no tabs are available (shouldn't happen with fallbacks), add analytics
-    if (tabs.length === 0) {
-      tabs.push({ key: "analytics", label: "Analytics" });
-    }
-    
-    return tabs;
+  // Debug helper – see if the Profile menu fires and where we navigate
+  const handleGoToProfile = () => {
+    /* eslint-disable no-console */
+    console.log("[BrandHome] My Profile clicked – navigating to /retailer/profile");
+    /* eslint-enable no-console */
+    navigate("/retailer/profile");
   };
 
-  const TABS = buildTabs();
-
-  // Set default tab to first available tab if current tab is not available
-  React.useEffect(() => {
-    if (!TABS.find(t => t.key === tab)) {
-      setTab(TABS[0]?.key || "analytics");
+  const handleLogout = async () => {
+    if (signOut) {
+      await signOut();
     }
-  }, [TABS, tab]);
+    navigate('/login');
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    const initials = names.map(n => n[0]).join('');
+    return initials.length > 2 ? initials.substring(0, 2) : initials;
+  };
 
   const renderTabContent = () => {
     switch (tab) {
       case "analytics":
         return <BrandDashboard brandId={brandId} />;
-        
       case "challenges":
         return <BrandChallenges brandId={brandId} />;
-        
       case "upload":
         return <BrandContentUploader brandId={brandId} />;
-        
       case "community":
         return <CommunityFeed brandId={brandId} />;
-        
       case "brand-posting":
         return <BrandPosting brandId={brandId} />;
-        
       case "configuration":
         return <BrandConfiguration brandId={brandId} />;
-        
       default:
         return <BrandDashboard brandId={brandId} />;
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Brand Admin</h1>
-        <p className="text-gray-600">
-          {isBrandManager() && `Managing ${userProfile?.brandId || brandId}`}
-          {isSuperAdmin() && `Super Admin - Managing ${brandId}`}
-          {!isBrandManager() && !isSuperAdmin() && `Managing ${brandId}`}
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto p-6 relative">
+      <header className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Brand Admin</h1>
+          <p className="text-gray-600 mt-1">
+            {isBrandManager() && `Managing ${userProfile?.brandName || brandId}`}
+            {isSuperAdmin() && `Super Admin - Managing ${brandId}`}
+          </p>
+        </div>
+        
+        {/* ENHANCED User Profile Dropdown */}
+        <div className="relative">
+          <DropdownMenu open={showProfileDropdown} onOpenChange={setShowProfileDropdown}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Avatar className="h-10 w-10 border-2 border-primary/50">
+                  <AvatarImage src={userProfile?.photoURL} alt={userProfile?.displayName || 'User Avatar'} />
+                  <AvatarFallback className="font-semibold">{getInitials(userProfile?.firstName)}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {userProfile?.firstName} {userProfile?.lastName}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {userProfile?.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                {/* My Profile */}
+                <DropdownMenuItem onSelect={handleGoToProfile}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>My Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => navigate('/brand-partnerships')}>
+                  <Building className="mr-2 h-4 w-4" />
+                  <span>Brand Partnerships</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => navigate('/my-team')} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>My Team</span>
+                  </div>
+                  <Badge variant="warning">Pending</Badge>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onSelect={() => navigate(`/brand/${brandId}/configuration`)}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Brand Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => navigate('/support')}>
+                  <LifeBuoy className="mr-2 h-4 w-4" />
+                  <span>Support</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              {role === 'admin' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/admin')}>
+                    <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
+                    <span className="font-semibold">Admin Panel</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
       
       {/* Tab Navigation */}
-      <div className="flex space-x-4 mb-6 overflow-x-auto">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded whitespace-nowrap transition-colors ${
-              tab === t.key
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-6 overflow-x-auto">
+          {TABS.map((t) => (
+            hasPermission(t.permission) && (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`${
+                  tab === t.key
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                {t.label}
+              </button>
+            )
+          ))}
+        </nav>
       </div>
       
       {/* Tab Content */}
-      <div className="bg-white rounded shadow p-4">
+      <main>
         {renderTabContent()}
-      </div>
-      
-      {/* Permission System Status */}
-      {!authContext?.PERMISSIONS && (
-        <div className="mt-8 p-4 bg-yellow-100 border border-yellow-400 rounded">
-          <h3 className="font-bold text-yellow-800 mb-2">⚠️ Permission System Not Active</h3>
-          <p className="text-yellow-700 text-sm">
-            You're using the basic auth context. To enable the full permission system with brand manager restrictions, 
-            replace your auth-context.jsx with the enhanced version that includes PERMISSIONS.
-          </p>
-        </div>
-      )}
-      
-      {/* Debug Info for Development */}
-      {process.env.NODE_ENV === 'development' && authContext?.PERMISSIONS && (
-        <div className="mt-8 p-4 bg-gray-100 rounded text-sm">
-          <h3 className="font-bold mb-2">Debug Info (Development Only):</h3>
-          <p><strong>User Role:</strong> {userProfile?.role || 'Not set'}</p>
-          <p><strong>Brand ID:</strong> {userProfile?.brandId || 'Not set'}</p>
-          <p><strong>Current Brand:</strong> {brandId}</p>
-          <p><strong>Available Tabs:</strong> {TABS.map(t => t.label).join(', ')}</p>
-          <p><strong>Permission System:</strong> {authContext?.PERMISSIONS ? '✅ Active' : '❌ Not Active'}</p>
-        </div>
-      )}
+      </main>
     </div>
   );
 }
-

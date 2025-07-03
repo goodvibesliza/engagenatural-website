@@ -13,15 +13,32 @@ const AutoRedirect = () => {
 
     // Auto-redirect brand managers to their dashboard
     if (role === 'brand_manager' && brandId) {
-      // Only redirect if not already on a brand page and not on admin pages
-      const isOnBrandPage = location.pathname.includes('/brand/');
-      const isOnAdminPage = location.pathname.includes('/admin');
-      const isOnAuthPage = location.pathname.includes('/login') || 
-                          location.pathname.includes('/signup') || 
-                          location.pathname.includes('/forgot-password');
+      // Define paths that should NOT trigger a redirect for brand managers
+      const isOnBrandPage = location.pathname.startsWith('/brand/');
+      const isOnAdminPage = location.pathname.startsWith('/admin');
+      const isOnProfilePage = location.pathname.startsWith('/retailer/profile'); // <-- FIX: Add exception for profile page
+      const isOnAuthPage = ['/login', '/signup', '/forgot-password'].includes(location.pathname);
+
+      // Check if the current page is one of the allowed exceptions
+      const isExceptionPage = isOnBrandPage || isOnAdminPage || isOnProfilePage || isOnAuthPage;
+
+      /* -------------------------------------------------------------
+       * DEBUG: NEW AutoRedirect v2 – trace evaluation
+       * ------------------------------------------------------------- */
+      /* eslint-disable no-console */
+      console.log('[AutoRedirect-DEBUG]', {
+        pathname: location.pathname,
+        isOnBrandPage,
+        isOnAdminPage,
+        isOnProfilePage,
+        isOnAuthPage,
+        isExceptionPage,
+        brandId,
+      });
+      /* eslint-enable no-console */
       
-      if (!isOnBrandPage && !isOnAdminPage && !isOnAuthPage) {
-        console.log(`Redirecting brand manager to /brand/${brandId}`);
+      if (!isExceptionPage) {
+        console.log(`[AutoRedirect] Redirecting brand manager from ${location.pathname} to /brand/${brandId}`);
         navigate(`/brand/${brandId}`);
       }
     }
@@ -31,4 +48,3 @@ const AutoRedirect = () => {
 };
 
 export default AutoRedirect;
-

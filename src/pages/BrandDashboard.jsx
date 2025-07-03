@@ -1,528 +1,477 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useCallback } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import analyticsService, { getDateRangeFromPreset, formatMetricValue } from "../services/analytics-service";
 import { useAuth } from '../contexts/auth-context';
-import { useNavigate } from 'react-router-dom';
 
-export default function BrandDashboard({ brandId }) {
-  const navigate = useNavigate();
-  const { userProfile, role } = useAuth();
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
+// UI Components from shadcn/ui
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
+
+// Icons from lucide-react
+import {
+  Users,
+  TrendingUp,
+  Target,
+  Trophy,
+  RefreshCw,
+  Download,
+  AlertCircle,
+  BarChart,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
+  Eye,
+  Heart,
+  MessageSquare,
+  DollarSign,
+  Upload,
+  Menu,
+  Settings,
+} from "lucide-react";
+
+// Charting Library
+import {
+  BarChart as RechartsBarChart,
+  LineChart as RechartsLineChart,
+  AreaChart as RechartsAreaChart,
+  PieChart as RechartsPieChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  Bar as RechartsBar,
+  Line as RechartsLine,
+  Area as RechartsArea,
+  Pie as RechartsPie,
+  Cell,
+} from "recharts";
+
+const CHART_COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F"];
+
+// Metric Card Sub-component
+const MetricCard = ({ title, value, change, icon: Icon, description }) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <Icon className="h-4 w-4 text-muted-foreground" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
+      <p className="text-xs text-muted-foreground">
+        {change !== null && (
+          <span className={change >= 0 ? "text-green-500" : "text-red-500"}>
+            {change >= 0 ? "+" : ""}{change}%
+          </span>
+        )}
+        {description}
+      </p>
+    </CardContent>
+  </Card>
+);
+
+// Chart Card Sub-component
+const ChartCard = ({ title, description, children }) => (
+  <Card className="col-span-full lg:col-span-1">
+    <CardHeader>
+      <CardTitle>{title}</CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+    <CardContent className="pl-2">
+      <ResponsiveContainer width="100%" height={300}>
+        {children}
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+);
+
+export default function FixedBrandDashboard({ brandId: propBrandId }) {
+  const { brandId: paramBrandId } = useParams();
+  const brandId = propBrandId || paramBrandId;
+
+  const [brandInfo, setBrandInfo] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // State for ROI Calculator
   const [roiData, setRoiData] = useState({
-    totalInvestment: '',
+    totalInvestment: '1000', // Default value
     employeesTrained: 50,
     avgProfitPerItem: 5
   });
 
-  // ROI Calculations
+  // ROI Calculation Logic
+  const handleRoiChange = (e) => {
+    const { name, value } = e.target;
+    setRoiData(prev => ({ ...prev, [name]: value }));
+  };
+
   const additionalProductsSold = roiData.employeesTrained * 3;
   const additionalRevenue = additionalProductsSold * roiData.avgProfitPerItem;
-  const roiPercentage = roiData.totalInvestment > 0 
-    ? ((additionalRevenue - parseFloat(roiData.totalInvestment)) / parseFloat(roiData.totalInvestment) * 100).toFixed(1)
+  const roiPercentage = roiData.totalInvestment > 0
+    ? (((additionalRevenue - parseFloat(roiData.totalInvestment)) / parseFloat(roiData.totalInvestment)) * 100).toFixed(1)
     : 0;
 
-  const handleInputChange = (field, value) => {
-    // Only allow numbers and decimal points for investment
-    if (field === 'totalInvestment') {
-      const numericValue = value.replace(/[^0-9.]/g, '');
-      setRoiData(prev => ({ ...prev, [field]: numericValue }));
-    } else {
-      setRoiData(prev => ({ ...prev, [field]: value }));
+  const fetchData = useCallback(async () => {
+    if (!brandId) {
+      setError("Brand ID is missing.");
+      setLoading(false);
+      return;
     }
-  };
 
-  const handleLogout = () => {
-    // Add logout logic here
-    navigate('/');
-  };
+    setLoading(true);
+    setError(null);
 
-  // Mock analytics data
-  const analytics = {
-    totalCommunities: 12,
-    activeMembers: 2847,
-    monthlyEngagement: 18924,
-    contentItems: 156,
-    communities: [
-      { name: 'Outdoor Enthusiasts', members: 1247, engagement: 89, growth: '+12%' },
-      { name: 'Fitness Community', members: 892, engagement: 76, growth: '+8%' },
-      { name: 'Tech Innovators', members: 634, engagement: 94, growth: '+15%' }
-    ],
-    recentActivity: [
-      { id: 1, type: 'member_joined', user: 'Sarah Johnson', community: 'Outdoor Enthusiasts', time: '2 hours ago' },
-      { id: 2, type: 'challenge_completed', user: 'Mike Chen', challenge: 'Product Knowledge Quiz', time: '4 hours ago' },
-      { id: 3, type: 'content_shared', user: 'Emily Davis', content: 'Summer Collection Video', time: '6 hours ago' },
-      { id: 4, type: 'campaign_launched', campaign: 'Spring Promotion', time: '1 day ago' }
-    ]
-  };
+    try {
+      const { startDate, endDate } = getDateRangeFromPreset('30d');
+
+      const brandInfoPromise = getDoc(doc(db, "brands", brandId));
+      // This call will now be handled gracefully
+      const analyticsPromise = analyticsService.getAllAnalytics(startDate, endDate, 'brand', brandId);
+
+      const [brandSnap, analytics] = await Promise.all([brandInfoPromise, analyticsPromise]);
+
+      if (brandSnap.exists()) {
+        setBrandInfo(brandSnap.data());
+      } else {
+        throw new Error("Brand not found.");
+      }
+
+      setAnalyticsData(analytics);
+    } catch (err) {
+      console.error("Failed to fetch brand data:", err);
+      setError("Could not load live data from Firebase. This is likely due to missing database indexes. Showing sample data instead.");
+      // Set fallback data so the component doesn't crash
+      setAnalyticsData(analyticsService.getFallbackData());
+    } finally {
+      setLoading(false);
+    }
+  }, [brandId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center">
+        <p>Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  // We check for analyticsData to be truthy before rendering.
+  if (!brandInfo || !analyticsData) {
+     return (
+      <div className="p-8 text-center">
+        <div className="p-4 border border-red-300 bg-red-50 rounded-md">
+            <h3 className="font-bold text-red-800">Error</h3>
+            <p className="text-red-700">A critical error occurred and the dashboard could not be loaded.</p>
+            <button onClick={fetchData} className="text-red-800 underline mt-2">
+              Try again
+            </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header with User Profile */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Brand Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage your brand presence and track performance</p>
-        </div>
-        
-        {/* User Profile Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-            className="flex items-center space-x-2 bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors"
-          >
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">
-                {userProfile?.firstName?.charAt(0) || 'U'}
-              </span>
-            </div>
-            <span className="hidden md:block text-sm font-medium text-gray-700">
-              {userProfile?.firstName || 'User'}
-            </span>
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {showProfileDropdown && (
-            <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-              <div className="p-4 border-b border-gray-200">
-                <p className="font-medium text-gray-900">
-                  {userProfile?.firstName} {userProfile?.lastName}
-                </p>
-                <p className="text-sm text-gray-500">{userProfile?.email}</p>
-              </div>
-              <div className="py-2">
-                <button
-                  onClick={() => navigate('/retailer/profile')}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  View Profile
-                </button>
-                <button
-                  onClick={() => navigate(`/brand/${brandId}/configuration`)}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Brand Settings
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
+    <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center space-x-4">
+          {brandInfo.logoURL && (
+            <img
+              src={brandInfo.logoURL}
+              alt={`${brandInfo.name} Logo`}
+              className="h-16 w-16 rounded-full object-cover border-2 border-background shadow-sm"
+            />
           )}
-        </div>
-      </div>
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Communities</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.totalCommunities}</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <span className="text-green-600 text-sm font-medium">+8.2%</span>
-            <span className="text-gray-500 text-sm ml-1">from last month</span>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              {brandInfo.name} Dashboard
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Analytics and management tools for your brand.
+            </p>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Members</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.activeMembers}</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <span className="text-green-600 text-sm font-medium">+12.5%</span>
-            <span className="text-gray-500 text-sm ml-1">from last month</span>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={fetchData} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export Report
+          </Button>
         </div>
+      </header>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Monthly Engagement</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.monthlyEngagement}</p>
-            </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <span className="text-green-600 text-sm font-medium">+23.1%</span>
-            <span className="text-gray-500 text-sm ml-1">from last month</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Content Items</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.contentItems}</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <span className="text-green-600 text-sm font-medium">+5.7%</span>
-            <span className="text-gray-500 text-sm ml-1">from last month</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Engagement Metrics */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Content Engagement</h2>
-          <span className="text-sm text-gray-500">Last 30 days</span>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-red-50 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9 5a9 9 0 1118 0 9 9 0 01-18 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Videos</p>
-                <p className="text-lg font-bold text-gray-900">1,247</p>
-                <p className="text-xs text-gray-500">engagements</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Articles</p>
-                <p className="text-lg font-bold text-gray-900">892</p>
-                <p className="text-xs text-gray-500">engagements</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-green-50 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Posts</p>
-                <p className="text-lg font-bold text-gray-900">2,156</p>
-                <p className="text-xs text-gray-500">engagements</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-purple-50 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Social Asks</p>
-                <p className="text-lg font-bold text-gray-900">634</p>
-                <p className="text-xs text-gray-500">engagements</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-purple-50 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Average Engagement Rate</p>
-              <p className="text-2xl font-bold text-purple-900">24.7%</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-              </svg>
-              <span className="text-sm text-purple-600 font-medium">Excellent performance</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions and Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <button className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <span className="font-medium text-gray-900">Create New Campaign</span>
-              </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-
-            <button className="w-full flex items-center justify-between p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <span className="font-medium text-gray-900">Invite Community Members</span>
-              </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-
-            <button className="w-full flex items-center justify-between p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <span className="font-medium text-gray-900">View Analytics Report</span>
-              </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
-          <div className="space-y-4">
-            {analytics.recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">
-                    <span className="font-medium">{activity.user || activity.campaign}</span>
-                    {activity.type === 'member_joined' && ` joined ${activity.community}`}
-                    {activity.type === 'challenge_completed' && ` completed ${activity.challenge}`}
-                    {activity.type === 'content_shared' && ` shared ${activity.content}`}
-                    {activity.type === 'campaign_launched' && ` was launched`}
-                  </p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Communities Overview */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Communities Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {analytics.communities.map((community, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-2">{community.name}</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Members</span>
-                  <span className="font-medium">{community.members}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Engagement</span>
-                  <span className="font-medium">{community.engagement}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-500 h-2 rounded-full" 
-                    style={{ width: `${community.engagement}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Growth</span>
-                  <span className="text-green-600 font-medium">{community.growth}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ROI Calculator */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">ROI Calculator</h2>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Input Section */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Total Investment ($)
-              </label>
-              <input
-                type="text"
-                value={roiData.totalInvestment}
-                onChange={(e) => handleInputChange('totalInvestment', e.target.value)}
-                placeholder="Enter investment amount"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-bold"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Employees Trained
-              </label>
-              <input
-                type="number"
-                value={roiData.employeesTrained}
-                onChange={(e) => handleInputChange('employeesTrained', parseInt(e.target.value) || 0)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Average Profit Per Item ($)
-              </label>
-              <input
-                type="number"
-                value={roiData.avgProfitPerItem}
-                onChange={(e) => handleInputChange('avgProfitPerItem', parseFloat(e.target.value) || 0)}
-                step="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Results Section */}
-          <div className="bg-green-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-green-900 mb-4">ROI Results</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-green-700">Additional Products Sold:</span>
-                <span className="font-bold text-green-900">{additionalProductsSold}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-green-700">Additional Revenue:</span>
-                <span className="font-bold text-green-900">${additionalRevenue.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-t border-green-200 pt-3">
-                <span className="text-green-700 font-medium">ROI Percentage:</span>
-                <span className="font-bold text-green-900 text-xl">{roiPercentage}%</span>
-              </div>
-            </div>
-            
-            <div className="mt-4 p-3 bg-green-100 rounded-lg">
-              <p className="text-sm text-green-800">
-                <strong>Calculation:</strong> Based on 3 additional products sold per retail employee trained 
-                before someone else trains them, with an average profit of ${roiData.avgProfitPerItem} per item.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Legacy Features */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Legacy Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <a
-            href={`/brand/${brandId}/upload`}
-            className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              </div>
-              <span className="font-medium text-gray-900">Content Upload</span>
-            </div>
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </a>
-
-          <a
-            href={`/brand/${brandId}/configuration`}
-            className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gray-500 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <span className="font-medium text-gray-900">Brand Configuration</span>
-            </div>
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </a>
-
-          <a
-            href={`/brand/${brandId}/challenges`}
-            className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
-              </div>
-              <span className="font-medium text-gray-900">Challenges</span>
-            </div>
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </a>
-        </div>
-      </div>
-
-      {/* Click outside to close dropdown */}
-      {showProfileDropdown && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowProfileDropdown(false)}
-        ></div>
+      {/* Display Error/Warning if Firebase failed */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Live Data Unavailable</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
+
+      {/* Navigation Links */}
+      <nav className="flex flex-wrap gap-2">
+        <Button asChild variant="secondary" size="sm">
+          <Link to={`/brand/${brandId}/challenges`}>
+            <Trophy className="h-4 w-4 mr-2" />
+            Manage Challenges
+          </Link>
+        </Button>
+        <Button asChild variant="secondary" size="sm">
+          <Link to={`/brand/${brandId}/upload`}>
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Content
+          </Link>
+        </Button>
+        <Button asChild variant="secondary" size="sm">
+          <Link to={`/brand/${brandId}/menu`}>
+            <Menu className="h-4 w-4 mr-2" />
+            Brand Menu
+          </Link>
+        </Button>
+         <Button asChild variant="outline" size="sm">
+          <Link to={`/brand/${brandId}/configuration`}>
+            <Settings className="h-4 w-4 mr-2" />
+            Configuration
+          </Link>
+        </Button>
+      </nav>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <MetricCard
+          title="Community Members"
+          value={formatMetricValue(analyticsData.communityMetrics?.topCommunities.reduce((sum, c) => sum + c.members, 0), 'compact')}
+          change={analyticsData.communityMetrics?.communityGrowth}
+          icon={Users}
+          description=" in the last 30 days"
+        />
+        <MetricCard
+          title="Engagement Rate"
+          value={formatMetricValue(analyticsData.contentMetrics?.engagementRate, 'percent')}
+          change={5.2}
+          icon={Heart}
+          description=" across all content"
+        />
+        <MetricCard
+          title="Challenges Completed"
+          value={formatMetricValue(156, 'compact')}
+          change={18.1}
+          icon={Trophy}
+          description=" this month"
+        />
+        <MetricCard
+          title="Content Views"
+          value={formatMetricValue(analyticsData.contentMetrics?.topPerformingContent.reduce((sum, c) => sum + c.views, 0), 'compact')}
+          change={22.4}
+          icon={Eye}
+          description=" total views"
+        />
+        <MetricCard
+          title="Calculated ROI"
+          value={`${roiPercentage}%`}
+          change={null}
+          icon={DollarSign}
+          description=" based on your inputs"
+        />
+      </div>
+
+      {/* Tabbed Analytics */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="h-auto p-1 bg-muted rounded-lg inline-flex items-center justify-center">
+          <TabsTrigger value="overview" className="px-3 py-1.5 text-sm font-medium">Overview</TabsTrigger>
+          <TabsTrigger value="audience" className="px-3 py-1.5 text-sm font-medium">Audience</TabsTrigger>
+          <TabsTrigger value="content" className="px-3 py-1.5 text-sm font-medium">Content</TabsTrigger>
+          <TabsTrigger value="engagement" className="px-3 py-1.5 text-sm font-medium">Engagement</TabsTrigger>
+          <TabsTrigger value="roi" className="px-3 py-1.5 text-sm font-medium">ROI Calculator</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ChartCard title="Community Growth" description="Daily active members in your communities.">
+              <RechartsAreaChart data={analyticsData.communityMetrics?.activityTrend}>
+                <defs>
+                  <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CHART_COLORS[0]} stopOpacity={0.8} />
+                    <stop offset="95%" stopColor={CHART_COLORS[0]} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                <Tooltip />
+                <RechartsArea type="monotone" dataKey="posts" stroke={CHART_COLORS[0]} fillOpacity={1} fill="url(#colorUv)" />
+              </RechartsAreaChart>
+            </ChartCard>
+            <ChartCard title="Content Engagement" description="Views vs. engagement over the last 30 days.">
+              <RechartsLineChart data={analyticsData.contentMetrics?.topPerformingContent}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="title" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => value.substring(0, 10) + '...'} />
+                <YAxis yAxisId="left" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="right" orientation="right" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip />
+                <Legend />
+                <RechartsLine yAxisId="left" type="monotone" dataKey="views" stroke={CHART_COLORS[1]} />
+                <RechartsLine yAxisId="right" type="monotone" dataKey="engagement" stroke={CHART_COLORS[2]} />
+              </RechartsLineChart>
+            </ChartCard>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="audience" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ChartCard title="User Demographics" description="Breakdown of your audience by location.">
+              <RechartsPieChart>
+                <RechartsPie data={analyticsData.userMetrics?.usersByLocation} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                  {analyticsData.userMetrics?.usersByLocation.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </RechartsPie>
+                <Tooltip />
+                <Legend />
+              </RechartsPieChart>
+            </ChartCard>
+            <ChartCard title="Device Usage" description="What devices your audience uses to engage.">
+              <RechartsBarChart data={analyticsData.userMetrics?.usersByDevice} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip />
+                <RechartsBar dataKey="value" fill={CHART_COLORS[3]} barSize={30}>
+                   {analyticsData.userMetrics?.usersByDevice.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </RechartsBar>
+              </RechartsBarChart>
+            </ChartCard>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="content" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Performing Content</CardTitle>
+              <CardDescription>Your most viewed and engaged content pieces.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {analyticsData.contentMetrics?.topPerformingContent.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                    <div className="flex items-center gap-4">
+                       <BarChart className="h-5 w-5 text-muted-foreground" />
+                       <div>
+                         <p className="font-semibold">{item.title}</p>
+                         <Badge variant="outline">{item.type}</Badge>
+                       </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{formatMetricValue(item.views, 'compact')} views</p>
+                      <p className="text-sm text-green-500">{item.engagement}% engagement</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="engagement" className="mt-4">
+           <ChartCard title="Community Activity" description="Posts, comments, and likes over time.">
+              <RechartsBarChart data={analyticsData.communityMetrics?.activityTrend} stackOffset="sign">
+                 <CartesianGrid strokeDasharray="3 3" />
+                 <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
+                 <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                 <Tooltip />
+                 <Legend />
+                 <RechartsBar dataKey="posts" fill={CHART_COLORS[0]} stackId="a" />
+                 <RechartsBar dataKey="comments" fill={CHART_COLORS[1]} stackId="a" />
+              </RechartsBarChart>
+           </ChartCard>
+        </TabsContent>
+
+        <TabsContent value="roi" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Return on Investment (ROI) Calculator</CardTitle>
+              <CardDescription>
+                <strong>ROI = Return on Investment.</strong> This tool estimates the increase in items sold as a result of your brand’s challenges and engagement campaigns. Track how your efforts are driving real sales!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Input Form */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="totalInvestment">Total Investment ($)</Label>
+                  <Input
+                    id="totalInvestment"
+                    name="totalInvestment"
+                    type="number"
+                    value={roiData.totalInvestment}
+                    onChange={handleRoiChange}
+                    placeholder="e.g., 1000"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="employeesTrained">Number of Employees Trained</Label>
+                  <Input
+                    id="employeesTrained"
+                    name="employeesTrained"
+                    type="number"
+                    value={roiData.employeesTrained}
+                    onChange={handleRoiChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="avgProfitPerItem">Average Profit per Item ($)</Label>
+                  <Input
+                    id="avgProfitPerItem"
+                    name="avgProfitPerItem"
+                    type="number"
+                    value={roiData.avgProfitPerItem}
+                    onChange={handleRoiChange}
+                  />
+                </div>
+              </div>
+              {/* Calculation Breakdown */}
+              <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                <h3 className="font-semibold text-lg">Calculation Breakdown</h3>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Additional Products Sold:</span>
+                  <span className="font-semibold">{additionalProductsSold}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Additional Revenue:</span>
+                  <span className="font-semibold">${additionalRevenue.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between border-t pt-4 mt-4">
+                  <span className="text-lg font-bold">Estimated ROI:</span>
+                  <span className={`text-lg font-bold ${roiPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {roiPercentage}%
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </Tabs>
     </div>
   );
 }
-
