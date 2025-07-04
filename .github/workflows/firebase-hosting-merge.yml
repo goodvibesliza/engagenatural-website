@@ -11,17 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       # Set up pnpm (package manager specified in package.json)
       - uses: pnpm/action-setup@v2
         with:
           version: 10      # use the major version declared in packageManager
           run_install: false
+      
+      # Create .npmrc file with aggressive peer dependency settings
+      - name: Create .npmrc
+        run: |
+          echo "strict-peer-dependencies=false" > .npmrc
+          echo "auto-install-peers=true" >> .npmrc
+          echo "resolve-peers-from-workspace-root=true" >> .npmrc
+          echo "shamefully-hoist=true" >> .npmrc
+          echo "legacy-peer-deps=true" >> .npmrc
 
-      # Install dependencies with pnpm and relax peer-dependency strictness
-      - run: pnpm install --no-frozen-lockfile --strict-peer-dependencies=false
+      # Install dependencies with pnpm and aggressive peer dependency settings
+      - run: pnpm install --no-frozen-lockfile
 
       # Build the project
       - run: pnpm run build
+      
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
