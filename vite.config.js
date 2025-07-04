@@ -27,13 +27,7 @@ export default defineConfig({
       include: [/node_modules/]
     },
     sourcemap: true,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false,
-        drop_debugger: true
-      }
-    },
+    minify: 'esbuild',
     rollupOptions: {
       onwarn(warning, warn) {
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
