@@ -9,16 +9,32 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+    dedupe: ['react', 'react-dom']
+  },
+  optimizeDeps: {
+    force: true,
+    esbuildOptions: {
+      // Node.js global to browser globalThis
+      define: {
+        global: 'globalThis'
+      }
     }
   },
   build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+      include: [/node_modules/]
+    },
+    sourcemap: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false,
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
-      external: ['@radix-ui/react-label'],
-      output: {
-        globals: {
-          '@radix-ui/react-label': 'RadixUIReactLabel'
-        }
-      },
       onwarn(warning, warn) {
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
           return
