@@ -11,7 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci && npm run build
+      # Set up pnpm (package manager specified in package.json)
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 10      # use the major version declared in packageManager
+          run_install: false
+
+      # Install dependencies with pnpm and relax peer-dependency strictness
+      - run: pnpm install --no-frozen-lockfile --strict-peer-dependencies=false
+
+      # Build the project
+      - run: pnpm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
