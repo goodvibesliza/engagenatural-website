@@ -36,17 +36,29 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
       
-      // Check if admin
-      if (adminEmails.includes(user.email)) {
-        navigate('/admin/dashboard')
-      } else {
-        // Check verification status
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists() && userDoc.data().verified) {
+      // Get user document from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        
+        // Check if admin by email
+        if (adminEmails.includes(user.email)) {
+          navigate('/admin/dashboard')
+        } 
+        // Check if brand manager
+        else if (userData.role === 'brand_manager' && userData.brandId) {
+          navigate(`/brand/${userData.brandId}`)
+        }
+        // Check verification status for retailers
+        else if (userData.verified) {
           navigate('/retailer/verified')
         } else {
           navigate('/retailer/profile')
         }
+      } else {
+        // Default path if no user document exists
+        navigate('/retailer/profile')
       }
       
       setIsOpen(false)
@@ -330,4 +342,3 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
     </Dialog>
   )
 }
-
