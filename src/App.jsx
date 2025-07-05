@@ -80,11 +80,11 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <AutoRedirect /> {/* Add this component for auto-redirect */}
+        <AutoRedirect /> {/* This component is now disabled and won't cause redirects */}
         <div className="min-h-screen bg-white">
           <Routes>
-            {/* Public website route */}
-            <Route path="/" element={<Navigate to="/admin/login" replace />} />
+            {/* Public website route - keeping this as the root path */}
+            <Route path="/" element={<PublicWebsite />} />
 
             {/* Community route */}
             <Route path="/community/:communityId" element={<CommunityPage />} />
@@ -105,7 +105,7 @@ function App() {
             />
             
             {/* Admin authentication routes */}
-                       <Route 
+            <Route 
               path="/admin/login" 
               element={
                 user && isAdmin ? (
@@ -173,7 +173,6 @@ function App() {
 <Route path="settings" element={<SystemSettings />} />
 
                     
-<Route path="/admin/analytics" element={<EnhancedAnalyticsDashboard />} />
                     {/* Catch all admin route */}
                     <Route path="*" element={<Navigate to="/admin" replace />} />
                   </Routes>
@@ -181,8 +180,8 @@ function App() {
               } 
             />
             
-            {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/admin/login" replace />} />
+            {/* Catch all route - must be last */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </Router>
@@ -191,4 +190,3 @@ function App() {
 }
 
 export default App
-
