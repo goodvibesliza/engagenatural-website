@@ -84,7 +84,7 @@ function App() {
         <div className="min-h-screen bg-white">
           <Routes>
             {/* Public website route */}
-            <Route path="/" element={<PublicWebsite />} />
+            <Route path="/" element={<Navigate to="/admin/login" replace />} />
 
             {/* Community route */}
             <Route path="/community/:communityId" element={<CommunityPage />} />
@@ -105,7 +105,7 @@ function App() {
             />
             
             {/* Admin authentication routes */}
-            <Route 
+                       <Route 
               path="/admin/login" 
               element={
                 user && isAdmin ? (
@@ -173,6 +173,7 @@ function App() {
 <Route path="settings" element={<SystemSettings />} />
 
                     
+<Route path="/admin/analytics" element={<EnhancedAnalyticsDashboard />} />
                     {/* Catch all admin route */}
                     <Route path="*" element={<Navigate to="/admin" replace />} />
                   </Routes>
@@ -181,7 +182,7 @@ function App() {
             />
             
             {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/admin/login" replace />} />
           </Routes>
         </div>
       </Router>
