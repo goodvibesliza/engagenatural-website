@@ -33,37 +33,45 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
     setLoading(true)
 
     try {
+      console.log('Attempting to sign in with email:', email)
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
+      console.log('User authenticated successfully:', user.uid)
       
       // Get user document from Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid))
       
       if (userDoc.exists()) {
         const userData = userDoc.data()
+        console.log('User profile loaded:', userData.role)
         
-        // Check if admin by email
+        // Check if admin by email - redirect to /admin instead of /admin/dashboard
         if (adminEmails.includes(user.email)) {
-          navigate('/admin/dashboard')
+          console.log('Admin user detected, navigating to admin panel')
+          navigate('/admin')
         } 
         // Check if brand manager
         else if (userData.role === 'brand_manager' && userData.brandId) {
+          console.log('Brand manager detected, navigating to brand page:', userData.brandId)
           navigate(`/brand/${userData.brandId}`)
         }
         // Check verification status for retailers
         else if (userData.verified) {
+          console.log('Verified retailer detected, navigating to verified page')
           navigate('/retailer/verified')
         } else {
+          console.log('Unverified user detected, navigating to profile page')
           navigate('/retailer/profile')
         }
       } else {
+        console.log('No user profile found, creating default profile')
         // Default path if no user document exists
         navigate('/retailer/profile')
       }
       
       setIsOpen(false)
     } catch (error) {
-      console.error('Sign in error:', error)
+      console.error('Sign in error:', error.code, error.message)
       
       // User-friendly error messages
       switch (error.code) {
@@ -79,8 +87,11 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
         case 'auth/too-many-requests':
           setError('Too many failed attempts. Please try again later.')
           break
+        case 'auth/network-request-failed':
+          setError('Network error. Please check your connection and try again.')
+          break
         default:
-          setError('Failed to sign in. Please try again.')
+          setError(`Failed to sign in: ${error.message}`)
       }
     } finally {
       setLoading(false)
@@ -99,8 +110,10 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
     }
 
     try {
+      console.log('Attempting to create account for:', email)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
+      console.log('User account created successfully:', user.uid)
       
       // Create user document in Firestore
       await setDoc(doc(db, 'users', user.uid), {
@@ -113,10 +126,11 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
         role: 'retailer'
       })
       
+      console.log('User profile created, navigating to profile page')
       navigate('/retailer/profile')
       setIsOpen(false)
     } catch (error) {
-      console.error('Sign up error:', error)
+      console.error('Sign up error:', error.code, error.message)
       
       // User-friendly error messages
       switch (error.code) {
@@ -129,8 +143,11 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
         case 'auth/weak-password':
           setError('Password should be at least 6 characters.')
           break
+        case 'auth/network-request-failed':
+          setError('Network error. Please check your connection and try again.')
+          break
         default:
-          setError('Failed to create account. Please try again.')
+          setError(`Failed to create account: ${error.message}`)
       }
     } finally {
       setLoading(false)
