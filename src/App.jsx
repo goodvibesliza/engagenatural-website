@@ -10,7 +10,6 @@ import BrandMenu from './pages/BrandMenu';
 import BrandChallenges from './pages/BrandChallenges';
 import BrandConfiguration from './pages/BrandConfiguration';
 import EnhancedAnalyticsDashboard from './components/admin/analytics/enhanced-analytics-dashboard';
-import UserManagementIntegrated from './components/admin/users/user-management-integrated';
 
 // Import contexts
 import { AuthProvider } from './contexts/auth-context'
@@ -33,7 +32,7 @@ import SignupForm from './components/auth/signup-form'
 import AdminLayout from './components/admin/layout/admin-layout'
 import AdminOverview from './components/admin/dashboard/admin-overview'
 import VerificationManagement from './components/admin/verification/verification-management'
-import UserManagement from './components/admin/users/user-management'
+import UserManagementIntegrated from './components/admin/users/user-management-integrated' // Use the integrated component
 import AnalyticsDashboard from './components/admin/analytics/analytics-dashboard'
 import BrandManagement from './components/admin/brand/brand-management'
 import ContentManagement from './components/admin/content/content-management'
@@ -81,10 +80,10 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <AutoRedirect /> {/* This component is now disabled and won't cause redirects */}
+        <AutoRedirect /> {/* Add this component for auto-redirect */}
         <div className="min-h-screen bg-white">
           <Routes>
-            {/* Public website route - keeping this as the root path */}
+            {/* Public website route */}
             <Route path="/" element={<PublicWebsite />} />
 
             {/* Community route */}
@@ -181,7 +180,7 @@ function App() {
               } 
             />
             
-            {/* Catch all route - must be last */}
+            {/* Catch all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

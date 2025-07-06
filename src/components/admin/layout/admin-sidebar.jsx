@@ -16,14 +16,14 @@ import { cn } from '../../../lib/utils'
 
 const navigation = [
   { name: 'Overview', href: '/admin', icon: Home, current: false },
-  { name: 'Users', href: '/admin/users', icon: Users, current: false, permission: ['manage_all_users', 'manage_brand_users', 'manage_retail_users'] },
+  { name: 'Users', href: '/admin/users', icon: Users, current: false, permission: ['manage_users'] },
   { name: 'Verifications', href: '/admin/verifications', icon: UserCheck, current: false, permission: ['approve_verifications'] },
-  { name: 'Brands', href: '/admin/brands', icon: Building, current: false, permission: ['manage_all_brands', 'manage_brand_content', 'manage_brand_products'] },
-  { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp, current: false, permission: ['view_all_analytics', 'view_brand_analytics', 'view_retail_analytics'] },
+  { name: 'Brands', href: '/admin/brands', icon: Building, current: false, permission: ['manage_brands', 'manage_brand_content', 'manage_brand_products'] },
+  { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp, current: false, permission: ['view_analytics'] },
   { name: 'Content', href: '/admin/content', icon: FileText, current: false, permission: ['manage_content', 'manage_brand_content'] },
   { name: 'Products', href: '/admin/products', icon: Package, current: false, permission: ['manage_brand_products'] },
   { name: 'Activity', href: '/admin/activity', icon: Activity, current: false },
-  { name: 'Settings', href: '/admin/settings', icon: Settings, current: false, permission: ['manage_system_settings'] },
+  { name: 'Settings', href: '/admin/settings', icon: Settings, current: false, permission: ['system_settings'] },
 ]
 
 export default function AdminSidebar() {
