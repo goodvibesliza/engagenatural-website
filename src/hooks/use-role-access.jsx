@@ -1,11 +1,20 @@
-import { useAuth, USER_ROLES, PERMISSIONS, ROLE_PERMISSIONS } from '../contexts/auth-context';
+import { useAuth, USER_ROLES, PERMISSIONS } from '../contexts/auth-context';
 
 /**
  * A custom hook to manage role-based access control (RBAC) throughout the application.
- * It provides functions to check permissions based on the current user's role.
+ * It provides functions to check permissions based on the current user's role by using
+ * the hasPermission function from the AuthContext.
  */
 export function useRoleAccess() {
-  const { role, brandId } = useAuth();
+  const { 
+    role, 
+    brandId, 
+    hasPermission, 
+    isSuperAdmin, 
+    isBrandManager, 
+    isRetailUser, 
+    isCommunityUser 
+  } = useAuth();
 
   /**
    * Checks if the current user has at least one of the required permissions.
@@ -13,17 +22,16 @@ export function useRoleAccess() {
    * @returns {boolean} - True if the user has at least one of the required permissions, otherwise false.
    */
   const canAccess = (requiredPermissions) => {
-    if (!role || !ROLE_PERMISSIONS[role]) {
+    if (!role) {
       return false;
     }
-
-    const userPermissions = ROLE_PERMISSIONS[role];
+    
     const permissionsToCheck = Array.isArray(requiredPermissions) 
       ? requiredPermissions 
       : [requiredPermissions];
 
-    // Returns true if the user's role includes any of the permissions in the permissionsToCheck array.
-    return permissionsToCheck.some(permission => userPermissions.includes(permission));
+    // Use the hasPermission function from the AuthContext to check if the user has any of the required permissions.
+    return permissionsToCheck.some(permission => hasPermission(permission));
   };
 
   /**
@@ -32,36 +40,26 @@ export function useRoleAccess() {
    * @returns {boolean} - True if the user can view the specified scope of analytics.
    */
   const canViewAnalytics = (scope = 'all') => {
-    if (!role) return false;
-
     // Super admins can view all analytics scopes.
-    if (role === USER_ROLES.SUPER_ADMIN) {
+    if (isSuperAdmin()) {
       return true;
     }
     
     // Brand managers can only view analytics for their own brand.
-    if (role === USER_ROLES.BRAND_MANAGER) {
-      return scope === 'brand' && brandId;
+    if (scope === 'brand' && isBrandManager() && brandId) {
+      return true;
     }
     
-    // For other roles, we can fall back to the generic permission check.
-    // This could be expanded with more specific logic for 'retail' scope if needed.
+    // For other roles, fall back to the generic permission check for viewing analytics.
     if (scope === 'all') {
-        return canAccess(PERMISSIONS.VIEW_ANALYTICS);
+        return hasPermission(PERMISSIONS.VIEW_ANALYTICS);
     }
 
     return false;
   };
 
-  // --- Role-checking helper functions for convenience ---
-
-  const isSuperAdmin = () => role === USER_ROLES.SUPER_ADMIN;
-  const isBrandManager = () => role === USER_ROLES.BRAND_MANAGER;
-  const isRetailUser = () => role === USER_ROLES.RETAIL_USER;
-  const isCommunityUser = () => role === USER_ROLES.COMMUNITY_USER;
-
   return {
-    // Current user's role and brandId
+    // Current user's role and brandId from context
     role,
     brandId,
     
@@ -69,7 +67,7 @@ export function useRoleAccess() {
     canAccess,
     canViewAnalytics,
 
-    // Role helper functions
+    // Role helper functions from context
     isSuperAdmin,
     isBrandManager,
     isRetailUser,

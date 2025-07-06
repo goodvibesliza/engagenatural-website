@@ -18,7 +18,7 @@ const userFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required.'),
   lastName: z.string().min(1, 'Last name is required.'),
   email: z.string().email('Invalid email address.'),
-  role: z.nativeEnum(USER_ROLES),
+  role: z.enum(Object.values(USER_ROLES)),
   brandId: z.string().optional(),
   status: z.enum(['active', 'inactive', 'suspended', 'pending_verification']),
   verificationStatus: z.enum(['not_submitted', 'pending', 'verified', 'rejected']),
