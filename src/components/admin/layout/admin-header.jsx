@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Menu, Bell, Search, User, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../../../contexts/auth-context'
 import { Button } from '../../ui/button'
@@ -14,7 +15,8 @@ import { Input } from '../../ui/input'
 import { Badge } from '../../ui/badge'
 
 export default function AdminHeader({ setSidebarOpen }) {
-  const { user, userProfile, role, logout } = useAuth()
+  const { user, userProfile, role, signOut } = useAuth()
+  const navigate = useNavigate()
   const [notifications] = useState([
     { id: 1, message: 'New verification request', unread: true },
     { id: 2, message: 'Brand partnership approved', unread: true },
@@ -33,6 +35,22 @@ export default function AdminHeader({ setSidebarOpen }) {
         return 'Retail Admin'
       default:
         return 'User'
+    }
+  }
+
+  const handleLogout = async () => {
+    console.log("Attempting to log out...")
+    try {
+      const { success, error } = await signOut()
+      if (success) {
+        console.log("Logout successful. Navigating to homepage.")
+        navigate('/')
+      } else {
+        console.error("Logout failed:", error)
+        // Optionally, you can add a toast notification to inform the user
+      }
+    } catch (err) {
+      console.error("An unexpected error occurred during logout:", err)
     }
   }
 
@@ -55,7 +73,7 @@ export default function AdminHeader({ setSidebarOpen }) {
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         {/* Search */}
         <div className="relative flex flex-1 items-center">
-          <Search className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 pl-3" />
+          <Search className="pointer-events-none absolute inset-y-0 left-3 h-full w-5 text-gray-400" />
           <Input
             className="block h-full w-full border-0 py-0 pl-10 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
             placeholder="Search users, brands, verifications..."
@@ -110,7 +128,7 @@ export default function AdminHeader({ setSidebarOpen }) {
                 </div>
                 <span className="hidden lg:flex lg:items-center">
                   <span className="ml-2" aria-hidden="true">
-                    {user?.displayName || user?.email}
+                    {userProfile?.firstName || user?.email}
                   </span>
                 </span>
               </Button>
@@ -119,7 +137,7 @@ export default function AdminHeader({ setSidebarOpen }) {
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
-                    {user?.displayName || user?.email}
+                    {`${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`.trim() || user?.email}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {getRoleDisplayName(role)}
@@ -127,16 +145,16 @@ export default function AdminHeader({ setSidebarOpen }) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/admin/profile')}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/admin/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
+              <DropdownMenuItem onSelect={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
