@@ -10,6 +10,7 @@ import BrandMenu from './pages/BrandMenu';
 import BrandChallenges from './pages/BrandChallenges';
 import BrandConfiguration from './pages/BrandConfiguration';
 import EnhancedAnalyticsDashboard from './components/admin/analytics/enhanced-analytics-dashboard';
+import UserManagementIntegrated from './components/admin/users/user-management-integrated';
 
 // Import contexts
 import { AuthProvider } from './contexts/auth-context'
@@ -163,7 +164,7 @@ function App() {
                     <Route path="legacy" element={<AdminDashboard />} />
                     
                    {/* Admin feature routes */}
-<Route path="users" element={<UserManagement />} />
+<Route path="users" element={<UserManagementIntegrated />} />
 <Route path="verifications" element={<VerificationManagement />} />
 <Route path="brands" element={<BrandManagement />} />
 <Route path="analytics" element={<AnalyticsDashboard />} />
