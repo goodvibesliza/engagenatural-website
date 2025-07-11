@@ -5,14 +5,29 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import { isLocalhost } from './firebase';
 
-// Pages
+// Admin Pages
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
 import TemplateEditorPage from './pages/admin/TemplateEditorPage';
 import TemplateViewPage from './pages/admin/TemplateViewPage';
 
+// Brand Management Pages (Admin)
+import AdminBrandsPage from './pages/admin/AdminBrandsPage';
+import BrandEditorPage from './pages/admin/BrandEditorPage';
+import BrandDetailPage from './pages/admin/BrandDetailPage';
+
+// Brand Manager Pages
+import BrandDashboardPage from './pages/brand/BrandDashboardPage';
+import BrandTemplatesPage from './pages/brand/BrandTemplatesPage';
+import BrandContentListPage from './pages/brand/BrandContentListPage';
+import BrandAnalyticsPage from './pages/brand/BrandAnalyticsPage';
+import BrandTemplateViewPage from './pages/brand/BrandTemplateViewPage';
+import BrandContentEditorPage from './pages/brand/BrandContentEditorPage';
+
+// Other brand pages can be uncommented as they're implemented
+// import BrandContentViewPage from './pages/brand/BrandContentViewPage';
+
 // Utility for seeding emulator auth
-// We'll create this file next
 import { seedEmulatorAuth } from './utils/seedEmulatorAuth';
 
 // Simple Login Component
@@ -22,7 +37,13 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const auth = useAuth();
+  const { signIn, isAuthenticated, loading: authLoading } = useAuth();
+  
+  // Don't redirect if auth is still loading
+  if (isAuthenticated && !authLoading) {
+    // Use replace to avoid adding to history
+    return <Navigate to="/admin" replace />;
+  }
   
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -31,7 +52,7 @@ function LoginPage() {
     
     try {
       console.log('Attempting login with:', email);
-      await auth.signIn(email, password);
+      await signIn(email, password);
     } catch (error) {
       console.error('Login error:', error);
       
@@ -41,7 +62,7 @@ function LoginPage() {
           // Try to seed the emulator auth again
           await seedEmulatorAuth();
           // Try login once more
-          await auth.signIn(email, password);
+          await signIn(email, password);
         } catch (retryError) {
           setError('Failed to create or sign in with test user');
         }
@@ -52,11 +73,6 @@ function LoginPage() {
       setLoading(false);
     }
   };
-  
-  // Redirect if already logged in
-  if (auth.isAuthenticated) {
-    return <Navigate to="/admin" />;
-  }
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -103,15 +119,16 @@ function LoginPage() {
           {isLocalhost && (
             <div className="mt-4 text-center text-sm text-gray-500">
               <p>Emulator mode: Using admin@example.com / password</p>
+              <p className="mt-1">or brandmanager@example.com / password</p>
               <button
                 type="button"
                 onClick={async () => {
                   await seedEmulatorAuth();
-                  alert('Emulator user created/reset');
+                  alert('Emulator users created/reset');
                 }}
                 className="mt-2 text-blue-500 hover:underline"
               >
-                Reset Emulator User
+                Reset Emulator Users
               </button>
             </div>
           )}
@@ -121,16 +138,23 @@ function LoginPage() {
   );
 }
 
-// Protected Route Component
+// Protected Route Component - Much simpler with explicit redirect
 function ProtectedRoute({ children }) {
-  const auth = useAuth();
+  const { user, loading } = useAuth();
   
-  if (auth.loading) {
-    return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="mt-2">Loading...</p>
+        </div>
+      </div>
+    );
   }
   
-  if (!auth.isAuthenticated) {
-    return <Navigate to="/login" />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
   
   return children;
@@ -140,39 +164,45 @@ function ProtectedRoute({ children }) {
 function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <AppWithAuth />
     </AuthProvider>
   );
 }
 
-// Separate component to use hooks
-function AppRoutes() {
+// Use a separate component for authentication-dependent logic
+function AppWithAuth() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
+  const { userRoles, loading } = useAuth();
   
   // Seed the emulator with test user when in localhost
   useEffect(() => {
-    if (isLocalhost && !emulatorInitialized) {
-      seedEmulatorAuth().then(success => {
-        if (success) {
+    async function initEmulator() {
+      if (isLocalhost && !emulatorInitialized) {
+        try {
+          await seedEmulatorAuth();
           setEmulatorInitialized(true);
+        } catch (error) {
+          console.error("Failed to seed emulator:", error);
         }
-      });
+      }
     }
+    
+    initEmulator();
   }, [emulatorInitialized]);
   
   return (
     <Router>
       <Routes>
+        {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
         
-        {/* Admin Dashboard */}
+        {/* Admin Routes */}
         <Route path="/admin" element={
           <ProtectedRoute>
             <AdminDashboardPage />
           </ProtectedRoute>
         } />
         
-        {/* Template Management Routes */}
         <Route path="/admin/templates" element={
           <ProtectedRoute>
             <AdminTemplatesPage />
@@ -185,14 +215,12 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         
-        {/* Keep the existing route for backward compatibility */}
         <Route path="/admin/templates/:id" element={
           <ProtectedRoute>
             <TemplateViewPage />
           </ProtectedRoute>
         } />
         
-        {/* Add explicit view route */}
         <Route path="/admin/templates/:id/view" element={
           <ProtectedRoute>
             <TemplateViewPage />
@@ -205,11 +233,116 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         
-        {/* Default redirect to admin dashboard if logged in, otherwise login */}
-        <Route path="/" element={<Navigate to="/admin" />} />
+        <Route path="/admin/brands" element={
+          <ProtectedRoute>
+            <AdminBrandsPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/brands/new" element={
+          <ProtectedRoute>
+            <BrandEditorPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/brands/:id" element={
+          <ProtectedRoute>
+            <BrandDetailPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/brands/:id/edit" element={
+          <ProtectedRoute>
+            <BrandEditorPage />
+          </ProtectedRoute>
+        } />
+        
+        {/* Brand Manager Routes */}
+        <Route path="/brand/dashboard" element={
+          <ProtectedRoute>
+            <BrandDashboardPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/brand/templates" element={
+          <ProtectedRoute>
+            <BrandTemplatesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/brand/content" element={
+  <ProtectedRoute>
+    <BrandContentListPage />
+  </ProtectedRoute>
+} />
+
+<Route path="/brand/analytics" element={
+  <ProtectedRoute>
+    <BrandAnalyticsPage />
+  </ProtectedRoute>
+} />
+<Route path="/brand/templates/:id" element={
+  <ProtectedRoute>
+    <BrandTemplateViewPage />
+  </ProtectedRoute>
+} />
+<Route path="/brand/content" element={
+  <ProtectedRoute>
+    <BrandContentListPage />
+  </ProtectedRoute>
+} />
+<Route path="/brand/content/new" element={
+  <ProtectedRoute>
+    <BrandContentEditorPage />
+  </ProtectedRoute>
+} />
+
+<Route path="/brand/content/:id/edit" element={
+  <ProtectedRoute>
+    <BrandContentEditorPage />
+  </ProtectedRoute>
+} />
+
+        {/* Add more brand routes as they are implemented */}
+        {/* 
+        
+               
+        <Route path="/brand/content/new" element={
+          <ProtectedRoute>
+            <BrandContentEditorPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/brand/content/:id" element={
+          <ProtectedRoute>
+            <BrandContentViewPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/brand/content/:id/edit" element={
+          <ProtectedRoute>
+            <BrandContentEditorPage />
+          </ProtectedRoute>
+        } />
+        */}
+        
+        {/* Root path - Redirect based on user role */}
+        <Route path="/" element={
+          loading ? (
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                <p className="mt-2">Loading...</p>
+              </div>
+            </div>
+          ) : (
+            userRoles?.includes('brand_manager') ? 
+              <Navigate to="/brand/dashboard" replace /> : 
+              <Navigate to="/admin" replace />
+          )
+        } />
         
         {/* Catch-all for unknown routes */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

@@ -1,49 +1,80 @@
 // src/utils/seedEmulatorAuth.js
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { setDoc, doc } from 'firebase/firestore';
-import { auth, db, isLocalhost } from '../firebase';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, setDoc, doc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { app } from '../firebase';
 
 export async function seedEmulatorAuth() {
-  if (!isLocalhost) {
-    console.log('Not in local environment - skipping auth seeding');
-    return false;
-  }
-  
-  // Test user credentials
-  const email = 'admin@example.com';
-  const password = 'password';
-  
   try {
     console.log('Attempting to create test user in emulator');
-    // Try to create the test user
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
     
-    // Also create user document with roles
-    await setDoc(doc(db, 'users', user.uid), {
-      email: user.email,
-      displayName: 'Admin User',
-      roles: ['super_admin', 'brand_manager'],
-      createdAt: new Date().toISOString()
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    
+    // Admin user credentials
+    const adminEmail = 'admin@example.com';
+    const adminPassword = 'password';
+    
+    // Brand Manager credentials
+    const brandManagerEmail = 'brandmanager@example.com';
+    const brandManagerPassword = 'password';
+    
+    // Try to create admin user
+    let adminUser;
+    try {
+      const adminUserCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
+      adminUser = adminUserCredential.user;
+    } catch (error) {
+      console.log('User already exists, signing in');
+      const adminUserCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+      adminUser = adminUserCredential.user;
+    }
+    
+    // Create admin user's roles
+    await setDoc(doc(db, 'user_roles', adminUser.uid), {
+      roles: ['super_admin'],
+      updatedAt: serverTimestamp()
     });
     
-    console.log('✓ Test user created in Auth emulator with ID:', user.uid);
+    // Try to create brand manager user
+    let brandManagerUser;
+    try {
+      const bmUserCredential = await createUserWithEmailAndPassword(auth, brandManagerEmail, brandManagerPassword);
+      brandManagerUser = bmUserCredential.user;
+    } catch (error) {
+      console.log('Brand manager already exists, signing in');
+      const bmUserCredential = await signInWithEmailAndPassword(auth, brandManagerEmail, brandManagerPassword);
+      brandManagerUser = bmUserCredential.user;
+    }
+    
+    // Create brand manager's roles
+    await setDoc(doc(db, 'user_roles', brandManagerUser.uid), {
+      roles: ['brand_manager'],
+      updatedAt: serverTimestamp()
+    });
+    
+    // Create sample brand for the brand manager if it doesn't exist
+    const sampleBrand = {
+      name: 'Sample Brand',
+      description: 'A sample brand for testing',
+      managerId: brandManagerUser.uid,
+      managerEmail: brandManagerEmail,
+      managerName: 'Brand Manager',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      website: 'https://example.com',
+      logoUrl: null
+    };
+    
+    // Add the brand to the brands collection
+    await addDoc(collection(db, 'brands'), sampleBrand);
+    
+    console.log('✓ Test users created and brand assigned');
+    console.log(`✓ Admin user ID: ${adminUser.uid}`);
+    console.log(`✓ Brand manager user ID: ${brandManagerUser.uid}`);
+    
     return true;
   } catch (error) {
-    // If user already exists, just log them in
-    if (error.code === 'auth/email-already-in-use') {
-      try {
-        console.log('User already exists, signing in');
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log('✓ Test user signed in with ID:', userCredential.user.uid);
-        return true;
-      } catch (signInError) {
-        console.error('Error signing in test user:', signInError);
-        return false;
-      }
-    } else {
-      console.error('Error creating test user:', error);
-      return false;
-    }
+    console.error('Error seeding emulator auth:', error);
+    return false;
   }
 }
