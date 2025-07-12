@@ -23,9 +23,13 @@ import BrandContentListPage from './pages/brand/BrandContentListPage';
 import BrandAnalyticsPage from './pages/brand/BrandAnalyticsPage';
 import BrandTemplateViewPage from './pages/brand/BrandTemplateViewPage';
 import BrandContentEditorPage from './pages/brand/BrandContentEditorPage';
+import BrandContentViewPage from './pages/brand/BrandContentViewPage';
+//import BrandTemplateListPage from './pages/brand/BrandTemplateListPage';
+//import BrandTemplatePreviewPage from './pages/brand/BrandTemplatePreviewPage';
+import BrandROICalculatorPage from './pages/brand/BrandROICalculatorPage';
+
 
 // Other brand pages can be uncommented as they're implemented
-// import BrandContentViewPage from './pages/brand/BrandContentViewPage';
 
 // Utility for seeding emulator auth
 import { seedEmulatorAuth } from './utils/seedEmulatorAuth';
@@ -301,6 +305,64 @@ function AppWithAuth() {
     <BrandContentEditorPage />
   </ProtectedRoute>
 } />
+<Route path="/brand/content/:id" element={
+  <ProtectedRoute>
+    <BrandContentViewPage />
+  </ProtectedRoute>
+} />
+
+{/** ------------------ Brand Manager Routes ------------------ */}
+{/* Content Management */}
+<Route path="/brand/content" element={
+  <ProtectedRoute>
+    <BrandContentListPage />
+  </ProtectedRoute>
+} />
+<Route path="/brand/content/new" element={
+  <ProtectedRoute>
+    <BrandContentEditorPage />
+  </ProtectedRoute>
+} />
+<Route path="/brand/content/:id/edit" element={
+  <ProtectedRoute>
+    <BrandContentEditorPage />
+  </ProtectedRoute>
+} />
+<Route path="/brand/content/:id" element={
+  <ProtectedRoute>
+    <BrandContentViewPage />
+  </ProtectedRoute>
+} />
+
+{/* Brand Analytics */}
+<Route path="/brand/analytics" element={
+  <ProtectedRoute>
+    <BrandAnalyticsPage />
+  </ProtectedRoute>
+} />
+
+{/* Templates for Brands */}
+{/*
+<Route path="/brand/templates" element={
+  <ProtectedRoute>
+    <BrandTemplateListPage />
+  </ProtectedRoute>
+} />
+<Route path="/brand/templates/:id/preview" element={
+  <ProtectedRoute>
+    <BrandTemplatePreviewPage />
+  </ProtectedRoute>
+} />
+
+{/* ROI Calculator */}
+<Route path="/brand/roi-calculator" element={
+  <ProtectedRoute>
+    <BrandROICalculatorPage />
+  </ProtectedRoute>
+} />
+
+{/* Redirect /brand to content list */}
+<Route path="/brand" element={<Navigate to="/brand/content" />} />
 
         {/* Add more brand routes as they are implemented */}
         {/* 

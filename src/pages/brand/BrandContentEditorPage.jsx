@@ -1,16 +1,44 @@
 // src/pages/brand/BrandContentEditorPage.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../firebase';
 import { useAuth } from '../../contexts/auth-context';
 import BrandManagerLayout from '../../components/brand/BrandManagerLayout';
+// Removed ReactQuill import and CSS import
+
+// Simple markdown converter function
+const convertMarkdownToHtml = (markdown) => {
+  if (!markdown) return '';
+  
+  // Convert markdown to HTML (basic implementation)
+  return markdown
+    // Headers
+    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+    // Bold
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Lists
+    .replace(/^\- (.*$)/gm, '<ul><li>$1</li></ul>')
+    .replace(/<\/ul><ul>/g, '')
+    // Blockquotes
+    .replace(/^\> (.*$)/gm, '<blockquote>$1</blockquote>')
+    // Paragraphs
+    .replace(/([^\n]+)\n\n/g, '<p>$1</p>')
+    // Line breaks
+    .replace(/\n/g, '<br>');
+};
 
 export default function BrandContentEditorPage() {
-  const { id } = useParams(); // Will be undefined for new content
+  const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const fileInputRef = useRef(null);
   
   // Get template ID from query params if creating new content
   const queryParams = new URLSearchParams(location.search);
@@ -21,12 +49,17 @@ export default function BrandContentEditorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [previewMode, setPreviewMode] = useState(false);
   
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [sections, setSections] = useState([]);
   const [status, setStatus] = useState('draft');
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [activeSection, setActiveSection] = useState(null);
+  
+  // Removed quillModules configuration
   
   // Initialize editor with existing content or template
   useEffect(() => {
@@ -112,6 +145,58 @@ export default function BrandContentEditorPage() {
     initializeEditor();
   }, [id, templateId, user]);
   
+  // Handle image upload
+  const handleImageUpload = async (file, sectionIndex) => {
+    if (!file) return null;
+    
+    try {
+      const brandId = localStorage.getItem('selectedBrandId');
+      const fileName = `${brandId}/${Date.now()}-${file.name}`;
+      const storageRef = ref(storage, `content-images/${fileName}`);
+      
+      // Create upload task
+      const uploadTask = uploadBytesResumable(storageRef, file);
+      
+      // Track upload progress
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(prev => ({
+            ...prev,
+            [sectionIndex]: progress
+          }));
+        },
+        (error) => {
+          console.error('Error uploading image:', error);
+          setError('Failed to upload image. Please try again.');
+        }
+      );
+      
+      // Wait for upload to complete
+      await uploadTask;
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+      
+      // Update section with image URL
+      const updatedSections = [...sections];
+      updatedSections[sectionIndex].imageUrl = downloadURL;
+      setSections(updatedSections);
+      
+      // Clear progress
+      setUploadProgress(prev => ({
+        ...prev,
+        [sectionIndex]: null
+      }));
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setError('Failed to upload image. Please try again.');
+      return null;
+    }
+  };
+  
   const handleAddSection = (type) => {
     // Add a new section based on type
     const newSection = { type };
@@ -141,9 +226,17 @@ export default function BrandContentEditorPage() {
         newSection.content = '';
         newSection.attribution = '';
         break;
+      case 'richtext':  // New section type for rich text
+        newSection.content = '';
+        break;
     }
     
     setSections([...sections, newSection]);
+    
+    // Auto-focus on the new section
+    setTimeout(() => {
+      setActiveSection(sections.length);
+    }, 100);
   };
   
   const handleUpdateSection = (index, field, value) => {
@@ -359,6 +452,39 @@ export default function BrandContentEditorPage() {
             </div>
           </div>
         );
+      
+      case 'richtext':
+        return (
+          <div key={index} className="bg-white p-4 rounded-lg shadow mb-4 border-l-4 border-indigo-500">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-md font-medium text-gray-700">Rich Text Section</h3>
+              {commonSectionControls}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Rich Content (supports markdown)
+              </label>
+              <div className="border border-gray-300 rounded-md">
+                <textarea
+                  value={section.content || ''}
+                  onChange={(e) => handleUpdateSection(index, 'content', e.target.value)}
+                  className="w-full p-4 min-h-[200px] focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="# Heading 1
+## Heading 2
+**bold text**
+*italic text*
+- List item 1
+- List item 2
+> Blockquote"
+                ></textarea>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Use markdown for formatting: # for headings, ** for bold, * for italic, - for lists, > for quotes
+              </p>
+            </div>
+          </div>
+        );
         
       case 'image':
         return (
@@ -372,14 +498,35 @@ export default function BrandContentEditorPage() {
               <label htmlFor={`image-url-${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                 Image URL
               </label>
-              <input
-                type="text"
-                id={`image-url-${index}`}
-                value={section.imageUrl || ''}
-                onChange={(e) => handleUpdateSection(index, 'imageUrl', e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter image URL"
-              />
+              <div className="flex">
+                <input
+                  type="text"
+                  id={`image-url-${index}`}
+                  value={section.imageUrl || ''}
+                  onChange={(e) => handleUpdateSection(index, 'imageUrl', e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter image URL or upload"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Set index for the file input to know which section to update
+                    fileInputRef.current.dataset.sectionIndex = index;
+                    fileInputRef.current.click();
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-r-md hover:bg-gray-300"
+                >
+                  Upload
+                </button>
+              </div>
+              {uploadProgress[index] !== undefined && uploadProgress[index] !== null && (
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full" 
+                    style={{ width: `${uploadProgress[index]}%` }}
+                  ></div>
+                </div>
+              )}
             </div>
             
             <div className="mb-3">
@@ -458,6 +605,20 @@ export default function BrandContentEditorPage() {
                 placeholder="Enter video caption"
               />
             </div>
+            
+            {/* Video preview */}
+            {section.videoUrl && (
+              <div className="mt-3 aspect-w-16 aspect-h-9">
+                <iframe
+                  src={section.videoUrl}
+                  title="Video preview"
+                  className="w-full h-60 rounded"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            )}
           </div>
         );
         
@@ -528,7 +689,7 @@ export default function BrandContentEditorPage() {
         
       case 'quote':
         return (
-          <div key={index} className="bg-white p-4 rounded-lg shadow mb-4 border-l-4 border-indigo-500">
+          <div key={index} className="bg-white p-4 rounded-lg shadow mb-4 border-l-4 border-pink-500">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-md font-medium text-gray-700">Quote Section</h3>
               {commonSectionControls}
@@ -576,6 +737,125 @@ export default function BrandContentEditorPage() {
     }
   };
   
+  // Render section preview
+  const renderSectionPreview = (section, index) => {
+    switch (section.type) {
+      case 'header':
+        return (
+          <div key={index} className="mb-6">
+            <h2 className="text-2xl font-bold">{section.title || '[Title Missing]'}</h2>
+            {section.subtitle && <p className="text-gray-600">{section.subtitle}</p>}
+          </div>
+        );
+        
+      case 'text':
+        return (
+          <div key={index} className="mb-4">
+            <p>{section.content || '[Content Missing]'}</p>
+          </div>
+        );
+      
+      case 'richtext':
+        return (
+          <div key={index} className="mb-4 rich-text-preview">
+            {section.content ? (
+              <div dangerouslySetInnerHTML={{ __html: convertMarkdownToHtml(section.content) }} />
+            ) : (
+              <p>[Content Missing]</p>
+            )}
+          </div>
+        );
+        
+      case 'image':
+        return (
+          <div key={index} className="mb-6">
+            <div className="rounded-lg overflow-hidden">
+              {section.imageUrl ? (
+                <img 
+                  src={section.imageUrl} 
+                  alt={section.alt || 'Preview'} 
+                  className="w-full object-cover"
+                />
+              ) : (
+                <div className="bg-gray-200 h-48 flex items-center justify-center">
+                  <div className="text-gray-400 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p>Image Missing</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            {section.caption && (
+              <p className="text-sm text-gray-500 mt-1">{section.caption}</p>
+            )}
+          </div>
+        );
+        
+      case 'video':
+        return (
+          <div key={index} className="mb-6">
+            {section.videoUrl ? (
+              <div className="aspect-w-16 aspect-h-9">
+                <iframe
+                  className="w-full h-full rounded-lg"
+                  src={section.videoUrl}
+                  title="Video content"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            ) : (
+              <div className="bg-gray-200 rounded-lg h-48 flex items-center justify-center">
+                <div className="text-gray-400 text-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <p>Video Missing</p>
+                </div>
+              </div>
+            )}
+            {section.caption && (
+              <p className="text-sm text-gray-500 mt-1">{section.caption}</p>
+            )}
+          </div>
+        );
+        
+      case 'list':
+        return (
+          <div key={index} className="mb-4">
+            {section.title && <h3 className="text-lg font-medium mb-2">{section.title}</h3>}
+            <ul className="list-disc pl-5 space-y-1">
+              {section.items?.map((item, i) => (
+                <li key={i}>{item}</li>
+              )) || <li>[List items missing]</li>}
+            </ul>
+          </div>
+        );
+        
+      case 'quote':
+        return (
+          <div key={index} className="mb-6">
+            <blockquote className="border-l-4 border-gray-300 pl-4 italic">
+              {section.content || '[Quote missing]'}
+              {section.attribution && (
+                <footer className="text-sm text-gray-600 mt-1">— {section.attribution}</footer>
+              )}
+            </blockquote>
+          </div>
+        );
+        
+      default:
+        return (
+          <div key={index} className="mb-4 p-3 bg-gray-100 rounded">
+            <p className="text-gray-600">[{section.type || 'Unknown'} Section]</p>
+          </div>
+        );
+    }
+  };
+  
   if (loading) {
     return (
       <BrandManagerLayout>
@@ -610,6 +890,23 @@ export default function BrandContentEditorPage() {
   
   return (
     <BrandManagerLayout>
+      {/* Hidden file input for image uploads */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        accept="image/*"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const sectionIndex = parseInt(fileInputRef.current.dataset.sectionIndex);
+            handleImageUpload(file, sectionIndex);
+          }
+          // Reset input value so the same file can be uploaded again if needed
+          e.target.value = '';
+        }}
+      />
+      
       {/* Content editor header */}
       <div className="bg-white shadow rounded-lg mb-6">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -618,6 +915,18 @@ export default function BrandContentEditorPage() {
           </h1>
           
           <div className="flex space-x-3">
+            <button
+              type="button"
+              onClick={() => setPreviewMode(!previewMode)}
+              className={`inline-flex items-center px-3 py-2 border ${
+                previewMode 
+                  ? 'border-blue-300 bg-blue-50 text-blue-700'
+                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+              } text-sm leading-4 font-medium rounded-md`}
+            >
+              {previewMode ? 'Exit Preview' : 'Preview'}
+            </button>
+            
             <button
               type="button"
               onClick={() => navigate('/brand/content')}
@@ -673,129 +982,162 @@ export default function BrandContentEditorPage() {
         )}
       </div>
       
-      {/* Content metadata */}
-      <div className="bg-white shadow rounded-lg mb-6 p-6">
-        <div className="mb-4">
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-            Title <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter content title"
-          />
-        </div>
-        
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter a brief description"
-          />
-        </div>
-      </div>
-      
-      {/* Content sections */}
-      <div className="mb-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-3">Content Sections</h2>
-        
-        {sections.length > 0 ? (
-          <div className="space-y-4">
-            {sections.map((section, index) => renderSectionEditor(section, index))}
+      {/* Preview mode */}
+      {previewMode ? (
+        <div className="mb-6">
+          <div className="bg-white shadow rounded-lg p-6">
+            <h1 className="text-2xl font-bold mb-2">{title || '[Title Missing]'}</h1>
+            {description && <p className="text-gray-600 mb-6">{description}</p>}
+            
+            <div className="border-t border-gray-200 pt-6">
+              {sections.length > 0 ? (
+                sections.map(renderSectionPreview)
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-gray-500">No content sections. Add sections to preview content.</p>
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="bg-white shadow rounded-lg p-6 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No content sections</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Start adding sections to your content using the buttons below.
-            </p>
-          </div>
-        )}
-      </div>
-      
-      {/* Add section buttons */}
-      <div className="bg-white shadow rounded-lg mb-6 p-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Add Content Section</h3>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => handleAddSection('header')}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
-            Header
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleAddSection('text')}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
-            </svg>
-            Text
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleAddSection('image')}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Image
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleAddSection('video')}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            Video
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleAddSection('list')}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-            </svg>
-            List
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleAddSection('quote')}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            Quote
-          </button>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Content metadata */}
+          <div className="bg-white shadow rounded-lg mb-6 p-6">
+            <div className="mb-4">
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter content title"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter a brief description"
+              />
+            </div>
+          </div>
+          
+          {/* Content sections */}
+          <div className="mb-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-3">Content Sections</h2>
+            
+            {sections.length > 0 ? (
+              <div className="space-y-4">
+                {sections.map((section, index) => renderSectionEditor(section, index))}
+              </div>
+            ) : (
+              <div className="bg-white shadow rounded-lg p-6 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No content sections</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Start adding sections to your content using the buttons below.
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* Add section buttons */}
+          <div className="bg-white shadow rounded-lg mb-6 p-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Add Content Section</h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleAddSection('header')}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                </svg>
+                Header
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => handleAddSection('text')}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
+                </svg>
+                Text
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => handleAddSection('richtext')}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Rich Text
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => handleAddSection('image')}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Image
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => handleAddSection('video')}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Video
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => handleAddSection('list')}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                List
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => handleAddSection('quote')}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                Quote
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </BrandManagerLayout>
   );
 }
