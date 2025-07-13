@@ -2,7 +2,8 @@
 
 # Build settings for Netlify.
 [build]
-  # Command to build the project using pnpm with no frozen lockfile
+  # Command to build the project using pnpm.
+  # Install pnpm globally, then run install with --no-frozen-lockfile, and finally build.
   command = "npm i -g pnpm && pnpm install --no-frozen-lockfile && pnpm run build"
   
   # The directory that contains the built site. Vite's default is "dist".
