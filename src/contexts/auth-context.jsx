@@ -109,7 +109,11 @@ export function AuthProvider({ children }) {
   // Sign out function
   const signOut = async () => {
     try {
+      console.log('[AuthContext] Signing out user…');
       await firebaseSignOut(auth);
+      // Clear local user state so the UI reacts immediately
+      setUser(null);
+      console.log('[AuthContext] Sign-out successful');
     } catch (error) {
       console.error("Sign out error:", error);
       setAuthError(error);

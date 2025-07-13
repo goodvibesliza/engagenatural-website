@@ -1,5 +1,5 @@
 // src/App.jsx
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/auth-context';
 import { useState, useEffect } from 'react';
 import './App.css';
@@ -10,16 +10,7 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
 import TemplateEditorPage from './pages/admin/TemplateEditorPage';
 import TemplateViewPage from './pages/admin/TemplateViewPage';
-
-// ---------- Brand-manager Pages ----------
-import BrandAnalyticsPage from './pages/brand/BrandAnalyticsPage';
-import BrandROICalculatorPage from './pages/brand/BrandROICalculatorPage';
-import BrandCommunityPage from './pages/brand/BrandCommunityPage';
-
-// ---------- Public / Community ----------
-// Use direct component to avoid nested import-path issues while debugging
-import DirectCommunityPage from './DirectCommunityPage.jsx';
-import RouteDebugger from './RouteDebugger.jsx';
+import BrandHome from './pages/BrandHome';
 
 // Utility for seeding emulator auth
 // We'll create this file next
@@ -65,7 +56,14 @@ function LoginPage() {
   
   // Redirect if already logged in
   if (auth.isAuthenticated) {
-    return <Navigate to="/admin" />;
+    console.log('[LoginPage] User is authenticated, redirecting based on role');
+    if (auth.user?.role === 'super_admin') {
+      return <Navigate to="/admin" />;
+    } else if (auth.user?.role === 'brand_manager') {
+      const brandId = auth.user?.brandId || 'default';
+      return <Navigate to={`/brand/${brandId}`} />;
+    }
+    return <Navigate to="/admin" />; // Default fallback
   }
   
   return (
@@ -134,6 +132,38 @@ function LoginPage() {
 // Protected Route Component
 function ProtectedRoute({ children }) {
   const auth = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    console.log('[ProtectedRoute] Auth state:', { 
+      isAuthenticated: auth.isAuthenticated, 
+      role: auth.user?.role,
+      brandId: auth.user?.brandId,
+      loading: auth.loading 
+    });
+  }, [auth.isAuthenticated, auth.user, auth.loading]);
+  
+  if (auth.loading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (!auth.isAuthenticated) {
+    console.log('[ProtectedRoute] User not authenticated, redirecting to login');
+    return <Navigate to="/login" />;
+  }
+  
+  return children;
+}
+
+// Default redirect based on user role
+function DefaultRedirect() {
+  const auth = useAuth();
+  
+  console.log('[DefaultRedirect] Auth state:', { 
+    isAuthenticated: auth.isAuthenticated, 
+    role: auth.user?.role,
+    brandId: auth.user?.brandId
+  });
   
   if (auth.loading) {
     return <div>Loading...</div>;
@@ -143,7 +173,18 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" />;
   }
   
-  return children;
+  // Redirect based on user role
+  if (auth.user?.role === 'super_admin') {
+    console.log('[DefaultRedirect] Redirecting super_admin to /admin');
+    return <Navigate to="/admin" />;
+  } else if (auth.user?.role === 'brand_manager') {
+    const brandId = auth.user?.brandId || 'default';
+    console.log(`[DefaultRedirect] Redirecting brand_manager to /brand/${brandId}`);
+    return <Navigate to={`/brand/${brandId}`} />;
+  }
+  
+  // Default fallback
+  return <Navigate to="/login" />;
 }
 
 // Main App Component
@@ -182,6 +223,13 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         
+        {/* Brand Routes */}
+        <Route path="/brand/:brandId/*" element={
+          <ProtectedRoute>
+            <BrandHome />
+          </ProtectedRoute>
+        } />
+        
         {/* Template Management Routes */}
         <Route path="/admin/templates" element={
           <ProtectedRoute>
@@ -214,42 +262,9 @@ function AppRoutes() {
             <TemplateEditorPage />
           </ProtectedRoute>
         } />
-
-        {/** -------- Brand Manager Routes -------- */}
-        <Route path="/brand/analytics" element={
-          <ProtectedRoute>
-            <BrandAnalyticsPage />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/brand/roi-calculator" element={
-          <ProtectedRoute>
-            <BrandROICalculatorPage />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/brand/community" element={
-          <ProtectedRoute>
-            <BrandCommunityPage />
-          </ProtectedRoute>
-        } />
-
-        {/* Redirect /brand root to analytics dashboard */}
-        <Route path="/brand" element={<Navigate to="/brand/analytics" />} />
-
-        {/** -------- Community (Public) Route -------- */}
-        <Route
-          path="/community/:communityId"
-          element={
-            <>
-              <RouteDebugger />
-              <DirectCommunityPage />
-            </>
-          }
-        />
         
-        {/* Default redirect to admin dashboard if logged in, otherwise login */}
-        <Route path="/" element={<Navigate to="/admin" />} />
+        {/* Default redirect to appropriate dashboard based on role */}
+        <Route path="/" element={<DefaultRedirect />} />
         
         {/* Catch-all for unknown routes */}
         <Route path="*" element={<Navigate to="/" />} />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/auth-context";
 import BrandDashboard from "./BrandDashboard";
@@ -73,7 +73,16 @@ export default function BrandHome() {
     { key: "configuration", label: "Configuration", permission: PERMISSIONS.MANAGE_BRAND_CONFIG },
   ];
 
-  const [tab, setTab] = useState("analytics");
+  // Pick the first tab the current user is allowed to see
+  const firstPermittedTab = useMemo(() => {
+    for (const t of TABS) {
+      if (hasPermission(t.permission)) return t.key;
+    }
+    return "analytics";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPermission]);
+
+  const [tab, setTab] = useState(firstPermittedTab);
 
   /* ------------------------------------------------------------------
    * HANDLERS
@@ -88,10 +97,16 @@ export default function BrandHome() {
   };
 
   const handleLogout = async () => {
-    if (signOut) {
-      await signOut();
+    try {
+      console.log("[BrandHome] Logging out…");
+      if (signOut) {
+        await signOut();
+      }
+    } catch (err) {
+      console.error("[BrandHome] Logout error:", err);
+    } finally {
+      navigate("/login");
     }
-    navigate('/login');
   };
 
   const getInitials = (name) => {
@@ -119,6 +134,25 @@ export default function BrandHome() {
         return <BrandDashboard brandId={brandId} />;
     }
   };
+
+  /* ------------------------------------------------------------------
+   * EFFECTS – debug & keep tab valid on permission changes
+   * ------------------------------------------------------------------ */
+
+  // Debug mount / brandId change
+  useEffect(() => {
+    /* eslint-disable no-console */
+    console.log("[BrandHome] mounted – brandId:", brandId);
+    return () => console.log("[BrandHome] unmounted");
+    /* eslint-enable no-console */
+  }, []);
+
+  // Ensure current tab is always permitted
+  useEffect(() => {
+    if (!hasPermission(TABS.find(t => t.key === tab)?.permission)) {
+      setTab(firstPermittedTab);
+    }
+  }, [tab, firstPermittedTab, hasPermission]);
 
   return (
     <div className="max-w-7xl mx-auto p-6 relative">
