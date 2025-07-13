@@ -17,9 +17,17 @@ export const ROLES = {
   USER: 'user'
 };
 
-// Centralised permission keys
+// ---------------------------------------------------------------------------
+// Minimal permission keys used by the admin-sidebar navigation.
+// Expand as needed – keeping only what the UI currently references.
+// ---------------------------------------------------------------------------
 export const PERMISSIONS = {
-  VIEW_COMMUNITIES: 'view_communities'
+  MANAGE_USERS: 'manage_users',
+  APPROVE_VERIFICATIONS: 'approve_verifications',
+  MANAGE_BRANDS: 'manage_brands',
+  VIEW_ANALYTICS: 'view_analytics',
+  MANAGE_CONTENT: 'manage_content',
+  SYSTEM_SETTINGS: 'system_settings',
 };
 
 // Define the useAuth hook here - make sure this is exported
@@ -109,11 +117,9 @@ export function AuthProvider({ children }) {
   // Sign out function
   const signOut = async () => {
     try {
-      console.log('[AuthContext] Signing out user…');
+      console.debug('[AuthContext] Signing out…');
       await firebaseSignOut(auth);
-      // Clear local user state so the UI reacts immediately
-      setUser(null);
-      console.log('[AuthContext] Sign-out successful');
+      console.debug('[AuthContext] Sign-out success');
     } catch (error) {
       console.error("Sign out error:", error);
       setAuthError(error);
@@ -121,43 +127,15 @@ export function AuthProvider({ children }) {
     }
   };
 
-  /* ------------------------------------------------------------------
-   * Helper / Permission utilities
-   * ------------------------------------------------------------------ */
-
-  const isSuperAdmin = user?.role === ROLES.SUPER_ADMIN;
-  const isBrandManagerFn = () => user?.role === ROLES.BRAND_MANAGER;
-
-  /**
-   * Generic permission checker
-   * Extend here when you add more permissions.
-   */
+  // ------------------------------------------------------------------
+  // Simple permission checker – can be expanded later.
+  // For now: super-admin has everything, others have none (safe default).
+  // ------------------------------------------------------------------
   const hasPermission = (permissionKey) => {
     if (!user) return false;
-    switch (permissionKey) {
-      case PERMISSIONS.VIEW_COMMUNITIES:
-        const allowed =
-          isSuperAdmin ||
-          isBrandManagerFn();
-        // eslint-disable-next-line no-console
-        console.debug('[AuthContext] hasPermission', { permissionKey, allowed, role: user.role });
-        return allowed;
-      default:
-        return false;
-    }
-  };
-
-  /**
-   * Checks if the current user can access/see content belonging to a given brandId.
-   */
-  const canAccessContent = (contentBrandId) => {
-    const allowed =
-      isSuperAdmin ||
-      (isBrandManagerFn() && user?.brandId && user.brandId === contentBrandId) ||
-      !contentBrandId; // Public/general content
-    // eslint-disable-next-line no-console
-    console.debug('[AuthContext] canAccessContent', { contentBrandId, allowed, userBrandId: user?.brandId });
-    return allowed;
+    if (user.role === ROLES.SUPER_ADMIN) return true;
+    // TODO: add granular permission logic for other roles.
+    return false;
   };
 
   const value = {
@@ -167,12 +145,12 @@ export function AuthProvider({ children }) {
     signIn,
     signOut,
     isAuthenticated: !!user,
-    isSuperAdmin,
-    isBrandManager: user?.role === ROLES.BRAND_MANAGER, // boolean for backward-compat
-    isBrandManagerFn, // preferred function form
+    isSuperAdmin: user?.role === ROLES.SUPER_ADMIN,
+    isBrandManager: user?.role === ROLES.BRAND_MANAGER,
+
+    // RBAC helpers
     hasPermission,
-    canAccessContent,
-    PERMISSIONS
+    PERMISSIONS,
   };
 
   return (

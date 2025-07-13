@@ -1,5 +1,5 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/auth-context';
 import { useState, useEffect } from 'react';
 import './App.css';
@@ -56,14 +56,11 @@ function LoginPage() {
   
   // Redirect if already logged in
   if (auth.isAuthenticated) {
-    console.log('[LoginPage] User is authenticated, redirecting based on role');
-    if (auth.user?.role === 'super_admin') {
-      return <Navigate to="/admin" />;
-    } else if (auth.user?.role === 'brand_manager') {
-      const brandId = auth.user?.brandId || 'default';
-      return <Navigate to={`/brand/${brandId}`} />;
+    if (auth.user?.role === 'brand_manager') {
+      const bid = auth.user?.brandId || 'default';
+      return <Navigate to={`/brand/${bid}`} />;
     }
-    return <Navigate to="/admin" />; // Default fallback
+    return <Navigate to="/admin" />;
   }
   
   return (
@@ -132,59 +129,16 @@ function LoginPage() {
 // Protected Route Component
 function ProtectedRoute({ children }) {
   const auth = useAuth();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    console.log('[ProtectedRoute] Auth state:', { 
-      isAuthenticated: auth.isAuthenticated, 
-      role: auth.user?.role,
-      brandId: auth.user?.brandId,
-      loading: auth.loading 
-    });
-  }, [auth.isAuthenticated, auth.user, auth.loading]);
   
   if (auth.loading) {
     return <div>Loading...</div>;
   }
   
   if (!auth.isAuthenticated) {
-    console.log('[ProtectedRoute] User not authenticated, redirecting to login');
     return <Navigate to="/login" />;
   }
   
   return children;
-}
-
-// Default redirect based on user role
-function DefaultRedirect() {
-  const auth = useAuth();
-  
-  console.log('[DefaultRedirect] Auth state:', { 
-    isAuthenticated: auth.isAuthenticated, 
-    role: auth.user?.role,
-    brandId: auth.user?.brandId
-  });
-  
-  if (auth.loading) {
-    return <div>Loading...</div>;
-  }
-  
-  if (!auth.isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-  
-  // Redirect based on user role
-  if (auth.user?.role === 'super_admin') {
-    console.log('[DefaultRedirect] Redirecting super_admin to /admin');
-    return <Navigate to="/admin" />;
-  } else if (auth.user?.role === 'brand_manager') {
-    const brandId = auth.user?.brandId || 'default';
-    console.log(`[DefaultRedirect] Redirecting brand_manager to /brand/${brandId}`);
-    return <Navigate to={`/brand/${brandId}`} />;
-  }
-  
-  // Default fallback
-  return <Navigate to="/login" />;
 }
 
 // Main App Component
@@ -199,6 +153,18 @@ function App() {
 // Separate component to use hooks
 function AppRoutes() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
+
+  // Helper component: redirect root path based on role
+  const RoleRedirect = () => {
+    const auth = useAuth();
+    if (auth.loading) return <div>Loading...</div>;
+    if (!auth.isAuthenticated) return <Navigate to="/login" />;
+    if (auth.user?.role === 'brand_manager') {
+      const bid = auth.user?.brandId || 'default';
+      return <Navigate to={`/brand/${bid}`} />;
+    }
+    return <Navigate to="/admin" />;
+  };
   
   // Seed the emulator with test user when in localhost
   useEffect(() => {
@@ -220,13 +186,6 @@ function AppRoutes() {
         <Route path="/admin" element={
           <ProtectedRoute>
             <AdminDashboardPage />
-          </ProtectedRoute>
-        } />
-        
-        {/* Brand Routes */}
-        <Route path="/brand/:brandId/*" element={
-          <ProtectedRoute>
-            <BrandHome />
           </ProtectedRoute>
         } />
         
@@ -263,8 +222,15 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         
-        {/* Default redirect to appropriate dashboard based on role */}
-        <Route path="/" element={<DefaultRedirect />} />
+        {/* Brand Dashboard */}
+        <Route path="/brand/:brandId/*" element={
+          <ProtectedRoute>
+            <BrandHome />
+          </ProtectedRoute>
+        } />
+        
+        {/* Default redirect to admin dashboard if logged in, otherwise login */}
+        <Route path="/" element={<RoleRedirect />} />
         
         {/* Catch-all for unknown routes */}
         <Route path="*" element={<Navigate to="/" />} />
