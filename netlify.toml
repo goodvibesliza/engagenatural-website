@@ -2,8 +2,8 @@
 
 # Build settings for Netlify.
 [build]
-  # Command to build the project using npm to avoid pnpm hash-mismatch issues.
-  command = "npm install && npm run build"
+  # Command to build the project using pnpm (installs pnpm globally first).
+  command = "npm i -g pnpm && pnpm install --no-frozen-lockfile && pnpm run build"
   
   # The directory that contains the built site. Vite's default is "dist".
   publish = "dist"
