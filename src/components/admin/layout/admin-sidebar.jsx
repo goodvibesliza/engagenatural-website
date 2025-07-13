@@ -11,9 +11,9 @@ import {
   Settings,
   Home
 } from 'lucide-react'
+import React from 'react'
 import { useRoleAccess } from '../../../hooks/use-role-access'
 import { cn } from '../../../lib/utils'
-import { useEffect } from 'react'
 
 const navigation = [
   { name: 'Overview', href: '/admin', icon: Home, current: false },
@@ -29,47 +29,27 @@ const navigation = [
 
 export default function AdminSidebar() {
   const location = useLocation()
-  // Grab role-access helpers (may be undefined during first render)
-  const { canAccess: rawCanAccess, role } = useRoleAccess() || {}
-
-  /**
-   * Guard against `canAccess` being undefined during the very first render
-   * (while auth context is still initialising).
-   */
-  const canAccess =
-    typeof rawCanAccess === 'function' ? rawCanAccess : () => true
-
-  /**
-   * Safe permission checker.
-   * - If no permission is required, always return true.
-   * - If the role hook isn't ready, default to showing the item (avoids lock-outs
-   *   while auth is still loading).
-   * - Supports string or string[] permission definitions.
-   */
-  const safeCanAccess = (requiredPermissions) => {
-    // No permission specified ➜ always allowed
-    if (!requiredPermissions) return true
-
-    // Use the resolved `canAccess` helper (always a function)
-    const allowed = canAccess(requiredPermissions)
-
-    /* eslint-disable no-console */
-    if (!allowed) {
-      console.debug(
-        '[AdminSidebar] Permission denied for nav item – permissions:',
-        requiredPermissions,
-        'role:',
-        role
-      )
-    }
-    /* eslint-enable no-console */
-
-    return allowed
+  /* ------------------------------------------------------------------
+   * Safely consume the role-access hook
+   * ------------------------------------------------------------------ */
+  let rawRoleAccess
+  try {
+    rawRoleAccess = useRoleAccess()
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[AdminSidebar] useRoleAccess threw before context ready:', err)
+    rawRoleAccess = {}
   }
 
-  // Friendly label for current role
-  const getRoleDisplayName = (r) => {
-    switch (r) {
+  // Fallbacks while auth context / role access is still initialising
+  const safeCanAccess =
+    typeof rawRoleAccess?.canAccess === 'function'
+      ? rawRoleAccess.canAccess
+      : () => true
+  const role = rawRoleAccess?.role || 'guest'
+
+  const getRoleDisplayName = (role) => {
+    switch (role) {
       case 'super_admin':
         return 'Super Admin'
       case 'brand_admin':
@@ -81,21 +61,23 @@ export default function AdminSidebar() {
     }
   }
 
-  // Debug: log which items are visible for the current role
-  useEffect(() => {
-    /* eslint-disable no-console */
-    const visible = navigation
-      .filter((n) => safeCanAccess(n.permission))
-      .map((n) => n.name)
-    console.debug('[AdminSidebar] visible nav items for role', role, visible)
-    /* eslint-enable no-console */
-    // Only run once per role change
-  }, [role])
+  const filteredNavigation = navigation.filter(item => {
+    if (!item.permission) return true
+    return safeCanAccess(item.permission)
+  })
 
-  // Filter navigation based on permissions
-  const filteredNavigation = navigation.filter((item) =>
-    safeCanAccess(item.permission)
-  )
+  /* ------------------------------------------------------------------
+   * Debug – log visible items whenever role changes
+   * ------------------------------------------------------------------ */
+  React.useEffect(() => {
+    /* eslint-disable no-console */
+    console.debug(
+      '[AdminSidebar] visible nav items for role',
+      role,
+      filteredNavigation.map((n) => n.name)
+    )
+    /* eslint-enable no-console */
+  }, [role, location.pathname]) // log once per role / nav change
 
   return (
     <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">

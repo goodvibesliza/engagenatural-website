@@ -17,17 +17,22 @@ export const ROLES = {
   USER: 'user'
 };
 
-// ---------------------------------------------------------------------------
-// Minimal permission keys used by the admin-sidebar navigation.
-// Expand as needed – keeping only what the UI currently references.
-// ---------------------------------------------------------------------------
+// --------------------------- Permissions -----------------------------------
+// Central list of permission keys referenced across the app
 export const PERMISSIONS = {
+  // Admin-side
   MANAGE_USERS: 'manage_users',
   APPROVE_VERIFICATIONS: 'approve_verifications',
   MANAGE_BRANDS: 'manage_brands',
-  VIEW_ANALYTICS: 'view_analytics',
   MANAGE_CONTENT: 'manage_content',
+  VIEW_ANALYTICS: 'view_analytics',
   SYSTEM_SETTINGS: 'system_settings',
+  // Brand manager-side
+  CREATE_CHALLENGES: 'create_challenges',
+  UPLOAD_CONTENT: 'upload_content',
+  VIEW_COMMUNITIES: 'view_communities',
+  POST_AS_BRAND: 'post_as_brand',
+  MANAGE_BRAND_CONFIG: 'manage_brand_config'
 };
 
 // Define the useAuth hook here - make sure this is exported
@@ -117,9 +122,7 @@ export function AuthProvider({ children }) {
   // Sign out function
   const signOut = async () => {
     try {
-      console.debug('[AuthContext] Signing out…');
       await firebaseSignOut(auth);
-      console.debug('[AuthContext] Sign-out success');
     } catch (error) {
       console.error("Sign out error:", error);
       setAuthError(error);
@@ -127,14 +130,32 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ------------------------------------------------------------------
-  // Simple permission checker – can be expanded later.
-  // For now: super-admin has everything, others have none (safe default).
-  // ------------------------------------------------------------------
+  /* ------------------------------------------------------------------ */
+  /*  Permissions helper                                                */
+  /* ------------------------------------------------------------------ */
+
+  // Brand managers are allowed this subset of permissions
+  const BRAND_MANAGER_PERMISSIONS = [
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.CREATE_CHALLENGES,
+    PERMISSIONS.UPLOAD_CONTENT,
+    PERMISSIONS.VIEW_COMMUNITIES,
+    PERMISSIONS.POST_AS_BRAND,
+    PERMISSIONS.MANAGE_BRAND_CONFIG
+  ];
+
+  /**
+   * Generic permission checker used by UI components.
+   * - Super Admins have every permission.
+   * - Brand Managers have a fixed subset (see above).
+   * - All others currently have none (extend as needed).
+   */
   const hasPermission = (permissionKey) => {
     if (!user) return false;
     if (user.role === ROLES.SUPER_ADMIN) return true;
-    // TODO: add granular permission logic for other roles.
+    if (user.role === ROLES.BRAND_MANAGER) {
+      return BRAND_MANAGER_PERMISSIONS.includes(permissionKey);
+    }
     return false;
   };
 
@@ -148,9 +169,9 @@ export function AuthProvider({ children }) {
     isSuperAdmin: user?.role === ROLES.SUPER_ADMIN,
     isBrandManager: user?.role === ROLES.BRAND_MANAGER,
 
-    // RBAC helpers
+    // Permissions
     hasPermission,
-    PERMISSIONS,
+    PERMISSIONS
   };
 
   return (

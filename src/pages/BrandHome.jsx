@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/auth-context";
 import BrandDashboard from "./BrandDashboard";
@@ -46,12 +46,10 @@ export default function BrandHome() {
 
   // Handle both old and new auth context structures
   const {
-    hasPermission = () => true, // Default fallback
-    canCreateChallenge = () => true,
-    canPostAsBrand = () => true,
-    isBrandManager = () => false,
-    isSuperAdmin = () => false,
-    userProfile = {},
+    hasPermission,
+    isBrandManager = false,
+    isSuperAdmin = false,
+    user: userProfile = {},
     role,
     signOut,
     PERMISSIONS = {
@@ -73,20 +71,15 @@ export default function BrandHome() {
     { key: "configuration", label: "Configuration", permission: PERMISSIONS.MANAGE_BRAND_CONFIG },
   ];
 
-  // Pick the first tab the current user is allowed to see
-  const firstPermittedTab = useMemo(() => {
-    for (const t of TABS) {
-      if (hasPermission(t.permission)) return t.key;
-    }
-    return "analytics";
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPermission]);
-
-  const [tab, setTab] = useState(firstPermittedTab);
+  const [tab, setTab] = useState("analytics");
 
   /* ------------------------------------------------------------------
    * HANDLERS
    * ------------------------------------------------------------------ */
+
+  // Safe permission checker – fallback to "true" while auth is still loading
+  const safeHasPermission = (perm) =>
+    typeof hasPermission === "function" ? hasPermission(perm) : true;
 
   // Debug helper – see if the Profile menu fires and where we navigate
   const handleGoToProfile = () => {
@@ -98,15 +91,14 @@ export default function BrandHome() {
 
   const handleLogout = async () => {
     try {
-      console.log("[BrandHome] Logging out…");
-      if (signOut) {
+      if (typeof signOut === "function") {
         await signOut();
       }
     } catch (err) {
-      console.error("[BrandHome] Logout error:", err);
-    } finally {
-      navigate("/login");
+      // eslint-disable-next-line no-console
+      console.error("[BrandHome] signOut error:", err);
     }
+    navigate('/login');
   };
 
   const getInitials = (name) => {
@@ -135,25 +127,6 @@ export default function BrandHome() {
     }
   };
 
-  /* ------------------------------------------------------------------
-   * EFFECTS – debug & keep tab valid on permission changes
-   * ------------------------------------------------------------------ */
-
-  // Debug mount / brandId change
-  useEffect(() => {
-    /* eslint-disable no-console */
-    console.log("[BrandHome] mounted – brandId:", brandId);
-    return () => console.log("[BrandHome] unmounted");
-    /* eslint-enable no-console */
-  }, []);
-
-  // Ensure current tab is always permitted
-  useEffect(() => {
-    if (!hasPermission(TABS.find(t => t.key === tab)?.permission)) {
-      setTab(firstPermittedTab);
-    }
-  }, [tab, firstPermittedTab, hasPermission]);
-
   return (
     <div className="max-w-7xl mx-auto p-6 relative">
       <header className="flex justify-between items-center mb-6">
@@ -161,7 +134,8 @@ export default function BrandHome() {
           <h1 className="text-3xl font-bold text-gray-900">Brand Admin</h1>
           <p className="text-gray-600 mt-1">
             {isBrandManager() && `Managing ${userProfile?.brandName || brandId}`}
-            {isSuperAdmin() && `Super Admin - Managing ${brandId}`}
+            {isBrandManager && `Managing ${userProfile?.brandName || brandId}`}
+            {isSuperAdmin && `Super Admin - Managing ${brandId}`}
           </p>
         </div>
         
@@ -240,7 +214,7 @@ export default function BrandHome() {
       <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-6 overflow-x-auto">
           {TABS.map((t) => (
-            hasPermission(t.permission) && (
+            safeHasPermission(t.permission) && (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
