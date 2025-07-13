@@ -3,11 +3,13 @@
 # Build settings for Netlify.
 [build]
   # Robust build command:
-  # 1. Install pnpm globally (if not already installed)
-  # 2. Remove any existing lockfile to avoid mismatch errors
-  # 3. Install dependencies (generates a fresh lockfile)
-  # 4. Run the production build
-  command = "npm i -g pnpm && rm -f pnpm-lock.yaml && pnpm install && node netlify-setup.js && pnpm run build"
+  # 1. Remove any pre-existing pnpm binary that Netlify may have installed
+  # 2. Install pnpm globally with --force to overwrite if necessary
+  # 3. Remove any existing lockfile to avoid mismatch errors
+  # 4. Install dependencies (generates a fresh lockfile)
+  # 5. Run setup script to patch import paths
+  # 6. Run the production build
+  command = "rm -f $(command -v pnpm) 2>/dev/null || true && npm i -g pnpm --force && rm -f pnpm-lock.yaml && pnpm install && node netlify-setup.js && pnpm run build"
   
   # The directory that contains the built site. Vite's default is "dist".
   publish = "dist"
