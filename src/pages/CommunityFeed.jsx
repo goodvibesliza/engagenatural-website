@@ -30,6 +30,7 @@ export default function CommunityFeed({ brandId }) {
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (hasPermission(PERMISSIONS.VIEW_COMMUNITIES)) {
@@ -42,53 +43,82 @@ export default function CommunityFeed({ brandId }) {
 
   const fetchCommunities = async () => {
     try {
+      console.log(`[CommunityFeed] Fetching communities for brandId: ${brandId}`);
+      console.log(`[CommunityFeed] User is brand manager: ${isBrandManager()}`);
+      console.log(`[CommunityFeed] User profile brandId: ${userProfile?.brandId}`);
+      
       // Replace with your actual API call
       const response = await fetch('/api/communities');
       const data = await response.json();
       
+      console.log(`[CommunityFeed] All communities:`, data);
+      
       // Filter communities based on permissions
       const accessibleCommunities = data.filter(community => {
-        // Brand managers can only see their own brand communities
+        // Brand managers can only see their own brand communities and public communities
         if (isBrandManager()) {
-          return community.brandId === brandId || community.isPublic;
+          const hasAccess = community.brandId === brandId || community.isPublic;
+          console.log(`[CommunityFeed] Community ${community.name} access for brand manager: ${hasAccess}`);
+          return hasAccess;
         }
         // Other users can see all communities
         return true;
       });
       
+      console.log(`[CommunityFeed] Accessible communities:`, accessibleCommunities);
       setCommunities(accessibleCommunities);
     } catch (error) {
-      console.error('Error fetching communities:', error);
+      console.error('[CommunityFeed] Error fetching communities:', error);
       // Fallback to mock data
-      setCommunities([
+      console.log(`[CommunityFeed] Using fallback mock data for brandId: ${brandId}`);
+      
+      // Create mock data that properly associates communities with brands
+      const mockCommunities = [
         { 
           id: 'sustainability', 
           name: 'Sustainability Champions', 
           members: 1247, 
-          brandId: brandId,
+          brandId: brandId, // Explicitly associate with current brandId
           isPublic: true 
         },
         { 
           id: 'product-training', 
           name: 'Product Training Hub', 
           members: 892, 
-          brandId: brandId,
+          brandId: brandId, // Explicitly associate with current brandId
           isPublic: false 
         },
         { 
           id: 'retail-excellence', 
           name: 'Retail Excellence', 
           members: 1456, 
-          brandId: 'general',
+          brandId: 'general', // This is a general community not tied to specific brand
           isPublic: true 
         }
-      ]);
+      ];
+      
+      // Filter mock communities based on permissions
+      const accessibleMockCommunities = mockCommunities.filter(community => {
+        // Brand managers can only see their own brand communities and public communities
+        if (isBrandManager()) {
+          const hasAccess = community.brandId === brandId || community.isPublic;
+          console.log(`[CommunityFeed] Mock community ${community.name} access for brand manager: ${hasAccess}`);
+          return hasAccess;
+        }
+        // Other users can see all communities
+        return true;
+      });
+      
+      console.log(`[CommunityFeed] Accessible mock communities:`, accessibleMockCommunities);
+      setCommunities(accessibleMockCommunities);
     }
   };
 
   const fetchPosts = async () => {
     try {
       setLoading(true);
+      console.log(`[CommunityFeed] Fetching posts for brandId: ${brandId}`);
+      
       // Replace with your actual API call
       const response = await fetch(`/api/communities/posts?brandId=${brandId}`);
       const data = await response.json();
@@ -101,7 +131,7 @@ export default function CommunityFeed({ brandId }) {
       
       setPosts(accessiblePosts);
     } catch (error) {
-      console.error('Error fetching posts:', error);
+      console.error('[CommunityFeed] Error fetching posts:', error);
       // Fallback to mock data
       setPosts([
         {
@@ -164,6 +194,8 @@ export default function CommunityFeed({ brandId }) {
         timestamp: new Date()
       };
       
+      console.log('[CommunityFeed] Creating new post:', postData);
+      
       // Replace with your actual API call
       const response = await fetch('/api/posts', {
         method: 'POST',
@@ -179,7 +211,8 @@ export default function CommunityFeed({ brandId }) {
         fetchPosts(); // Refresh posts
       }
     } catch (error) {
-      console.error('Error creating post:', error);
+      console.error('[CommunityFeed] Error creating post:', error);
+      setError('Failed to create post. Please try again.');
     } finally {
       setIsPosting(false);
     }
@@ -203,7 +236,7 @@ export default function CommunityFeed({ brandId }) {
           : post
       ));
     } catch (error) {
-      console.error('Error liking post:', error);
+      console.error('[CommunityFeed] Error liking post:', error);
     }
   };
 
@@ -239,7 +272,9 @@ export default function CommunityFeed({ brandId }) {
   }
 
   // Check if brand manager is accessing their own brand
-  if (isBrandManager() && userProfile?.brandId !== brandId) {
+  // Improved condition to handle undefined values and add more robust checking
+  if (isBrandManager() && userProfile?.brandId && brandId && userProfile.brandId !== brandId) {
+    console.log(`[CommunityFeed] Access denied: Brand manager with brandId ${userProfile.brandId} trying to access brandId ${brandId}`);
     return (
       <div className="text-center py-8">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
@@ -254,6 +289,43 @@ export default function CommunityFeed({ brandId }) {
       <div className="flex items-center justify-center py-8">
         <Loader className="w-8 h-8 animate-spin text-blue-600" />
         <span className="ml-2 text-gray-600">Loading community feed...</span>
+      </div>
+    );
+  }
+
+  // Show error message if there was an error
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-red-600 mb-2">Error</h2>
+        <p className="text-gray-600">{error}</p>
+        <button 
+          onClick={() => {
+            setError(null);
+            fetchCommunities();
+            fetchPosts();
+          }}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  // Show message if no communities are available
+  if (communities.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-gray-800 mb-2">No Communities Found</h2>
+        <p className="text-gray-600">
+          {isBrandManager() 
+            ? "No communities are associated with your brand yet."
+            : "No communities are available at this time."
+          }
+        </p>
       </div>
     );
   }
@@ -465,6 +537,11 @@ export default function CommunityFeed({ brandId }) {
               <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
               <h3 className="font-medium text-gray-900">{community.name}</h3>
               <p className="text-sm text-gray-600">{community.members} members</p>
+              {community.brandId === brandId && (
+                <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  Your Brand
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -472,4 +549,3 @@ export default function CommunityFeed({ brandId }) {
     </div>
   );
 }
-

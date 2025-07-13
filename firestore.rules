@@ -59,9 +59,74 @@ service cloud.firestore {
 
     // Existing communities rules
     match /communities/{communityId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'];
+      // READ rules
+      allow read: if request.auth != null && (
+        // Public community – open to any signed-in user
+        resource.data.isPublic == true ||
+
+        // Brand-restricted community – brand managers only
+        (
+          resource.data.brandId != null &&
+          exists(
+            /databases/$(database)/documents/brands/$(resource.data.brandId)/users/$(request.auth.uid)
+          ) &&
+          get(
+            /databases/$(database)/documents/brands/$(resource.data.brandId)/users/$(request.auth.uid)
+          ).data.role == 'manager'
+        )
+      );
+
+      // WRITE / UPDATE rules (managers + super admins via email override)
+      allow write: if request.auth != null && (
+        // Admin email override
+        request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'] ||
+
+        // Brand manager of the linked brand
+        (
+          request.resource.data.brandId != null &&
+          exists(
+            /databases/$(database)/documents/brands/$(request.resource.data.brandId)/users/$(request.auth.uid)
+          ) &&
+          get(
+            /databases/$(database)/documents/brands/$(request.resource.data.brandId)/users/$(request.auth.uid)
+          ).data.role == 'manager'
+        )
+      );
+
+      // Sub-collection: posts in a community
+      match /posts/{postId} {
+        // Anyone who can read the parent community can read its posts
+        allow read: if request.auth != null && (
+          // Mirror the parent community rules
+          get(/databases/$(database)/documents/communities/$(communityId)).data.isPublic == true ||
+          (
+            get(/databases/$(database)/documents/communities/$(communityId)).data.brandId != null &&
+            exists(
+              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
+            ) &&
+            get(
+              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
+            ).data.role == 'manager'
+          )
+        );
+
+        // Only brand managers (or admin email override) can create/update/delete posts
+        allow write: if request.auth != null && (
+          // Admin email override
+          request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'] ||
+
+          // Brand manager of the community's brand
+          (
+            get(/databases/$(database)/documents/communities/$(communityId)).data.brandId != null &&
+            exists(
+              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
+            ) &&
+            get(
+              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
+            ).data.role == 'manager'
+          )
+        );
+      }
     }
 
     // Your temporary catch-all rule (expires July 17, 2025)
