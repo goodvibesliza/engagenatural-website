@@ -1,40 +1,37 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import path from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "src": path.resolve(__dirname, "./src")
     },
-    dedupe: ['react', 'react-dom']
+    extensions: ['.js', '.jsx', '.json', '.ts', '.tsx']
+  },
+  server: {
+    port: 3000,
+    open: true
+  },
+  // Ensure Windows path compatibility
+  build: {
+    sourcemap: true
   },
   optimizeDeps: {
-    force: true,
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom'
+    ],
     esbuildOptions: {
-      // Node.js global to browser globalThis
       define: {
         global: 'globalThis'
-      }
-    }
-  },
-  build: {
-    commonjsOptions: {
-      transformMixedEsModules: true,
-      include: [/node_modules/]
-    },
-    sourcemap: true,
-    minify: 'esbuild',
-    rollupOptions: {
-      onwarn(warning, warn) {
-        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
-          return
-        }
-        warn(warning)
-      }
+      },
+      jsx: 'automatic'
     }
   }
-})
+});
