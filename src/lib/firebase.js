@@ -16,7 +16,21 @@ let _storage = null;
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: isLocalhost ? "fake-api-key" : "AIzaSyCO65kN7L3OR7VnORRwYZckzoUEUJAoJQg",
+  /*
+   * SECURITY WARNING
+   * ------------------------------------------------------------------
+   * Never commit real Firebase API keys (or any secret) to source-control.
+   *
+   * • When developing locally with the **emulator** (`isLocalhost === true`)
+   *   the actual value is irrelevant, so we use a harmless placeholder
+   *   string: `"demo-api-key"`.
+   *
+   * • In all other cases we read the real key from a Vite environment
+   *   variable injected at build time:  VITE_FIREBASE_API_KEY
+   *   – Define it in `.env.production` for local production builds
+   *   – Or add it in Netlify / CI environment-variables UI
+   */
+  apiKey: isLocalhost ? "demo-api-key" : import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "engagenatural-app.firebaseapp.com",
   projectId: "engagenatural-app",
   storageBucket: "engagenatural-app.appspot.com",

@@ -10,8 +10,23 @@ const isLocalhost = window.location.hostname === 'localhost';
 // Create a robust initialize function that handles all edge cases
 function initializeFirebase() {
   // For local development with emulators
+  /*
+   * SECURITY NOTE
+   * ------------------------------------------------------------------
+   * Never commit real Firebase API keys to source control.
+   *  – When running **locally** (isLocalhost === true) we use a fake
+   *    string `"demo-api-key"` because the emulator ignores it anyway.
+   *  – In all other cases we read the **real key** from an environment
+   *    variable that Vite injects at build-time: `import.meta.env.VITE_FIREBASE_API_KEY`.
+   *
+   * Make sure the real key is defined:
+   *   • Locally:  add it to  .env.production   (or Netlify UI)
+   *   • Netlify:  Settings → Build & deploy → Environment variables
+   */
   const firebaseConfig = {
-    apiKey: isLocalhost ? "demo-api-key" : "AIzaSyCO65kN7L3OR7VnORRwYZckzoUEUJAoJQg",
+    apiKey: isLocalhost
+      ? "demo-api-key"
+      : import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: "engagenatural-app.firebaseapp.com",
     projectId: "engagenatural-app",
     storageBucket: "engagenatural-app.appspot.com",
