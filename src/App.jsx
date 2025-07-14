@@ -153,18 +153,6 @@ function App() {
 // Separate component to use hooks
 function AppRoutes() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
-
-  // Helper component: redirect root path based on role
-  const RoleRedirect = () => {
-    const auth = useAuth();
-    if (auth.loading) return <div>Loading...</div>;
-    if (!auth.isAuthenticated) return <Navigate to="/login" />;
-    if (auth.user?.role === 'brand_manager') {
-      const bid = auth.user?.brandId || 'default';
-      return <Navigate to={`/brand/${bid}`} />;
-    }
-    return <Navigate to="/admin" />;
-  };
   
   // Seed the emulator with test user when in localhost
   useEffect(() => {
@@ -177,6 +165,22 @@ function AppRoutes() {
     }
   }, [emulatorInitialized]);
   
+  // Helper component to send users to the correct dashboard based on role
+  const RoleRedirect = () => {
+    const auth = useAuth();
+    if (auth.loading) {
+      return <div>Loading...</div>;
+    }
+    if (!auth.isAuthenticated) {
+      return <Navigate to="/login" />;
+    }
+    if (auth.user?.role === 'brand_manager') {
+      const bid = auth.user?.brandId || 'default';
+      return <Navigate to={`/brand/${bid}`} />;
+    }
+    return <Navigate to="/admin" />;
+  };
+
   return (
     <Router>
       <Routes>
@@ -221,7 +225,7 @@ function AppRoutes() {
             <TemplateEditorPage />
           </ProtectedRoute>
         } />
-        
+
         {/* Brand Dashboard */}
         <Route path="/brand/:brandId/*" element={
           <ProtectedRoute>
@@ -229,7 +233,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         
-        {/* Default redirect to admin dashboard if logged in, otherwise login */}
+        {/* Default redirect based on role or to login */}
         <Route path="/" element={<RoleRedirect />} />
         
         {/* Catch-all for unknown routes */}
