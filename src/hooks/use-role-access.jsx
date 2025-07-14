@@ -1,4 +1,4 @@
-import { useAuth, ROLES, PERMISSIONS } from '../contexts/auth-context';
+import { useAuth, PERMISSIONS } from '../contexts/auth-context';
 
 /**
  * A custom hook to manage role-based access control (RBAC) throughout the application.
@@ -7,30 +7,14 @@ import { useAuth, ROLES, PERMISSIONS } from '../contexts/auth-context';
  */
 export function useRoleAccess() {
   const { 
-    role,
-    brandId,
-    hasPermission: rawHasPermission,
-    isSuperAdmin: rawIsSuperAdmin,
-    isBrandManager: rawIsBrandManager,
+    role, 
+    brandId, 
+    hasPermission, 
+    isSuperAdmin, 
+    isBrandManager, 
     isRetailUser, 
     isCommunityUser 
   } = useAuth();
-
-  // ---------------------------------------------------------------------
-  // Helpers – normalise context values that may be undefined or booleans
-  // ---------------------------------------------------------------------
-  const safeHasPermission =
-    typeof rawHasPermission === 'function' ? rawHasPermission : () => false;
-
-  const isSuperAdmin =
-    typeof rawIsSuperAdmin === 'function'
-      ? rawIsSuperAdmin()
-      : !!rawIsSuperAdmin;
-
-  const isBrandManager =
-    typeof rawIsBrandManager === 'function'
-      ? rawIsBrandManager()
-      : !!rawIsBrandManager;
 
   /**
    * Checks if the current user has at least one of the required permissions.
@@ -47,15 +31,7 @@ export function useRoleAccess() {
       : [requiredPermissions];
 
     // Use the hasPermission function from the AuthContext to check if the user has any of the required permissions.
-    try {
-      return permissionsToCheck.some((permission) =>
-        safeHasPermission(permission)
-      );
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[useRoleAccess] canAccess error:', err);
-      return false;
-    }
+    return permissionsToCheck.some(permission => hasPermission(permission));
   };
 
   /**

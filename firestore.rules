@@ -1,6 +1,30 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    /*
+     * ------------------------------------------------------------------
+     *  Helper functions – rely exclusively on custom auth **claims**
+     *  injected by the emulator/production backend:
+     *    role      : 'admin' | 'brand' | ...
+     *    brandId   : brand a user manages (for role === 'brand')
+     *    admin     : boolean (optional) – legacy flag for admin
+     * ------------------------------------------------------------------
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.role == 'admin' || request.auth.token.admin == true);
+    }
+
+    function isBrandManager(brandId) {
+      return isAuthenticated() &&
+        request.auth.token.role == 'brand' &&
+        request.auth.token.brandId == brandId;
+    }
+
     // Existing user rules
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -11,20 +35,12 @@ service cloud.firestore {
       // Anyone can read brand info (public brands)
       allow read: if true;
       
-      // Only brand managers can write/update/delete brand info
-      allow write: if request.auth != null &&
-        exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+      // Brand managers (for their own brand) or admins can write/update/delete
+      allow write: if isBrandManager(brandId) || isAdmin();
 
       // Brand users subcollection - only managers can manage users
       match /users/{userId} {
-        allow read: if request.auth != null &&
-          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
-        
-        allow write: if request.auth != null &&
-          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+        allow read, write: if isBrandManager(brandId) || isAdmin();
       }
 
       // Brand content subcollection
@@ -32,15 +48,11 @@ service cloud.firestore {
         // Anyone can read published content
         allow read: if resource.data.isPublished == true;
         
-        // Brand managers can read all content (published and unpublished)
-        allow read: if request.auth != null &&
-          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+        // Brand managers can read all of their brand’s content
+        allow read: if isBrandManager(brandId) || isAdmin();
         
-        // Only brand managers can create/update/delete content
-        allow write: if request.auth != null &&
-          exists(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/brands/$(brandId)/users/$(request.auth.uid)).data.role == 'manager';
+        // Only brand managers (for their brand) or admins can create/update/delete
+        allow write: if isBrandManager(brandId) || isAdmin();
       }
     }
 
@@ -59,74 +71,9 @@ service cloud.firestore {
 
     // Existing communities rules
     match /communities/{communityId} {
-      // READ rules
-      allow read: if request.auth != null && (
-        // Public community – open to any signed-in user
-        resource.data.isPublic == true ||
-
-        // Brand-restricted community – brand managers only
-        (
-          resource.data.brandId != null &&
-          exists(
-            /databases/$(database)/documents/brands/$(resource.data.brandId)/users/$(request.auth.uid)
-          ) &&
-          get(
-            /databases/$(database)/documents/brands/$(resource.data.brandId)/users/$(request.auth.uid)
-          ).data.role == 'manager'
-        )
-      );
-
-      // WRITE / UPDATE rules (managers + super admins via email override)
-      allow write: if request.auth != null && (
-        // Admin email override
-        request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'] ||
-
-        // Brand manager of the linked brand
-        (
-          request.resource.data.brandId != null &&
-          exists(
-            /databases/$(database)/documents/brands/$(request.resource.data.brandId)/users/$(request.auth.uid)
-          ) &&
-          get(
-            /databases/$(database)/documents/brands/$(request.resource.data.brandId)/users/$(request.auth.uid)
-          ).data.role == 'manager'
-        )
-      );
-
-      // Sub-collection: posts in a community
-      match /posts/{postId} {
-        // Anyone who can read the parent community can read its posts
-        allow read: if request.auth != null && (
-          // Mirror the parent community rules
-          get(/databases/$(database)/documents/communities/$(communityId)).data.isPublic == true ||
-          (
-            get(/databases/$(database)/documents/communities/$(communityId)).data.brandId != null &&
-            exists(
-              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
-            ) &&
-            get(
-              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
-            ).data.role == 'manager'
-          )
-        );
-
-        // Only brand managers (or admin email override) can create/update/delete posts
-        allow write: if request.auth != null && (
-          // Admin email override
-          request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'] ||
-
-          // Brand manager of the community's brand
-          (
-            get(/databases/$(database)/documents/communities/$(communityId)).data.brandId != null &&
-            exists(
-              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
-            ) &&
-            get(
-              /databases/$(database)/documents/brands/$(get(/databases/$(database)/documents/communities/$(communityId)).data.brandId)/users/$(request.auth.uid)
-            ).data.role == 'manager'
-          )
-        );
-      }
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'];
     }
 
     // Your temporary catch-all rule (expires July 17, 2025)
