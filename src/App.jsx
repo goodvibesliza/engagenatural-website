@@ -1,5 +1,5 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/auth-context';
 import { useState, useEffect } from 'react';
 import './App.css';
@@ -19,6 +19,7 @@ import { seedEmulatorAuth } from './utils/seedEmulatorAuth';
 
 // Simple Login Component
 function LoginPage() {
+  const location = useLocation();
   const [email, setEmail] = useState(isLocalhost ? 'admin@example.com' : '');
   const [password, setPassword] = useState(isLocalhost ? 'password' : '');
   const [error, setError] = useState('');
@@ -57,7 +58,15 @@ function LoginPage() {
   
   // Redirect if already logged in
   if (auth.isAuthenticated) {
-    return <Navigate to="/admin" />;
+    // determine where the user should go
+    const searchParams = new URLSearchParams(location.search);
+    const returnUrl = searchParams.get('returnUrl');
+    // role-aware default
+    const roleDefault =
+      auth.role === 'brand_manager' || auth.role === 'brand'
+        ? '/brand/content'
+        : '/admin';
+    return <Navigate to={returnUrl || roleDefault} replace />;
   }
   
   return (
@@ -126,13 +135,17 @@ function LoginPage() {
 // Protected Route Component
 function ProtectedRoute({ children }) {
   const auth = useAuth();
+  const location = useLocation();
   
   if (auth.loading) {
     return <div>Loading...</div>;
   }
   
   if (!auth.isAuthenticated) {
-    return <Navigate to="/login" />;
+    const returnUrl = encodeURIComponent(
+      location.pathname + location.search + location.hash
+    );
+    return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
   }
   
   return children;
