@@ -133,7 +133,6 @@ export default function BrandHome() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Brand Admin</h1>
           <p className="text-gray-600 mt-1">
-            {isBrandManager() && `Managing ${userProfile?.brandName || brandId}`}
             {isBrandManager && `Managing ${userProfile?.brandName || brandId}`}
             {isSuperAdmin && `Super Admin - Managing ${brandId}`}
           </p>
@@ -207,6 +206,17 @@ export default function BrandHome() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Prominent Logout button (always visible) */}
+          <Button
+            variant="destructive"
+            size="sm"
+            className="ml-4 flex items-center gap-2 px-4 shadow"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Log&nbsp;Out
+          </Button>
         </div>
       </header>
       
