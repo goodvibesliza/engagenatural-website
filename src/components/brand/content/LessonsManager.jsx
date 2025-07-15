@@ -85,6 +85,11 @@ export default function LessonsManager() {
     // If no URL provided, return empty string
     if (!uploadResult) return '';
     
+    // Debug – show exactly what we got from the uploader
+    if (isLocalhost) {
+      console.debug('[LessonsManager] processImageUrl → raw value:', uploadResult);
+    }
+
     // Handle case where uploadResult is an object with url property
     // This is the format returned by our enhanced FileUploader component
     const url = typeof uploadResult === 'object' && uploadResult.url 
@@ -100,11 +105,17 @@ export default function LessonsManager() {
     // Special handling for emulator URLs
     if (isLocalhost && url.includes('localhost')) {
       // For emulator, we need to use the URL as is
+      if (isLocalhost) {
+        console.debug('[LessonsManager] processImageUrl → emulator url:', url);
+      }
       return url;
     }
     
     // For production URLs, we might need to transform them
     // This is just an example - adjust based on your actual URL format
+    if (isLocalhost) {
+      console.debug('[LessonsManager] processImageUrl → prod url (no transform):', url);
+    }
     return url;
   };
   
@@ -125,6 +136,10 @@ export default function LessonsManager() {
       // Process the image URL to handle emulator and production URLs
       const processedUrl = processImageUrl(uploadResult);
       
+      if (isLocalhost) {
+        console.debug('[LessonsManager] handleFileUploadComplete → processedUrl:', processedUrl);
+      }
+
       setFormData({
         ...formData,
         imageUrl: processedUrl
