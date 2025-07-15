@@ -1,12 +1,84 @@
 rules_version = '2';
-
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'admin' || request.auth.token.admin == true);
+    }
+    
+    function isBrandManager() {
+      return isAuthenticated() && request.auth.token.role == 'brand';
+    }
+    
+    function belongsToBrand(brandId) {
+      return isAuthenticated() && request.auth.token.brandId == brandId;
+    }
+    
+    function inBrandFolder(brandId) {
+      return resource.name.matches('lessons/' + brandId + '/.*') ||
+             resource.name.matches('communities/' + brandId + '/.*') ||
+             resource.name.matches('brands/' + brandId + '/.*');
+    }
+    
+    // Default deny all
     match /{allPaths=**} {
       allow read, write: if false;
+    }
+    
+    // Admin has full access to everything
+    match /{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Public files - anyone can read
+    match /public/{allPublicFiles=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    
+    // Brand-specific folders
+    // Lessons folder structure: /lessons/{brandId}/{fileId}
+    match /lessons/{brandId}/{fileName} {
+      // Anyone can read published lesson content
+      allow read: if true;
+      
+      // Brand managers can write to their own brand's folder
+      allow write: if isBrandManager() && belongsToBrand(brandId);
+    }
+    
+    // Communities folder structure: /communities/{brandId}/{fileId}
+    match /communities/{brandId}/{fileName} {
+      // Anyone can read community content
+      allow read: if true;
+      
+      // Brand managers can write to their own brand's folder
+      allow write: if isBrandManager() && belongsToBrand(brandId);
+    }
+    
+    // Brand assets folder structure: /brands/{brandId}/{fileId}
+    match /brands/{brandId}/{fileName} {
+      // Anyone can read brand assets
+      allow read: if true;
+      
+      // Brand managers can write to their own brand's folder
+      allow write: if isBrandManager() && belongsToBrand(brandId);
+    }
+    
+    // User uploads folder structure: /users/{userId}/{fileId}
+    match /users/{userId}/{fileName} {
+      // Users can read and write their own files
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Temporary uploads folder for emulator testing
+    match /uploads/{fileName} {
+      // In production, this would be more restricted
+      allow read, write: if isAuthenticated();
     }
   }
 }
