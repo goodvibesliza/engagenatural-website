@@ -14,7 +14,7 @@ const EMULATOR_ROLES_KEY = 'firebase_emulator_roles';
 /**
  * Initialize emulator with test users
  */
-export async function initializeEmulatorUsers() {
+export async function initializeEmulatorUsers(skipUserCreation = false) {
   if (!isLocalhost) {
     console.warn('Not in emulator mode - skipping user initialization');
     return false;
@@ -23,19 +23,34 @@ export async function initializeEmulatorUsers() {
   try {
     console.log('🔧 Initializing emulator users...');
     
-    // Create admin user
-    await createEmulatorUser('admin@example.com', 'password', {
+    const adminClaims = {
       displayName: 'Admin User',
       role: 'admin',
       admin: true
-    });
-    
-    // Create brand manager user
-    await createEmulatorUser('brand@example.com', 'password', {
+    };
+
+    const brandClaims = {
       displayName: 'Brand Manager',
       role: 'brand',
       brandId: 'brand1'
-    });
+    };
+
+    if (skipUserCreation) {
+      // Just make sure claims are present for already-existing users
+      try {
+        const adminCred = await signInWithEmailAndPassword(auth, 'admin@example.com', 'password');
+        await setEmulatorClaims(adminCred.user.uid, adminClaims);
+      } catch (_) {/* ignore */}
+
+      try {
+        const brandCred = await signInWithEmailAndPassword(auth, 'brand@example.com', 'password');
+        await setEmulatorClaims(brandCred.user.uid, brandClaims);
+      } catch (_) {/* ignore */}
+    } else {
+      // Create users (or ensure they exist) and set claims
+      await createEmulatorUser('admin@example.com', 'password', adminClaims);
+      await createEmulatorUser('brand@example.com', 'password', brandClaims);
+    }
     
     console.log('✅ Emulator users initialized successfully');
     return true;

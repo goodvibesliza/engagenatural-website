@@ -89,6 +89,27 @@ export function AuthProvider({ children }) {
             userProfile.role = ROLES.SUPER_ADMIN;
           }
 
+          /**
+           * -------------------------------------------------------------
+           * Merge custom claims stored in localStorage (Auth emulator)
+           * -------------------------------------------------------------
+           */
+          if (isLocalhost) {
+            const claims = getCurrentUserClaims();
+            if (claims && Object.keys(claims).length > 0) {
+              userProfile = {
+                ...userProfile,
+                ...claims,
+              };
+            }
+          }
+
+          // Ensure we always have *some* role populated to avoid
+          // undefined-role errors in Firestore rules.
+          if (!userProfile.role) {
+            userProfile.role = ROLES.USER;
+          }
+
           // Check if the user is a super admin by email
           const isSuperAdmin = ['admin@engagenatural.com', 'admin@example.com'].includes(firebaseUser.email);
           if (isSuperAdmin) {
