@@ -381,6 +381,45 @@ export default function LessonsManager() {
               <div className="space-y-2">
                 <Label>Cover Image</Label>
                 <div className="flex flex-col space-y-2">
+                  {/* ─────────────── Helper text (moved to top) ─────────────── */}
+                  <div className="flex flex-col space-y-1 mb-1">
+                    <p className="text-sm text-muted-foreground flex items-center">
+                      <span className="inline-flex items-center mr-2 text-blue-600">
+                        <Image className="h-3.5 w-3.5 mr-1" />
+                        <span className="font-medium">Image requirements:</span>
+                      </span>
+                      <span className="text-xs">
+                        16:9 ratio (1600×900&nbsp;px&nbsp;recommended) · Max&nbsp;5&nbsp;MB
+                      </span>
+                    </p>
+                    <div className="flex items-center">
+                      <a
+                        href="https://www.iloveimg.com/resize-image"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        <span className="underline">Need to resize an image?</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="ml-1"
+                        >
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+
                   {formData.imageUrl && (
                     <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-md border border-gray-200">
                       <img 
@@ -417,10 +456,6 @@ export default function LessonsManager() {
                     maxHeight={900}     // Recommended height (16:9)
                     quality={0.85}      // Compression quality
                   />
-                  {/* Helper text for users */}
-                  <p className="text-xs text-muted-foreground">
-                    Recommended dimensions&nbsp;≤&nbsp;1600&nbsp;×&nbsp;900&nbsp;px&nbsp;(16:9)
-                  </p>
                 </div>
               </div>
               
