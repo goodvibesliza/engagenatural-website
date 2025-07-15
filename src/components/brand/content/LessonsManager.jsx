@@ -325,7 +325,11 @@ export default function LessonsManager() {
   
   return (
     <div className="space-y-6">
-      <Card>
+      {/* ──────────────────────────────  FORM  +  LIVE PREVIEW  ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* ───────────────  FORM  (3 / 5 cols) ─────────────── */}
+        <div className="lg:col-span-3">
+          <Card>
         <CardHeader>
           <CardTitle>{isEditing ? 'Edit Lesson' : 'Create New Lesson'}</CardTitle>
           <CardDescription>
@@ -390,6 +394,14 @@ export default function LessonsManager() {
                       />
                     </div>
                   )}
+
+              {/* Debug display for image URL (only visible in emulator mode) */}
+              {formData.imageUrl && isLocalhost && (
+                <div className="mt-2 p-3 bg-gray-100 rounded-md overflow-hidden text-xs">
+                  <p className="font-semibold">Debug - Image URL:</p>
+                  <p className="mt-1 break-all font-mono">{formData.imageUrl}</p>
+                </div>
+              )}
                   
                   <FileUploader
                     onUploadComplete={handleFileUploadComplete}
@@ -445,7 +457,66 @@ export default function LessonsManager() {
             </div>
           </form>
         </CardContent>
-      </Card>
+          </Card>
+        </div>
+
+        {/* ───────────────  LIVE PREVIEW  (2 / 5 cols) ─────────────── */}
+        <div className="lg:col-span-2">
+          <Card className="sticky top-4">
+            <CardHeader className="pb-2">
+              <CardTitle>Live Preview</CardTitle>
+              <CardDescription>See how your lesson will appear</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <h2 className="text-2xl font-bold break-words">
+                {formData.title || 'Lesson Title'}
+              </h2>
+
+              {/* Cover image / placeholder */}
+              {formData.imageUrl ? (
+                <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100">
+                  <img
+                    src={formData.imageUrl}
+                    alt={formData.title}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src =
+                        'https://placehold.co/600x400?text=Image+Not+Found';
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100 flex items-center justify-center">
+                  <Image className="h-12 w-12 text-gray-300" />
+                </div>
+              )}
+
+              <div className="font-medium text-gray-700">
+                {formData.description || 'Lesson description will appear here…'}
+              </div>
+
+              <ScrollArea className="h-[300px] rounded border p-4">
+                <div className="prose max-w-none">
+                  {formData.content
+                    ? formData.content
+                        .split('\n')
+                        .map((paragraph, idx) => <p key={idx}>{paragraph}</p>)
+                    : (
+                      <p className="text-gray-400">
+                        Lesson content will appear here…
+                      </p>
+                    )}
+                </div>
+              </ScrollArea>
+
+              <Badge variant={formData.published ? 'success' : 'secondary'}>
+                {formData.published ? 'Published' : 'Draft'}
+              </Badge>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
       
       <Card>
         <CardHeader>
