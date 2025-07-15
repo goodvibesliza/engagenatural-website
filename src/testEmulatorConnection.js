@@ -11,6 +11,8 @@ console.log('📝 This file tests direct connections to all Firebase emulators')
 const firebaseConfig = {
   apiKey: 'demo-api-key',
   projectId: 'demo-project',
+  // Added bucket so Storage SDK knows which bucket to reference
+  storageBucket: 'engagenatural-app.appspot.com',
   appId: '1:123456789012:web:abcdef1234567890'
 };
 
