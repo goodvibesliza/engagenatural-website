@@ -1,5 +1,11 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/auth-context';
 import { useState, useEffect } from 'react';
 import './App.css';
@@ -10,7 +16,9 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
 import TemplateEditorPage from './pages/admin/TemplateEditorPage';
 import TemplateViewPage from './pages/admin/TemplateViewPage';
-import BrandHome from './pages/BrandHome';
+import BrandContentManager from './pages/BrandContentManager';
+import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
+import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 
 // Utility for seeding emulator auth
 // We'll create this file next
@@ -18,6 +26,7 @@ import { seedEmulatorAuth } from './utils/seedEmulatorAuth';
 
 // Simple Login Component
 function LoginPage() {
+  const location = useLocation();
   const [email, setEmail] = useState(isLocalhost ? 'admin@example.com' : '');
   const [password, setPassword] = useState(isLocalhost ? 'password' : '');
   const [error, setError] = useState('');
@@ -56,11 +65,13 @@ function LoginPage() {
   
   // Redirect if already logged in
   if (auth.isAuthenticated) {
-    if (auth.user?.role === 'brand_manager') {
-      const bid = auth.user?.brandId || 'default';
-      return <Navigate to={`/brand/${bid}`} />;
-    }
-    return <Navigate to="/admin" />;
+    const searchParams = new URLSearchParams(location.search);
+    const returnUrl = searchParams.get('returnUrl');
+    const roleDefault =
+      auth.role === 'brand_manager' || auth.role === 'brand'
+        ? '/brand/content'
+        : '/admin';
+    return <Navigate to={returnUrl || roleDefault} replace />;
   }
   
   return (
@@ -129,15 +140,19 @@ function LoginPage() {
 // Protected Route Component
 function ProtectedRoute({ children }) {
   const auth = useAuth();
-  
+  const location = useLocation();
+
   if (auth.loading) {
     return <div>Loading...</div>;
   }
-  
+
   if (!auth.isAuthenticated) {
-    return <Navigate to="/login" />;
+    const returnUrl = encodeURIComponent(
+      location.pathname + location.search + location.hash
+    );
+    return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
   }
-  
+
   return children;
 }
 
@@ -165,22 +180,6 @@ function AppRoutes() {
     }
   }, [emulatorInitialized]);
   
-  // Helper component to send users to the correct dashboard based on role
-  const RoleRedirect = () => {
-    const auth = useAuth();
-    if (auth.loading) {
-      return <div>Loading...</div>;
-    }
-    if (!auth.isAuthenticated) {
-      return <Navigate to="/login" />;
-    }
-    if (auth.user?.role === 'brand_manager') {
-      const bid = auth.user?.brandId || 'default';
-      return <Navigate to={`/brand/${bid}`} />;
-    }
-    return <Navigate to="/admin" />;
-  };
-
   return (
     <Router>
       <Routes>
@@ -226,15 +225,32 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
-        {/* Brand Dashboard */}
-        <Route path="/brand/:brandId/*" element={
+        {/* Brand content routes */}
+        <Route path="/brand" element={
           <ProtectedRoute>
-            <BrandHome />
+            <BrandContentManager />
           </ProtectedRoute>
         } />
+        <Route path="/brand/content" element={
+          <ProtectedRoute>
+            <BrandContentManager />
+          </ProtectedRoute>
+        } />
+
+        {/* Emulator Test Dashboard (local only, auth required) */}
+        {isLocalhost && (
+          <Route path="/emulator" element={
+            <ProtectedRoute>
+              <EmulatorTestDashboard />
+            </ProtectedRoute>
+          } />
+        )}
+
+        {/* Public Firebase Emulator Diagnostics (no auth) */}
+        <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
         
-        {/* Default redirect based on role or to login */}
-        <Route path="/" element={<RoleRedirect />} />
+        {/* Default redirect to admin dashboard if logged in, otherwise login */}
+        <Route path="/" element={<Navigate to="/admin" />} />
         
         {/* Catch-all for unknown routes */}
         <Route path="*" element={<Navigate to="/" />} />
