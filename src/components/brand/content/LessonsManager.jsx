@@ -411,7 +411,16 @@ export default function LessonsManager() {
                     buttonText="Upload Cover Image"
                     allowedTypes={['image/jpeg', 'image/png', 'image/webp']}
                     maxSizeMB={5}
+                    /* 🔽 Optimised upload settings */
+                    resizeImage={true}
+                    maxWidth={1600}     // Recommended width
+                    maxHeight={900}     // Recommended height (16:9)
+                    quality={0.85}      // Compression quality
                   />
+                  {/* Helper text for users */}
+                  <p className="text-xs text-muted-foreground">
+                    Recommended dimensions&nbsp;≤&nbsp;1600&nbsp;×&nbsp;900&nbsp;px&nbsp;(16:9)
+                  </p>
                 </div>
               </div>
               
