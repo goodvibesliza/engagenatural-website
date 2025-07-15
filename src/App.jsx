@@ -141,18 +141,18 @@ function LoginPage() {
 function ProtectedRoute({ children }) {
   const auth = useAuth();
   const location = useLocation();
-
+  
   if (auth.loading) {
     return <div>Loading...</div>;
   }
-
+  
   if (!auth.isAuthenticated) {
     const returnUrl = encodeURIComponent(
       location.pathname + location.search + location.hash
     );
     return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
   }
-
+  
   return children;
 }
 
@@ -224,33 +224,42 @@ function AppRoutes() {
             <TemplateEditorPage />
           </ProtectedRoute>
         } />
-
-        {/* Brand content routes */}
-        <Route path="/brand" element={
-          <ProtectedRoute>
-            <BrandContentManager />
-          </ProtectedRoute>
-        } />
-        <Route path="/brand/content" element={
-          <ProtectedRoute>
-            <BrandContentManager />
-          </ProtectedRoute>
-        } />
-
-        {/* Emulator Test Dashboard (local only, auth required) */}
-        {isLocalhost && (
-          <Route path="/emulator" element={
-            <ProtectedRoute>
-              <EmulatorTestDashboard />
-            </ProtectedRoute>
-          } />
-        )}
-
-        {/* Public Firebase Emulator Diagnostics (no auth) */}
-        <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
         
         {/* Default redirect to admin dashboard if logged in, otherwise login */}
         <Route path="/" element={<Navigate to="/admin" />} />
+
+        {/* ───────────────────── Brand Content Routes ───────────────────── */}
+        <Route
+          path="/brand"
+          element={
+            <ProtectedRoute>
+              <BrandContentManager />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/brand/content"
+          element={
+            <ProtectedRoute>
+              <BrandContentManager />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ───────────────────── Emulator Routes ───────────────────── */}
+        {isLocalhost && (
+          <Route
+            path="/emulator"
+            element={
+              <ProtectedRoute>
+                <EmulatorTestDashboard />
+              </ProtectedRoute>
+            }
+          />
+        )}
+
+        {/* Public diagnostics – no auth required */}
+        <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
         
         {/* Catch-all for unknown routes */}
         <Route path="*" element={<Navigate to="/" />} />
