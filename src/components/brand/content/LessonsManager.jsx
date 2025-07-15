@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../contexts/auth-context";
-import { db } from "../../../firebase";
+import { db, isLocalhost } from "../../../firebase";
 import {
   collection,
   query,
@@ -48,13 +48,18 @@ import {
 } from "../../ui/select";
 import { Separator } from "../../ui/separator";
 import { ScrollArea } from "../../ui/scroll-area";
+import { Alert, AlertDescription } from "../../ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../../ui/alert-dialog";
 
 // Icons
-import { Plus, Edit, Trash2, BookOpen, FileText, Video, Music, Calendar, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, BookOpen, FileText, Video, Music, Calendar, RefreshCw, Loader2, ImageIcon, Info } from "lucide-react";
 
 // File Uploader
 import FileUploader from "./FileUploader";
+
+// Default fallback image
+const FALLBACK_IMAGE = "https://placehold.co/600x400?text=Image+Not+Available";
+const PREVIEW_FALLBACK = "https://placehold.co/600x400?text=Preview+Not+Available";
 
 export default function LessonsManager({ brandId }) {
   const { user } = useAuth();
@@ -76,6 +81,20 @@ export default function LessonsManager({ brandId }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [lessonToDelete, setLessonToDelete] = useState(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState("");
+  const [previewError, setPreviewError] = useState(false);
+
+  // Process image URL for emulator compatibility
+  const processImageUrl = (url) => {
+    if (!url) return "";
+    
+    // Handle emulator storage URLs which might have localhost:9199 in them
+    if (isLocalhost && url.includes('localhost:9199')) {
+      // For emulator URLs, ensure they're properly formatted
+      return url;
+    }
+    
+    return url;
+  };
 
   // Fetch lessons for the brand
   useEffect(() => {
@@ -119,6 +138,12 @@ export default function LessonsManager({ brandId }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Reset preview error when changing the image URL manually
+    if (name === 'featuredImage') {
+      setPreviewError(false);
+    }
+    
     setFormData({
       ...formData,
       [name]: value
@@ -150,22 +175,29 @@ export default function LessonsManager({ brandId }) {
       brandId: brandId || user?.brandId || ""
     });
     setUploadedFileUrl("");
+    setPreviewError(false);
     setIsEditing(false);
     setDialogOpen(true);
   };
 
   const openEditDialog = (lesson) => {
     setCurrentLesson(lesson);
+    setPreviewError(false);
+    
+    // Process the image URL for proper display
+    const processedImageUrl = processImageUrl(lesson.featuredImage);
+    
     setFormData({
       title: lesson.title || "",
       description: lesson.description || "",
       content: lesson.content || "",
       type: lesson.type || "article",
       status: lesson.status || "draft",
-      featuredImage: lesson.featuredImage || "",
+      featuredImage: processedImageUrl || "",
       brandId: lesson.brandId || brandId || user?.brandId || ""
     });
-    setUploadedFileUrl(lesson.featuredImage || "");
+    
+    setUploadedFileUrl(processedImageUrl || "");
     setIsEditing(true);
     setDialogOpen(true);
   };
@@ -184,10 +216,12 @@ export default function LessonsManager({ brandId }) {
     setLoading(true);
     
     try {
+      // Use the most recent image URL (either uploaded or entered manually)
+      const finalImageUrl = uploadedFileUrl || formData.featuredImage;
+      
       const newLesson = {
         ...formData,
-        // If a file was uploaded, use that URL for featuredImage
-        featuredImage: uploadedFileUrl || formData.featuredImage,
+        featuredImage: finalImageUrl,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -215,10 +249,12 @@ export default function LessonsManager({ brandId }) {
     try {
       const lessonRef = doc(db, "lessons", currentLesson.id);
       
+      // Use the most recent image URL (either uploaded or entered manually)
+      const finalImageUrl = uploadedFileUrl || formData.featuredImage;
+      
       const updatedData = {
         ...formData,
-        // If a file was uploaded, use that URL for featuredImage
-        featuredImage: uploadedFileUrl || formData.featuredImage,
+        featuredImage: finalImageUrl,
         updatedAt: serverTimestamp()
       };
       
@@ -255,12 +291,39 @@ export default function LessonsManager({ brandId }) {
   };
 
   const handleFileUploadComplete = (fileUrl) => {
-    setUploadedFileUrl(fileUrl);
+    if (!fileUrl) {
+      toast.error("File upload failed to return a valid URL");
+      return;
+    }
+    
+    // Process the URL for emulator compatibility
+    const processedUrl = processImageUrl(fileUrl);
+    
+    // Update both state variables to keep them in sync
+    setUploadedFileUrl(processedUrl);
     setFormData({
       ...formData,
-      featuredImage: fileUrl
+      featuredImage: processedUrl
     });
+    
+    // Reset preview error state
+    setPreviewError(false);
+    
     toast.success("File uploaded successfully");
+    
+    if (isLocalhost) {
+      console.log("📸 Image URL from emulator:", processedUrl);
+    }
+  };
+
+  const handleImageError = (e, fallbackUrl = FALLBACK_IMAGE) => {
+    console.warn("Image failed to load:", e.target.src);
+    e.target.onerror = null; // Prevent infinite loop
+    e.target.src = fallbackUrl;
+    
+    if (e.target.dataset.preview) {
+      setPreviewError(true);
+    }
   };
 
   const formatDate = (date) => {
@@ -284,6 +347,11 @@ export default function LessonsManager({ brandId }) {
       default:
         return <FileText className="h-4 w-4" />;
     }
+  };
+
+  // Get the current image URL for preview, prioritizing the uploaded file
+  const getCurrentImageUrl = () => {
+    return uploadedFileUrl || formData.featuredImage || "";
   };
 
   if (loading && lessons.length === 0) {
@@ -362,17 +430,18 @@ export default function LessonsManager({ brandId }) {
                 </div>
               </CardHeader>
               <CardContent>
-                {lesson.featuredImage && (
+                {lesson.featuredImage ? (
                   <div className="mb-4 aspect-video bg-muted rounded-md overflow-hidden">
                     <img
-                      src={lesson.featuredImage}
+                      src={processImageUrl(lesson.featuredImage)}
                       alt={lesson.title}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = "https://placehold.co/600x400?text=Image+Not+Found";
-                      }}
+                      onError={(e) => handleImageError(e, FALLBACK_IMAGE)}
                     />
+                  </div>
+                ) : (
+                  <div className="mb-4 aspect-video bg-muted rounded-md flex items-center justify-center">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground opacity-30" />
                   </div>
                 )}
                 
@@ -509,26 +578,64 @@ export default function LessonsManager({ brandId }) {
                   <div className="space-y-2">
                     <Label>Upload Image</Label>
                     <FileUploader
-                      folder="lessons"
+                      folder={`lessons/${formData.brandId || 'default'}`}
                       onUploadComplete={handleFileUploadComplete}
                     />
                   </div>
                   
-                  {(formData.featuredImage || uploadedFileUrl) && (
+                  {/* Image Preview Section */}
+                  {getCurrentImageUrl() && (
                     <div className="mt-2">
-                      <Label>Preview</Label>
-                      <div className="mt-2 aspect-video bg-muted rounded-md overflow-hidden">
-                        <img
-                          src={uploadedFileUrl || formData.featuredImage}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "https://placehold.co/600x400?text=Preview+Not+Available";
-                          }}
-                        />
+                      <div className="flex justify-between items-center mb-2">
+                        <Label>Preview</Label>
+                        {isLocalhost && (
+                          <Badge variant="outline" className="text-xs">
+                            Emulator Mode
+                          </Badge>
+                        )}
                       </div>
+                      
+                      {previewError ? (
+                        <div className="mt-2 aspect-video bg-muted rounded-md flex flex-col items-center justify-center p-4">
+                          <ImageIcon className="h-12 w-12 text-muted-foreground opacity-30 mb-2" />
+                          <p className="text-sm text-muted-foreground text-center">
+                            Image preview not available
+                          </p>
+                          {isLocalhost && (
+                            <p className="text-xs text-muted-foreground mt-2 text-center">
+                              This is common with Firebase Storage emulator URLs
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-2 aspect-video bg-muted rounded-md overflow-hidden">
+                          <img
+                            src={getCurrentImageUrl()}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                            data-preview="true"
+                            onError={(e) => handleImageError(e, PREVIEW_FALLBACK)}
+                          />
+                        </div>
+                      )}
+                      
+                      {isLocalhost && getCurrentImageUrl() && (
+                        <div className="mt-2 text-xs text-muted-foreground break-all">
+                          <p>URL: {getCurrentImageUrl()}</p>
+                        </div>
+                      )}
                     </div>
+                  )}
+                  
+                  {/* Emulator info */}
+                  {isLocalhost && (
+                    <Alert variant="info" className="bg-blue-50 text-blue-800 border-blue-200 mt-2">
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        In emulator mode, images may not display correctly in the preview,
+                        but they will be stored correctly in the database.
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </div>
               </div>
