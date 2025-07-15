@@ -3,7 +3,7 @@ import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from '
 import { db, storage, isLocalhost } from '../../../firebase';
 import { ref, deleteObject } from 'firebase/storage';
 import { useAuth } from '../../../contexts/auth-context';
-import { useToast } from '../../../hooks/use-toast';
+import { toast } from "sonner";
 
 // UI Components
 import { Button } from '../../ui/button';
@@ -43,7 +43,6 @@ export default function LessonsManager() {
   const [uploadingImage, setUploadingImage] = useState(false);
   
   const { user, brandId } = useAuth();
-  const { toast } = useToast();
   
   // Fetch lessons on component mount
   useEffect(() => {
@@ -75,11 +74,7 @@ export default function LessonsManager() {
     } catch (error) {
       console.error('Error fetching lessons:', error);
       setError('Failed to fetch lessons. Please try again.');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch lessons.'
-      });
+      toast.error('Failed to fetch lessons.');
     } finally {
       setLoading(false);
     }
@@ -90,6 +85,11 @@ export default function LessonsManager() {
     // If no URL provided, return empty string
     if (!uploadResult) return '';
     
+    // Debug – show exactly what we got from the uploader
+    if (isLocalhost) {
+      console.debug('[LessonsManager] processImageUrl → raw value:', uploadResult);
+    }
+
     // Handle case where uploadResult is an object with url property
     // This is the format returned by our enhanced FileUploader component
     const url = typeof uploadResult === 'object' && uploadResult.url 
@@ -105,11 +105,17 @@ export default function LessonsManager() {
     // Special handling for emulator URLs
     if (isLocalhost && url.includes('localhost')) {
       // For emulator, we need to use the URL as is
+      if (isLocalhost) {
+        console.debug('[LessonsManager] processImageUrl → emulator url:', url);
+      }
       return url;
     }
     
     // For production URLs, we might need to transform them
     // This is just an example - adjust based on your actual URL format
+    if (isLocalhost) {
+      console.debug('[LessonsManager] processImageUrl → prod url (no transform):', url);
+    }
     return url;
   };
   
@@ -130,6 +136,10 @@ export default function LessonsManager() {
       // Process the image URL to handle emulator and production URLs
       const processedUrl = processImageUrl(uploadResult);
       
+      if (isLocalhost) {
+        console.debug('[LessonsManager] handleFileUploadComplete → processedUrl:', processedUrl);
+      }
+
       setFormData({
         ...formData,
         imageUrl: processedUrl
@@ -137,18 +147,11 @@ export default function LessonsManager() {
       
       setUploadingImage(false);
       
-      toast({
-        title: 'Image uploaded',
-        description: 'Your image has been uploaded successfully.'
-      });
+      toast.success('Image uploaded successfully.');
     } catch (error) {
       console.error('Error processing upload result:', error);
       setUploadingImage(false);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to process uploaded image.'
-      });
+      toast.error('Failed to process uploaded image.');
     }
   };
   
@@ -156,11 +159,7 @@ export default function LessonsManager() {
   const handleFileUploadError = (error) => {
     console.error('File upload error:', error);
     setUploadingImage(false);
-    toast({
-      variant: 'destructive',
-      title: 'Upload failed',
-      description: error.message || 'Failed to upload image.'
-    });
+    toast.error(error.message || 'Failed to upload image.');
   };
   
   // Submit form to create or update a lesson
@@ -179,10 +178,7 @@ export default function LessonsManager() {
         // Create new lesson
         lessonData.createdAt = new Date();
         const docRef = await addDoc(collection(db, 'lessons'), lessonData);
-        toast({
-          title: 'Lesson created',
-          description: 'Your lesson has been created successfully.'
-        });
+        toast.success('Your lesson has been created successfully.');
         
         // Reset form
         setFormData({
@@ -196,10 +192,7 @@ export default function LessonsManager() {
       } else {
         // Update existing lesson
         await updateDoc(doc(db, 'lessons', currentLessonId), lessonData);
-        toast({
-          title: 'Lesson updated',
-          description: 'Your lesson has been updated successfully.'
-        });
+        toast.success('Your lesson has been updated successfully.');
         
         // Exit edit mode
         setIsEditing(false);
@@ -210,11 +203,7 @@ export default function LessonsManager() {
       fetchLessons();
     } catch (error) {
       console.error('Error saving lesson:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save lesson. Please try again.'
-      });
+      toast.error('Failed to save lesson. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -262,17 +251,10 @@ export default function LessonsManager() {
       // Update the lessons list
       setLessons(lessons.filter(lesson => lesson.id !== lessonId));
       
-      toast({
-        title: 'Lesson deleted',
-        description: 'The lesson has been deleted successfully.'
-      });
+      toast.success('The lesson has been deleted successfully.');
     } catch (error) {
       console.error('Error deleting lesson:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete lesson. Please try again.'
-      });
+      toast.error('Failed to delete lesson. Please try again.');
     }
   };
   
@@ -298,11 +280,7 @@ export default function LessonsManager() {
       }
     } catch (error) {
       console.error('Error fetching lesson for edit:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to load lesson for editing.'
-      });
+      toast.error('Failed to load lesson for editing.');
     }
   };
   
@@ -319,11 +297,7 @@ export default function LessonsManager() {
       }
     } catch (error) {
       console.error('Error fetching lesson for preview:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to load lesson preview.'
-      });
+      toast.error('Failed to load lesson preview.');
     }
   };
   
@@ -351,7 +325,11 @@ export default function LessonsManager() {
   
   return (
     <div className="space-y-6">
-      <Card>
+      {/* ──────────────────────────────  FORM  +  LIVE PREVIEW  ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* ───────────────  FORM  (3 / 5 cols) ─────────────── */}
+        <div className="lg:col-span-3">
+          <Card>
         <CardHeader>
           <CardTitle>{isEditing ? 'Edit Lesson' : 'Create New Lesson'}</CardTitle>
           <CardDescription>
@@ -403,6 +381,45 @@ export default function LessonsManager() {
               <div className="space-y-2">
                 <Label>Cover Image</Label>
                 <div className="flex flex-col space-y-2">
+                  {/* ─────────────── Helper text (moved to top) ─────────────── */}
+                  <div className="flex flex-col space-y-1 mb-1">
+                    <p className="text-sm text-muted-foreground flex items-center">
+                      <span className="inline-flex items-center mr-2 text-blue-600">
+                        <Image className="h-3.5 w-3.5 mr-1" />
+                        <span className="font-medium">Image requirements:</span>
+                      </span>
+                      <span className="text-xs">
+                        16:9 ratio (1600×900&nbsp;px&nbsp;recommended) · Max&nbsp;5&nbsp;MB
+                      </span>
+                    </p>
+                    <div className="flex items-center">
+                      <a
+                        href="https://www.iloveimg.com/resize-image"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        <span className="underline">Need to resize an image?</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="ml-1"
+                        >
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+
                   {formData.imageUrl && (
                     <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-md border border-gray-200">
                       <img 
@@ -416,6 +433,14 @@ export default function LessonsManager() {
                       />
                     </div>
                   )}
+
+              {/* Debug display for image URL (only visible in emulator mode) */}
+              {formData.imageUrl && isLocalhost && (
+                <div className="mt-2 p-3 bg-gray-100 rounded-md overflow-hidden text-xs">
+                  <p className="font-semibold">Debug - Image URL:</p>
+                  <p className="mt-1 break-all font-mono">{formData.imageUrl}</p>
+                </div>
+              )}
                   
                   <FileUploader
                     onUploadComplete={handleFileUploadComplete}
@@ -425,6 +450,11 @@ export default function LessonsManager() {
                     buttonText="Upload Cover Image"
                     allowedTypes={['image/jpeg', 'image/png', 'image/webp']}
                     maxSizeMB={5}
+                    /* 🔽 Optimised upload settings */
+                    resizeImage={true}
+                    maxWidth={1600}     // Recommended width
+                    maxHeight={900}     // Recommended height (16:9)
+                    quality={0.85}      // Compression quality
                   />
                 </div>
               </div>
@@ -471,7 +501,66 @@ export default function LessonsManager() {
             </div>
           </form>
         </CardContent>
-      </Card>
+          </Card>
+        </div>
+
+        {/* ───────────────  LIVE PREVIEW  (2 / 5 cols) ─────────────── */}
+        <div className="lg:col-span-2">
+          <Card className="sticky top-4">
+            <CardHeader className="pb-2">
+              <CardTitle>Live Preview</CardTitle>
+              <CardDescription>See how your lesson will appear</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <h2 className="text-2xl font-bold break-words">
+                {formData.title || 'Lesson Title'}
+              </h2>
+
+              {/* Cover image / placeholder */}
+              {formData.imageUrl ? (
+                <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100">
+                  <img
+                    src={formData.imageUrl}
+                    alt={formData.title}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src =
+                        'https://placehold.co/600x400?text=Image+Not+Found';
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100 flex items-center justify-center">
+                  <Image className="h-12 w-12 text-gray-300" />
+                </div>
+              )}
+
+              <div className="font-medium text-gray-700">
+                {formData.description || 'Lesson description will appear here…'}
+              </div>
+
+              <ScrollArea className="h-[300px] rounded border p-4">
+                <div className="prose max-w-none">
+                  {formData.content
+                    ? formData.content
+                        .split('\n')
+                        .map((paragraph, idx) => <p key={idx}>{paragraph}</p>)
+                    : (
+                      <p className="text-gray-400">
+                        Lesson content will appear here…
+                      </p>
+                    )}
+                </div>
+              </ScrollArea>
+
+              <Badge variant={formData.published ? 'success' : 'secondary'}>
+                {formData.published ? 'Published' : 'Draft'}
+              </Badge>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
       
       <Card>
         <CardHeader>

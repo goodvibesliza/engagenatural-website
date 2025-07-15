@@ -25,18 +25,6 @@ export default function FileUploader({
   className = '',
   disabled = false,
   brandId = null, // Optional brandId for organizing files by brand
-  /* ──────────────────────────────────────────────────────────────────────
-   *  Image-optimization props
-   * ----------------------------------------------------------------------
-   *  resizeImage : If true, images will be resized client-side
-   *  maxWidth    : Maximum width (px) of the resized image
-   *  maxHeight   : Maximum height (px) of the resized image
-   *  quality     : JPEG / WebP compression quality (0-1)
-   *  -------------------------------------------------------------------*/
-  resizeImage = true,
-  maxWidth = 1200,
-  maxHeight = 1200,
-  quality = 0.8,
 }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -166,30 +154,11 @@ export default function FileUploader({
         console.log(`🧪 Using emulator:`, isLocalhost);
       }
       
-      /* ────────────────────────────────
-       * Resize image if applicable
-       * ──────────────────────────────── */
-      let fileToUpload = file;
-      if (file.type.startsWith('image/') && resizeImage) {
-        try {
-          fileToUpload = await resizeImageIfNeeded(file);
-          if (debugMode && fileToUpload !== file) {
-            console.log(
-              `🖼️ Image resized: ${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB (was: ${(file.size / 1024 / 1024).toFixed(2)}MB)`
-            );
-          }
-        } catch (resizeError) {
-          console.error('Error resizing image:', resizeError);
-          // Fallback to original file if resize fails
-          fileToUpload = file;
-        }
-      }
-      
       // Create storage reference
       const storageRef = ref(storage, path);
       
       // Create upload task
-      const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
+      const uploadTask = uploadBytesResumable(storageRef, file);
       
       // Monitor upload progress
       uploadTask.on(
@@ -336,64 +305,6 @@ export default function FileUploader({
     }
   }, [checkEmulatorConnection]);
   
-  /* ──────────────────────────────────────────────────────────────────────
-   * Helper: resize image using <canvas> before upload
-   * Returns a Blob (or original file if no resize needed / disabled)
-   * -------------------------------------------------------------------*/
-  const resizeImageIfNeeded = async (originalFile) => {
-    if (
-      !resizeImage ||
-      !originalFile.type.startsWith('image/') ||
-      (maxWidth <= 0 && maxHeight <= 0)
-    ) {
-      return originalFile; // No resizing necessary
-    }
-
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-
-        // Determine if resize is needed
-        if (width <= maxWidth && height <= maxHeight) {
-          return resolve(originalFile); // Already within limits
-        }
-
-        // Calculate aspect-ratio-preserving dimensions
-        const ratio = Math.min(maxWidth / width, maxHeight / height);
-        const targetW = Math.round(width * ratio);
-        const targetH = Math.round(height * ratio);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = targetW;
-        canvas.height = targetH;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, targetW, targetH);
-
-        const mime =
-          originalFile.type === 'image/png'
-            ? 'image/png'
-            : originalFile.type === 'image/webp'
-            ? 'image/webp'
-            : 'image/jpeg';
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              return reject(new Error('Canvas is empty'));
-            }
-            resolve(blob);
-          },
-          mime,
-          quality
-        );
-      };
-      img.onerror = reject;
-      img.src = URL.createObjectURL(originalFile);
-    });
-  };
-
   return (
     <div className={`file-uploader ${className}`}>
       {/* File Input */}
@@ -420,13 +331,6 @@ export default function FileUploader({
           </Button>
         )}
         
-        {/* Recommended dimensions helper */}
-        {resizeImage && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Recommended image size ≤ {maxWidth}×{maxHeight}px
-          </p>
-        )}
-
         {/* File Preview */}
         {file && (
           <Card className="mt-2">

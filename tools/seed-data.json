@@ -1,85 +1,125 @@
 {
-  "users": [
-    {
-      "displayName": "Liza Admin",
-      "email": "liza@example.com",
-      "role": "admin",
-      "country": "US",
-      "createdAt": {
-        "_seconds": 1609459200,
-        "_nanoseconds": 0
-      },
-      "lastActive": {
-        "_seconds": 1719580800,
-        "_nanoseconds": 0
-      }
-    },
-    {
-      "displayName": "Michael Brand",
-      "email": "michael@greenleaf.com",
-      "role": "brand",
-      "brandIds": [
-        "brand_greenleaf"
-      ],
-      "country": "US",
-      "createdAt": {
-        "_seconds": 1612137600,
-        "_nanoseconds": 0
-      },
-      "lastActive": {
-        "_seconds": 1719494400,
-        "_nanoseconds": 0
-      }
-    }
-  ],
   "brands": [
     {
-      "name": "GreenLeaf Organics",
-      "category": "Organic Foods",
-      "isActive": true,
-      "revenueShare": 0.18,
-      "conversionRate": 3.2,
-      "createdAt": {
-        "_seconds": 1609459200,
-        "_nanoseconds": 0
-      }
+      "id": "brand1",
+      "name": "Eco Wellness",
+      "description": "Sustainable wellness products for mindful living",
+      "logo": "https://example.com/logos/eco-wellness.png",
+      "primaryColor": "#4CAF50",
+      "createdAt": { "_seconds": 1657123200, "_nanoseconds": 0 }
+    },
+    {
+      "id": "brand2",
+      "name": "Natural Balance",
+      "description": "Holistic health solutions inspired by nature",
+      "logo": "https://example.com/logos/natural-balance.png",
+      "primaryColor": "#2196F3",
+      "createdAt": { "_seconds": 1657209600, "_nanoseconds": 0 }
     }
   ],
-  "verifications": [
+  "lessons": [
     {
-      "userId": "user_1",
-      "brandId": "brand_greenleaf",
-      "status": "pending",
-      "timestamp": {
-        "_seconds": 1719580800,
-        "_nanoseconds": 0
-      }
-    }
-  ],
-  "content": [
-    {
-      "title": "Sustainable Practices Guide",
+      "title": "Introduction to Mindfulness",
+      "description": "Learn the basics of mindfulness meditation and its benefits",
+      "content": "Mindfulness is the practice of being present and fully engaged with whatever we're doing in the moment...",
       "type": "article",
-      "brandId": "brand_greenleaf",
-      "authorId": "user_1",
-      "views": 12450,
-      "engagement": 8.7,
-      "createdAt": {
-        "_seconds": 1609545600,
-        "_nanoseconds": 0
-      }
+      "brandId": "brand1",
+      "status": "published",
+      "featuredImage": "https://example.com/images/mindfulness.jpg",
+      "createdAt": { "_seconds": 1657296000, "_nanoseconds": 0 },
+      "updatedAt": { "_seconds": 1657296000, "_nanoseconds": 0 }
+    },
+    {
+      "title": "Daily Wellness Routines",
+      "description": "Simple practices to incorporate wellness into your daily life",
+      "content": "Creating a consistent wellness routine is key to maintaining balance...",
+      "type": "article",
+      "brandId": "brand1",
+      "status": "published",
+      "featuredImage": "https://example.com/images/wellness-routine.jpg",
+      "createdAt": { "_seconds": 1657382400, "_nanoseconds": 0 },
+      "updatedAt": { "_seconds": 1657382400, "_nanoseconds": 0 }
+    },
+    {
+      "title": "Guided Meditation Session",
+      "description": "10-minute guided meditation for stress relief",
+      "content": "https://example.com/videos/guided-meditation.mp4",
+      "type": "video",
+      "brandId": "brand2",
+      "status": "published",
+      "featuredImage": "https://example.com/images/meditation.jpg",
+      "createdAt": { "_seconds": 1657468800, "_nanoseconds": 0 },
+      "updatedAt": { "_seconds": 1657468800, "_nanoseconds": 0 }
+    },
+    {
+      "title": "Upcoming Nutrition Workshop",
+      "description": "Learn about plant-based nutrition for optimal health",
+      "content": "Join us for an interactive workshop on the principles of plant-based nutrition...",
+      "type": "event",
+      "brandId": "brand2",
+      "status": "draft",
+      "featuredImage": "https://example.com/images/nutrition.jpg",
+      "createdAt": { "_seconds": 1657555200, "_nanoseconds": 0 },
+      "updatedAt": { "_seconds": 1657555200, "_nanoseconds": 0 }
     }
   ],
   "communities": [
     {
-      "name": "Sustainability Champions",
-      "brandId": "brand_greenleaf",
-      "isActive": true,
-      "members": 4560,
-      "createdAt": {
-        "_seconds": 1609545600,
-        "_nanoseconds": 0
-      }
+      "name": "Mindfulness Practitioners",
+      "description": "A community for those practicing mindfulness in daily life",
+      "brandId": "brand1",
+      "memberCount": 120,
+      "status": "active",
+      "image": "https://example.com/images/mindfulness-community.jpg",
+      "createdAt": { "_seconds": 1657641600, "_nanoseconds": 0 },
+      "topics": ["meditation", "mindfulness", "stress-relief"]
+    },
+    {
+      "name": "Wellness Explorers",
+      "description": "Discover and share wellness practices from around the world",
+      "brandId": "brand1",
+      "memberCount": 85,
+      "status": "active",
+      "image": "https://example.com/images/wellness-explorers.jpg",
+      "createdAt": { "_seconds": 1657728000, "_nanoseconds": 0 },
+      "topics": ["global-wellness", "traditions", "natural-healing"]
+    },
+    {
+      "name": "Nutrition Enthusiasts",
+      "description": "Discussions about balanced nutrition and healthy eating",
+      "brandId": "brand2",
+      "memberCount": 210,
+      "status": "active",
+      "image": "https://example.com/images/nutrition-community.jpg",
+      "createdAt": { "_seconds": 1657814400, "_nanoseconds": 0 },
+      "topics": ["plant-based", "whole-foods", "recipes"]
+    },
+    {
+      "name": "Movement & Exercise",
+      "description": "Share your favorite ways to stay active and fit",
+      "brandId": "brand2",
+      "memberCount": 0,
+      "status": "draft",
+      "image": "https://example.com/images/movement-community.jpg",
+      "createdAt": { "_seconds": 1657900800, "_nanoseconds": 0 },
+      "topics": ["yoga", "fitness", "outdoor-activities"]
+    }
+  ],
+  "users": [
+    {
+      "uid": "admin123",
+      "email": "admin@example.com",
+      "displayName": "Admin User",
+      "role": "admin",
+      "createdAt": { "_seconds": 1657987200, "_nanoseconds": 0 }
+    },
+    {
+      "uid": "brand123",
+      "email": "brand@example.com",
+      "displayName": "Brand Manager",
+      "role": "brand",
+      "brandId": "brand1",
+      "createdAt": { "_seconds": 1658073600, "_nanoseconds": 0 }
     }
   ]
 }

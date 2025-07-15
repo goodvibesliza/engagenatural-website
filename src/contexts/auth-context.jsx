@@ -6,6 +6,11 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, isLocalhost, signInWithEmailPassword } from '../firebase';
+// Emulator helpers (worked-around custom-claims for the Auth emulator)
+import {
+  getCurrentUserClaims,
+  signInWithEmulatorClaims,
+} from '../utils/emulatorAuthHelper';
 
 // Create auth context
 const AuthContext = createContext();
@@ -17,22 +22,21 @@ export const ROLES = {
   USER: 'user'
 };
 
-// --------------------------- Permissions -----------------------------------
-// Central list of permission keys referenced across the app
+// Map of application-level permissions
+// Extend this list if your UI needs more granular checks.
 export const PERMISSIONS = {
-  // Admin-side
-  MANAGE_USERS: 'manage_users',
-  APPROVE_VERIFICATIONS: 'approve_verifications',
-  MANAGE_BRANDS: 'manage_brands',
-  MANAGE_CONTENT: 'manage_content',
-  VIEW_ANALYTICS: 'view_analytics',
-  SYSTEM_SETTINGS: 'system_settings',
-  // Brand manager-side
-  CREATE_CHALLENGES: 'create_challenges',
-  UPLOAD_CONTENT: 'upload_content',
-  VIEW_COMMUNITIES: 'view_communities',
-  POST_AS_BRAND: 'post_as_brand',
-  MANAGE_BRAND_CONFIG: 'manage_brand_config'
+  VIEW_ANALYTICS: 'VIEW_ANALYTICS',
+  MANAGE_CONTENT: 'MANAGE_CONTENT'
+};
+
+// For every role, list the permissions it is granted (super_admin implicitly gets '*')
+const ROLE_PERMISSIONS = {
+  [ROLES.SUPER_ADMIN]: ['*'],
+  [ROLES.BRAND_MANAGER]: [
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.MANAGE_CONTENT
+  ],
+  [ROLES.USER]: []
 };
 
 // Define the useAuth hook here - make sure this is exported
@@ -80,10 +84,30 @@ export function AuthProvider({ children }) {
           } catch (error) {
             console.warn("Error fetching user profile:", error);
             // In emulator mode, give the user super admin role for testing
-            if (isLocalhost) {
-              console.log("Emulator mode: Assigning super_admin role");
-              userProfile.role = ROLES.SUPER_ADMIN;
+          // so Firestore security rules relying on request.auth.token work.
+            console.log("Emulator mode: Assigning super_admin role");
+            userProfile.role = ROLES.SUPER_ADMIN;
+          }
+
+          /**
+           * -------------------------------------------------------------
+           * Merge custom claims stored in localStorage (Auth emulator)
+           * -------------------------------------------------------------
+           */
+          if (isLocalhost) {
+            const claims = getCurrentUserClaims();
+            if (claims && Object.keys(claims).length > 0) {
+              userProfile = {
+                ...userProfile,
+                ...claims,
+              };
             }
+          }
+
+          // Ensure we always have *some* role populated to avoid
+          // undefined-role errors in Firestore rules.
+          if (!userProfile.role) {
+            userProfile.role = ROLES.USER;
           }
 
           // Check if the user is a super admin by email
@@ -111,6 +135,10 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     try {
       setAuthError(null);
+      if (isLocalhost) {
+        // Use helper so the token gets fake custom claims
+        return await signInWithEmulatorClaims(email, password);
+      }
       return await signInWithEmailPassword(email, password);
     } catch (error) {
       console.error("Sign in error:", error);
@@ -130,48 +158,30 @@ export function AuthProvider({ children }) {
     }
   };
 
-  /* ------------------------------------------------------------------ */
-  /*  Permissions helper                                                */
-  /* ------------------------------------------------------------------ */
-
-  // Brand managers are allowed this subset of permissions
-  const BRAND_MANAGER_PERMISSIONS = [
-    PERMISSIONS.VIEW_ANALYTICS,
-    PERMISSIONS.CREATE_CHALLENGES,
-    PERMISSIONS.UPLOAD_CONTENT,
-    PERMISSIONS.VIEW_COMMUNITIES,
-    PERMISSIONS.POST_AS_BRAND,
-    PERMISSIONS.MANAGE_BRAND_CONFIG
-  ];
-
-  /**
-   * Generic permission checker used by UI components.
-   * - Super Admins have every permission.
-   * - Brand Managers have a fixed subset (see above).
-   * - All others currently have none (extend as needed).
-   */
-  const hasPermission = (permissionKey) => {
-    if (!user) return false;
-    if (user.role === ROLES.SUPER_ADMIN) return true;
-    if (user.role === ROLES.BRAND_MANAGER) {
-      return BRAND_MANAGER_PERMISSIONS.includes(permissionKey);
-    }
-    return false;
-  };
-
   const value = {
     user,
     loading,
     error: authError,
     signIn,
     signOut,
+    // Raw helpers & fields
+    role: user?.role || null,
+    brandId: user?.brandId || null,
     isAuthenticated: !!user,
     isSuperAdmin: user?.role === ROLES.SUPER_ADMIN,
     isBrandManager: user?.role === ROLES.BRAND_MANAGER,
-
-    // Permissions
-    hasPermission,
-    PERMISSIONS
+    isRetailUser: user?.role === ROLES.USER,
+    isCommunityUser: user?.role === 'community_user', // keep for legacy
+    /**
+     *  Checks if the current user possesses a specific permission.
+     *  Super-admins always return true.
+     */
+    hasPermission: (permission) => {
+      if (!permission || !user?.role) return false;
+      if (user.role === ROLES.SUPER_ADMIN) return true;
+      const list = ROLE_PERMISSIONS[user.role] || [];
+      return list.includes(permission);
+    }
   };
 
   return (

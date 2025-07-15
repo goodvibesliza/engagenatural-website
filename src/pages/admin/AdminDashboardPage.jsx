@@ -81,6 +81,21 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
+        {/* ------------------------------------------------------------------ */}
+        {/* Testing Navigation Link (temporary helper for QA)                  */}
+        {/* ------------------------------------------------------------------ */}
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+          <h3 className="text-lg font-semibold text-blue-700 mb-2">Testing Navigation</h3>
+          <div className="flex gap-2">
+            <Link
+              to="/brand"
+              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              View Brand Dashboard
+            </Link>
+          </div>
+        </div>
+
         {/* Welcome Section */}
         <div className="bg-white shadow rounded-lg mb-6">
           <div className="p-6">
