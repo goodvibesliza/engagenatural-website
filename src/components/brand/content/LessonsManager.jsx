@@ -3,7 +3,7 @@ import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from '
 import { db, storage, isLocalhost } from '../../../firebase';
 import { ref, deleteObject } from 'firebase/storage';
 import { useAuth } from '../../../contexts/auth-context';
-import { useToast } from '../../../hooks/use-toast';
+import { toast } from "sonner";
 
 // UI Components
 import { Button } from '../../ui/button';
@@ -43,7 +43,6 @@ export default function LessonsManager() {
   const [uploadingImage, setUploadingImage] = useState(false);
   
   const { user, brandId } = useAuth();
-  const { toast } = useToast();
   
   // Fetch lessons on component mount
   useEffect(() => {
@@ -75,11 +74,7 @@ export default function LessonsManager() {
     } catch (error) {
       console.error('Error fetching lessons:', error);
       setError('Failed to fetch lessons. Please try again.');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch lessons.'
-      });
+      toast.error('Failed to fetch lessons.');
     } finally {
       setLoading(false);
     }
@@ -137,18 +132,11 @@ export default function LessonsManager() {
       
       setUploadingImage(false);
       
-      toast({
-        title: 'Image uploaded',
-        description: 'Your image has been uploaded successfully.'
-      });
+      toast.success('Image uploaded successfully.');
     } catch (error) {
       console.error('Error processing upload result:', error);
       setUploadingImage(false);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to process uploaded image.'
-      });
+      toast.error('Failed to process uploaded image.');
     }
   };
   
@@ -156,11 +144,7 @@ export default function LessonsManager() {
   const handleFileUploadError = (error) => {
     console.error('File upload error:', error);
     setUploadingImage(false);
-    toast({
-      variant: 'destructive',
-      title: 'Upload failed',
-      description: error.message || 'Failed to upload image.'
-    });
+    toast.error(error.message || 'Failed to upload image.');
   };
   
   // Submit form to create or update a lesson
@@ -179,10 +163,7 @@ export default function LessonsManager() {
         // Create new lesson
         lessonData.createdAt = new Date();
         const docRef = await addDoc(collection(db, 'lessons'), lessonData);
-        toast({
-          title: 'Lesson created',
-          description: 'Your lesson has been created successfully.'
-        });
+        toast.success('Your lesson has been created successfully.');
         
         // Reset form
         setFormData({
@@ -196,10 +177,7 @@ export default function LessonsManager() {
       } else {
         // Update existing lesson
         await updateDoc(doc(db, 'lessons', currentLessonId), lessonData);
-        toast({
-          title: 'Lesson updated',
-          description: 'Your lesson has been updated successfully.'
-        });
+        toast.success('Your lesson has been updated successfully.');
         
         // Exit edit mode
         setIsEditing(false);
@@ -210,11 +188,7 @@ export default function LessonsManager() {
       fetchLessons();
     } catch (error) {
       console.error('Error saving lesson:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save lesson. Please try again.'
-      });
+      toast.error('Failed to save lesson. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -262,17 +236,10 @@ export default function LessonsManager() {
       // Update the lessons list
       setLessons(lessons.filter(lesson => lesson.id !== lessonId));
       
-      toast({
-        title: 'Lesson deleted',
-        description: 'The lesson has been deleted successfully.'
-      });
+      toast.success('The lesson has been deleted successfully.');
     } catch (error) {
       console.error('Error deleting lesson:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete lesson. Please try again.'
-      });
+      toast.error('Failed to delete lesson. Please try again.');
     }
   };
   
@@ -298,11 +265,7 @@ export default function LessonsManager() {
       }
     } catch (error) {
       console.error('Error fetching lesson for edit:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to load lesson for editing.'
-      });
+      toast.error('Failed to load lesson for editing.');
     }
   };
   
@@ -319,11 +282,7 @@ export default function LessonsManager() {
       }
     } catch (error) {
       console.error('Error fetching lesson for preview:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to load lesson preview.'
-      });
+      toast.error('Failed to load lesson preview.');
     }
   };
   
