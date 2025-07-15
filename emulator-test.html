@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Emulator Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #ff6b01;
+      border-bottom: 2px solid #ff6b01;
+      padding-bottom: 10px;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 0;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .status-pending {
+      background-color: #f0f0f0;
+      color: #666;
+    }
+    .status-success {
+      background-color: #e6f4ea;
+      color: #137333;
+    }
+    .status-error {
+      background-color: #fce8e6;
+      color: #c5221f;
+    }
+    .status-running {
+      background-color: #e8f0fe;
+      color: #1a73e8;
+    }
+    .log-container {
+      background-color: #f8f9fa;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      padding: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .log-entry {
+      margin: 5px 0;
+    }
+    .log-info {
+      color: #1a73e8;
+    }
+    .log-success {
+      color: #137333;
+    }
+    .log-error {
+      color: #c5221f;
+    }
+    .log-warning {
+      color: #e37400;
+    }
+    button {
+      background-color: #ff6b01;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #e05e00;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .summary {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background-color: #f8f9fa;
+      border-left: 4px solid #1a73e8;
+    }
+    .error-message {
+      color: #c5221f;
+      font-weight: bold;
+    }
+    .success-message {
+      color: #137333;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Firebase Emulator Test</h1>
+  <p>This standalone page tests connections to Firebase emulators running on 127.0.0.1</p>
+  
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Authentication Emulator</h2>
+      <span id="auth-status" class="status status-pending">Not Tested</span>
+    </div>
+    <p>Tests connection to Auth emulator on port 9099</p>
+    <div id="auth-log" class="log-container"></div>
+    <button id="test-auth-btn" onclick="testAuthEmulator()">Test Auth Emulator</button>
+  </div>
+  
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Firestore Emulator</h2>
+      <span id="firestore-status" class="status status-pending">Not Tested</span>
+    </div>
+    <p>Tests connection to Firestore emulator on port 8080</p>
+    <div id="firestore-log" class="log-container"></div>
+    <button id="test-firestore-btn" onclick="testFirestoreEmulator()">Test Firestore Emulator</button>
+  </div>
+  
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Storage Emulator</h2>
+      <span id="storage-status" class="status status-pending">Not Tested</span>
+    </div>
+    <p>Tests connection to Storage emulator on port 9199</p>
+    <div id="storage-log" class="log-container"></div>
+    <button id="test-storage-btn" onclick="testStorageEmulator()">Test Storage Emulator</button>
+  </div>
+  
+  <div class="button-group">
+    <button id="test-all-btn" onclick="testAllEmulators()">Test All Emulators</button>
+    <button id="clear-logs-btn" onclick="clearAllLogs()">Clear Logs</button>
+  </div>
+  
+  <div id="summary" class="summary" style="display: none;">
+    <h3>Test Summary</h3>
+    <div id="summary-content"></div>
+  </div>
+
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js" type="module"></script>
+  
+  <script type="module">
+    // Import Firebase modules
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getAuth, connectAuthEmulator, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+    import { getFirestore, connectFirestoreEmulator, collection, addDoc, getDoc, doc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+    import { getStorage, connectStorageEmulator, ref, uploadString, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
+
+    // Firebase configuration for emulator testing
+    const firebaseConfig = {
+      apiKey: 'demo-api-key',
+      projectId: 'demo-project',
+      storageBucket: 'engagenatural-app.appspot.com',
+      appId: '1:123456789012:web:abcdef1234567890'
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // Connect to emulators using 127.0.0.1 (NOT localhost)
+    try {
+      connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+      log('auth', 'Connected to Auth emulator at 127.0.0.1:9099', 'info');
+      
+      connectFirestoreEmulator(db, '127.0.0.1', 8080);
+      log('firestore', 'Connected to Firestore emulator at 127.0.0.1:8080', 'info');
+      
+      connectStorageEmulator(storage, '127.0.0.1', 9199);
+      log('storage', 'Connected to Storage emulator at 127.0.0.1:9199', 'info');
+    } catch (error) {
+      log('auth', `Error connecting to emulators: ${error.message}`, 'error');
+    }
+
+    // Make functions available globally
+    window.testAuthEmulator = async function() {
+      setStatus('auth', 'running');
+      clearLog('auth');
+      log('auth', 'Starting Auth emulator test...', 'info');
+      
+      try {
+        const button = document.getElementById('test-auth-btn');
+        button.disabled = true;
+        
+        log('auth', 'Attempting anonymous sign-in...', 'info');
+        const userCredential = await signInAnonymously(auth);
+        log('auth', `Anonymous sign-in successful! User ID: ${userCredential.user.uid}`, 'success');
+        
+        // Sign out after successful test
+        await auth.signOut();
+        log('auth', 'Successfully signed out', 'info');
+        
+        setStatus('auth', 'success');
+        button.disabled = false;
+        return true;
+      } catch (error) {
+        log('auth', `Auth operation failed: ${error.code} - ${error.message}`, 'error');
+        setStatus('auth', 'error');
+        document.getElementById('test-auth-btn').disabled = false;
+        return false;
+      }
+    };
+
+    window.testFirestoreEmulator = async function() {
+      setStatus('firestore', 'running');
+      clearLog('firestore');
+      log('firestore', 'Starting Firestore emulator test...', 'info');
+      
+      try {
+        const button = document.getElementById('test-firestore-btn');
+        button.disabled = true;
+        
+        // Write operation
+        log('firestore', 'Attempting to write test document...', 'info');
+        const testDoc = { 
+          timestamp: new Date().toISOString(),
+          test: true,
+          message: 'This is a test document'
+        };
+        
+        const docRef = await addDoc(collection(db, 'emulator_test'), testDoc);
+        log('firestore', `Document written successfully with ID: ${docRef.id}`, 'success');
+        
+        // Read operation
+        log('firestore', 'Attempting to read test document...', 'info');
+        const docSnap = await getDoc(doc(db, 'emulator_test', docRef.id));
+        
+        if (docSnap.exists()) {
+          log('firestore', `Document read successfully: ${JSON.stringify(docSnap.data())}`, 'success');
+          setStatus('firestore', 'success');
+          button.disabled = false;
+          return true;
+        } else {
+          log('firestore', 'Document does not exist', 'error');
+          setStatus('firestore', 'error');
+          button.disabled = false;
+          return false;
+        }
+      } catch (error) {
+        log('firestore', `Firestore operation failed: ${error.message}`, 'error');
+        setStatus('firestore', 'error');
+        document.getElementById('test-firestore-btn').disabled = false;
+        return false;
+      }
+    };
+
+    window.testStorageEmulator = async function() {
+      setStatus('storage', 'running');
+      clearLog('storage');
+      log('storage', 'Starting Storage emulator test...', 'info');
+      
+      try {
+        const button = document.getElementById('test-storage-btn');
+        button.disabled = true;
+        
+        // Upload operation
+        log('storage', 'Attempting to upload test file...', 'info');
+        const testContent = 'This is a test file for Storage emulator';
+        const testRef = ref(storage, 'emulator-diagnostics/test_file.txt');
+        
+        const snapshot = await uploadString(testRef, testContent);
+        log('storage', `File uploaded successfully: ${snapshot.metadata.fullPath}`, 'success');
+        
+        // Download URL operation
+        log('storage', 'Attempting to get download URL...', 'info');
+        const url = await getDownloadURL(testRef);
+        log('storage', `Download URL obtained: ${url}`, 'success');
+        
+        setStatus('storage', 'success');
+        button.disabled = false;
+        return true;
+      } catch (error) {
+        log('storage', `Storage operation failed: ${error.message}`, 'error');
+        setStatus('storage', 'error');
+        document.getElementById('test-storage-btn').disabled = false;
+        return false;
+      }
+    };
+
+    window.testAllEmulators = async function() {
+      document.getElementById('test-all-btn').disabled = true;
+      document.getElementById('summary').style.display = 'none';
+      
+      const authResult = await testAuthEmulator();
+      const firestoreResult = await testFirestoreEmulator();
+      const storageResult = await testStorageEmulator();
+      
+      // Show summary
+      const summaryEl = document.getElementById('summary-content');
+      summaryEl.innerHTML = '';
+      
+      const allPassed = authResult && firestoreResult && storageResult;
+      
+      if (allPassed) {
+        summaryEl.innerHTML += `<p class="success-message">✅ ALL TESTS PASSED</p>`;
+      } else {
+        summaryEl.innerHTML += `<p class="error-message">❌ SOME TESTS FAILED</p>`;
+      }
+      
+      summaryEl.innerHTML += `
+        <p>Auth Emulator: ${authResult ? '✅ PASSED' : '❌ FAILED'}</p>
+        <p>Firestore Emulator: ${firestoreResult ? '✅ PASSED' : '❌ FAILED'}</p>
+        <p>Storage Emulator: ${storageResult ? '✅ PASSED' : '❌ FAILED'}</p>
+      `;
+      
+      if (!allPassed) {
+        summaryEl.innerHTML += `
+          <h4>Troubleshooting Tips:</h4>
+          <ol>
+            <li>Make sure Firebase emulators are running: <code>firebase emulators:start</code></li>
+            <li>Check if the emulator ports are correct (Auth: 9099, Firestore: 8080, Storage: 9199)</li>
+            <li>Verify your firebase.json has the correct emulator configuration</li>
+            <li>Try restarting your computer to clear any stuck processes</li>
+            <li>Check if any other applications are using the same ports</li>
+          </ol>
+        `;
+      }
+      
+      document.getElementById('summary').style.display = 'block';
+      document.getElementById('test-all-btn').disabled = false;
+    };
+
+    window.clearAllLogs = function() {
+      clearLog('auth');
+      clearLog('firestore');
+      clearLog('storage');
+      document.getElementById('summary').style.display = 'none';
+    };
+
+    // Helper functions
+    function log(emulator, message, type = 'info') {
+      const logContainer = document.getElementById(`${emulator}-log`);
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry log-${type}`;
+      logEntry.textContent = message;
+      logContainer.appendChild(logEntry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+      
+      // Also log to console for debugging
+      console.log(`[${emulator.toUpperCase()}] ${message}`);
+    }
+
+    function clearLog(emulator) {
+      document.getElementById(`${emulator}-log`).innerHTML = '';
+    }
+
+    function setStatus(emulator, status) {
+      const statusEl = document.getElementById(`${emulator}-status`);
+      statusEl.className = `status status-${status}`;
+      
+      switch(status) {
+        case 'success':
+          statusEl.textContent = 'Connected';
+          break;
+        case 'error':
+          statusEl.textContent = 'Failed';
+          break;
+        case 'running':
+          statusEl.textContent = 'Testing...';
+          break;
+        default:
+          statusEl.textContent = 'Not Tested';
+      }
+    }
+
+    // Make helper functions available globally
+    window.log = log;
+    window.clearLog = clearLog;
+    window.setStatus = setStatus;
+  </script>
+</body>
+</html>
