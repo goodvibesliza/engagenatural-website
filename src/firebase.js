@@ -5,28 +5,13 @@ import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
 
 // Check if we're running locally
-const isLocalhost = window.location.hostname === 'localhost';
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 // Create a robust initialize function that handles all edge cases
 function initializeFirebase() {
   // For local development with emulators
-  /*
-   * SECURITY NOTE
-   * ------------------------------------------------------------------
-   * Never commit real Firebase API keys to source control.
-   *  – When running **locally** (isLocalhost === true) we use a fake
-   *    string `"demo-api-key"` because the emulator ignores it anyway.
-   *  – In all other cases we read the **real key** from an environment
-   *    variable that Vite injects at build-time: `import.meta.env.VITE_FIREBASE_API_KEY`.
-   *
-   * Make sure the real key is defined:
-   *   • Locally:  add it to  .env.production   (or Netlify UI)
-   *   • Netlify:  Settings → Build & deploy → Environment variables
-   */
   const firebaseConfig = {
-    apiKey: isLocalhost
-      ? "demo-api-key"
-      : import.meta.env.VITE_FIREBASE_API_KEY,
+    apiKey: isLocalhost ? "demo-api-key" : "AIzaSyCO65kN7L3OR7VnORRwYZckzoUEUJAoJQg",
     authDomain: "engagenatural-app.firebaseapp.com",
     projectId: "engagenatural-app",
     storageBucket: "engagenatural-app.appspot.com",
@@ -79,29 +64,81 @@ const storage = getStorage(app);
 
 // Connect to emulators in development mode
 if (isLocalhost) {
-  console.log("Connecting to Firebase emulators");
+  console.log("🔥 Connecting to Firebase emulators using 127.0.0.1 (explicit IP)");
   
-  // Wrap each emulator connection in try/catch to isolate failures
+  // Auth emulator connection
   try {
-    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    console.log("✓ Connected to Auth emulator");
+    const authEmulatorUrl = 'http://127.0.0.1:9099';
+    console.debug(`Connecting to Auth emulator at: ${authEmulatorUrl}`);
+    connectAuthEmulator(auth, authEmulatorUrl, { disableWarnings: true });
+    console.log("✓ Connected to Auth emulator at", authEmulatorUrl);
+    
+    // Verify connection
+    fetch(`${authEmulatorUrl}/__/auth/handler`, { method: 'HEAD' })
+      .then(response => {
+        console.debug(`Auth emulator connection check: ${response.status}`);
+        if (!response.ok) {
+          console.warn(`Auth emulator responded with status ${response.status} - may not be fully operational`);
+        }
+      })
+      .catch(error => {
+        console.error(`Auth emulator connection check failed: ${error.message}`);
+      });
   } catch (error) {
-    console.error("Failed to connect to Auth emulator:", error);
+    console.error("Failed to connect to Auth emulator:", error.message, error.stack);
+    console.warn("Auth operations will use production environment!");
   }
   
+  // Firestore emulator connection
   try {
-    connectFirestoreEmulator(db, 'localhost', 8080);
-    console.log("✓ Connected to Firestore emulator");
+    const firestoreHost = '127.0.0.1';
+    const firestorePort = 8080;
+    console.debug(`Connecting to Firestore emulator at: ${firestoreHost}:${firestorePort}`);
+    connectFirestoreEmulator(db, firestoreHost, firestorePort);
+    console.log(`✓ Connected to Firestore emulator at ${firestoreHost}:${firestorePort}`);
+    
+    // Verify connection
+    fetch(`http://${firestoreHost}:${firestorePort}/`, { method: 'HEAD' })
+      .then(response => {
+        console.debug(`Firestore emulator connection check: ${response.status}`);
+        if (!response.ok) {
+          console.warn(`Firestore emulator responded with status ${response.status} - may not be fully operational`);
+        }
+      })
+      .catch(error => {
+        console.error(`Firestore emulator connection check failed: ${error.message}`);
+      });
   } catch (error) {
-    console.error("Failed to connect to Firestore emulator:", error);
+    console.error("Failed to connect to Firestore emulator:", error.message, error.stack);
+    console.warn("Firestore operations will use production environment!");
   }
   
+  // Storage emulator connection
   try {
-    connectStorageEmulator(storage, 'localhost', 9199);
-    console.log("✓ Connected to Storage emulator");
+    const storageHost = '127.0.0.1';
+    const storagePort = 9199;
+    console.debug(`Connecting to Storage emulator at: ${storageHost}:${storagePort}`);
+    connectStorageEmulator(storage, storageHost, storagePort);
+    console.log(`✓ Connected to Storage emulator at ${storageHost}:${storagePort}`);
+    
+    // Verify connection
+    fetch(`http://${storageHost}:${storagePort}/`, { method: 'HEAD' })
+      .then(response => {
+        console.debug(`Storage emulator connection check: ${response.status}`);
+        if (!response.ok) {
+          console.warn(`Storage emulator responded with status ${response.status} - may not be fully operational`);
+        }
+      })
+      .catch(error => {
+        console.error(`Storage emulator connection check failed: ${error.message}`);
+      });
   } catch (error) {
-    console.error("Failed to connect to Storage emulator:", error);
+    console.error("Failed to connect to Storage emulator:", error.message, error.stack);
+    console.warn("Storage operations will use production environment!");
   }
+  
+  // Log emulator UI URL
+  console.log("📊 Firebase Emulator UI available at: http://127.0.0.1:4000");
 }
 
 // For development in emulator mode, create a helper to sign in automatically
@@ -110,9 +147,11 @@ const signInWithEmailPassword = async (email, password) => {
     try {
       // In emulator mode, use a standard password for the test account
       const { signInWithEmailAndPassword } = await import('firebase/auth');
+      console.debug(`Attempting emulator sign-in with test account: ${email}`);
       return signInWithEmailAndPassword(auth, email, password || 'password');
     } catch (error) {
-      console.error("Failed to sign in with test account:", error);
+      console.error("Failed to sign in with test account:", error.code, error.message);
+      console.debug("Auth emulator state:", auth.emulatorConfig ? "Connected" : "Not connected");
       throw error;
     }
   } else {

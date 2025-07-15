@@ -117,7 +117,7 @@ export async function checkAuthEmulator() {
   
   try {
     // Check if we're connected to the emulator
-    const authUrl = `http://localhost:${EMULATOR_PORTS.auth}/__/auth/handler`;
+    const authUrl = `http://127.0.0.1:${EMULATOR_PORTS.auth}/__/auth/handler`;
     const connectionCheck = await fetch(authUrl, { 
       method: 'HEAD',
       // Short timeout to avoid hanging
@@ -201,7 +201,7 @@ export async function checkFirestoreEmulator() {
   
   try {
     // Check if we're connected to the emulator
-    const firestoreUrl = `http://localhost:${EMULATOR_PORTS.firestore}/`;
+    const firestoreUrl = `http://127.0.0.1:${EMULATOR_PORTS.firestore}/`;
     const connectionCheck = await fetch(firestoreUrl, { 
       method: 'HEAD',
       // Short timeout to avoid hanging
@@ -292,7 +292,7 @@ export async function checkStorageEmulator() {
   
   try {
     // Check if we're connected to the emulator
-    const storageUrl = `http://localhost:${EMULATOR_PORTS.storage}/`;
+    const storageUrl = `http://127.0.0.1:${EMULATOR_PORTS.storage}/`;
     const connectionCheck = await fetch(storageUrl, { 
       method: 'HEAD',
       // Short timeout to avoid hanging
@@ -371,7 +371,7 @@ export async function checkEmulatorUIAvailable() {
   
   const results = {
     available: false,
-    url: `http://localhost:${EMULATOR_PORTS.ui}/`,
+    url: `http://127.0.0.1:${EMULATOR_PORTS.ui}/`,
     errors: []
   };
   
@@ -568,22 +568,22 @@ export async function getEmulatorStatusSummary() {
   try {
     // Check if emulators are running by making simple requests to each one
     const [authAvailable, firestoreAvailable, storageAvailable, uiAvailable] = await Promise.all([
-      fetch(`http://localhost:${EMULATOR_PORTS.auth}/`, { 
+      fetch(`http://127.0.0.1:${EMULATOR_PORTS.auth}/`, { 
         method: 'HEAD',
         signal: AbortSignal.timeout(1000)
       }).then(() => true).catch(() => false),
       
-      fetch(`http://localhost:${EMULATOR_PORTS.firestore}/`, { 
+      fetch(`http://127.0.0.1:${EMULATOR_PORTS.firestore}/`, { 
         method: 'HEAD',
         signal: AbortSignal.timeout(1000)
       }).then(() => true).catch(() => false),
       
-      fetch(`http://localhost:${EMULATOR_PORTS.storage}/`, { 
+      fetch(`http://127.0.0.1:${EMULATOR_PORTS.storage}/`, { 
         method: 'HEAD',
         signal: AbortSignal.timeout(1000)
       }).then(() => true).catch(() => false),
       
-      fetch(`http://localhost:${EMULATOR_PORTS.ui}/`, { 
+      fetch(`http://127.0.0.1:${EMULATOR_PORTS.ui}/`, { 
         method: 'HEAD',
         signal: AbortSignal.timeout(1000)
       }).then(() => true).catch(() => false)

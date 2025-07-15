@@ -286,7 +286,7 @@ export default function EmulatorDiagnosticPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => window.open("http://localhost:4000", "_blank")}
+                onClick={() => window.open("http://127.0.0.1:4000", "_blank")}
               >
                 <LayoutDashboard className="h-4 w-4 mr-2" />
                 Emulator UI
@@ -296,7 +296,7 @@ export default function EmulatorDiagnosticPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => window.open("http://localhost:9099", "_blank")}
+                onClick={() => window.open("http://127.0.0.1:9099", "_blank")}
               >
                 <Key className="h-4 w-4 mr-2" />
                 Auth Emulator
@@ -306,7 +306,7 @@ export default function EmulatorDiagnosticPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => window.open("http://localhost:8080", "_blank")}
+                onClick={() => window.open("http://127.0.0.1:8080", "_blank")}
               >
                 <Database className="h-4 w-4 mr-2" />
                 Firestore Emulator
@@ -316,7 +316,7 @@ export default function EmulatorDiagnosticPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => window.open("http://localhost:9199", "_blank")}
+                onClick={() => window.open("http://127.0.0.1:9199", "_blank")}
               >
                 <HardDrive className="h-4 w-4 mr-2" />
                 Storage Emulator
