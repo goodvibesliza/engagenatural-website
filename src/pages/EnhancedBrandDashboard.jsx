@@ -407,11 +407,51 @@ const EnhancedBrandDashboard = ({ brandId: propBrandId }) => {
       
       {/* Analytics Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="audience">Audience</TabsTrigger>
-          <TabsTrigger value="roi">ROI Calculator</TabsTrigger>
+        {/* Tabs header */}
+        <TabsList className="flex flex-wrap gap-2 border-b border-muted pb-2">
+          {/* Overview */}
+          <TabsTrigger
+            value="overview"
+            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors
+                       data-[state=active]:bg-primary data-[state=active]:text-primary-foreground
+                       hover:bg-muted/70"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Overview</span>
+          </TabsTrigger>
+
+          {/* Content */}
+          <TabsTrigger
+            value="content"
+            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors
+                       data-[state=active]:bg-primary data-[state=active]:text-primary-foreground
+                       hover:bg-muted/70"
+          >
+            <Layers className="h-4 w-4" />
+            <span>Content</span>
+          </TabsTrigger>
+
+          {/* Audience */}
+          <TabsTrigger
+            value="audience"
+            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors
+                       data-[state=active]:bg-primary data-[state=active]:text-primary-foreground
+                       hover:bg-muted/70"
+          >
+            <Users className="h-4 w-4" />
+            <span>Audience</span>
+          </TabsTrigger>
+
+          {/* ROI */}
+          <TabsTrigger
+            value="roi"
+            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors
+                       data-[state=active]:bg-primary data-[state=active]:text-primary-foreground
+                       hover:bg-muted/70"
+          >
+            <DollarSign className="h-4 w-4" />
+            <span>ROI Calculator</span>
+          </TabsTrigger>
         </TabsList>
         
         {/* Overview Tab */}
