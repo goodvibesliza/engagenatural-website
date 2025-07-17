@@ -8,8 +8,8 @@ import {
 import EnhancedBrandDashboard from './EnhancedBrandDashboard';
 // Import useAuth from the top-level UpdatedAppWithIntegration.jsx file
 import { useAuth } from '../UpdatedAppWithIntegration';
-// Existing content-management system adapter
-import BrandComponentAdapter from '../BrandComponentAdapter';
+// New content management component
+import ContentManager from './ContentManager';
 
 // UI Components
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
@@ -494,8 +494,8 @@ const EnhancedBrandHome = () => {
           )}
           {activeSection === 'content' && (
             <div className="p-6">
-              {/* Render the existing content-management system */}
-              <BrandComponentAdapter brandId={brandId} />
+              {/* Render the new content-management system */}
+              <ContentManager brandId={brandId} />
             </div>
           )}
           {activeSection === 'brand' && (
