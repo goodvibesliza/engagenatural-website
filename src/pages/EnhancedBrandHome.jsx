@@ -6,7 +6,8 @@ import {
   HelpCircle, LogOut, User, Building, Shield, Home
 } from 'lucide-react';
 import EnhancedBrandDashboard from './EnhancedBrandDashboard';
-import { useAuth } from '../contexts/auth-context';
+// Import useAuth from the top-level UpdatedAppWithIntegration.jsx file
+import { useAuth } from '../UpdatedAppWithIntegration';
 
 // UI Components
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
