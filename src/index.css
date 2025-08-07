@@ -1,0 +1,26 @@
+/* TailwindCSS v4 – single import */
+@import "tailwindcss";
+
+/* Import brand colors (must come after Tailwind base to override defaults) */
+@import "./theme/brand-colors.css";
+
+/* Utility classes */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* NOTE:
+ * Component-level colour overrides have been moved to
+ * `src/theme/brand-colors.css` so that all brand-specific
+ * rules live in a single place.  Keep this file minimal:
+ * just Tailwind layers, the brand-colour import and any
+ * tiny global helpers such as `.visually-hidden`.
+ */

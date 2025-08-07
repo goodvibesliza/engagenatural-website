@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
-import { db, storage, isLocalhost } from '../../../firebase';
+import { db, storage } from '../../../lib/firebase';
+const isLocalhost = false; // Production-only build
 import { ref, deleteObject } from 'firebase/storage';
 import { useAuth } from '../../../contexts/auth-context';
 import { toast } from "sonner";

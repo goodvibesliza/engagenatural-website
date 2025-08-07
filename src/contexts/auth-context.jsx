@@ -5,7 +5,8 @@ import {
   signOut as firebaseSignOut
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, isLocalhost, signInWithEmailPassword } from '../firebase';
+import { auth, db, signInWithEmailPassword } from '../lib/firebase';
+const isLocalhost = false; // Production-only build
 // Emulator helpers (worked-around custom-claims for the Auth emulator)
 import {
   getCurrentUserClaims,

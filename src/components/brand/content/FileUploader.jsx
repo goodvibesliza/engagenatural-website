@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage, isLocalhost } from '../../../firebase';
+// Production-only Firebase instance
+import { storage } from '../../../lib/firebase';
 import { Button } from '../../ui/button';
 import { Progress } from '../../ui/progress';
 import { Alert, AlertDescription } from '../../ui/alert';
@@ -51,8 +52,9 @@ export default function FileUploader({
   const fileInputRef = useRef(null);
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
   
-  // Debug mode when running in localhost
-  const debugMode = isLocalhost;
+  // Production build: disable localhost / emulator debug logic
+  const isLocalhost = false;
+  const debugMode = false;
   
   // Clear the current file selection
   const clearFile = useCallback(() => {

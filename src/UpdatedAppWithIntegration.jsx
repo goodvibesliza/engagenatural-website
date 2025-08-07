@@ -1,12 +1,14 @@
 // src/UpdatedAppWithIntegration.jsx
 import React, { createContext, useContext, useState, useEffect, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
 
 // Import components - using dynamic imports with React.lazy for better performance
-const IntegratedBrandDashboard = React.lazy(() => import('./pages/IntegratedBrandDashboard'));
-const SimpleBrandDashboard = React.lazy(() => import('./pages/SimpleBrandDashboard'));
-const SimpleBrandHome = React.lazy(() => import('./pages/SimpleBrandHome'));
+const EnhancedBrandHome = React.lazy(() => import('./pages/EnhancedBrandHome'));
+const EnhancedBrandDashboard = React.lazy(() => import('./pages/EnhancedBrandDashboard'));
 const BrandComponentAdapter = React.lazy(() => import('./BrandComponentAdapter'));
+const IntegratedContentManager = React.lazy(() => import('./pages/IntegratedContentManager'));
+const BrandStyleGuide = React.lazy(() => import('./pages/BrandStyleGuide')); // NEW
+const AdminVerify = React.lazy(() => import('./pages/AdminVerify.jsx')); // NEW
 
 // App-level Error Boundary
 class ErrorBoundary extends React.Component {
@@ -346,7 +348,7 @@ function DashboardSelector() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-xl font-semibold mb-2">Integrated Dashboard</h2>
+              <h2 className="text-xl font-semibold mb-2">Enhanced Dashboard</h2>
               <p className="text-gray-600 mb-4">
                 Enhanced dashboard with all brand components integrated and improved UI matching the mockups.
               </p>
@@ -354,33 +356,7 @@ function DashboardSelector() {
                 to="/brand-dashboard" 
                 className="inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
-                Launch Integrated Dashboard
-              </Link>
-            </div>
-            
-            <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-xl font-semibold mb-2">Simple Dashboard</h2>
-              <p className="text-gray-600 mb-4">
-                Simplified dashboard with minimal dependencies, designed for troubleshooting.
-              </p>
-              <Link 
-                to="/simple-dashboard" 
-                className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Launch Simple Dashboard
-              </Link>
-            </div>
-            
-            <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-xl font-semibold mb-2">Original Brand Home</h2>
-              <p className="text-gray-600 mb-4">
-                Original brand home implementation with tabs for different sections.
-              </p>
-              <Link 
-                to="/brand" 
-                className="inline-block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-              >
-                Launch Original Brand Home
+                Launch Enhanced Dashboard
               </Link>
             </div>
             
@@ -456,7 +432,7 @@ function AdminDashboard() {
                 className="p-4 border border-green-200 rounded-lg hover:bg-green-50 text-left"
               >
                 <h3 className="font-medium text-green-800">View Brand Dashboard</h3>
-                <p className="text-sm text-gray-600">Access the integrated brand dashboard</p>
+                <p className="text-sm text-gray-600">Access the enhanced brand dashboard</p>
               </button>
               
               <button
@@ -473,6 +449,17 @@ function AdminDashboard() {
               >
                 <h3 className="font-medium text-purple-800">View Original Brand Home</h3>
                 <p className="text-sm text-gray-600">Access the original brand home implementation</p>
+              </button>
+              
+              {/* Verify Staff button */}
+              <button
+                onClick={() => navigate('/admin/verify')}
+                className="p-4 border border-orange-200 rounded-lg hover:bg-orange-50 text-left"
+              >
+                <h3 className="font-medium text-orange-800">Verify Staff</h3>
+                <p className="text-sm text-gray-600">
+                  Review and approve user verification requests
+                </p>
               </button>
               
               <button
@@ -522,11 +509,20 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
-      {/* Integrated Brand Dashboard - New implementation */}
+      {/* Admin Verify Staff */}
+      <Route path="/admin/verify" element={
+        <ProtectedRoute>
+          <Suspense fallback={<LoadingScreen />}>
+            <AdminVerify />
+          </Suspense>
+        </ProtectedRoute>
+      } />
+
+      {/* Enhanced Brand Dashboard - New implementation */}
       <Route path="/brand-dashboard" element={
         <ProtectedRoute>
           <Suspense fallback={<LoadingScreen />}>
-            <IntegratedBrandDashboard />
+            <EnhancedBrandHome />
           </Suspense>
         </ProtectedRoute>
       } />
@@ -534,33 +530,34 @@ function AppRoutes() {
       <Route path="/brand-dashboard/:brandId/*" element={
         <ProtectedRoute>
           <Suspense fallback={<LoadingScreen />}>
-            <IntegratedBrandDashboard />
+            <EnhancedBrandHome />
           </Suspense>
         </ProtectedRoute>
       } />
-      
-      {/* Simple Brand Dashboard - For troubleshooting */}
-      <Route path="/simple-dashboard" element={
+
+      {/* Integrated Content Manager (direct route) */}
+      <Route path="/brand-dashboard/:brandId/content" element={
         <ProtectedRoute>
           <Suspense fallback={<LoadingScreen />}>
-            <SimpleBrandDashboard />
+            <IntegratedContentManager />
           </Suspense>
         </ProtectedRoute>
       } />
-      
-      {/* Original Brand Home - Backward compatibility */}
-      <Route path="/brand" element={
+
+      {/* Brand Style Guide (direct route) */}
+      <Route path="/brand-dashboard/:brandId/style-guide" element={
         <ProtectedRoute>
           <Suspense fallback={<LoadingScreen />}>
-            <SimpleBrandHome />
+            <BrandStyleGuide />
           </Suspense>
         </ProtectedRoute>
       } />
-      
-      <Route path="/brand/:brandId/*" element={
+
+      {/* Direct access to dashboard component */}
+      <Route path="/brand-dashboard/:brandId/dashboard" element={
         <ProtectedRoute>
           <Suspense fallback={<LoadingScreen />}>
-            <SimpleBrandHome />
+            <EnhancedBrandDashboard />
           </Suspense>
         </ProtectedRoute>
       } />

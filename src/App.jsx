@@ -6,7 +6,9 @@ import './App.css';
 // Import components
 import SimpleBrandHome from './pages/SimpleBrandHome';
 import SimpleBrandDashboard from './pages/SimpleBrandDashboard';
+import AdminVerify from './pages/AdminVerify';
 import EnhancedBrandHome from './pages/EnhancedBrandHome';
+import EnhancedBrandDashboard from './pages/EnhancedBrandDashboard';
 
 // Mock components for admin pages
 const AdminDashboardPage = () => (
@@ -25,6 +27,12 @@ const AdminDashboardPage = () => (
         className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
       >
         View Enhanced Dashboard
+      </a>
+      <a 
+        href="/admin/verify" 
+        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+      >
+        Verify Staff
       </a>
     </div>
   </div>
@@ -290,6 +298,13 @@ function AppRoutes() {
             <AdminDashboardPage />
           </ProtectedRoute>
         } />
+
+        {/* Admin Verify Staff */}
+        <Route path="/admin/verify" element={
+          <ProtectedRoute>
+            <AdminVerify />
+          </ProtectedRoute>
+        } />
         
         {/* ------------------------------------------------------------------- */}
         {/* Brand Manager Routes                                                */}
@@ -320,6 +335,13 @@ function AppRoutes() {
         <Route path="/enhanced-brand/:brandId/*" element={
           <ProtectedRoute>
             <EnhancedBrandHome />
+          </ProtectedRoute>
+        } />
+
+        {/* Direct access to enhanced dashboard component */}
+        <Route path="/enhanced-brand/:brandId/dashboard" element={
+          <ProtectedRoute>
+            <EnhancedBrandDashboard />
           </ProtectedRoute>
         } />
 
