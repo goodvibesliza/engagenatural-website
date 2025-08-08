@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../firebase.old';
+import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 
 export default function BrandManagerLayout({ children }) {
