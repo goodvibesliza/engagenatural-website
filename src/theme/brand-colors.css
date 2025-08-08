@@ -1,0 +1,96 @@
+/**
+ * EngageNatural Brand Colors
+ * This file contains all brand color definitions and overrides
+ * It should be imported in index.css to ensure it takes precedence
+ */
+
+:root {
+  /* Brand Color Palette */
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-sage-green: #9CAF88;
+  --color-oat-beige: #F5F1EB;
+  --color-deep-moss: #4A5D3A;
+  --color-sage-light: #B8C7A6;
+  --color-sage-dark: #7A8E6B;
+  --color-moss-light: #5C7048;
+  --color-oat-dark: #E8E1D5;
+  --color-warm-gray: #6B6B6B;
+  --color-cool-gray: #F8F9FA;
+  
+  /* Override functional color variables with brand colors */
+  --primary: var(--color-sage-green) !important;
+  --primary-foreground: var(--color-black) !important;
+  --secondary: var(--color-deep-moss) !important;
+  --secondary-foreground: var(--color-white) !important;
+  --muted: var(--color-oat-beige) !important;
+  --muted-foreground: var(--color-warm-gray) !important;
+  --accent: var(--color-sage-light) !important;
+  --accent-foreground: var(--color-deep-moss) !important;
+  
+  /* Override any existing brand color variables */
+  --color-brand-primary: var(--color-sage-green) !important;
+  --color-brand-secondary: var(--color-deep-moss) !important;
+  --color-brand-accent: var(--color-oat-beige) !important;
+  
+  /* Button styling */
+  --button-padding-x: 1.5rem;
+  --button-padding-y: 0.75rem;
+  
+  /* Chart colors */
+  --chart-1: var(--color-sage-green) !important;
+  --chart-2: var(--color-deep-moss) !important;
+  --chart-3: var(--color-sage-light) !important;
+  --chart-4: var(--color-moss-light) !important;
+  --chart-5: var(--color-sage-dark) !important;
+}
+
+/* -----------------------------------------------------------------------------
+ * Brand-specific utility helpers
+ * These classes guarantee the colours will win in the cascade (`!important`)
+ * and can be used anywhere in markup or JSX:  
+ *   <div className="bg-sage-green text-deep-moss border-sage-green" />
+ * -------------------------------------------------------------------------- */
+
+/* Background helpers ------------------------------------------------------- */
+.bg-sage-green      { background-color: var(--color-sage-green) !important; }
+.bg-deep-moss       { background-color: var(--color-deep-moss)  !important; }
+.bg-oat-beige       { background-color: var(--color-oat-beige)  !important; }
+.bg-sage-light      { background-color: var(--color-sage-light) !important; }
+.bg-sage-dark       { background-color: var(--color-sage-dark)  !important; }
+
+/* Text helpers ------------------------------------------------------------- */
+.text-sage-green    { color: var(--color-sage-green) !important; }
+.text-deep-moss     { color: var(--color-deep-moss)  !important; }
+.text-oat-beige     { color: var(--color-oat-beige)  !important; }
+.text-sage-light    { color: var(--color-sage-light) !important; }
+.text-sage-dark     { color: var(--color-sage-dark)  !important; }
+
+/* Border helpers ----------------------------------------------------------- */
+.border-sage-green  { border-color: var(--color-sage-green) !important; }
+.border-deep-moss   { border-color: var(--color-deep-moss)  !important; }
+.border-oat-beige   { border-color: var(--color-oat-beige)  !important; }
+
+/* Alias helpers to preserve previously-used class names -------------------- */
+.bg-brand-primary   { background-color: var(--color-sage-green) !important; }
+.text-brand-primary { color:            var(--color-sage-green) !important; }
+.border-brand-primary{ border-color:    var(--color-sage-green) !important; }
+
+.bg-brand-secondary { background-color: var(--color-deep-moss) !important; }
+.text-brand-secondary{ color:           var(--color-deep-moss) !important; }
+.border-brand-secondary{ border-color:  var(--color-deep-moss) !important; }
+
+/* -------------------------------------------------------------------------
+ * Force common utility names (e.g. Tailwind’s *-primary classes). These rules
+ * guarantee that if any component/library emits classes like `bg-primary`,
+ * `text-primary` or `border-primary`, they will use our EngageNatural palette
+ * regardless of load-order or specificity issues.
+ * ----------------------------------------------------------------------- */
+
+.bg-primary      { background-color: var(--color-sage-green) !important; }
+.text-primary    { color:            var(--color-sage-green) !important; }
+.border-primary  { border-color:     var(--color-sage-green) !important; }
+
+.bg-secondary    { background-color: var(--color-deep-moss) !important; }
+.text-secondary  { color:            var(--color-deep-moss) !important; }
+.border-secondary{ border-color:     var(--color-deep-moss) !important; }

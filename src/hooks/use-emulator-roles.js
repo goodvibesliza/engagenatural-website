@@ -1,6 +1,6 @@
 // src/hooks/use-emulator-roles.js
 import { useState, useEffect } from 'react';
-import { isLocalhost } from '../firebase';
+import { isLocalhost } from '../lib/firebase';
 import { useAuth } from '../contexts/auth-context';
 import { 
   getCurrentUserClaims, 

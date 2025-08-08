@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, query, orderBy, where, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db } from '../../firebase.old';
 import AdminLayout from '../../components/admin/layout/AdminLayout';
 import { useAuth } from '../../contexts/auth-context';
 

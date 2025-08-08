@@ -1,6 +1,6 @@
 // src/utils/seedFirestore.js
 import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../lib/firebase";
 
 // Seed test templates for development
 export const seedTemplates = async () => {

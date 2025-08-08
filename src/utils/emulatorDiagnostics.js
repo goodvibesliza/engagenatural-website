@@ -1,5 +1,5 @@
 // src/utils/emulatorDiagnostics.js
-import { auth, db, storage, isLocalhost } from '../firebase';
+import { auth, db, storage, isLocalhost } from '../lib/firebase';
 import { 
   signInAnonymously, 
   signInWithEmailAndPassword,
