@@ -1,193 +1,140 @@
 // src/contexts/auth-context.jsx
-import { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChanged, 
-  signOut as firebaseSignOut
-} from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, signInWithEmailPassword } from '../lib/firebase';
-const isLocalhost = false; // Production-only build
-// Emulator helpers (worked-around custom-claims for the Auth emulator)
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { auth, db } from "../lib/firebase"; // make sure firebase.js exports { auth, db }
 import {
-  getCurrentUserClaims,
-  signInWithEmulatorClaims,
-} from '../utils/emulatorAuthHelper';
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut as fbSignOut,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
+import {
+  doc,
+  onSnapshot,
+  setDoc,
+  serverTimestamp,
+  getDoc,
+} from "firebase/firestore";
 
-// Create auth context
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-// Define roles
-export const ROLES = {
-  SUPER_ADMIN: 'super_admin',
-  BRAND_MANAGER: 'brand_manager',
-  USER: 'user'
-};
-
-// Map of application-level permissions
-// Extend this list if your UI needs more granular checks.
-export const PERMISSIONS = {
-  VIEW_ANALYTICS: 'VIEW_ANALYTICS',
-  MANAGE_CONTENT: 'MANAGE_CONTENT'
-};
-
-// For every role, list the permissions it is granted (super_admin implicitly gets '*')
-const ROLE_PERMISSIONS = {
-  [ROLES.SUPER_ADMIN]: ['*'],
-  [ROLES.BRAND_MANAGER]: [
-    PERMISSIONS.VIEW_ANALYTICS,
-    PERMISSIONS.MANAGE_CONTENT
-  ],
-  [ROLES.USER]: []
-};
-
-// Define the useAuth hook here - make sure this is exported
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
 
-  // Handle auth state changes
+  // keep the listener unsub ref so we can clean it up on sign out
+  const userDocUnsubRef = useRef(null);
+
   useEffect(() => {
-    // For development/emulator environment
-    if (isLocalhost) {
-      console.log("Setting up auth state listener in emulator mode");
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          // For emulator, create a default admin profile in memory when Firestore might fail
-          let userProfile = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-            role: ROLES.USER
-          };
-
-          try {
-            // Try to get the user profile from Firestore
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            
-            if (userDoc.exists()) {
-              userProfile = {
-                ...userProfile,
-                ...userDoc.data()
-              };
-            }
-          } catch (error) {
-            console.warn("Error fetching user profile:", error);
-            // In emulator mode, give the user super admin role for testing
-          // so Firestore security rules relying on request.auth.token work.
-            console.log("Emulator mode: Assigning super_admin role");
-            userProfile.role = ROLES.SUPER_ADMIN;
-          }
-
-          /**
-           * -------------------------------------------------------------
-           * Merge custom claims stored in localStorage (Auth emulator)
-           * -------------------------------------------------------------
-           */
-          if (isLocalhost) {
-            const claims = getCurrentUserClaims();
-            if (claims && Object.keys(claims).length > 0) {
-              userProfile = {
-                ...userProfile,
-                ...claims,
-              };
-            }
-          }
-
-          // Ensure we always have *some* role populated to avoid
-          // undefined-role errors in Firestore rules.
-          if (!userProfile.role) {
-            userProfile.role = ROLES.USER;
-          }
-
-          // Check if the user is a super admin by email
-          const isSuperAdmin = ['admin@engagenatural.com', 'admin@example.com'].includes(firebaseUser.email);
-          if (isSuperAdmin) {
-            userProfile.role = ROLES.SUPER_ADMIN;
-          }
-
-          setUser(userProfile);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Error in auth state change handler:", error);
-        setAuthError(error);
-      } finally {
-        setLoading(false);
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      // tear down old profile listener
+      if (userDocUnsubRef.current) {
+        userDocUnsubRef.current();
+        userDocUnsubRef.current = null;
       }
+
+      setFirebaseUser(user);
+      if (!user) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // live-subscribe to this user's profile so admin approvals propagate instantly
+      const userRef = doc(db, "users", user.uid);
+
+      // ensure a minimal doc exists (safe merge)
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        await setDoc(
+          userRef,
+          {
+            uid: user.uid,
+            email: user.email || "",
+            role: "staff",
+            verified: false,
+            verificationStatus: "pending",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      userDocUnsubRef.current = onSnapshot(userRef, (ds) => {
+        setProfile(ds.exists() ? ds.data() : null);
+        setLoading(false);
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsub();
+      if (userDocUnsubRef.current) userDocUnsubRef.current();
+    };
   }, []);
 
-  // Sign in function
-  const signIn = async (email, password) => {
-    try {
-      setAuthError(null);
-      if (isLocalhost) {
-        // Use helper so the token gets fake custom claims
-        return await signInWithEmulatorClaims(email, password);
-      }
-      return await signInWithEmailPassword(email, password);
-    } catch (error) {
-      console.error("Sign in error:", error);
-      setAuthError(error);
-      throw error;
-    }
-  };
+  async function signIn(email, password) {
+    // persistent session
+    await setPersistence(auth, browserLocalPersistence);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    return cred.user;
+  }
 
-  // Sign out function
-  const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-    } catch (error) {
-      console.error("Sign out error:", error);
-      setAuthError(error);
-      throw error;
-    }
-  };
+  async function signOut() {
+    await fbSignOut(auth);
+  }
 
-  const value = {
-    user,
-    loading,
-    error: authError,
-    signIn,
-    signOut,
-    // Raw helpers & fields
-    role: user?.role || null,
-    brandId: user?.brandId || null,
-    isAuthenticated: !!user,
-    isSuperAdmin: user?.role === ROLES.SUPER_ADMIN,
-    isBrandManager: user?.role === ROLES.BRAND_MANAGER,
-    isRetailUser: user?.role === ROLES.USER,
-    isCommunityUser: user?.role === 'community_user', // keep for legacy
-    /**
-     *  Checks if the current user possesses a specific permission.
-     *  Super-admins always return true.
-     */
-    hasPermission: (permission) => {
-      if (!permission || !user?.role) return false;
-      if (user.role === ROLES.SUPER_ADMIN) return true;
-      const list = ROLE_PERMISSIONS[user.role] || [];
-      return list.includes(permission);
-    }
-  };
+  const value = useMemo(() => {
+    const combinedUser = firebaseUser
+      ? {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName || profile?.name || "",
+          // Firestore profile fields
+          role: profile?.role || "staff",
+          verified: !!profile?.verified,
+          verificationStatus: profile?.verificationStatus || "pending",
+          brandId: profile?.brandId || "",
+          joinedCommunities: profile?.joinedCommunities || [],
+          storeName: profile?.storeName || "",
+          level: profile?.level ?? null,
+          points: profile?.points ?? 0,
+          profileImage: profile?.profileImage ?? null,
+        }
+      : null;
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+    const isAuthenticated = !!combinedUser;
+    const role = combinedUser?.role || "guest";
+    const isSuperAdmin = role === "super_admin";
+    const isBrandManager = role === "brand_manager";
+    const isVerified = !!combinedUser?.verified;
+
+    function hasRole(required) {
+      if (!isAuthenticated) return false;
+      if (!required) return true;
+      // allow string or array
+      const req = Array.isArray(required) ? required : [required];
+      return req.includes(role);
+    }
+
+    return {
+      loading,
+      user: combinedUser,
+      isAuthenticated,
+      role,
+      isSuperAdmin,
+      isBrandManager,
+      isVerified,
+      hasRole,
+      signIn,
+      signOut,
+    };
+  }, [firebaseUser, profile, loading]);
+
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 }
