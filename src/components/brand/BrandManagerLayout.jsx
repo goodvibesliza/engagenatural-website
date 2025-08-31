@@ -86,7 +86,8 @@ export default function BrandManagerLayout({ children }) {
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/login');
+      // Use logout flag so root route shows PublicWebsite instead of Login
+      navigate('/?logout=1');
     } catch (error) {
       console.error('Error signing out:', error);
     }

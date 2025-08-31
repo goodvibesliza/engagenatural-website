@@ -1,10 +1,27 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/auth-context';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Separator } from '../components/ui/separator';
-import LessonsManager from '../components/brand/content/LessonsManager';
+
+// Correct relative paths to shared modules
+import { useAuth } from '../../contexts/auth-context';
+
+// UI primitives (shadcn-inspired)
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '../../components/ui/tabs';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Separator } from '../../components/ui/separator';
+
+// Brand-specific content manager
+import LessonsManager from '../../components/brand/content/LessonsManager';
 
 // Icons
 import { BookOpen, Users, LayoutDashboard, Settings, FileText } from 'lucide-react';

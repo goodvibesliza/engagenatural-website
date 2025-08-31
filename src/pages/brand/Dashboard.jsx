@@ -1,14 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Menu, X, Bell, Search, Calendar, Download, ChevronDown,
   BarChart2, Users, FileText, TrendingUp, Activity, Settings, 
-  HelpCircle, LogOut, User, Building, Shield, Home
+  HelpCircle, LogOut, User, Building, Shield, Home,
+  BookOpen, Package, ExternalLink, Eye
 } from 'lucide-react';
 import EnhancedBrandDashboard from '../EnhancedBrandDashboard';
 import { useAuth } from "../../contexts/auth-context";
 // New content management component
 import IntegratedContentManager from './ContentManager';
+// Consistent logout hook
+import { useLogout } from '../../hooks/useLogout';
+// Firebase imports
+import { 
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  getDocs,
+  Timestamp
+} from 'firebase/firestore';
+import { db } from '../../lib/firebase.js';
 
 // UI Components
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
@@ -25,11 +40,700 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 
+// Import analytics components
+import BrandAnalyticsPage from './BrandAnalyticsPage';
+import BrandROICalculatorPage from './BrandROICalculatorPage';
+import CommunityMetricsChart from '../../components/brand/CommunityMetricsChart';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+
+// Brand Dashboard Content component
+const BrandDashboardContent = ({ brandId }) => {
+  const [trainings, setTrainings] = useState([]);
+  const [sampleRequests, setSampleRequests] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [engagement, setEngagement] = useState({ enrolled: 0, completed: 0 });
+  const [loading, setLoading] = useState({
+    trainings: true,
+    sampleRequests: true,
+    announcements: true,
+    engagement: true
+  });
+  const [error, setError] = useState({
+    trainings: null,
+    sampleRequests: null,
+    announcements: null,
+    engagement: null,
+    brandId: null
+  });
+
+  // Memoise current date range once per mount to prevent changing
+  const { now, sevenDaysAgo } = useMemo(() => {
+    const current = new Date();
+    const sevenDaysPrior = new Date();
+    sevenDaysPrior.setDate(current.getDate() - 7);
+    return { now: current, sevenDaysAgo: sevenDaysPrior };
+  }, []);
+
+  useEffect(() => {
+    // Track if component is still mounted to avoid setting state after unmount
+    let isMounted = true;
+    
+    // Initialize all unsubscribe functions as null
+    let unsubscribeTrainings = null;
+    let unsubscribeRequests = null;
+    let unsubscribeAnnouncements = null;
+    let unsubscribeProgress = null;
+
+    // Validate brandId before making any queries
+    if (!brandId) {
+      console.error("Missing brandId in BrandDashboardContent");
+      setError(prev => ({ 
+        ...prev, 
+        brandId: "No brand ID provided. Please contact support if this issue persists.",
+        trainings: "Cannot fetch trainings: Brand ID is missing",
+        sampleRequests: "Cannot fetch sample requests: Brand ID is missing",
+        announcements: "Cannot fetch announcements: Brand ID is missing",
+        engagement: "Cannot fetch engagement data: Brand ID is missing"
+      }));
+      setLoading({
+        trainings: false,
+        sampleRequests: false,
+        announcements: false,
+        engagement: false
+      });
+      return () => {};
+    }
+
+    // Reset any previous brandId error
+    setError(prev => ({ ...prev, brandId: null }));
+
+    try {
+      // Fetch trainings
+      const trainingsQuery = query(
+        collection(db, 'trainings'),
+        where('brandId', '==', brandId),
+        where('published', '==', true),
+        orderBy('createdAt', 'desc')
+      );
+
+      unsubscribeTrainings = onSnapshot(
+        trainingsQuery,
+        (snapshot) => {
+          if (!isMounted) return;
+          try {
+            const trainingsData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setTrainings(trainingsData);
+            setLoading(prev => ({ ...prev, trainings: false }));
+          } catch (err) {
+            console.error("Error processing trainings data:", err);
+            setError(prev => ({ ...prev, trainings: `Error processing data: ${err.message}` }));
+            setLoading(prev => ({ ...prev, trainings: false }));
+          }
+        },
+        (err) => {
+          if (!isMounted) return;
+          console.error("Error fetching trainings:", err);
+          setError(prev => ({ ...prev, trainings: err.message }));
+          setLoading(prev => ({ ...prev, trainings: false }));
+        }
+      );
+    } catch (err) {
+      console.error("Error setting up trainings query:", err);
+      if (isMounted) {
+        setError(prev => ({ ...prev, trainings: `Error setting up query: ${err.message}` }));
+        setLoading(prev => ({ ...prev, trainings: false }));
+      }
+    }
+
+    try {
+      // Fetch sample requests
+      const requestsQuery = query(
+        collection(db, 'sample_requests'),
+        where('brandId', '==', brandId),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
+
+      unsubscribeRequests = onSnapshot(
+        requestsQuery,
+        (snapshot) => {
+          if (!isMounted) return;
+          try {
+            const requestsData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setSampleRequests(requestsData);
+            setLoading(prev => ({ ...prev, sampleRequests: false }));
+          } catch (err) {
+            console.error("Error processing sample requests data:", err);
+            setError(prev => ({ ...prev, sampleRequests: `Error processing data: ${err.message}` }));
+            setLoading(prev => ({ ...prev, sampleRequests: false }));
+          }
+        },
+        (err) => {
+          if (!isMounted) return;
+          console.error("Error fetching sample requests:", err);
+          setError(prev => ({ ...prev, sampleRequests: err.message }));
+          setLoading(prev => ({ ...prev, sampleRequests: false }));
+        }
+      );
+    } catch (err) {
+      console.error("Error setting up sample requests query:", err);
+      if (isMounted) {
+        setError(prev => ({ ...prev, sampleRequests: `Error setting up query: ${err.message}` }));
+        setLoading(prev => ({ ...prev, sampleRequests: false }));
+      }
+    }
+
+    try {
+      // Fetch announcements
+      const announcementsQuery = query(
+        collection(db, 'announcements'),
+        where('brandId', '==', brandId),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
+
+      unsubscribeAnnouncements = onSnapshot(
+        announcementsQuery,
+        (snapshot) => {
+          if (!isMounted) return;
+          try {
+            const announcementsData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setAnnouncements(announcementsData);
+            setLoading(prev => ({ ...prev, announcements: false }));
+          } catch (err) {
+            console.error("Error processing announcements data:", err);
+            setError(prev => ({ ...prev, announcements: `Error processing data: ${err.message}` }));
+            setLoading(prev => ({ ...prev, announcements: false }));
+          }
+        },
+        (err) => {
+          if (!isMounted) return;
+          console.error("Error fetching announcements:", err);
+          setError(prev => ({ ...prev, announcements: err.message }));
+          setLoading(prev => ({ ...prev, announcements: false }));
+        }
+      );
+    } catch (err) {
+      console.error("Error setting up announcements query:", err);
+      if (isMounted) {
+        setError(prev => ({ ...prev, announcements: `Error setting up query: ${err.message}` }));
+        setLoading(prev => ({ ...prev, announcements: false }));
+      }
+    }
+
+    // Fetch engagement metrics from training_progress
+    const fetchEngagement = async () => {
+      try {
+        if (!isMounted) return;
+        
+        // Get all training IDs for this brand
+        const trainingsQueryForIds = query(
+          collection(db, 'trainings'),
+          where('brandId', '==', brandId)
+        );
+
+        const trainingsSnapshot = await getDocs(trainingsQueryForIds);
+        let trainingIds = trainingsSnapshot.docs.map(doc => doc.id);
+
+        // Guard: no trainings
+        if (trainingIds.length === 0) {
+          if (isMounted) {
+            setLoading(prev => ({ ...prev, engagement: false }));
+          }
+          return;
+        }
+
+        // Firestore "in" operator supports max 10 values; trim if longer
+        if (trainingIds.length > 10) {
+          trainingIds = trainingIds.slice(0, 10);
+        }
+
+        try {
+          // Query training_progress for these trainings in the last 7 days
+          const progressQuery = query(
+            collection(db, 'training_progress'),
+            where('trainingId', 'in', trainingIds),
+            where('updatedAt', '>=', Timestamp.fromDate(sevenDaysAgo))
+          );
+          
+          unsubscribeProgress = onSnapshot(
+            progressQuery,
+            (snapshot) => {
+              if (!isMounted) return;
+              try {
+                const progressData = snapshot.docs.map(doc => doc.data());
+                
+                // Calculate metrics
+                const enrolled = progressData.length;
+                const completed = progressData.filter(p => p.status === 'completed').length;
+                
+                setEngagement({ enrolled, completed });
+                setLoading(prev => ({ ...prev, engagement: false }));
+              } catch (err) {
+                console.error("Error processing engagement data:", err);
+                if (isMounted) {
+                  setError(prev => ({ ...prev, engagement: `Error processing data: ${err.message}` }));
+                  setLoading(prev => ({ ...prev, engagement: false }));
+                }
+              }
+            },
+            (err) => {
+              console.error("Error fetching engagement:", err);
+              if (isMounted) {
+                setError(prev => ({ ...prev, engagement: err.message }));
+                setLoading(prev => ({ ...prev, engagement: false }));
+              }
+            }
+          );
+        } catch (err) {
+          console.error("Error setting up progress query:", err);
+          if (isMounted) {
+            setError(prev => ({ ...prev, engagement: `Error setting up query: ${err.message}` }));
+            setLoading(prev => ({ ...prev, engagement: false }));
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching training IDs:", err);
+        if (isMounted) {
+          setError(prev => ({ ...prev, engagement: `Error fetching training IDs: ${err.message}` }));
+          setLoading(prev => ({ ...prev, engagement: false }));
+        }
+      }
+    };
+
+    fetchEngagement();
+
+    // Cleanup subscriptions
+    return () => {
+      isMounted = false;
+      
+      // Safely unsubscribe from all listeners
+      if (typeof unsubscribeTrainings === 'function') {
+        try {
+          unsubscribeTrainings();
+        } catch (err) {
+          console.error("Error unsubscribing from trainings:", err);
+        }
+      }
+      
+      if (typeof unsubscribeRequests === 'function') {
+        try {
+          unsubscribeRequests();
+        } catch (err) {
+          console.error("Error unsubscribing from requests:", err);
+        }
+      }
+      
+      if (typeof unsubscribeAnnouncements === 'function') {
+        try {
+          unsubscribeAnnouncements();
+        } catch (err) {
+          console.error("Error unsubscribing from announcements:", err);
+        }
+      }
+      
+      if (typeof unsubscribeProgress === 'function') {
+        try {
+          unsubscribeProgress();
+        } catch (err) {
+          console.error("Error unsubscribing from progress:", err);
+        }
+      }
+    };
+  }, [brandId]);
+
+  // Helper function to render status badge
+  const renderStatusBadge = (status) => {
+    let color = "";
+    switch (status) {
+      case 'pending':
+        color = "bg-yellow-100 text-yellow-800";
+        break;
+      case 'approved':
+        color = "bg-blue-100 text-blue-800";
+        break;
+      case 'shipped':
+        color = "bg-green-100 text-green-800";
+        break;
+      case 'denied':
+        color = "bg-red-100 text-red-800";
+        break;
+      case 'completed':
+        color = "bg-green-100 text-green-800";
+        break;
+      case 'in_progress':
+        color = "bg-blue-100 text-blue-800";
+        break;
+      default:
+        color = "bg-gray-100 text-gray-800";
+    }
+    
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
+        {status.replace('_', ' ')}
+      </span>
+    );
+  };
+
+  // Format date function
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return new Intl.DateTimeFormat('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    }).format(date);
+  };
+
+  // Display global error for brandId if present
+  if (error.brandId) {
+    return (
+      <div className="p-6">
+        <Card className="p-6 bg-red-50 border border-red-200">
+          <div className="flex flex-col items-center text-center">
+            <Shield className="h-12 w-12 text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold text-red-700 mb-2">Brand Dashboard Error</h2>
+            <p className="text-red-600 mb-4">{error.brandId}</p>
+            <p className="text-gray-600 mb-6">
+              This could be due to missing permissions or an invalid brand identifier.
+              Please ensure you are logged in with the correct account and have brand manager permissions.
+            </p>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Dashboard content with tabs
+  const renderDashboardCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* My Trainings Card */}
+      <Card className="overflow-hidden">
+        <div className="p-6 bg-white dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
+                <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+              </div>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">My Trainings</h3>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/brand/trainings">View All</Link>
+            </Button>
+          </div>
+
+          {loading.trainings ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : error.trainings ? (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
+              <p>Error loading trainings: {error.trainings}</p>
+            </div>
+          ) : trainings.length === 0 ? (
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
+              <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Trainings Found</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                You don't have any published trainings yet.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/brand/trainings/new">Create Training</Link>
+              </Button>
+              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                <p>Need sample data? Use the Demo Data tool in Admin panel.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {trainings.slice(0, 4).map((training) => (
+                <div key={training.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{training.title}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
+                        {training.description}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="ml-2" asChild>
+                      <Link to={`/brand/trainings/${training.id}`}>
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Link>
+                    </Button>
+                  </div>
+                  <div className="flex items-center mt-3 text-sm">
+                    <div className="flex items-center text-gray-500 dark:text-gray-400 mr-4">
+                      <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
+                        {training.metrics?.enrolled || 0}
+                      </span>
+                      Enrolled
+                    </div>
+                    <div className="flex items-center text-gray-500 dark:text-gray-400">
+                      <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
+                        {training.metrics?.completed || 0}
+                      </span>
+                      Completed
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Engagement Card */}
+      <Card className="overflow-hidden">
+        <div className="p-6 bg-white dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full">
+                <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-300" />
+              </div>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Engagement (7 days)</h3>
+            </div>
+          </div>
+
+          {loading.engagement ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
+            </div>
+          ) : error.engagement ? (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
+              <p>Error loading engagement data: {error.engagement}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">New Enrollments</p>
+                <h4 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{engagement.enrolled}</h4>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
+                <h4 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{engagement.completed}</h4>
+              </div>
+              <div className="col-span-2 mt-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                  {engagement.enrolled === 0 && engagement.completed === 0 ? (
+                    <span>No recent engagement data. Try seeding demo data for testing.</span>
+                  ) : (
+                    <span>Showing data from {formatDate(sevenDaysAgo)} to {formatDate(now)}</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Sample Requests Card */}
+      <Card className="overflow-hidden">
+        <div className="p-6 bg-white dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-full">
+                <Package className="h-5 w-5 text-purple-600 dark:text-purple-300" />
+              </div>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Sample Requests</h3>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/brand/samples">View All</Link>
+            </Button>
+          </div>
+
+          {loading.sampleRequests ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+            </div>
+          ) : error.sampleRequests ? (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
+              <p>Error loading sample requests: {error.sampleRequests}</p>
+            </div>
+          ) : sampleRequests.length === 0 ? (
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Sample Requests</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                You don't have any sample requests yet.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/brand/samples/programs">Create Sample Program</Link>
+              </Button>
+              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                <p>Need sample data? Use the Demo Data tool in Admin panel.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {sampleRequests.map((request) => (
+                    <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {request.quantity}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {formatDate(request.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {renderStatusBadge(request.status)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Announcements Card */}
+      <Card className="overflow-hidden">
+        <div className="p-6 bg-white dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="bg-amber-100 dark:bg-amber-900 p-2 rounded-full">
+                <Bell className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+              </div>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Announcements</h3>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/brand/announcements">View All</Link>
+            </Button>
+          </div>
+
+          {loading.announcements ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
+            </div>
+          ) : error.announcements ? (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
+              <p>Error loading announcements: {error.announcements}</p>
+            </div>
+          ) : announcements.length === 0 ? (
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
+              <Bell className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Announcements</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                You haven't created any announcements yet.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/brand/announcements/new">Create Announcement</Link>
+              </Button>
+              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                <p>Need sample data? Use the Demo Data tool in Admin panel.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {announcements.map((announcement) => (
+                <div key={announcement.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">{announcement.title}</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                    {announcement.message}
+                  </p>
+                  <div className="flex items-center justify-between mt-3">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatDate(announcement.createdAt)}
+                    </span>
+                    {announcement.retailerIds && announcement.retailerIds.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        Store-specific
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+
+  return (
+    <div className="p-6">
+      {/* Dashboard Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Brand Dashboard</h1>
+        <p className="text-gray-500 dark:text-gray-400">Overview of your brand's performance and activities</p>
+      </div>
+
+      {/* Tabs for different dashboard views */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="roi">ROI Calculator</TabsTrigger>
+          <TabsTrigger value="community">Community Metrics</TabsTrigger>
+        </TabsList>
+        
+        {/* Overview Tab - Shows the original cards */}
+        <TabsContent value="overview">
+          {renderDashboardCards()}
+        </TabsContent>
+        
+        {/* Analytics Tab - Shows the BrandAnalyticsPage component */}
+        <TabsContent value="analytics">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <BrandAnalyticsPage brandId={brandId} />
+          </div>
+        </TabsContent>
+        
+        {/* ROI Calculator Tab - Shows the BrandROICalculatorPage component */}
+        <TabsContent value="roi">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <BrandROICalculatorPage brandId={brandId} />
+          </div>
+        </TabsContent>
+        
+        {/* Community Metrics Tab - Shows the CommunityMetricsChart component */}
+        <TabsContent value="community">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <CommunityMetricsChart brandId={brandId} />
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
 const EnhancedBrandHome = () => {
   const { brandId: paramBrandId } = useParams();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const brandId = paramBrandId || "sample-brand";
+  // Centralised logout that always redirects to PublicWebsite
+  const { logout } = useLogout();
+  // Prefer the authenticated user's brandId, fallback to URL param, finally to a static default
+  const brandId = user?.brandId || paramBrandId || "sample-brand";
   
   // State for mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -93,10 +797,8 @@ const EnhancedBrandHome = () => {
 
   // Handle logout
   const handleLogout = async () => {
-    if (signOut) {
-      await signOut();
-    }
-    navigate('/login');
+    // use standardised logout flow
+    logout();
   };
   
   // Mock notifications
@@ -479,7 +1181,7 @@ const EnhancedBrandHome = () => {
         {/* Main content area */}
         <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
           {/* Render the appropriate section based on activeSection */}
-          {activeSection === 'analytics' && <EnhancedBrandDashboard brandId={brandId} />}
+          {activeSection === 'analytics' && <BrandDashboardContent brandId={brandId} />}
           {activeSection === 'users' && (
             <div className="p-6">
               <div className="mb-6">

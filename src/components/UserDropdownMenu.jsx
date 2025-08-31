@@ -1,6 +1,7 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/auth-context'; // Assuming a custom auth hook
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/auth-context';
+import { useLogout } from '../hooks/useLogout'; // custom logout hook
 
 // Import UI components from shadcn/ui
 import {
@@ -11,9 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuGroup,
-} from '../ui/dropdown-menu';
-import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
-import { Button } from '../ui/button';
+} from './ui/dropdown-menu';
+import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+import { Button } from './ui/button';
 
 // Import icons from lucide-react
 import {
@@ -26,18 +27,8 @@ import {
 } from 'lucide-react';
 
 export default function UserDropdownMenuUpdated() {
-  // Assuming useAuth provides user data and sign-out functionality
-  const { user, userProfile, role, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/login'); // Redirect to login or home page after sign out
-    } catch (error) {
-      console.error("Failed to sign out:", error);
-    }
-  };
+  const { user, userProfile, role } = useAuth();
+  const { logout } = useLogout();
 
   // Render a placeholder or nothing if user data is not available yet
   if (!user || !userProfile) {
@@ -111,7 +102,7 @@ export default function UserDropdownMenuUpdated() {
           </Link>
         </DropdownMenuItem>
         
-        {role === 'admin' && (
+        {role === 'super_admin' && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
@@ -125,7 +116,7 @@ export default function UserDropdownMenuUpdated() {
         
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem onClick={handleSignOut}>
+        <DropdownMenuItem onClick={logout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Sign Out</span>
         </DropdownMenuItem>

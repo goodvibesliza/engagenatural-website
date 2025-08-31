@@ -9,10 +9,12 @@ import {
   Package, 
   Activity, 
   Settings,
-  Home
+  Home,
+  Database
 } from 'lucide-react'
 import React from 'react'
 import { useRoleAccess } from '../../../hooks/use-role-access'
+import { useAuth } from '../../../contexts/auth-context'
 import { cn } from '../../../lib/utils'
 
 const navigation = [
@@ -25,10 +27,14 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: Package, current: false, permission: ['manage_brand_products'] },
   { name: 'Activity', href: '/admin/activity', icon: Activity, current: false },
   { name: 'Settings', href: '/admin/settings', icon: Settings, current: false, permission: ['system_settings'] },
+   // Demo Data management (super admin only)
+  { name: 'Demo Data', href: '/admin/demo', icon: Database, current: false, permission: ['system_settings'] },
 ]
 
 export default function AdminSidebar() {
   const location = useLocation()
+  const auth = useAuth()
+  
   /* ------------------------------------------------------------------
    * Safely consume the role-access hook
    * ------------------------------------------------------------------ */
@@ -78,6 +84,14 @@ export default function AdminSidebar() {
     )
     /* eslint-enable no-console */
   }, [role, location.pathname]) // log once per role / nav change
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut()
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
 
   return (
     <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
@@ -146,6 +160,21 @@ export default function AdminSidebar() {
                   <BarChart3 className="h-5 w-5 shrink-0" aria-hidden="true" />
                   Legacy Dashboard
                 </Link>
+              </div>
+            </li>
+
+            {/* Logout Button */}
+            <li>
+              <div className="px-2 py-2 border-t border-gray-200">
+                <button
+                  onClick={handleLogout}
+                  className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors w-full text-left"
+                >
+                  <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Logout
+                </button>
               </div>
             </li>
           </ul>

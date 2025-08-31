@@ -1,11 +1,38 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { auth, db, storage } from '../lib/firebase'
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore'
+import { useNavigate, Link } from 'react-router-dom'
+import { auth, db, storage } from '../../lib/firebase'
+import { 
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection, 
+  addDoc,
+  getDocs,
+  query, 
+  where, 
+  orderBy,
+  limit,
+  onSnapshot,
+  serverTimestamp
+} from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { signOut } from 'firebase/auth'
-import { moderateHealthContent, filterPostContent } from '../ContentModeration'
+import { 
+  moderateHealthContent,
+  filterPostContent,
+} from '../../ContentModeration'
 
+// Icons for learning section
+import { 
+  BookOpen, 
+  CheckCircle, 
+  Play, 
+  Clock, 
+  Users, 
+  Award, 
+  TrendingUp 
+} from 'lucide-react';
 
 // FIXED font styles - Headlines thicker, subheadings Inter
 const fontStyles = {
@@ -54,18 +81,34 @@ export default function CompleteRetailerProfile() {
   const [editingUserInfo, setEditingUserInfo] = useState(false) // NEW: For editing names
   const [verificationCode, setVerificationCode] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('')
-  
+
   // Easter egg state
   const [foundEasterEggs, setFoundEasterEggs] = useState([])
   const [showEasterEgg, setShowEasterEgg] = useState(null)
   const [easterEggProgress, setEasterEggProgress] = useState(0)
   
+  // Learning section state
+  const [inProgressTrainings, setInProgressTrainings] = useState([]);
+  const [completedTrainings, setCompletedTrainings] = useState([]);
+  const [availableTrainings, setAvailableTrainings] = useState([]);
+  const [learningLoading, setLearningLoading] = useState({
+    inProgress: true,
+    completed: true,
+    discover: true
+  });
+  const [learningError, setLearningError] = useState({
+    inProgress: null,
+    completed: null,
+    discover: null
+  });
+  const [startingTraining, setStartingTraining] = useState(null);
+          
   const navigate = useNavigate()
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
   const avatarFileInputRef = useRef(null)
-
+                
   const avatarOptions = [
     '👤', '👨‍💼', '👩‍💼', '👨‍🔬', '👩‍🔬', '👨‍⚕️', '👩‍⚕️', '🧑‍🌾', '👨‍🍳', '👩‍🍳',
     '🌱', '🥬', '🥕', '🍎', '🥑', '🌿', '🌾', '🍯', '🧘‍♀️', '🧘‍♂️'
@@ -243,7 +286,7 @@ export default function CompleteRetailerProfile() {
               foundAt: new Date(),
               communityId: 'whats-good'
             })
-            
+          
             // Update local state
             setFoundEasterEggs(prev => [...prev, randomEgg.id])
             setEasterEggProgress(prev => prev + 1)
@@ -266,14 +309,14 @@ export default function CompleteRetailerProfile() {
   // Join community function - navigate to community page
   const joinCommunity = async (communityId) => {
     const community = communities.find(c => c.id === communityId)
-    
+
     // Check if verification is required
     if (community.requiresVerification && user?.verificationStatus !== 'approved') {
       alert('This community requires verification. Please complete your verification first!')
       setActiveTab('verification')
       return
     }
-    
+
     try {
       // Check if user is already a member
       const currentCommunities = user.joinedCommunities || []
@@ -282,7 +325,7 @@ export default function CompleteRetailerProfile() {
         navigate(`/community/${communityId}`)
         return
       }
-      
+          
       // Actually join the community
       const updatedCommunities = [...currentCommunities, communityId]
       await updateDoc(doc(db, 'users', user.uid), {
@@ -301,6 +344,218 @@ export default function CompleteRetailerProfile() {
       alert('Error joining community. Please try again.')
     }
   }
+
+  // Learning section functions
+  // Format duration
+  const formatDuration = (minutes) => {
+    if (!minutes) return 'N/A';
+    
+    if (minutes < 60) {
+      return `${minutes} min`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+  };
+
+  // Check if a training is already in progress or completed
+  const isTrainingStarted = (trainingId) => {
+    return inProgressTrainings.some(item => item.training.id === trainingId) || 
+           completedTrainings.some(item => item.training.id === trainingId);
+  };
+
+  // Get training status
+  const getTrainingStatus = (trainingId) => {
+    if (inProgressTrainings.some(item => item.training.id === trainingId)) {
+      return 'in_progress';
+    }
+    if (completedTrainings.some(item => item.training.id === trainingId)) {
+      return 'completed';
+    }
+    return null;
+  };
+
+  // Start a training
+  const startTraining = async (trainingId) => {
+    if (!user?.uid) return;
+    
+    setStartingTraining(trainingId);
+    
+    try {
+      const progressId = `${user.uid}_${trainingId}`;
+      const progressRef = doc(db, 'training_progress', progressId);
+      
+      await setDoc(progressRef, {
+        id: progressId,
+        userId: user.uid,
+        trainingId,
+        status: 'in_progress',
+        startedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        demoSeed: false
+      });
+      
+      // Update training metrics
+      const trainingRef = doc(db, 'trainings', trainingId);
+      await updateDoc(trainingRef, {
+        'metrics.enrolled': (availableTrainings.find(t => t.id === trainingId)?.metrics?.enrolled || 0) + 1
+      });
+      
+    } catch (err) {
+      // Handle error silently
+    } finally {
+      setStartingTraining(null);
+    }
+  };
+
+  // Load learning data when learning tab is active
+  useEffect(() => {
+    if (activeTab !== 'learning' || !user?.uid) return;
+
+    // Fetch in-progress trainings
+    const inProgressQuery = query(
+      collection(db, 'training_progress'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'in_progress'),
+      orderBy('updatedAt', 'desc')
+    );
+
+    const unsubscribeInProgress = onSnapshot(
+      inProgressQuery,
+      async (snapshot) => {
+        try {
+          const progressDocs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // Fetch the associated training details for each progress doc
+          const trainingDetails = await Promise.all(
+            progressDocs.map(async (progress) => {
+              try {
+                const trainingRef = doc(db, 'trainings', progress.trainingId);
+                const trainingSnap = await getDoc(trainingRef);
+                
+                if (trainingSnap.exists()) {
+                  return {
+                    progress,
+                    training: {
+                      id: trainingSnap.id,
+                      ...trainingSnap.data()
+                    }
+                  };
+                }
+                return null;
+              } catch (err) {
+                return null;
+              }
+            })
+          );
+          
+          setInProgressTrainings(trainingDetails.filter(Boolean));
+          setLearningLoading(prev => ({ ...prev, inProgress: false }));
+        } catch (err) {
+          setLearningError(prev => ({ ...prev, inProgress: err.message }));
+          setLearningLoading(prev => ({ ...prev, inProgress: false }));
+        }
+      },
+      (err) => {
+        setLearningError(prev => ({ ...prev, inProgress: err.message }));
+        setLearningLoading(prev => ({ ...prev, inProgress: false }));
+      }
+    );
+
+    // Fetch completed trainings
+    const completedQuery = query(
+      collection(db, 'training_progress'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'completed'),
+      orderBy('completedAt', 'desc')
+    );
+
+    const unsubscribeCompleted = onSnapshot(
+      completedQuery,
+      async (snapshot) => {
+        try {
+          const progressDocs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // Fetch the associated training details for each progress doc
+          const trainingDetails = await Promise.all(
+            progressDocs.map(async (progress) => {
+              try {
+                const trainingRef = doc(db, 'trainings', progress.trainingId);
+                const trainingSnap = await getDoc(trainingRef);
+                
+                if (trainingSnap.exists()) {
+                  return {
+                    progress,
+                    training: {
+                      id: trainingSnap.id,
+                      ...trainingSnap.data()
+                    }
+                  };
+                }
+                return null;
+              } catch (err) {
+                return null;
+              }
+            })
+          );
+          
+          setCompletedTrainings(trainingDetails.filter(Boolean));
+          setLearningLoading(prev => ({ ...prev, completed: false }));
+        } catch (err) {
+          setLearningError(prev => ({ ...prev, completed: err.message }));
+          setLearningLoading(prev => ({ ...prev, completed: false }));
+        }
+      },
+      (err) => {
+        setLearningError(prev => ({ ...prev, completed: err.message }));
+        setLearningLoading(prev => ({ ...prev, completed: false }));
+      }
+    );
+
+    // Fetch available trainings
+    const availableQuery = query(
+      collection(db, 'trainings'),
+      where('published', '==', true),
+      where('visibility', '==', 'public'),
+      orderBy('createdAt', 'desc'),
+      limit(10)
+    );
+
+    const unsubscribeAvailable = onSnapshot(
+      availableQuery,
+      (snapshot) => {
+        try {
+          const trainings = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          setAvailableTrainings(trainings);
+          setLearningLoading(prev => ({ ...prev, discover: false }));
+        } catch (err) {
+          setLearningError(prev => ({ ...prev, discover: err.message }));
+          setLearningLoading(prev => ({ ...prev, discover: false }));
+        }
+      },
+      (err) => {
+        setLearningError(prev => ({ ...prev, discover: err.message }));
+        setLearningLoading(prev => ({ ...prev, discover: false }));
+      }
+    );
+
+    return () => {
+      unsubscribeInProgress();
+      unsubscribeCompleted();
+      unsubscribeAvailable();
+    };
+  }, [activeTab, user?.uid]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -324,7 +579,7 @@ export default function CompleteRetailerProfile() {
               storeName: userData.storeName || 'Unknown Store'
             })
             setProfileImage(userData.profileImage || null)
-            
+                
             // Load user's easter egg progress
             await loadEasterEggProgress(currentUser.uid)
           } else {
@@ -359,14 +614,15 @@ export default function CompleteRetailerProfile() {
       }
       setLoading(false)
     })
-
+          
     return () => unsubscribe()
   }, [navigate])
 
   const handleSignOut = async () => {
     try {
       await signOut(auth)
-      navigate('/')
+      // Use hard redirect to ensure a fully clean state after logout
+      window.location.href = '/'
     } catch (error) {
       console.error('Error signing out:', error)
     }
@@ -393,10 +649,10 @@ export default function CompleteRetailerProfile() {
       const video = videoRef.current
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
-      
+
       const ctx = canvas.getContext('2d')
       ctx.drawImage(video, 0, 0)
-      
+          
       canvas.toBlob((blob) => {
         setVerificationPhoto(blob)
         stopCamera()
@@ -419,7 +675,7 @@ export default function CompleteRetailerProfile() {
       setVerificationPhoto(file)
     }
   }
-
+    
   // IMPROVED: Avatar upload function with better error handling
   const handleAvatarUpload = async (event) => {
     const file = event.target.files[0]
@@ -430,7 +686,7 @@ export default function CompleteRetailerProfile() {
         if (!storage) {
           throw new Error('Firebase Storage not initialized')
         }
-
+    
         // Upload to Firebase Storage
         const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${file.name}`)
         console.log('Uploading to:', imageRef.fullPath)
@@ -527,7 +783,7 @@ export default function CompleteRetailerProfile() {
       await updateDoc(doc(db, 'users', user.uid), {
         profileImage: avatar
       })
-      
+    
       setProfileImage(avatar)
       setUser(prev => ({ ...prev, profileImage: avatar }))
       setShowAvatarSelector(false)
@@ -543,7 +799,7 @@ export default function CompleteRetailerProfile() {
         location: aboutMe.location,
         story: aboutMe.story
       })
-      
+
       setUser(prev => ({ ...prev, ...aboutMe }))
       setEditingAboutMe(false)
       alert('About Me section updated successfully!')
@@ -597,11 +853,11 @@ export default function CompleteRetailerProfile() {
           <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
             <span>{isVerified ? '✅' : '🔒'}</span>
             <span>Access to premium communities (Supplement Scoop, Fresh Finds, Good Vibes)</span>
-          </div>
+        </div>
           <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
             <span>{isVerified ? '✅' : '🔒'}</span>
             <span>Exclusive brand challenges and training content</span>
-          </div>
+      </div>
           <div className={`flex items-center space-x-3 ${isVerified ? 'text-green-700' : 'text-gray-600'}`}>
             <span>{isVerified ? '✅' : '🔒'}</span>
             <span>Earn points to stand out to brands and become a super user</span>
@@ -619,7 +875,7 @@ export default function CompleteRetailerProfile() {
             <span>Access to "What's Good" community (available to all!)</span>
           </div>
         </div>
-        
+
         {!isVerified && (
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
             <p className="text-yellow-800 text-sm">
@@ -832,6 +1088,13 @@ export default function CompleteRetailerProfile() {
               isActive={activeTab === 'challenges'}
               onClick={setActiveTab}
             />
+            <TabButton
+              id="learning"
+              label="Learning"
+              icon="📚"
+              isActive={activeTab === 'learning'}
+              onClick={setActiveTab}
+            />
           </div>
         </div>
       </div>
@@ -902,7 +1165,7 @@ export default function CompleteRetailerProfile() {
                       </button>
                     </div>
                   )}
-                  
+
                   {/* NEW: Editable User Info */}
                   {editingUserInfo ? (
                     <div className="space-y-3">
@@ -1154,7 +1417,7 @@ export default function CompleteRetailerProfile() {
                         </p>
                       </div>
                     )}
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
                       <input
@@ -1205,7 +1468,7 @@ export default function CompleteRetailerProfile() {
                 </div>
               )}
             </div>
-            
+                  
             <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6">
               {communities.map(community => (
                 <CommunityCard key={community.id} community={community} />
@@ -1237,6 +1500,238 @@ export default function CompleteRetailerProfile() {
             </div>
           </div>
         )}
+
+        {/* New Learning Tab Content */}
+        {activeTab === 'learning' && (
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl text-gray-900 mb-2" style={fontStyles.sectionHeading}>Learning Dashboard</h2>
+              <p className="text-gray-600">
+                Continue your learning journey and discover new training content
+              </p>
+            </div>
+
+            <div className="space-y-8">
+              {/* Continue Learning Section */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <h2 className="text-xl font-semibold text-gray-900">Continue Learning</h2>
+                  </div>
+                </div>
+
+                {learningLoading.inProgress ? (
+                  <div className="bg-white rounded-lg shadow p-6 flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : learningError.inProgress ? (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-700">Error loading in-progress trainings: {learningError.inProgress}</p>
+                  </div>
+                ) : inProgressTrainings.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow p-6 text-center">
+                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No trainings in progress</h3>
+                    <p className="text-gray-500 mb-4">
+                      You don't have any trainings in progress. Start a new training from the Discover section below.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {inProgressTrainings.map(({ training, progress }) => (
+                      <div key={training.id} className="bg-white rounded-lg shadow overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="p-5">
+                          <div className="flex justify-between items-start mb-3">
+                            <h3 className="text-lg font-medium text-gray-900 line-clamp-2">{training.title}</h3>
+                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                              In Progress
+                            </span>
+                          </div>
+                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{training.description}</p>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center space-x-2 text-gray-500">
+                              <Clock className="h-4 w-4" />
+                              <span>{formatDuration(training.durationMins)}</span>
+                            </div>
+                            <Link 
+                              to={`/staff/trainings/${training.id}`} 
+                              className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                            >
+                              Continue
+                              <Play className="h-4 w-4 ml-1" />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Completed Section */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <h2 className="text-xl font-semibold text-gray-900">Completed</h2>
+                  </div>
+                </div>
+
+                {learningLoading.completed ? (
+                  <div className="bg-white rounded-lg shadow p-6 flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
+                  </div>
+                ) : learningError.completed ? (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-700">Error loading completed trainings: {learningError.completed}</p>
+                  </div>
+                ) : completedTrainings.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow p-6 text-center">
+                    <Award className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No completed trainings</h3>
+                    <p className="text-gray-500 mb-4">
+                      You haven't completed any trainings yet. Start a training from the Discover section below.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {completedTrainings.map(({ training, progress }) => (
+                      <div key={training.id} className="bg-white rounded-lg shadow overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="p-5">
+                          <div className="flex justify-between items-start mb-3">
+                            <h3 className="text-lg font-medium text-gray-900 line-clamp-2">{training.title}</h3>
+                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                              Completed
+                            </span>
+                          </div>
+                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{training.description}</p>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center space-x-2 text-gray-500">
+                              <Clock className="h-4 w-4" />
+                              <span>{formatDuration(training.durationMins)}</span>
+                            </div>
+                            <Link 
+                              to={`/staff/trainings/${training.id}`} 
+                              className="inline-flex items-center text-green-600 hover:text-green-800"
+                            >
+                              Review
+                              <CheckCircle className="h-4 w-4 ml-1" />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Discover Section */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                    <h2 className="text-xl font-semibold text-gray-900">Discover</h2>
+                  </div>
+                </div>
+
+                {learningLoading.discover ? (
+                  <div className="bg-white rounded-lg shadow p-6 flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                  </div>
+                ) : learningError.discover ? (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-700">Error loading available trainings: {learningError.discover}</p>
+                  </div>
+                ) : availableTrainings.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow p-6 text-center">
+                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No trainings available</h3>
+                    <p className="text-gray-500 mb-4">
+                      There are no trainings available at the moment. Check back later or contact your manager.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Need sample data? Use the Demo Data tool in Admin panel.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {availableTrainings.map((training) => {
+                      const trainingStatus = getTrainingStatus(training.id);
+                      
+                      return (
+                        <div key={training.id} className="bg-white rounded-lg shadow overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
+                          <div className="p-5">
+                            <div className="flex justify-between items-start mb-3">
+                              <h3 className="text-lg font-medium text-gray-900 line-clamp-2">{training.title}</h3>
+                              {trainingStatus && (
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  trainingStatus === 'completed' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {trainingStatus === 'completed' ? 'Completed' : 'In Progress'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-gray-600 text-sm mb-4 line-clamp-2">{training.description}</p>
+                            <div className="flex flex-wrap items-center gap-4 text-sm mb-4">
+                              <div className="flex items-center space-x-2 text-gray-500">
+                                <Clock className="h-4 w-4" />
+                                <span>{formatDuration(training.durationMins)}</span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-gray-500">
+                                <Users className="h-4 w-4" />
+                                <span>{training.metrics?.enrolled || 0} enrolled</span>
+                              </div>
+                            </div>
+                            <div className="flex justify-end">
+                              {trainingStatus ? (
+                                <Link 
+                                  to={`/staff/trainings/${training.id}`} 
+                                  className={`inline-flex items-center px-3 py-1.5 rounded text-sm ${
+                                    trainingStatus === 'completed' 
+                                      ? 'text-green-600 hover:text-green-800' 
+                                      : 'text-blue-600 hover:text-blue-800'
+                                  }`}
+                                >
+                                  {trainingStatus === 'completed' ? 'Review' : 'Continue'}
+                                  {trainingStatus === 'completed' ? (
+                                    <CheckCircle className="h-4 w-4 ml-1" />
+                                  ) : (
+                                    <Play className="h-4 w-4 ml-1" />
+                                  )}
+                                </Link>
+                              ) : (
+                                <button
+                                  onClick={() => startTraining(training.id)}
+                                  disabled={startingTraining === training.id}
+                                  className="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {startingTraining === training.id ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                                      Starting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      Start
+                                      <Play className="h-4 w-4 ml-1" />
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Easter Egg Modal */}
@@ -1252,7 +1747,7 @@ export default function CompleteRetailerProfile() {
                 <p className="text-sm text-gray-600 mb-2">Your Code:</p>
                 <div className="flex items-center justify-center space-x-2">
                   <code className="bg-white px-3 py-2 rounded border font-mono text-lg">
-                    {showEasterEgg.code}
+                                     {showEasterEgg.code}
                   </code>
                   <button
                     onClick={() => copyEasterEggCode(showEasterEgg.code)}
@@ -1274,6 +1769,5 @@ export default function CompleteRetailerProfile() {
         </div>
       )}
     </div>
-  )
+  );
 }
-

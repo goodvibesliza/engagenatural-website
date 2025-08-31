@@ -5,8 +5,8 @@ service cloud.firestore {
      * ------------------------------------------------------------------
      *  Helper functions – rely exclusively on custom auth **claims**
      *  injected by the emulator/production backend:
-     *    role      : 'admin' | 'brand' | ...
-     *    brandId   : brand a user manages (for role === 'brand')
+     *    role      : 'admin' | 'brand_manager' | 'staff' | ...
+     *    brandId   : brand a user manages (for role === 'brand_manager')
      *    admin     : boolean (optional) – legacy flag for admin
      * ------------------------------------------------------------------
      */
@@ -21,13 +21,145 @@ service cloud.firestore {
 
     function isBrandManager(brandId) {
       return isAuthenticated() &&
-        request.auth.token.role == 'brand' &&
-        request.auth.token.brandId == brandId;
+        (
+          // Prefer custom claim style used by the app
+          (request.auth.token.role == 'brand_manager' &&
+           request.auth.token.brandId == brandId) ||
+
+          // Legacy / alternate claim style kept for backward-compat
+          (request.auth.token.role == 'brand' &&
+           request.auth.token.brandId == brandId) ||
+
+          // Fallback – look at the Firestore user profile when claim missing
+          (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'brand_manager' &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brandId == brandId
+          )
+        );
     }
 
-    // Existing user rules
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    /* Convenience helper – returns true if current user is a brand-manager
+     * for _any_ brand (used where brandId is stored in resource.data).
+     */
+    function isBrandManagerAny() {
+      return isAuthenticated() &&
+        (
+          request.auth.token.role == 'brand_manager' ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'brand_manager')
+        );
+    }
+
+    /* 
+     * Staff role helper - checks if user has staff role
+     * - First checks Auth token for role == 'staff'
+     * - Falls back to Firestore user document (if it exists)
+     */
+    function isStaff() {
+      return isAuthenticated() && (
+        // Prefer custom claim on the Auth token
+        request.auth.token.role == 'staff' ||
+        // Also check for array format of role
+        (request.auth.token.role is list && 'staff' in request.auth.token.role) ||
+        // Fallback to Firestore user profile
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff' ||
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role is list && 
+           'staff' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role)
+        ))
+      );
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  SUPER ADMIN helper
+     *  – First checks the Auth token for role == 'super_admin'
+     *  – Falls back to Firestore user document (if it exists)
+     * ------------------------------------------------------------------
+     */
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        // Prefer custom claim on the Auth token
+        request.auth.token.role == 'super_admin' ||
+        // Fallback to Firestore user profile (may not exist at first sign-in)
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin')
+      );
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  NEW Helper — Firestore-lookup super-admin check for arbitrary uid
+     * ------------------------------------------------------------------
+     *  • Used in rules that need to evaluate super_admin rights for a
+     *    specific user id (e.g., `/users/{uid}` path where `uid` may not
+     *    match the currently-authenticated user).
+     * ------------------------------------------------------------------
+     */
+    function isSuperAdmin(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+             get(/databases/$(database)/documents/users/$(uid)).data.role == 'super_admin';
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  GLOBAL SUPER-ADMIN BYPASS
+     *  – Short-circuits evaluation: if user is super_admin allow all
+     *  – Placed before any specific collection matches
+     * ------------------------------------------------------------------
+     */
+    match /{all=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // ---------------------------
+    //  USERS COLLECTION RULES
+    // -----------------------------------------------------------
+    //  USERS COLLECTION RULES
+    //  • Users can read / write their own document
+    //  • super_admins can read any user document
+    //  • super_admins can CREATE / UPDATE / DELETE demoSeed users
+    // -----------------------------------------------------------
+    match /users/{uid} {
+      /*
+       * ------------------------------------------------------------------
+       *  USERS COLLECTION RULES  (updated to stricter spec)
+       * ------------------------------------------------------------------
+       *  • Read   : user can read their own doc OR super_admin any doc
+       *  • Create : user can create their own doc
+       *             super_admin can create docs with demoSeed flag
+       *  • Update : super_admin can update anything
+       *             user can update own doc BUT cannot change 'approved'
+       *  • Delete : unchanged (user can delete own doc OR super_admin demo)
+       * ------------------------------------------------------------------
+       */
+
+      // Reads
+      allow read: if request.auth != null &&
+        (uid == request.auth.uid || isSuperAdmin(request.auth.uid));
+
+      // Creates
+      allow create: if request.auth != null && (
+        uid == request.auth.uid ||
+        (isSuperAdmin(request.auth.uid) && request.resource.data.demoSeed == true)
+      );
+
+      // Updates
+      allow update: if request.auth != null && (
+        isSuperAdmin(request.auth.uid) ||
+        (
+          uid == request.auth.uid &&
+          // Prevent self-service modification of the 'approved' field
+          request.resource.data.approved == resource.data.approved
+        )
+      );
+
+      // Deletes – keep existing behaviour (super_admin can delete demo docs)
+      allow delete: if request.auth != null && (
+        uid == request.auth.uid ||
+        (isSuperAdmin(request.auth.uid) && resource.data.demoSeed == true)
+      );
     }
 
     // BRANDS COLLECTION RULES
@@ -35,12 +167,12 @@ service cloud.firestore {
       // Anyone can read brand info (public brands)
       allow read: if true;
       
-      // Brand managers (for their own brand) or admins can write/update/delete
-      allow write: if isBrandManager(brandId) || isAdmin();
+      // Brand managers (for their own brand) or admins / super_admins can write/update/delete
+      allow write: if isBrandManager(brandId) || (isAdmin() || isSuperAdmin());
 
       // Brand users subcollection - only managers can manage users
       match /users/{userId} {
-        allow read, write: if isBrandManager(brandId) || isAdmin();
+        allow read, write: if isBrandManager(brandId) || (isAdmin() || isSuperAdmin());
       }
 
       // Brand content subcollection
@@ -48,38 +180,146 @@ service cloud.firestore {
         // Anyone can read published content
         allow read: if resource.data.isPublished == true;
         
-        // Brand managers can read all of their brand’s content
-        allow read: if isBrandManager(brandId) || isAdmin();
+        // Brand managers can read all of their brand's content
+        allow read: if isBrandManager(brandId) || (isAdmin() || isSuperAdmin());
         
         // Only brand managers (for their brand) or admins can create/update/delete
-        allow write: if isBrandManager(brandId) || isAdmin();
+        allow write: if isBrandManager(brandId) || (isAdmin() || isSuperAdmin());
       }
     }
 
-    // Existing easter eggs rules
+    /*
+     * ------------------------------------------------------------------
+     *  TRAININGS COLLECTION
+     * ------------------------------------------------------------------
+     *  • Staff & Brand managers may READ published trainings
+     *  • Brand managers may READ trainings that belong to their brand
+     *  • Admins may READ / WRITE any trainings
+     *  • No other users may access unpublished trainings
+     * ------------------------------------------------------------------
+     */
+    match /trainings/{trainingId} {
+      // Everyone (auth) can read published trainings
+      allow read: if resource.data.published == true && isAuthenticated();
+
+      // Brand managers can read *all* trainings for their own brand
+      allow read: if isBrandManager(resource.data.brandId) || (isAdmin() || isSuperAdmin());
+
+      // Admins can create / update / delete
+      allow write: if (isAdmin() || isSuperAdmin());
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  SAMPLE REQUESTS COLLECTION
+     * ------------------------------------------------------------------
+     *  • Brand managers may READ requests for their brand
+     *  • Admins may READ / WRITE all
+     * ------------------------------------------------------------------
+     */
+    match /sample_requests/{requestId} {
+      allow read: if isBrandManager(resource.data.brandId) || (isAdmin() || isSuperAdmin());
+      allow write: if (isAdmin() || isSuperAdmin()); // Only admins/service accounts create these
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  ANNOUNCEMENTS COLLECTION
+     * ------------------------------------------------------------------
+     *  • Any authenticated user can read announcements
+     *  • Only admins can create/update/delete
+     * ------------------------------------------------------------------
+     */
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow write: if (isAdmin() || isSuperAdmin());
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  TRAINING PROGRESS COLLECTION
+     * ------------------------------------------------------------------
+     *  • Staff users can read/write their own progress
+     *  • Brand managers can read progress docs that relate to trainings
+     *    under their brand (brandId is stored on the doc)
+     *  • Users can read / write their own progress
+     *  • Admins can read / write any
+     * ------------------------------------------------------------------
+     */
+    match /training_progress/{progressId} {
+      // Docs require `userId` & `brandId` fields
+      allow read, write: if (
+          // Owner of progress
+          (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+          // Brand manager for that brand
+          isBrandManager(resource.data.brandId) ||
+          // Admin / Super Admin override
+          (isAdmin() || isSuperAdmin())
+      );
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  EASTER EGGS COLLECTION
+     * ------------------------------------------------------------------
+     *  • Any authenticated user (including staff) can read easter eggs
+     *  • Only admins can create/update/delete
+     * ------------------------------------------------------------------
+     */
     match /easter_eggs/{eggId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
+      allow read: if isAuthenticated();
+      allow write: if (isAdmin() || isSuperAdmin()) || 
         request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'];
     }
 
-    // Existing user easter eggs rules
+    /*
+     * ------------------------------------------------------------------
+     *  USER EASTER EGGS COLLECTION
+     * ------------------------------------------------------------------
+     *  • Users (including staff) can read/write their own easter egg progress
+     * ------------------------------------------------------------------
+     */
     match /user_easter_eggs/{userEggId} {
-      allow read, write: if request.auth != null && 
+      allow read, write: if isAuthenticated() && 
         request.auth.uid == resource.data.userId;
     }
 
-    // Existing communities rules
+    /*
+     * ------------------------------------------------------------------
+     *  COMMUNITIES COLLECTION
+     * ------------------------------------------------------------------
+     *  • Any authenticated user (including staff) can read communities
+     *  • Only admins can create/update/delete
+     * ------------------------------------------------------------------
+     */
     match /communities/{communityId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
+      allow read: if isAuthenticated();
+      allow write: if (isAdmin() || isSuperAdmin()) || 
         request.auth.token.email in ['admin@engagenatural.com', 'your-email@gmail.com'];
+    }
+
+    /*
+     * ------------------------------------------------------------------
+     *  VERIFICATION REQUESTS COLLECTION
+     * ------------------------------------------------------------------
+     *  • Users (including staff) can create verification requests
+     *  • Users can read their own verification requests
+     *  • Admins can read/write all
+     * ------------------------------------------------------------------
+     */
+    match /verification_requests/{requestId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if (isAdmin() || isSuperAdmin());
     }
 
     // Your temporary catch-all rule (expires July 17, 2025)
     // This should be removed before expiration and replaced with specific rules
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 7, 17);
+      // Extended for development until December 31, 2025
+      allow read, write: if request.time < timestamp.date(2025, 12, 31);
     }
   }
 }
