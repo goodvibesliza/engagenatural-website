@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { auth, db, storage } from '../../lib/firebase'
 import { 
   doc,
@@ -102,8 +102,17 @@ export default function CompleteRetailerProfile() {
     discover: null
   });
   const [startingTraining, setStartingTraining] = useState(null);
+
+  /* ------------------------------------------------------------------
+     Dynamic brand communities fetched from Firestore
+  ------------------------------------------------------------------ */
+  const [fetchedCommunities, setFetchedCommunities] = useState([]);
+  const [communitiesLoading, setCommunitiesLoading] = useState(false);
+  const [communitiesError, setCommunitiesError] = useState(null);
           
   const navigate = useNavigate()
+  // Read current URL (needed for ?tab=xxx deep-links)
+  const location = useLocation();
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -308,7 +317,20 @@ export default function CompleteRetailerProfile() {
 
   // Join community function - navigate to community page
   const joinCommunity = async (communityId) => {
-    const community = communities.find(c => c.id === communityId)
+    // Try static list first
+    let community = communities.find((c) => c.id === communityId);
+    // Fall back to dynamically-fetched brand communities
+    if (!community) {
+      community = fetchedCommunities.find((c) => c.id === communityId);
+    }
+    // If still not found, create minimal permissive descriptor
+    if (!community) {
+      community = {
+        id: communityId,
+        requiresVerification: false,
+        isPublic: true,
+      };
+    }
 
     // Check if verification is required
     if (community.requiresVerification && user?.verificationStatus !== 'approved') {
@@ -401,6 +423,9 @@ export default function CompleteRetailerProfile() {
       await updateDoc(trainingRef, {
         'metrics.enrolled': (availableTrainings.find(t => t.id === trainingId)?.metrics?.enrolled || 0) + 1
       });
+
+      // Immediately navigate user to the training player
+      navigate(`/staff/trainings/${trainingId}`);
       
     } catch (err) {
       // Handle error silently
@@ -557,6 +582,88 @@ export default function CompleteRetailerProfile() {
     };
   }, [activeTab, user?.uid]);
 
+  /* ------------------------------------------------------------------
+     Sync ?tab= param in URL -> activeTab state
+  ------------------------------------------------------------------ */
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    const allowedTabs = new Set([
+      'profile',
+      'verification',
+      'communities',
+      'challenges',
+      'learning',
+    ]);
+    if (tabParam && allowedTabs.has(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+    // no deps on activeTab to avoid loop; we intentionally compare inside
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  /* ------------------------------------------------------------------
+     Load communities from Firestore when Communities tab is active
+  ------------------------------------------------------------------ */
+  useEffect(() => {
+    if (activeTab !== 'communities' || !user) return;
+
+    setCommunitiesLoading(true);
+    setCommunitiesError(null);
+
+    let unsubscribe = null;
+    (async () => {
+      try {
+        let q;
+        try {
+          // try status in clause ordered by createdAt
+          q = query(
+            collection(db, 'communities'),
+            where('status', 'in', ['active', 'draft']),
+            orderBy('createdAt', 'desc')
+          );
+        } catch {
+          try {
+            q = query(
+              collection(db, 'communities'),
+              where('status', '==', 'active'),
+              orderBy('createdAt', 'desc')
+            );
+          } catch {
+            // fallback – unfiltered
+            q = collection(db, 'communities');
+          }
+        }
+
+        unsubscribe = onSnapshot(
+          q,
+          (snap) => {
+            setFetchedCommunities(
+              snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+            );
+            setCommunitiesLoading(false);
+          },
+          (err) => {
+            console.error('Error loading communities:', err);
+            setCommunitiesError(err.message);
+            setCommunitiesLoading(false);
+          }
+        );
+      } catch (err) {
+        setCommunitiesError(err.message);
+        setCommunitiesLoading(false);
+      }
+    })();
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        try {
+          unsubscribe();
+        } catch {}
+      }
+    };
+  }, [activeTab, user]);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
@@ -567,7 +674,10 @@ export default function CompleteRetailerProfile() {
             setUser({
               uid: currentUser.uid,
               email: currentUser.email,
-              ...userData
+                ...userData,
+                verificationStatus:
+                  userData.verificationStatus ||
+                  (userData.verified ? 'approved' : 'pending')
             })
             setAboutMe({
               interests: userData.interests || '',
@@ -575,8 +685,15 @@ export default function CompleteRetailerProfile() {
               story: userData.story || ''
             })
             setUserInfo({
-              name: userData.name || currentUser.displayName || 'New User',
-              storeName: userData.storeName || 'Unknown Store'
+              name:
+                userData.name ||
+                userData.displayName ||
+                currentUser.displayName ||
+                'New User',
+              storeName:
+                userData.storeName ||
+                userData.storeCode ||
+                'Unknown Store'
             })
             setProfileImage(userData.profileImage || null)
                 
@@ -745,8 +862,8 @@ export default function CompleteRetailerProfile() {
       const verificationRequest = {
         userId: user.uid,
         userEmail: user.email,
-        userName: user.name,
-        storeName: user.storeName,
+        userName: (user.name || user.displayName || 'New User'),
+        storeName: (user.storeName || user.storeCode || 'Unknown Store'),
         photoURL: photoURL,
         verificationCode: dailyCode,
         brandCode: verificationCode,
@@ -828,7 +945,10 @@ export default function CompleteRetailerProfile() {
 
   const getStatusBadge = () => {
     const baseClasses = "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
-    switch (user?.verificationStatus) {
+    const status =
+      user?.verificationStatus ||
+      (user?.verified ? 'approved' : 'pending')
+    switch (status) {
       case 'approved':
         return <span className={`${baseClasses} bg-green-100 text-green-800`}>✓ Verified</span>
       case 'pending':
@@ -841,7 +961,9 @@ export default function CompleteRetailerProfile() {
   }
 
   const getVerificationBenefits = () => {
-    const isVerified = user?.verificationStatus === 'approved'
+    const isVerified =
+      user?.verificationStatus === 'approved' ||
+      user?.verified === true
     
     return (
       <div className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 rounded-lg p-6 border border-brand-primary/20">
@@ -911,7 +1033,10 @@ export default function CompleteRetailerProfile() {
 
   const CommunityCard = ({ community }) => {
     const isJoined = user?.joinedCommunities?.includes(community.id)
-    const canAccess = community.isPublic || (community.requiresVerification && user?.verificationStatus === 'approved')
+    const canAccess =
+      community.isPublic ||
+      (community.requiresVerification &&
+        (user?.verificationStatus === 'approved' || user?.verified === true))
     
     return (
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
@@ -964,7 +1089,8 @@ export default function CompleteRetailerProfile() {
   }
 
   const ChallengeCard = ({ challenge }) => {
-    const canAccess = user?.verificationStatus === 'approved'
+    const canAccess =
+      user?.verificationStatus === 'approved' || user?.verified === true
     
     return (
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
@@ -1026,15 +1152,16 @@ export default function CompleteRetailerProfile() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/')}
-                className="text-brand-primary hover:text-brand-primary/80 font-medium"
-              >
-                ← Back to Home
-              </button>
               <div>
-                <h1 className="text-3xl text-gray-900" style={fontStyles.mainTitle}>Welcome back, {user?.name}!</h1>
-                <p className="text-gray-600 mt-1">{user?.storeName}</p>
+                <h1
+                  className="text-3xl text-gray-900"
+                  style={fontStyles.mainTitle}
+                >
+                  Welcome back, {(user?.name || user?.displayName || 'New User')}!
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  {user?.storeName || user?.storeCode || 'Unknown Store'}
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -1201,7 +1328,12 @@ export default function CompleteRetailerProfile() {
                   ) : (
                     <div>
                       <div className="flex items-center justify-center space-x-2">
-                        <h2 className="text-xl text-gray-900" style={fontStyles.subsectionTitle}>{user?.name}</h2>
+                        <h2
+                          className="text-xl text-gray-900"
+                          style={fontStyles.subsectionTitle}
+                        >
+                          {(user?.name || user?.displayName || 'New User')}
+                        </h2>
                         <button
                           onClick={() => setEditingUserInfo(true)}
                           className="text-brand-primary hover:text-brand-primary/80 text-sm"
@@ -1209,7 +1341,9 @@ export default function CompleteRetailerProfile() {
                           ✏️
                         </button>
                       </div>
-                      <p className="text-gray-600">{user?.storeName}</p>
+                      <p className="text-gray-600">
+                        {user?.storeName || user?.storeCode || 'Unknown Store'}
+                      </p>
                       <div className="mt-2">{getStatusBadge()}</div>
                     </div>
                   )}
@@ -1474,6 +1608,49 @@ export default function CompleteRetailerProfile() {
                 <CommunityCard key={community.id} community={community} />
               ))}
             </div>
+
+            {/* ---------- Dynamically fetched brand communities ---------- */}
+            {communitiesLoading && (
+              <div className="text-center py-6 text-gray-500">
+                Loading brand communities...
+              </div>
+            )}
+
+            {communitiesError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded my-4">
+                {communitiesError}
+              </div>
+            )}
+
+            {!communitiesLoading && !communitiesError && fetchedCommunities.length > 0 && (
+              <>
+                <h3
+                  className="text-xl font-semibold mt-8 mb-4"
+                  style={fontStyles.subsectionTitle}
+                >
+                  Brand Communities
+                </h3>
+
+                <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6">
+                  {fetchedCommunities.map((bc) => (
+                    <CommunityCard
+                      key={bc.id}
+                      community={{
+                        id: bc.id,
+                        name: bc.name || 'Untitled',
+                        description: bc.description || '',
+                        members: bc.memberCount || 0,
+                        // Treat 'active' status as public for now
+                        isPublic: bc.status === 'active',
+                        requiresVerification: false,
+                        hasEasterEggs: false,
+                        badge: bc.status === 'active' ? '🌟 Active' : '📝 Draft'
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1747,7 +1924,7 @@ export default function CompleteRetailerProfile() {
                 <p className="text-sm text-gray-600 mb-2">Your Code:</p>
                 <div className="flex items-center justify-center space-x-2">
                   <code className="bg-white px-3 py-2 rounded border font-mono text-lg">
-                                     {showEasterEgg.code}
+                    {showEasterEgg.code}
                   </code>
                   <button
                     onClick={() => copyEasterEggCode(showEasterEgg.code)}

@@ -28,6 +28,7 @@ import ProductsPage from './pages/admin/Products';
 import ActivityPage from './pages/admin/Activity';
 import SettingsPage from './pages/admin/Settings';
 import DemoData from './pages/admin/DemoData';
+import DevTools from './pages/admin/DevTools';
 import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-approval page
 
 // Brand Manager Components
@@ -44,9 +45,12 @@ import StaffTrainingDetail from './pages/staff/TrainingDetail.jsx';
 // Emulator Components
 import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
+// Community Feed
+import CommunityFeed from './pages/community/CommunityFeed';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
+import EnvBadge from './components/dev/EnvBadge';
 
 // Simple spinner component for loading states
 const LoadingSpinner = () => (
@@ -56,9 +60,7 @@ const LoadingSpinner = () => (
 );
 
 // ---------------------------------------------------------------------------
-// Protected Route Component – unchanged from original implementation
-//  • Keeps loading spinner
-//  • Preserves returnUrl query‐param
+// Protected Route – keeps returnUrl so users can be sent back after login
 // ---------------------------------------------------------------------------
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -251,6 +253,16 @@ function App() {
               </RoleGuard>
             } 
           />
+          <Route 
+            path="/admin/dev" 
+            element={
+              <RoleGuard allowedRoles={['super_admin']}>
+                <AdminLayout>
+                  <DevTools />
+                </AdminLayout>
+              </RoleGuard>
+            } 
+          />
 
           {/* Template Management Routes */}
           <Route 
@@ -403,12 +415,24 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
+          {/* Community Feed (any authenticated user) */}
+          <Route
+            path="/community/:id"
+            element={
+              <ProtectedRoute>
+                <CommunityFeed />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Catch-all for unknown routes */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
       {/* Dev-only user debug widget */}
       <UserDebugCard />
+      {/* Environment badge (Emulator / Production) */}
+      <EnvBadge />
     </AuthProvider>
   );
 }

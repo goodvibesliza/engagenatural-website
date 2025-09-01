@@ -55,9 +55,17 @@ export default function RoleGuard({
   /* --------------------------------------------------------------------
    * 3. Brand-manager approval gate
    * ------------------------------------------------------------------ */
+  /* 
+   * Approval logic priority:
+   * 1. If modern prop `requireApprovedBrandManager` is explicitly true → enforce approval
+   * 2. If explicitly false  → no approval required (e.g. /pending route)
+   * 3. If undefined         → fall back to legacy `requireApproved` prop
+   *      • legacy prop defaults to `true` when undefined
+   */
   const mustBeApproved =
-    requireApprovedBrandManager ||
-    (requireApproved !== undefined ? requireApproved : true);
+    requireApprovedBrandManager === true ||
+    (requireApprovedBrandManager === undefined &&
+      (requireApproved !== false)); // legacy flag defaults to `true`
 
   if (
     mustBeApproved &&

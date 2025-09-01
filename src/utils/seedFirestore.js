@@ -1,6 +1,84 @@
 // src/utils/seedFirestore.js
-import { collection, doc, setDoc, serverTimestamp, Timestamp, addDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  setDoc,
+  serverTimestamp,
+  Timestamp,
+  addDoc,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "../lib/firebase";
+
+// ---------------------------------------------------------------------------
+// Deterministic demo brand & user helper
+// ---------------------------------------------------------------------------
+
+export const DEMO_BRAND_ID = "demo-brand";
+
+/**
+ * Ensures a deterministic brand document exists and that the demo
+ * brand-manager user is linked to it.  Returns the brandId (always
+ * DEMO_BRAND_ID) so seeding functions can use it.
+ *
+ * The helper is safe to call repeatedly – it uses setDoc({merge:true}).
+ */
+export const ensureDemoBrandAndUser = async (
+  demoEmail = "bm.demo@engagenatural.com"
+) => {
+  try {
+    // ------------------------------------------------------------------
+    // 1) Find the demo Brand-Manager user by email
+    // ------------------------------------------------------------------
+    const userQ = query(collection(db, "users"), where("email", "==", demoEmail));
+    const snap = await getDocs(userQ);
+
+    let bmUid = null;
+    if (!snap.empty) {
+      const userDoc = snap.docs[0];
+      bmUid = userDoc.id;
+      // Upsert user profile so it always points to the deterministic brand
+      await setDoc(
+        doc(db, "users", bmUid),
+        {
+          brandId: DEMO_BRAND_ID,
+          role: "brand_manager",
+          approved: true,
+          demoSeed: true,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } else {
+      console.warn(
+        `[seed] Could not find demo brand-manager user '${demoEmail}'. ` +
+          "Brand document will be created without managers array."
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // 2) Create / update the deterministic brand document
+    // ------------------------------------------------------------------
+    await setDoc(
+      doc(db, "brands", DEMO_BRAND_ID),
+      {
+        name: "Demo Brand",
+        description: "Deterministic demo brand seeded for local emulator",
+        managers: bmUid ? [bmUid] : [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { brandId: DEMO_BRAND_ID, bmUid };
+  } catch (err) {
+    console.error("ensureDemoBrandAndUser error:", err);
+    return { brandId: DEMO_BRAND_ID, bmUid: null };
+  }
+};
 
 // Seed test templates for development
 export const seedTemplates = async () => {
@@ -360,23 +438,111 @@ export const seedTrainingProgress = async (brandIds, trainings) => {
   }
 };
 
+export const seedCommunities = async (brandIds) => {
+  console.log("Seeding communities to Firestore...");
+  const sampleCommunities = [
+    {
+      name: "Mindfulness Practitioners",
+      description: "A community for mindfulness in daily life",
+      topics: ["meditation", "mindfulness", "stress-relief"],
+      status: "active"
+    },
+    {
+      name: "Wellness Explorers",
+      description: "Discover and share wellness practices",
+      topics: ["global-wellness", "traditions", "natural-healing"],
+      status: "active"
+    }
+  ];
+
+  const created = [];
+  try {
+    for (const brandId of brandIds) {
+      for (const c of sampleCommunities) {
+        const docRef = await addDoc(collection(db, 'communities'), {
+          brandId,
+            createdByRole: 'super_admin', // system-owned so brand managers can’t edit
+            createdBy: 'system',
+          ...c,
+          memberCount: Math.floor(Math.random() * 200) + 25,
+          image: null,
+          createdAt: Timestamp.fromDate(new Date()),
+          updatedAt: Timestamp.fromDate(new Date())
+        });
+        created.push({ id: docRef.id, brandId, ...c });
+      }
+    }
+    console.log(`✓ Created ${created.length} communities`);
+    return created;
+  } catch (error) {
+    console.error('Error seeding communities:', error);
+    throw error;
+  }
+};
+
+export const seedCommunityPosts = async (brandIds, communities) => {
+  console.log("Seeding community_posts to Firestore...");
+  const samplePosts = [
+    "Welcome to the community! Introduce yourself below.",
+    "What are your favorite daily wellness routines?",
+    "Share one mindfulness tip that helps you at work.",
+    "Any questions about our latest product training?",
+    "Community challenge: 5-minute meditation daily for a week!"
+  ];
+
+  try {
+    for (const brandId of brandIds) {
+      const brandCommunities = communities.filter(c => c.brandId === brandId);
+      for (const community of brandCommunities) {
+        for (let i = 0; i < 5; i++) {
+          await addDoc(collection(db, 'community_posts'), {
+            brandId,
+            communityId: community.id,
+            userId: `demo_bm_${brandId}`,
+            content: samplePosts[i % samplePosts.length],
+            visibility: 'public',
+            likeCount: Math.floor(Math.random() * 20),
+            commentCount: Math.floor(Math.random() * 10),
+            createdAt: Timestamp.fromDate(new Date(Date.now() - Math.floor(Math.random()*7)*24*60*60*1000)),
+            updatedAt: Timestamp.fromDate(new Date())
+          });
+        }
+      }
+    }
+    console.log('✓ Community posts seeded');
+    return true;
+  } catch (error) {
+    console.error('Error seeding community posts:', error);
+    throw error;
+  }
+};
+
 // Main function to seed brand dashboard data
 export const seedBrandDashboardData = async () => {
   console.log("Seeding brand dashboard data to Firestore...");
   
   try {
-    // Use brand IDs from seed-data.json
-    const brandIds = ["brand1", "brand2"];
+    // ------------------------------------------------------------------
+    // Ensure deterministic demo brand & user linkage
+    // ------------------------------------------------------------------
+    const { brandId: demoBrandId } = await ensureDemoBrandAndUser();
+    const brandIds = [demoBrandId];
     
     // Seed trainings first to get their references
     const trainings = await seedTrainings(brandIds);
     
+    // Seed communities to get their references
+    const communities = await seedCommunities(brandIds);
+
     // Seed other collections
     await Promise.all([
       seedAnnouncements(brandIds),
       seedSampleRequests(brandIds),
-      seedTrainingProgress(brandIds, trainings)
+      seedTrainingProgress(brandIds, trainings),
     ]);
+
+    // Seed posts after base data
+    await seedCommunityPosts(brandIds, communities);
     
     console.log("✓ Brand dashboard data seeded successfully");
     return true;
@@ -412,6 +578,8 @@ export default {
   seedAnnouncements,
   seedSampleRequests,
   seedTrainingProgress,
+  seedCommunities,
+  seedCommunityPosts,
   seedBrandDashboardData,
   seedAll
 };

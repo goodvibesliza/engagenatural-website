@@ -159,14 +159,19 @@ export function AuthProvider({ children }) {
     const role = typeof firestoreProfile?.role === 'string' ? firestoreProfile.role : undefined;
     const brandId = firestoreProfile?.brandId || null;
     const retailerId = firestoreProfile?.retailerId || null;
-    const displayName = firebaseUser?.displayName || firestoreProfile?.name || "";
+    // Prefer Auth displayName → Firestore displayName → Firestore name
+    const displayName =
+      firebaseUser?.displayName ||
+      firestoreProfile?.displayName ||
+      firestoreProfile?.name ||
+      "";
 
     // Extra profile fields with safe defaults
     const verified = firestoreProfile?.verified === true;
     const verificationStatus =
       typeof firestoreProfile?.verificationStatus === "string"
         ? firestoreProfile.verificationStatus
-        : "pending";
+        : (verified ? "approved" : "pending");
     const joinedCommunities = Array.isArray(firestoreProfile?.joinedCommunities)
       ? firestoreProfile.joinedCommunities
       : [];
@@ -180,6 +185,8 @@ export function AuthProvider({ children }) {
       typeof firestoreProfile?.profileImage === "string"
         ? firestoreProfile.profileImage
         : null;
+    const storeCode =
+      typeof firestoreProfile?.storeCode === "string" ? firestoreProfile.storeCode : "";
 
     // Combine Firebase Auth user with Firestore profile data
     const user = firebaseUser
@@ -195,6 +202,7 @@ export function AuthProvider({ children }) {
           verificationStatus,
           joinedCommunities,
           storeName,
+          storeCode,
           level,
           points,
           profileImage,

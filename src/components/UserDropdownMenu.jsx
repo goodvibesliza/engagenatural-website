@@ -66,6 +66,7 @@ export default function UserDropdownMenuUpdated() {
         
         <DropdownMenuSeparator />
         
+        {/* Common user links  */}
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
             <Link to="/profile">
@@ -92,7 +93,6 @@ export default function UserDropdownMenuUpdated() {
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
-        
         <DropdownMenuSeparator />
         
         <DropdownMenuItem asChild>

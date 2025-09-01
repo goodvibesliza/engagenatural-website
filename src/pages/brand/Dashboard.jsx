@@ -45,6 +45,8 @@ import BrandAnalyticsPage from './BrandAnalyticsPage';
 import BrandROICalculatorPage from './BrandROICalculatorPage';
 import CommunityMetricsChart from '../../components/brand/CommunityMetricsChart';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+// Communities manager
+import CommunitiesManager from '../../components/brand/communities/CommunitiesManager';
 
 // Brand Dashboard Content component
 const BrandDashboardContent = ({ brandId }) => {
@@ -732,8 +734,14 @@ const EnhancedBrandHome = () => {
   const { user, signOut } = useAuth();
   // Centralised logout that always redirects to PublicWebsite
   const { logout } = useLogout();
-  // Prefer the authenticated user's brandId, fallback to URL param, finally to a static default
-  const brandId = user?.brandId || paramBrandId || "sample-brand";
+  // Determine active brandId in priority order:
+  // 1) brand chosen in sidebar (saved in localStorage)
+  // 2) brandId on the authenticated user document
+  // 3) brandId from URL params
+  // 4) default seeded brand ("demo-brand")
+  const storedBrandId =
+    typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
+  const brandId = storedBrandId || user?.brandId || paramBrandId || 'demo-brand';
   
   // State for mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -777,6 +785,7 @@ const EnhancedBrandHome = () => {
     { id: 'analytics', label: 'Analytics Dashboard', icon: BarChart2, description: 'Key metrics and ROI' },
     { id: 'users', label: 'User Management', icon: Users, description: 'Manage team access' },
     { id: 'content', label: 'Content Management', icon: FileText, description: 'Publish and organize content' },
+    { id: 'communities', label: 'Communities', icon: Users, description: 'Manage communities & posts' },
     { id: 'brand', label: 'Brand Performance', icon: TrendingUp, description: 'Track engagement metrics' },
     { id: 'activity', label: 'Activity Feed', icon: Activity, description: 'Recent updates and events' },
     { id: 'settings', label: 'Settings', icon: Settings, description: 'Configure brand preferences' },
@@ -1198,6 +1207,11 @@ const EnhancedBrandHome = () => {
             <div className="w-full p-0 md:p-6">
               {/* Render the integrated content-management system */}
               <IntegratedContentManager brandId={brandId} />
+            </div>
+          )}
+          {activeSection === 'communities' && (
+            <div className="w-full p-0 md:p-6">
+              <CommunitiesManager brandId={brandId} />
             </div>
           )}
           {activeSection === 'brand' && (

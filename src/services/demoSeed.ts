@@ -1,6 +1,20 @@
 // src/services/demoSeed.ts
 import { db } from '../lib/firebase.js';
 import { auth } from '../lib/firebase.js';
+// Additional imports to create an isolated Firebase Auth instance
+import {
+  initializeApp,
+  getApps,
+  getApp,
+  FirebaseApp,
+} from 'firebase/app';
+import {
+  getAuth,
+  connectAuthEmulator,
+  Auth,
+} from 'firebase/auth';
+// Re-use the primary app's options for the secondary instance
+import { app as primaryApp } from '../lib/firebase.js';
 import { 
   collection, 
   doc, 
@@ -20,6 +34,9 @@ import {
   signInWithEmailAndPassword, 
   signOut 
 } from 'firebase/auth';
+
+// Deterministic brand ID for consistent references across emulator restarts
+const DEMO_BRAND_ID = 'demo-brand';
 
 /**
  * Tests basic Firestore permissions to ensure the user can perform seeding operations
@@ -81,6 +98,45 @@ async function createDemoAuthAccounts(
 ): Promise<{ uid: string; email: string; displayName: string }[]> {
   console.log('🔐 Creating Firebase Auth accounts for demo users...');
 
+  /* --------------------------------------------------------------
+   *  Use a secondary Firebase Auth instance so the main user
+   *  (super_admin) stays signed-in during account creation.
+   * -------------------------------------------------------------- */
+  let seedApp: FirebaseApp;
+  const existing = getApps().find((a) => a.name === 'seed');
+  if (existing) {
+    seedApp = existing;
+  } else {
+    seedApp = initializeApp(primaryApp.options, 'seed');
+  }
+
+  const seedAuth: Auth = getAuth(seedApp);
+
+  /* ------------------------------------------------------------------
+   *  Connect the secondary Auth instance to the local emulator.
+   *  • Avoids build-time import.meta.env references (works in Node & browser)
+   *  • Idempotent – won't throw if another module already connected it
+   * ------------------------------------------------------------------ */
+  const onLocalhost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1');
+
+  if (onLocalhost && !(seedAuth as any)._emuConnected) {
+    try {
+      connectAuthEmulator(
+        seedAuth,
+        'http://127.0.0.1:9099',
+        { disableWarnings: true }
+      );
+    } catch {
+      /* Swallow duplicate-connection errors (race conditions, hot reloads) */
+    } finally {
+      // Mark so other modules skip re-connecting
+      (seedAuth as any)._emuConnected = true;
+    }
+  }
+
   // Store the currently-signed-in user so we can restore the session later
   const currentUser = auth.currentUser;
   const createdUsers: { uid: string; email: string; displayName: string }[] = [];
@@ -91,7 +147,7 @@ async function createDemoAuthAccounts(
 
       // Attempt to create the account
       const cred = await createUserWithEmailAndPassword(
-        auth,
+        seedAuth,
         userData.email,
         userData.password
       );
@@ -103,7 +159,7 @@ async function createDemoAuthAccounts(
       });
 
       console.log(`    ✓ Created auth account with UID: ${cred.user.uid}`);
-      await signOut(auth); // Immediately sign the new user out
+      await signOut(seedAuth); // Immediately sign the new user out
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         // Account exists – sign in to retrieve UID, then sign out
@@ -112,7 +168,7 @@ async function createDemoAuthAccounts(
         );
         try {
           const existingCred = await signInWithEmailAndPassword(
-            auth,
+            seedAuth,
             userData.email,
             userData.password
           );
@@ -124,7 +180,7 @@ async function createDemoAuthAccounts(
           console.log(
             `    ✓ Using existing account with UID: ${existingCred.user.uid}`
           );
-          await signOut(auth);
+          await signOut(seedAuth);
         } catch (signInErr: any) {
           if (signInErr.code === 'auth/invalid-credential') {
             // Password mismatch: continue with placeholder UID, instruct user what to do
@@ -189,6 +245,10 @@ export async function seedDemoData(
   currentUserUid: string, 
   opts?: { brandManagerUid?: string, staffUids?: string[] }
 ): Promise<{ counts: Record<string, number> }> {
+  // ------------------------------------------------------------------
+  // DEBUG: Confirm the updated demoSeed.ts file is loaded/executing
+  // ------------------------------------------------------------------
+  console.log('🔥 DEBUGGING: Updated demoSeed.ts file is being used!');
   try {
     // Test permissions before proceeding
     await testFirestorePermissions(currentUserUid);
@@ -229,8 +289,8 @@ export async function seedDemoData(
     let batch = writeBatch(db);
     let operationCount = 0;
     const results: Record<string, number> = {};
-    // Will hold the newly-created brand's ID so it can be reused later
-    let brandId: string;
+    // Will hold the brand ID so it can be reused later
+    let brandId = DEMO_BRAND_ID;
     // References for created users – must be global to this function
     const brandManagerRefs: { id: string; approved: boolean }[] = [];
     const staffRefs: { id: string; email: string }[] = [];
@@ -276,11 +336,35 @@ export async function seedDemoData(
       }
     ];
     
+    // ------------------------------------------------------------------
+    // Quick test write to see if **any** collection accepts writes.
+    // If this succeeds but the real 'brands' write fails, we know the
+    // problem is isolated to the 'brands' collection rules.
+    // ------------------------------------------------------------------
+    console.log('🧪 Testing write to different collection first...');
+    try {
+      const testBrandRef = doc(collection(db, 'test_brands'));
+      await setDoc(testBrandRef, {
+        test: true,
+        createdAt: serverTimestamp(),
+        uid: currentUserUid
+      });
+      console.log('  ✅ Successfully wrote to test_brands collection');
+
+      // Clean up the test document
+      await deleteDoc(testBrandRef);
+      console.log('  ✅ Successfully deleted test document');
+    } catch (testErr: any) {
+      console.error('  ❌ Failed to write to test_brands:', testErr.message);
+    }
+
     try {
       console.log('📝 Creating brand...');
-      // Create brand
-      const brandRef = doc(collection(db, 'brands'));
-      brandId = brandRef.id;
+      // ------------------------------------------------------------------
+      // Use deterministic brand ID instead of auto-generated ID
+      // ------------------------------------------------------------------
+      const brandRef = doc(db, 'brands', DEMO_BRAND_ID);
+
       const brand = {
         name: "Calm Well Co",
         slug: "calm-well-co",
@@ -288,10 +372,12 @@ export async function seedDemoData(
         createdAt: serverTimestamp(),
         demoSeed: true
       };
-      batch.set(brandRef, brand);
-      operationCount++;
+
+      // Use setDoc with merge option for idempotent updates
+      await setDoc(brandRef, brand, { merge: true });
       results.brands = 1;
       console.log(`  ✓ Brand created with ID: ${brandId}`);
+      console.log('  ✓ Brand committed successfully (direct write)');
     } catch (err: any) {
       console.error('❌ Error creating brand:', err);
       throw new Error(`Failed to create brand: ${err.message}`);
@@ -330,6 +416,15 @@ export async function seedDemoData(
       }
       results.retailers = retailers.length;
       console.log(`  ✓ Created ${retailers.length} retailers`);
+
+      // Commit batch after RETAILERS creation
+      if (operationCount > 0) {
+        console.log('  ⚡ Committing batch after RETAILERS creation...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
     } catch (err: any) {
       console.error('❌ Error creating retailers:', err);
       throw new Error(`Failed to create retailers: ${err.message}`);
@@ -377,6 +472,7 @@ export async function seedDemoData(
           displayName: staff.displayName,
           role: 'staff',
           verified: true,
+          verificationStatus: (i === 0 ? 'approved' : 'pending'),
           retailerId: retailerRef.id,
           storeCode: retailerRef.storeCode,
           createdAt: serverTimestamp(),
@@ -391,6 +487,15 @@ export async function seedDemoData(
       // Commit batch if getting close to limit
       if (operationCount > 350) {
         console.log('  ⚡ Committing batch due to size limit...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
+
+      // Commit batch after USER creation
+      if (operationCount > 0) {
+        console.log('  ⚡ Committing batch after USER creation...');
         await batch.commit();
         batch = writeBatch(db);
         operationCount = 0;
@@ -572,7 +677,33 @@ export async function seedDemoData(
         operationCount = 0;
         console.log('  ✓ Batch committed successfully');
       }
-      
+
+      // Commit batch after TRAININGS creation
+      if (operationCount > 0) {
+        console.log('  ⚡ Committing batch after TRAININGS creation...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
+
+      /* ------------------------------------------------------------------
+       *  TEMPORARILY DISABLED – training_progress creation & metrics update
+       *  Permissions require further investigation.  Once Firestore rules
+       *  are finalized, remove this block comment to re-enable seeding of
+       *  training progress documents & metric updates.
+       * ------------------------------------------------------------------
+       *
+       *  NOTE:  The entire block below (from "// Create training progress"
+       *  down to "console.log('  ✓ Updated training metrics');") was the
+       *  original code responsible for:
+       *    • Creating staff × training progress docs
+       *    • Updating the metrics.enrolled / metrics.completed fields
+       *  Commenting it out prevents the batch from writing to the
+       *  training_progress collection while we resolve security-rule issues.
+       *
+       * ------------------------------------------------------------------ */
+      /*
       // Create training progress
       const trainingProgressCount = {
         enrolled: 0,
@@ -704,6 +835,7 @@ export async function seedDemoData(
         operationCount++;
       }
       console.log('  ✓ Updated training metrics');
+      */
     } catch (err: any) {
       console.error('❌ Error creating trainings and progress:', err);
       throw new Error(`Failed to create trainings and progress: ${err.message}`);
@@ -881,6 +1013,8 @@ export async function seedDemoData(
       const communities = [
         {
           id: 'whats-good',
+          createdByRole: 'super_admin',
+          createdBy: currentUserUid,
           name: "What's Good",
           description: "Check out What's Good for the latest product drops and industry buzz!",
           members: 2500,
@@ -893,6 +1027,8 @@ export async function seedDemoData(
         },
         {
           id: 'supplement-scoop',
+          createdByRole: 'super_admin',
+          createdBy: currentUserUid,
           name: 'Supplement Scoop',
           description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
           members: 850,
@@ -908,12 +1044,21 @@ export async function seedDemoData(
       for (const community of communities) {
         const communityRef = doc(collection(db, 'communities'), community.id);
         communityRefs.push({ id: communityRef.id, name: community.name });
-        batch.set(communityRef, community);
+        // Ensure each community includes brandId
+        batch.set(communityRef, { ...community, brandId });
         operationCount++;
       }
       results.communities = communities.length;
       console.log(`  ✓ Created ${communities.length} communities`);
       
+      /* ------------------------------------------------------------------
+       * TEMPORARILY DISABLED – community collections have permissions issues
+       * Enable once Firestore rules are finalized for:
+       *   • community_posts
+       *   • community_comments
+       *   • community_likes
+       * ------------------------------------------------------------------ */
+      /*
       // Create community posts
       const communityPosts = [
         {
@@ -1044,6 +1189,7 @@ export async function seedDemoData(
       }
       results.community_likes = communityLikes.length;
       console.log(`  ✓ Created ${communityLikes.length} community likes`);
+      */
     } catch (err: any) {
       console.error('❌ Error creating announcements and communities:', err);
       throw new Error(`Failed to create announcements and communities: ${err.message}`);
@@ -1098,14 +1244,14 @@ export async function resetDemoData(): Promise<void> {
       'retailers',
       'users',
       'trainings',
-      'training_progress',
+      // 'training_progress', // TEMPORARILY DISABLED - permissions issue
       'sample_programs',
       'sample_requests',
       'announcements',
       'communities',
-      'community_posts',
-      'community_comments',
-      'community_likes'
+      // 'community_posts',    // TEMPORARILY DISABLED - permissions issue
+      // 'community_comments', // TEMPORARILY DISABLED - permissions issue
+      // 'community_likes'     // TEMPORARILY DISABLED - permissions issue
     ];
     
     for (const collectionName of collections) {

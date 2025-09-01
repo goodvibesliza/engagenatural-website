@@ -357,7 +357,7 @@ const DemoData = () => {
         <ul className="list-disc pl-5 space-y-2 text-sm text-yellow-700">
           <li>Demo data is intended for testing purposes only and should not be used in production environments.</li>
           <li>All demo data is marked with <code className="bg-yellow-100 px-1 py-0.5 rounded">isDemo: true</code> and can be safely removed using the reset function.</li>
-          <li>Demo users are created in Firestore but not in Firebase Auth to prevent actual account creation.</li>
+          <li>When <code className="bg-yellow-100 px-1 py-0.5 rounded">VITE_USE_EMULATOR=true</code>, demo users are created in Firebase Auth on the local emulator (safe). <strong>Do not</strong> run seeding against production (<code className="bg-yellow-100 px-1 py-0.5 rounded">VITE_USE_EMULATOR=false</code>), as it would create real Auth accounts.</li>
           <li>This feature is only available to super administrators.</li>
         </ul>
       </div>

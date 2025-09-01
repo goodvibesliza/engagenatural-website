@@ -26,8 +26,20 @@ export default function UserDebugCard() {
             <span>{user.role || "undefined"}</span>
           </div>
           <div className="grid grid-cols-[80px_1fr] gap-1">
+            <span className="text-gray-400">email:</span>
+            <span className="truncate">{user.email || "null"}</span>
+          </div>
+          <div className="grid grid-cols-[80px_1fr] gap-1">
+            <span className="text-gray-400">name:</span>
+            <span className="truncate">{user.displayName || "null"}</span>
+          </div>
+          <div className="grid grid-cols-[80px_1fr] gap-1">
             <span className="text-gray-400">approved:</span>
             <span>{user.approved === true ? "true" : "false"}</span>
+          </div>
+          <div className="grid grid-cols-[80px_1fr] gap-1">
+            <span className="text-gray-400">verified:</span>
+            <span>{user.verified === true ? "true" : "false"}</span>
           </div>
           <div className="grid grid-cols-[80px_1fr] gap-1">
             <span className="text-gray-400">brandId:</span>
@@ -37,6 +49,12 @@ export default function UserDebugCard() {
             <span className="text-gray-400">retailerId:</span>
             <span className="truncate">{user.retailerId || "null"}</span>
           </div>
+          {user.storeCode !== undefined && (
+            <div className="grid grid-cols-[80px_1fr] gap-1">
+              <span className="text-gray-400">storeCode:</span>
+              <span className="truncate">{user.storeCode || "null"}</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="italic text-gray-400">No user</div>

@@ -1,28 +1,30 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/auth-context';
 import { 
-  collection, 
   doc, 
   getDoc, 
-  query, 
-  where, 
-  onSnapshot,
-  orderBy
+  setDoc,
+  updateDoc, 
+  onSnapshot, 
+  serverTimestamp 
 } from 'firebase/firestore';
 import { 
   ArrowLeft, 
+  ArrowRight,
   Clock, 
-  Users, 
-  Award, 
   CheckCircle, 
   AlertCircle,
-  BarChart2,
-  Calendar,
-  Play
+  BookOpen,
+  Play,
+  Pause,
+  List,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
-// Consistent font styles with other brand pages
+// Consistent font styles with other staff pages
 const fontStyles = {
   mainTitle: {
     fontFamily: 'Playfair Display, serif',
@@ -50,9 +52,12 @@ const fontStyles = {
 export default function TrainingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
+  // States
   const [training, setTraining] = useState(null);
-  const [progressData, setProgressData] = useState([]);
+  const [progress, setProgress] = useState(null);
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [loading, setLoading] = useState({
     training: true,
     progress: true
@@ -61,7 +66,14 @@ export default function TrainingDetail() {
     training: null,
     progress: null
   });
-
+  const [updating, setUpdating] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  
+  // Refs
+  const contentRef = useRef(null);
+  const timerRef = useRef(null);
+  const timeSpentRef = useRef(0);
+  
   // Format duration helper
   const formatDuration = (minutes) => {
     if (!minutes) return 'N/A';
@@ -128,68 +140,53 @@ export default function TrainingDetail() {
     return () => unsubscribe();
   }, [id]);
 
-  // Load progress data
+  // Load user progress data
   useEffect(() => {
-    if (!id) return;
+    if (!id || !user?.uid) return;
 
-    const progressQuery = query(
-      collection(db, 'training_progress'),
-      where('trainingId', '==', id),
-      orderBy('updatedAt', 'desc')
-    );
+    const progressId = `${user.uid}_${id}`;
+    const progressRef = doc(db, 'training_progress', progressId);
     
     const unsubscribe = onSnapshot(
-      progressQuery,
-      async (snapshot) => {
-        try {
-          const progressDocs = snapshot.docs.map(doc => ({
+      progressRef,
+      async (doc) => {
+        if (doc.exists()) {
+          setProgress({
             id: doc.id,
             ...doc.data()
-          }));
-          
-          // Fetch user data for each progress entry
-          const progressWithUserData = await Promise.all(
-            progressDocs.map(async (progress) => {
-              try {
-                const userRef = doc(db, 'users', progress.userId);
-                const userSnap = await getDoc(userRef);
-                
-                if (userSnap.exists()) {
-                  return {
-                    ...progress,
-                    user: {
-                      id: userSnap.id,
-                      ...userSnap.data()
-                    }
-                  };
-                }
-                return progress;
-              } catch (err) {
-                console.error('Error fetching user data:', err);
-                return progress;
-              }
-            })
-          );
-          
-          setProgressData(progressWithUserData);
-          setLoading(prev => ({
-            ...prev,
-            progress: false
-          }));
-        } catch (err) {
-          console.error('Error loading progress data:', err);
-          setError(prev => ({
-            ...prev,
-            progress: err.message
-          }));
-          setLoading(prev => ({
-            ...prev,
-            progress: false
-          }));
+          });
+        } else {
+          // Create new progress document if not exists
+          try {
+            const newProgress = {
+              id: progressId,
+              userId: user.uid,
+              trainingId: id,
+              status: 'in_progress',
+              startedAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              completedSections: [],
+              currentSection: 0,
+              timeSpentMins: 0
+            };
+            
+            await setDoc(progressRef, newProgress);
+            setProgress(newProgress);
+          } catch (err) {
+            console.error('Error creating progress document:', err);
+            setError(prev => ({
+              ...prev,
+              progress: err.message
+            }));
+          }
         }
+        setLoading(prev => ({
+          ...prev,
+          progress: false
+        }));
       },
       (err) => {
-        console.error('Error in progress snapshot:', err);
+        console.error('Error loading progress:', err);
         setError(prev => ({
           ...prev,
           progress: err.message
@@ -202,42 +199,186 @@ export default function TrainingDetail() {
     );
 
     return () => unsubscribe();
-  }, [id]);
+  }, [id, user?.uid]);
 
-  // Calculate progress statistics
-  const stats = useMemo(() => {
-    if (!progressData.length) {
-      return {
-        total: 0,
-        completed: 0,
-        inProgress: 0,
-        notStarted: 0,
-        completionRate: 0
-      };
+  // Set current section from progress
+  useEffect(() => {
+    if (
+      progress?.currentSection !== undefined &&
+      progress.currentSection !== currentSectionIndex
+    ) {
+      setCurrentSectionIndex(progress.currentSection);
     }
+  }, [progress?.currentSection, currentSectionIndex]);
 
-    const completed = progressData.filter(p => p.status === 'completed').length;
-    const inProgress = progressData.filter(p => p.status === 'in_progress').length;
+  // Time tracking
+  useEffect(() => {
+    const progressId = progress?.id;
+    if (!progressId || !user?.uid) return;
     
-    return {
-      total: progressData.length,
-      completed,
-      inProgress,
-      completionRate: progressData.length > 0 
-        ? Math.round((completed / progressData.length) * 100) 
-        : 0
+    // Initialize time spent from progress
+    timeSpentRef.current = progress.timeSpentMins || 0;
+    
+    // Start timer
+    timerRef.current = setInterval(() => {
+      timeSpentRef.current += 1/60; // Add one second in minutes
+    }, 1000);
+    
+    // Update time spent every minute
+    const updateInterval = setInterval(async () => {
+      try {
+        const progressRef = doc(db, 'training_progress', progressId);
+        await updateDoc(progressRef, {
+          timeSpentMins: Math.round(timeSpentRef.current),
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error('Error updating time spent:', err);
+      }
+    }, 60000); // Every minute
+    
+    return () => {
+      clearInterval(timerRef.current);
+      clearInterval(updateInterval);
+      
+      const progressRef = doc(db, 'training_progress', progressId);
+      updateDoc(progressRef, {
+        timeSpentMins: Math.round(timeSpentRef.current),
+        updatedAt: serverTimestamp()
+      }).catch(err => {
+        console.error('Error updating final time spent:', err);
+      });
     };
-  }, [progressData]);
+  }, [progress?.id, user?.uid]);
 
-  if (loading.training) {
+  // Computed values
+  const currentSection = useMemo(() => {
+    if (!training?.sections || !training.sections.length) return null;
+    return training.sections[currentSectionIndex] || training.sections[0];
+  }, [training, currentSectionIndex]);
+
+  const completedSections = useMemo(() => {
+    return progress?.completedSections || [];
+  }, [progress]);
+
+  const isCurrentSectionCompleted = useMemo(() => {
+    if (!currentSection) return false;
+    return completedSections.includes(currentSection.id);
+  }, [currentSection, completedSections]);
+
+  const totalSections = useMemo(() => {
+    return training?.sections?.length || 0;
+  }, [training]);
+
+  const completionPercentage = useMemo(() => {
+    if (!totalSections) return 0;
+    return Math.round((completedSections.length / totalSections) * 100);
+  }, [completedSections, totalSections]);
+
+  const allSectionsCompleted = useMemo(() => {
+    if (!totalSections) return false;
+    return completedSections.length === totalSections;
+  }, [completedSections, totalSections]);
+
+  // Navigation functions
+  const goToNextSection = () => {
+    if (currentSectionIndex < totalSections - 1) {
+      setCurrentSectionIndex(prev => prev + 1);
+      updateCurrentSection(currentSectionIndex + 1);
+    }
+  };
+
+  const goToPreviousSection = () => {
+    if (currentSectionIndex > 0) {
+      setCurrentSectionIndex(prev => prev - 1);
+      updateCurrentSection(currentSectionIndex - 1);
+    }
+  };
+
+  const goToSection = (index) => {
+    if (index >= 0 && index < totalSections) {
+      setCurrentSectionIndex(index);
+      updateCurrentSection(index);
+    }
+  };
+
+  // Update functions
+  const updateCurrentSection = async (sectionIndex) => {
+    if (!progress?.id) return;
+    
+    try {
+      const progressRef = doc(db, 'training_progress', progress.id);
+      await updateDoc(progressRef, {
+        currentSection: sectionIndex,
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error('Error updating current section:', err);
+    }
+  };
+
+  const markSectionComplete = async () => {
+    if (!progress?.id || !currentSection?.id || isCurrentSectionCompleted || updating) return;
+    
+    setUpdating(true);
+    try {
+      const updatedSections = [...completedSections];
+      if (!updatedSections.includes(currentSection.id)) {
+        updatedSections.push(currentSection.id);
+      }
+      
+      const progressRef = doc(db, 'training_progress', progress.id);
+      await updateDoc(progressRef, {
+        completedSections: updatedSections,
+        updatedAt: serverTimestamp()
+      });
+      
+      // If this was the last section, mark training as completed
+      if (updatedSections.length === totalSections) {
+        await updateDoc(progressRef, {
+          status: 'completed',
+          completedAt: serverTimestamp()
+        });
+      }
+    } catch (err) {
+      console.error('Error marking section complete:', err);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const markTrainingComplete = async () => {
+    if (!progress?.id || !allSectionsCompleted || updating) return;
+    
+    setUpdating(true);
+    try {
+      const progressRef = doc(db, 'training_progress', progress.id);
+      await updateDoc(progressRef, {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error('Error marking training complete:', err);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Render loading state
+  if (loading.training || loading.progress) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading training content...</p>
+        </div>
       </div>
     );
   }
 
-  if (error.training) {
+  // Render error state
+  if (error.training || error.progress) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6 border border-red-200">
@@ -245,12 +386,33 @@ export default function TrainingDetail() {
             <AlertCircle className="h-6 w-6 mr-2" />
             <h2 className="text-xl font-semibold">Error Loading Training</h2>
           </div>
-          <p className="text-gray-700 mb-4">{error.training}</p>
+          <p className="text-gray-700 mb-4">{error.training || error.progress}</p>
           <button
-            onClick={() => navigate('/brand/trainings')}
+            onClick={() => navigate('/staff/dashboard')}
             className="flex items-center text-brand-primary hover:text-brand-primary/80"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Trainings
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render if no training found
+  if (!training) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center text-yellow-600 mb-4">
+            <AlertCircle className="h-6 w-6 mr-2" />
+            <h2 className="text-xl font-semibold">Training Not Found</h2>
+          </div>
+          <p className="text-gray-700 mb-4">The requested training could not be found.</p>
+          <button
+            onClick={() => navigate('/staff/dashboard')}
+            className="flex items-center text-brand-primary hover:text-brand-primary/80"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
           </button>
         </div>
       </div>
@@ -258,221 +420,237 @@ export default function TrainingDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Navigation */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate('/brand/trainings')}
-            className="flex items-center text-brand-primary hover:text-brand-primary/80"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Trainings
-          </button>
-        </div>
-
-        {/* Training Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl mb-2" style={fontStyles.mainTitle}>{training.title}</h1>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                <div className="flex items-center">
-                  <Clock className="h-4 w-4 mr-1" />
-                  <span>{formatDuration(training.durationMins)}</span>
-                </div>
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  <span>Created: {formatDate(training.createdAt)}</span>
-                </div>
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-1" />
-                  <span>{training.metrics?.enrolled || 0} enrolled</span>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate('/staff/dashboard')}
+              className="flex items-center text-brand-primary hover:text-brand-primary/80"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+            </button>
+            
+            <div className="text-center flex-1 mx-4">
+              <h1 className="text-xl md:text-2xl truncate" style={fontStyles.sectionHeading}>
+                {training.title}
+              </h1>
             </div>
             
-            <div className="flex flex-wrap gap-2">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                training.published 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {training.published ? 'Published' : 'Draft'}
-              </span>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                training.visibility === 'public' 
-                  ? 'bg-blue-100 text-blue-800' 
-                  : 'bg-purple-100 text-purple-800'
-              }`}>
-                {training.visibility === 'public' ? 'Public' : 'Restricted'}
-              </span>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                aria-label="Toggle sidebar"
+              >
+                <List className="h-5 w-5" />
+              </button>
             </div>
-          </div>
-          
-          <p className="text-gray-700 mb-6">{training.description}</p>
-          
-          {/* Training metadata */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Category</h3>
-              <p className="text-gray-900">{training.category || 'Uncategorized'}</p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Last Updated</h3>
-              <p className="text-gray-900">{formatDate(training.updatedAt)}</p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Content Type</h3>
-              <p className="text-gray-900">{training.contentType || 'Mixed Content'}</p>
-            </div>
-          </div>
-          
-          {/* Action buttons */}
-          <div className="flex flex-wrap gap-3">
-            <Link 
-              to={`/brand/trainings/${id}/edit`}
-              className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90"
-            >
-              Edit Training
-            </Link>
-            <Link 
-              to={`/brand/trainings/${id}/preview`}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-            >
-              Preview Training
-            </Link>
           </div>
         </div>
+      </div>
+      
+      {/* Progress bar */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-2">
+          <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+            <span>Progress: {completionPercentage}%</span>
+            <span>{completedSections.length} of {totalSections} sections</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-brand-primary h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${completionPercentage}%` }}
+            ></div>
+          </div>
+        </div>
+      </div>
 
-        {/* Progress Statistics */}
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mb-6">
-          <h2 className="text-2xl mb-6" style={fontStyles.sectionHeading}>User Progress</h2>
+      {/* Main content area */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Sidebar - Section navigation */}
+          {showSidebar && (
+            <div className="md:w-64 bg-white rounded-lg shadow-md p-4 h-fit sticky top-24">
+              <h2 className="text-lg mb-4" style={fontStyles.subsectionTitle}>Sections</h2>
+              <ul className="space-y-2">
+                {training.sections?.map((section, index) => (
+                  <li key={section.id}>
+                    <button
+                      onClick={() => goToSection(index)}
+                      className={`w-full text-left px-3 py-2 rounded-lg flex items-center justify-between ${
+                        currentSectionIndex === index 
+                          ? 'bg-brand-primary text-white' 
+                          : completedSections.includes(section.id)
+                            ? 'bg-green-50 text-green-800'
+                            : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <span className="truncate flex-1 text-sm">
+                        {index + 1}. {section.title}
+                      </span>
+                      {completedSections.includes(section.id) && (
+                        <CheckCircle className="h-4 w-4 ml-2 flex-shrink-0" />
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              
+              {progress?.status === 'completed' ? (
+                <div className="mt-6 bg-green-50 text-green-800 p-3 rounded-lg text-sm">
+                  <div className="flex items-center">
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    <span>Completed on {formatDate(progress.completedAt)}</span>
+                  </div>
+                </div>
+              ) : allSectionsCompleted ? (
+                <button
+                  onClick={markTrainingComplete}
+                  disabled={updating}
+                  className="mt-6 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {updating ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Mark Training Complete
+                </button>
+              ) : null}
+            </div>
+          )}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-              <h3 className="text-sm font-medium text-blue-700 mb-1">Total Users</h3>
-              <p className="text-3xl font-bold text-blue-900">{stats.total}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-              <h3 className="text-sm font-medium text-green-700 mb-1">Completed</h3>
-              <p className="text-3xl font-bold text-green-900">{stats.completed}</p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-              <h3 className="text-sm font-medium text-yellow-700 mb-1">In Progress</h3>
-              <p className="text-3xl font-bold text-yellow-900">{stats.inProgress}</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-              <h3 className="text-sm font-medium text-purple-700 mb-1">Completion Rate</h3>
-              <p className="text-3xl font-bold text-purple-900">{stats.completionRate}%</p>
-            </div>
-          </div>
-          
-          {/* Progress bar */}
-          <div className="mb-8">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Progress Overview</span>
-              <span>{stats.completionRate}% Complete</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-brand-primary h-2.5 rounded-full" 
-                style={{ width: `${stats.completionRate}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {/* User Progress Table */}
-          <div>
-            <h3 className="text-xl mb-4" style={fontStyles.subsectionTitle}>User Progress Details</h3>
-            
-            {loading.progress ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-primary"></div>
-              </div>
-            ) : error.progress ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                Error loading progress data: {error.progress}
-              </div>
-            ) : progressData.length === 0 ? (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No users enrolled</h3>
-                <p className="text-gray-500">
-                  No one has started this training yet. Share it with your team to get started.
-                </p>
+          {/* Main content */}
+          <div className="flex-1">
+            {currentSection ? (
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                {/* Section header */}
+                <div className="bg-gray-50 border-b p-4">
+                  <h2 className="text-xl" style={fontStyles.subsectionTitle}>
+                    {currentSection.title}
+                  </h2>
+                  {isCurrentSectionCompleted && (
+                    <div className="mt-2 flex items-center text-green-600 text-sm">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      <span>Completed</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Section content */}
+                <div className="p-6" ref={contentRef}>
+                  {/* Content type rendering based on section type */}
+                  {currentSection.type === 'video' && currentSection.videoUrl ? (
+                    <div className="aspect-video mb-6">
+                      <iframe 
+                        src={currentSection.videoUrl} 
+                        title={currentSection.title}
+                        className="w-full h-full rounded-lg"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  ) : null}
+                  
+                  {currentSection.content && (
+                    <div className="prose max-w-none">
+                      <div dangerouslySetInnerHTML={{ __html: currentSection.content }}></div>
+                    </div>
+                  )}
+                  
+                  {/* If no content is available */}
+                  {!currentSection.content && !currentSection.videoUrl && (
+                    <div className="text-center py-8 text-gray-500">
+                      <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No content available for this section.</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Section navigation and actions */}
+                <div className="border-t p-4 flex items-center justify-between">
+                  <button
+                    onClick={goToPreviousSection}
+                    disabled={currentSectionIndex === 0}
+                    className="flex items-center px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="h-5 w-5 mr-1" />
+                    Previous
+                  </button>
+                  
+                  <div>
+                    {!isCurrentSectionCompleted ? (
+                      <button
+                        onClick={markSectionComplete}
+                        disabled={updating}
+                        className="flex items-center px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {updating ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                        ) : (
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                        )}
+                        Mark Complete
+                      </button>
+                    ) : (
+                      <span className="text-green-600 flex items-center">
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        Completed
+                      </span>
+                    )}
+                  </div>
+                  
+                  <button
+                    onClick={goToNextSection}
+                    disabled={currentSectionIndex === totalSections - 1}
+                    className="flex items-center px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                    <ChevronRight className="h-5 w-5 ml-1" />
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Started
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Completed
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Time Spent
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {progressData.map((progress) => (
-                      <tr key={progress.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                              {progress.user?.profileImage ? (
-                                typeof progress.user.profileImage === 'string' && progress.user.profileImage.startsWith('http') ? (
-                                  <img src={progress.user.profileImage} alt="" className="h-10 w-10 rounded-full object-cover" />
-                                ) : (
-                                  <span>{progress.user.profileImage}</span>
-                                )
-                              ) : (
-                                <span>👤</span>
-                              )}
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {progress.user?.name || 'Unknown User'}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {progress.user?.email || progress.userId}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            progress.status === 'completed' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {progress.status === 'completed' ? 'Completed' : 'In Progress'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(progress.startedAt)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {progress.completedAt ? formatDate(progress.completedAt) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {progress.timeSpentMins ? formatDuration(progress.timeSpentMins) : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-gray-900 mb-1">No Content Available</h3>
+                <p className="text-gray-500 mb-4">
+                  This training doesn't have any sections yet.
+                </p>
               </div>
             )}
+            
+            {/* Training metadata */}
+            <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+              <h3 className="text-lg mb-4" style={fontStyles.subsectionTitle}>Training Details</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-1">Description</h4>
+                  <p className="text-gray-900">{training.description}</p>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Duration</h4>
+                    <p className="text-gray-900">{formatDuration(training.durationMins)}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Category</h4>
+                    <p className="text-gray-900">{training.category || 'Uncategorized'}</p>
+                  </div>
+                  
+                  {progress?.timeSpentMins > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 mb-1">Your Time Spent</h4>
+                      <p className="text-gray-900">{formatDuration(progress.timeSpentMins)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
