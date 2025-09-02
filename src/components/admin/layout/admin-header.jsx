@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu, Bell, Search, User, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../../../contexts/auth-context'
+import { useLogout } from '../../../hooks/useLogout'
 import { Button } from '../../ui/button'
 import {
   DropdownMenu,
@@ -15,7 +16,8 @@ import { Input } from '../../ui/input'
 import { Badge } from '../../ui/badge'
 
 export default function AdminHeader({ setSidebarOpen }) {
-  const { user, userProfile, role, signOut } = useAuth()
+  const { user, userProfile, role } = useAuth()
+  const { logout } = useLogout()
   const navigate = useNavigate()
   const [notifications] = useState([
     { id: 1, message: 'New verification request', unread: true },
@@ -38,20 +40,9 @@ export default function AdminHeader({ setSidebarOpen }) {
     }
   }
 
-  const handleLogout = async () => {
-    console.log("Attempting to log out...")
-    try {
-      const { success, error } = await signOut()
-      if (success) {
-        console.log("Logout successful. Navigating to homepage.")
-        navigate('/')
-      } else {
-        console.error("Logout failed:", error)
-        // Optionally, you can add a toast notification to inform the user
-      }
-    } catch (err) {
-      console.error("An unexpected error occurred during logout:", err)
-    }
+  const handleLogout = () => {
+    // Use centralized logout hook – it handles redirect to PublicWebsite
+    logout()
   }
 
   return (

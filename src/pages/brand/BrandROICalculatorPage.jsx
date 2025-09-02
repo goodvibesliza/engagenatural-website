@@ -1,16 +1,43 @@
 // src/pages/brand/BrandROICalculatorPage.jsx
 import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, getDocs, doc, deleteDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import BrandManagerLayout from '../../components/brand/BrandManagerLayout';
 import { Line, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { Separator } from '../../components/ui/separator';
+import { 
+  AlertCircle, 
+  ArrowRight, 
+  Calculator, 
+  Calendar, 
+  ChevronDown, 
+  DollarSign, 
+  Download, 
+  Save, 
+  Trash2, 
+  TrendingUp, 
+  Users 
+} from 'lucide-react';
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
-export default function BrandROICalculatorPage() {
+export default function BrandROICalculatorPage({ brandId }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,10 +77,11 @@ export default function BrandROICalculatorPage() {
     const loadScenarios = async () => {
       try {
         setLoading(true);
-        const brandId = localStorage.getItem('selectedBrandId');
         
+        // Ensure brandId prop is provided
         if (!brandId) {
           setError('No brand selected');
+          setLoading(false);
           return;
         }
         
@@ -79,7 +107,7 @@ export default function BrandROICalculatorPage() {
     };
     
     loadScenarios();
-  }, [user]);
+  }, [user, brandId]);
   
   // Calculate ROI whenever inputs change
   useEffect(() => {
@@ -101,29 +129,28 @@ export default function BrandROICalculatorPage() {
     const roi = platformCostTotal > 0 ? (netProfit / platformCostTotal) * 100 : 0;
     
     // Break-even calculations
-    const breakEvenProducts = Math.ceil(platformCostTotal / profitPerProduct);
-    const breakEvenUsers = Math.ceil(breakEvenProducts / additionalProductsPerUser);
+    const breakEvenUsers = Math.ceil(platformCostTotal / (additionalProductsPerUser * profitPerProduct));
+    const paybackPeriod = platformCost > 0 ? 
+      (platformCostTotal / (additionalProfit / timeframe)) : 0;
     
-    // Payback period (in months)
-    const monthlyProfit = additionalProfit / timeframe;
-    const paybackPeriod = monthlyProfit > 0 ? platformCostTotal / monthlyProfit : 0;
-    
-    // Generate monthly data for charts
+    // Monthly projections
     const monthlyData = [];
-    for (let i = 1; i <= timeframe; i++) {
-      const monthlyPlatformCost = platformCost * i;
-      const monthlyAdditionalProducts = (totalAdditionalProducts / timeframe) * i;
-      const monthlyAdditionalProfit = (additionalProfit / timeframe) * i;
-      const monthlyNetProfit = monthlyAdditionalProfit - monthlyPlatformCost;
-      const monthlyROI = monthlyPlatformCost > 0 ? (monthlyNetProfit / monthlyPlatformCost) * 100 : 0;
+    let cumulativeProfit = 0;
+    let cumulativeCost = 0;
+    
+    for (let month = 1; month <= timeframe; month++) {
+      const monthlyRevenue = (additionalRevenue / timeframe);
+      const monthlyProfit = (additionalProfit / timeframe);
+      cumulativeProfit += monthlyProfit;
+      cumulativeCost += platformCost;
       
       monthlyData.push({
-        month: i,
-        costs: monthlyPlatformCost,
-        revenue: monthlyAdditionalProducts * productPrice,
-        profit: monthlyAdditionalProfit,
-        netProfit: monthlyNetProfit,
-        roi: monthlyROI
+        month,
+        revenue: monthlyRevenue,
+        profit: monthlyProfit,
+        cumulativeProfit,
+        cumulativeCost,
+        netProfit: cumulativeProfit - cumulativeCost,
       });
     }
     
@@ -136,57 +163,37 @@ export default function BrandROICalculatorPage() {
       roi,
       breakEvenUsers,
       paybackPeriod,
-      monthlyData
+      monthlyData,
     });
   };
   
-  // Handle input changes
+  // Handle input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    let parsedValue = value;
-    
-    // Parse numeric inputs
-    if (name !== 'scenarioName') {
-      parsedValue = parseFloat(value) || 0;
-    }
-    
     setInputs(prev => ({
       ...prev,
-      [name]: parsedValue
+      [name]: name === 'scenarioName' ? value : parseFloat(value) || 0
     }));
   };
   
   // Save current scenario
-  const handleSaveScenario = async () => {
+  const saveScenario = async () => {
     try {
       setSaving(true);
-      const brandId = localStorage.getItem('selectedBrandId');
       
       if (!brandId) {
         setError('No brand selected');
-        return;
-      }
-      
-      if (!inputs.scenarioName.trim()) {
-        setError('Scenario name is required');
+        setSaving(false);
         return;
       }
       
       const scenarioData = {
-        ...inputs,
-        results: {
-          additionalProducts: results.additionalProducts,
-          additionalRevenue: results.additionalRevenue,
-          additionalProfit: results.additionalProfit,
-          platformCostTotal: results.platformCostTotal,
-          netProfit: results.netProfit,
-          roi: results.roi,
-          breakEvenUsers: results.breakEvenUsers,
-          paybackPeriod: results.paybackPeriod
-        },
         brandId,
+        name: inputs.scenarioName,
+        inputs: { ...inputs },
+        results: { ...results },
         createdAt: serverTimestamp(),
-        createdBy: user.uid
+        createdBy: user?.uid || 'unknown',
       };
       
       await addDoc(collection(db, 'roi_scenarios'), scenarioData);
@@ -205,7 +212,6 @@ export default function BrandROICalculatorPage() {
       }));
       
       setScenarios(loadedScenarios);
-      setError(null);
       setActiveTab('saved');
     } catch (err) {
       console.error('Error saving scenario:', err);
@@ -216,27 +222,20 @@ export default function BrandROICalculatorPage() {
   };
   
   // Load a saved scenario
-  const handleLoadScenario = (scenario) => {
-    setInputs({
-      numUsers: scenario.numUsers,
-      productPrice: scenario.productPrice,
-      profitMargin: scenario.profitMargin,
-      platformCost: scenario.platformCost,
-      timeframe: scenario.timeframe,
-      scenarioName: `${scenario.scenarioName} (Copy)`
-    });
-    
+  const loadScenario = (scenario) => {
+    setInputs(scenario.inputs);
+    setResults(scenario.results);
     setActiveTab('calculator');
   };
   
   // Delete a saved scenario
-  const handleDeleteScenario = async (scenarioId) => {
+  const deleteScenario = async (scenarioId) => {
     try {
       setLoading(true);
       await deleteDoc(doc(db, 'roi_scenarios', scenarioId));
       
       // Update scenarios list
-      setScenarios(scenarios.filter(s => s.id !== scenarioId));
+      setScenarios(prev => prev.filter(s => s.id !== scenarioId));
     } catch (err) {
       console.error('Error deleting scenario:', err);
       setError('Failed to delete scenario');
@@ -250,7 +249,8 @@ export default function BrandROICalculatorPage() {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(value);
   };
   
@@ -261,72 +261,65 @@ export default function BrandROICalculatorPage() {
   
   // Format number with commas
   const formatNumber = (value) => {
-    return new Intl.NumberFormat('en-US').format(value);
+    return new Intl.NumberFormat('en-US').format(Math.round(value));
   };
   
   // Format months
   const formatMonths = (value) => {
-    if (value < 1) {
-      return 'Less than 1 month';
-    }
     const months = Math.floor(value);
     const days = Math.round((value - months) * 30);
     
-    if (days === 0) {
-      return months === 1 ? '1 month' : `${months} months`;
+    if (months === 0) {
+      return `${days} days`;
+    } else if (days === 0) {
+      return months === 1 ? `1 month` : `${months} months`;
+    } else {
+      return `${months} month${months !== 1 ? 's' : ''} and ${days} day${days !== 1 ? 's' : ''}`;
     }
-    
-    return months === 0
-      ? `${days} days`
-      : months === 1
-      ? `1 month and ${days} days`
-      : `${months} months and ${days} days`;
   };
   
   // Chart data for ROI over time
   const roiChartData = {
-    labels: results.monthlyData.map(d => `Month ${d.month}`),
+    labels: results.monthlyData.map(data => `Month ${data.month}`),
     datasets: [
       {
-        label: 'Net Profit',
-        data: results.monthlyData.map(d => d.netProfit),
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-        yAxisID: 'y',
+        label: 'Cumulative Profit',
+        data: results.monthlyData.map(data => data.cumulativeProfit),
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        fill: true,
+        tension: 0.4
       },
       {
-        label: 'Platform Costs',
-        data: results.monthlyData.map(d => d.costs),
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-        yAxisID: 'y',
+        label: 'Cumulative Cost',
+        data: results.monthlyData.map(data => data.cumulativeCost),
+        borderColor: 'rgba(255, 99, 132, 1)',
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        fill: true,
+        tension: 0.4
+      },
+      {
+        label: 'Net Profit',
+        data: results.monthlyData.map(data => data.netProfit),
+        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        fill: true,
+        tension: 0.4
       }
-    ],
+    ]
   };
   
   // Chart options for ROI
   const roiChartOptions = {
     responsive: true,
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
-    stacked: false,
-    scales: {
-      y: {
-        type: 'linear',
-        display: true,
-        position: 'left',
-        title: {
-          display: true,
-          text: 'Amount ($)'
-        }
-      },
-    },
+    maintainAspectRatio: false,
     plugins: {
+      legend: {
+        position: 'top',
+      },
       title: {
         display: true,
-        text: 'Profit vs. Cost Over Time'
+        text: 'ROI Projection Over Time'
       },
       tooltip: {
         callbacks: {
@@ -342,6 +335,25 @@ export default function BrandROICalculatorPage() {
           }
         }
       }
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Time Period'
+        }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Amount ($)'
+        },
+        ticks: {
+          callback: function(value) {
+            return formatCurrency(value);
+          }
+        }
+      }
     }
   };
   
@@ -350,15 +362,15 @@ export default function BrandROICalculatorPage() {
     labels: ['Current Users', 'Break-Even Users'],
     datasets: [
       {
-        label: 'Number of Users',
+        label: 'Users',
         data: [inputs.numUsers, results.breakEvenUsers],
         backgroundColor: [
-          inputs.numUsers >= results.breakEvenUsers ? 'rgba(75, 192, 192, 0.8)' : 'rgba(255, 99, 132, 0.8)',
-          'rgba(54, 162, 235, 0.8)'
+          inputs.numUsers >= results.breakEvenUsers ? 'rgba(75, 192, 192, 0.7)' : 'rgba(255, 99, 132, 0.7)',
+          'rgba(54, 162, 235, 0.7)'
         ],
         borderColor: [
-          inputs.numUsers >= results.breakEvenUsers ? 'rgb(75, 192, 192)' : 'rgb(255, 99, 132)',
-          'rgb(54, 162, 235)'
+          inputs.numUsers >= results.breakEvenUsers ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)',
+          'rgba(54, 162, 235, 1)'
         ],
         borderWidth: 1
       }
@@ -368,13 +380,14 @@ export default function BrandROICalculatorPage() {
   // Chart options for break-even
   const breakEvenChartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top',
+        display: false
       },
       title: {
         display: true,
-        text: 'Current Users vs. Break-Even Point'
+        text: 'Break-Even Analysis'
       },
       tooltip: {
         callbacks: {
@@ -384,7 +397,7 @@ export default function BrandROICalculatorPage() {
               label += ': ';
             }
             if (context.parsed.y !== null) {
-              label += formatNumber(context.parsed.y);
+              label += formatNumber(context.parsed.y) + ' users';
             }
             return label;
           }
@@ -393,409 +406,463 @@ export default function BrandROICalculatorPage() {
     },
     scales: {
       y: {
-        beginAtZero: true,
         title: {
           display: true,
           text: 'Number of Users'
+        },
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return formatNumber(value);
+          }
+        }
+      }
+    }
+  };
+  
+  // Monthly projection chart data
+  const monthlyProjectionData = {
+    labels: results.monthlyData.map(data => `Month ${data.month}`),
+    datasets: [
+      {
+        type: 'line',
+        label: 'Net Profit',
+        data: results.monthlyData.map(data => data.netProfit),
+        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        yAxisID: 'y',
+        tension: 0.4
+      },
+      {
+        type: 'bar',
+        label: 'Monthly Revenue',
+        data: results.monthlyData.map(data => data.revenue),
+        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1,
+        yAxisID: 'y'
+      },
+      {
+        type: 'bar',
+        label: 'Monthly Cost',
+        data: results.monthlyData.map(() => inputs.platformCost),
+        backgroundColor: 'rgba(255, 99, 132, 0.7)',
+        borderColor: 'rgba(255, 99, 132, 1)',
+        borderWidth: 1,
+        yAxisID: 'y'
+      }
+    ]
+  };
+  
+  // Monthly projection chart options
+  const monthlyProjectionOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Monthly Projections'
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += formatCurrency(context.parsed.y);
+            }
+            return label;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Month'
+        }
+      },
+      y: {
+        type: 'linear',
+        display: true,
+        position: 'left',
+        title: {
+          display: true,
+          text: 'Amount ($)'
+        },
+        ticks: {
+          callback: function(value) {
+            return formatCurrency(value);
+          }
         }
       }
     }
   };
   
   return (
-    <BrandManagerLayout>
-      {/* Page header */}
-      <div className="bg-white shadow rounded-lg mb-6">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">
-            ROI Calculator
-          </h1>
-          
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={() => setActiveTab('calculator')}
-              className={`inline-flex items-center px-3 py-2 border ${
-                activeTab === 'calculator'
-                  ? 'border-blue-300 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-              } text-sm leading-4 font-medium rounded-md`}
-            >
-              Calculator
-            </button>
-            
-            <button
-              type="button"
-              onClick={() => setActiveTab('saved')}
-              className={`inline-flex items-center px-3 py-2 border ${
-                activeTab === 'saved'
-                  ? 'border-blue-300 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-              } text-sm leading-4 font-medium rounded-md`}
-            >
-              Saved Scenarios
-            </button>
-          </div>
+    <div className="container mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">ROI Calculator</h1>
+          <p className="text-gray-500 dark:text-gray-400">Calculate the return on investment for your training programs</p>
         </div>
         
-        {/* Description */}
-        <div className="px-6 py-3 bg-blue-50 border-b border-gray-200">
-          <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm text-blue-700">
-              Calculate your ROI based on users who complete training selling 3 more products than they would otherwise.
-            </span>
-          </div>
+        <div className="flex space-x-2 mt-4 md:mt-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+            <TabsList>
+              <TabsTrigger value="calculator">Calculator</TabsTrigger>
+              <TabsTrigger value="saved">Saved Scenarios</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        
-        {/* Error message */}
-        {error && (
-          <div className="px-6 py-3 bg-red-50 border-b border-gray-200">
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span className="text-sm text-red-700">{error}</span>
-            </div>
-          </div>
-        )}
       </div>
       
-      {activeTab === 'calculator' ? (
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <TabsContent value="calculator" className="mt-0">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calculator inputs */}
-          <div className="lg:col-span-1">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Calculator Inputs</h2>
+          {/* Input Card */}
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Calculator className="h-5 w-5 mr-2" />
+                ROI Calculator Inputs
+              </CardTitle>
+              <CardDescription>
+                Enter your details to calculate ROI
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="scenarioName">Scenario Name</Label>
+                <Input
+                  id="scenarioName"
+                  name="scenarioName"
+                  value={inputs.scenarioName}
+                  onChange={handleInputChange}
+                  placeholder="My ROI Scenario"
+                />
+              </div>
               
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="scenarioName" className="block text-sm font-medium text-gray-700 mb-1">
-                    Scenario Name
-                  </label>
-                  <input
-                    type="text"
-                    id="scenarioName"
-                    name="scenarioName"
-                    value={inputs.scenarioName}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter scenario name"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="numUsers" className="block text-sm font-medium text-gray-700 mb-1">
-                    Number of Users Completing Training
-                  </label>
-                  <input
-                    type="number"
+              <div className="space-y-2">
+                <Label htmlFor="numUsers">Number of Trained Users</Label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
                     id="numUsers"
                     name="numUsers"
+                    type="number"
                     min="1"
                     value={inputs.numUsers}
                     onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter number of users"
+                    className="pl-10"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Each trained user sells 3 more products than untrained users
-                  </p>
                 </div>
-                
-                <div>
-                  <label htmlFor="productPrice" className="block text-sm font-medium text-gray-700 mb-1">
-                    Average Product Price ($)
-                  </label>
-                  <input
-                    type="number"
+                <p className="text-xs text-gray-500">Number of retail employees who will complete training</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="productPrice">Average Product Price ($)</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
                     id="productPrice"
                     name="productPrice"
+                    type="number"
                     min="0.01"
                     step="0.01"
                     value={inputs.productPrice}
                     onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter product price"
+                    className="pl-10"
                   />
                 </div>
-                
-                <div>
-                  <label htmlFor="profitMargin" className="block text-sm font-medium text-gray-700 mb-1">
-                    Profit Margin (%)
-                  </label>
-                  <input
-                    type="number"
+                <p className="text-xs text-gray-500">Average price of products sold</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="profitMargin">Profit Margin (%)</Label>
+                <div className="relative">
+                  <TrendingUp className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
                     id="profitMargin"
                     name="profitMargin"
+                    type="number"
                     min="1"
                     max="100"
                     value={inputs.profitMargin}
                     onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter profit margin percentage"
+                    className="pl-10"
                   />
                 </div>
-                
-                <div>
-                  <label htmlFor="platformCost" className="block text-sm font-medium text-gray-700 mb-1">
-                    Monthly Platform Cost ($)
-                  </label>
-                  <input
-                    type="number"
+                <p className="text-xs text-gray-500">Percentage profit on each product sold</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="platformCost">Monthly Platform Cost ($)</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
                     id="platformCost"
                     name="platformCost"
+                    type="number"
                     min="0"
                     step="0.01"
                     value={inputs.platformCost}
                     onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter monthly platform cost"
+                    className="pl-10"
                   />
                 </div>
-                
-                <div>
-                  <label htmlFor="timeframe" className="block text-sm font-medium text-gray-700 mb-1">
-                    Timeframe (months)
-                  </label>
-                  <input
-                    type="number"
+                <p className="text-xs text-gray-500">Monthly cost of the training platform</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="timeframe">Timeframe (Months)</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
                     id="timeframe"
                     name="timeframe"
+                    type="number"
                     min="1"
                     max="60"
                     value={inputs.timeframe}
                     onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter timeframe in months"
+                    className="pl-10"
                   />
                 </div>
-                
-                <div className="pt-4">
-                  <button
-                    type="button"
-                    onClick={handleSaveScenario}
-                    disabled={saving}
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    {saving ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                        </svg>
-                        Save Scenario
-                      </>
-                    )}
-                  </button>
-                </div>
+                <p className="text-xs text-gray-500">Time period for ROI calculation</p>
               </div>
-            </div>
-          </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={() => setInputs({
+                numUsers: 100,
+                productPrice: 49.99,
+                profitMargin: 40,
+                platformCost: 199,
+                timeframe: 12,
+                scenarioName: 'New Scenario',
+              })}>
+                Reset
+              </Button>
+              <Button onClick={saveScenario} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Scenario'}
+                <Save className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
           
-          {/* Results and charts */}
-          <div className="lg:col-span-2">
-            {/* Key metrics */}
-            <div className="bg-white shadow rounded-lg p-6 mb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">ROI Summary</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <dl className="space-y-2">
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Additional Products Sold:</dt>
-                      <dd className="text-sm font-semibold text-gray-900">{formatNumber(results.additionalProducts)}</dd>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Additional Revenue:</dt>
-                      <dd className="text-sm font-semibold text-gray-900">{formatCurrency(results.additionalRevenue)}</dd>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Additional Profit:</dt>
-                      <dd className="text-sm font-semibold text-gray-900">{formatCurrency(results.additionalProfit)}</dd>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Total Platform Cost:</dt>
-                      <dd className="text-sm font-semibold text-gray-900">{formatCurrency(results.platformCostTotal)}</dd>
-                    </div>
-                  </dl>
+          {/* Results Card */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                ROI Results
+              </CardTitle>
+              <CardDescription>
+                Based on each trained user selling 3 additional products
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Summary Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Additional Products</p>
+                  <p className="text-2xl font-bold">{formatNumber(results.additionalProducts)}</p>
                 </div>
                 
-                <div>
-                  <dl className="space-y-2">
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Net Profit:</dt>
-                      <dd className={`text-sm font-semibold ${results.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(results.netProfit)}
-                      </dd>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">ROI:</dt>
-                      <dd className={`text-sm font-semibold ${results.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatPercentage(results.roi)}
-                      </dd>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Break-Even Users:</dt>
-                      <dd className="text-sm font-semibold text-gray-900">{formatNumber(results.breakEvenUsers)}</dd>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <dt className="text-sm font-medium text-gray-500">Payback Period:</dt>
-                      <dd className="text-sm font-semibold text-gray-900">{formatMonths(results.paybackPeriod)}</dd>
-                    </div>
-                  </dl>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Additional Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(results.additionalRevenue)}</p>
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Additional Profit</p>
+                  <p className="text-2xl font-bold">{formatCurrency(results.additionalProfit)}</p>
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Platform Cost</p>
+                  <p className="text-2xl font-bold">{formatCurrency(results.platformCostTotal)}</p>
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Net Profit</p>
+                  <p className={`text-2xl font-bold ${results.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(results.netProfit)}
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">ROI</p>
+                  <p className={`text-2xl font-bold ${results.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatPercentage(results.roi)}
+                  </p>
                 </div>
               </div>
               
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className={`text-center text-sm font-medium ${results.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {results.netProfit >= 0 
-                    ? `This scenario is profitable with a ${formatPercentage(results.roi)} return on investment.`
-                    : `This scenario is not profitable. You need ${formatNumber(results.breakEvenUsers - inputs.numUsers)} more trained users to break even.`
-                  }
+              {/* Break-even Analysis */}
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-4">Break-even Analysis</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Break-even Users</p>
+                    <p className="text-xl font-bold">{formatNumber(results.breakEvenUsers)} users</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {inputs.numUsers >= results.breakEvenUsers 
+                        ? `You are ${formatNumber(inputs.numUsers - results.breakEvenUsers)} users above break-even`
+                        : `You need ${formatNumber(results.breakEvenUsers - inputs.numUsers)} more users to break even`
+                      }
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Payback Period</p>
+                    <p className="text-xl font-bold">{formatMonths(results.paybackPeriod)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Time needed to recover the investment
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Charts */}
-            <div className="grid grid-cols-1 gap-6">
+              
               {/* ROI Chart */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-md font-medium text-gray-900 mb-4">Profit vs. Cost Over Time</h3>
-                <div className="h-64">
-                  <Line ref={roiChartRef} options={roiChartOptions} data={roiChartData} />
+              <div>
+                <h3 className="text-lg font-medium mb-4">ROI Projection</h3>
+                <div className="h-72">
+                  <Line ref={roiChartRef} data={roiChartData} options={roiChartOptions} />
                 </div>
               </div>
               
               {/* Break-even Chart */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-md font-medium text-gray-900 mb-4">Break-Even Analysis</h3>
-                <div className="h-64">
-                  <Bar ref={breakEvenChartRef} options={breakEvenChartOptions} data={breakEvenChartData} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Break-even Analysis</h3>
+                  <div className="h-64">
+                    <Bar ref={breakEvenChartRef} data={breakEvenChartData} options={breakEvenChartOptions} />
+                  </div>
                 </div>
-                <div className="mt-4 text-center text-sm text-gray-500">
-                  {inputs.numUsers >= results.breakEvenUsers 
-                    ? `You are ${formatNumber(inputs.numUsers - results.breakEvenUsers)} users above the break-even point.`
-                    : `You need ${formatNumber(results.breakEvenUsers - inputs.numUsers)} more users to break even.`
-                  }
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Monthly Projection</h3>
+                  <div className="h-64">
+                    <Bar data={monthlyProjectionData} options={monthlyProjectionOptions} />
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+            <CardFooter className="flex justify-end">
+              <Button variant="outline" className="mr-2">
+                <Download className="mr-2 h-4 w-4" />
+                Export Report
+              </Button>
+              <Button onClick={saveScenario} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Scenario'}
+                <Save className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
-      ) : (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Saved Scenarios</h2>
-          
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-              <span className="sr-only">Loading...</span>
-            </div>
-          ) : scenarios.length === 0 ? (
-            <div className="text-center py-12">
-              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No saved scenarios</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by creating a new ROI calculation scenario.
-              </p>
-              <div className="mt-6">
-                <button
-                  onClick={() => setActiveTab('calculator')}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Create Scenario
-                </button>
+      </TabsContent>
+      
+      <TabsContent value="saved" className="mt-0">
+        <Card>
+          <CardHeader>
+            <CardTitle>Saved ROI Scenarios</CardTitle>
+            <CardDescription>
+              View and compare your saved ROI calculations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
               </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Scenario Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Users
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ROI
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Net Profit
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {scenarios.map((scenario) => (
-                    <tr key={scenario.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {scenario.scenarioName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatNumber(scenario.numUsers)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={scenario.results.roi >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {formatPercentage(scenario.results.roi)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={scenario.results.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {formatCurrency(scenario.results.netProfit)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            ) : scenarios.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 dark:text-gray-400 mb-4">No saved scenarios found</p>
+                <Button onClick={() => setActiveTab('calculator')}>
+                  Create New Scenario
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {scenarios.map((scenario) => (
+                  <Card key={scenario.id} className="bg-gray-50 dark:bg-gray-800">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">{scenario.name}</CardTitle>
+                        <div className="flex space-x-2">
+                          <Button variant="ghost" size="sm" onClick={() => loadScenario(scenario)}>
+                            Load
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => deleteScenario(scenario.id)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                      <CardDescription>
                         {scenario.createdAt?.toDate 
                           ? new Date(scenario.createdAt.toDate()).toLocaleDateString() 
-                          : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleLoadScenario(scenario)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          Load
-                        </button>
-                        <button
-                          onClick={() => handleDeleteScenario(scenario.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </BrandManagerLayout>
+                          : 'Date not available'
+                        }
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                          <p className="text-xs text-gray-500">Users</p>
+                          <p className="font-medium">{formatNumber(scenario.inputs.numUsers)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">ROI</p>
+                          <p className={`font-medium ${scenario.results.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatPercentage(scenario.results.roi)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Net Profit</p>
+                          <p className={`font-medium ${scenario.results.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(scenario.results.netProfit)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Payback Period</p>
+                          <p className="font-medium">{formatMonths(scenario.results.paybackPeriod)}</p>
+                        </div>
+                      </div>
+                      
+                      <Separator className="my-2" />
+                      
+                      <div className="flex justify-between items-center pt-2">
+                        <div className="text-sm">
+                          <span className="text-gray-500">Timeframe: </span>
+                          <span className="font-medium">{scenario.inputs.timeframe} months</span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => loadScenario(scenario)}>
+                          View Details
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </div>
   );
 }

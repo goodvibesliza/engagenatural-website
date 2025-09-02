@@ -1,182 +1,256 @@
 // src/contexts/auth-context.jsx
-import { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChanged, 
-  signOut as firebaseSignOut
-} from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, isLocalhost, signInWithEmailPassword } from '../firebase';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { auth, db } from "../lib/firebase";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut as fbSignOut,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
+import {
+  doc,
+  onSnapshot,
+  setDoc,
+  serverTimestamp,
+  getDoc,
+} from "firebase/firestore";
 
-// Create auth context
-const AuthContext = createContext();
-
-// Define roles
-export const ROLES = {
-  SUPER_ADMIN: 'super_admin',
-  BRAND_MANAGER: 'brand_manager',
-  USER: 'user'
-};
-
-// --------------------------- Permissions -----------------------------------
-// Central list of permission keys referenced across the app
+/* ---------------------------------------------------------------------------+
+|  Role / Permission constants – restored                                     |
++-------------------------------------------------------------------------- */
 export const PERMISSIONS = {
-  // Admin-side
-  MANAGE_USERS: 'manage_users',
-  APPROVE_VERIFICATIONS: 'approve_verifications',
-  MANAGE_BRANDS: 'manage_brands',
-  MANAGE_CONTENT: 'manage_content',
-  VIEW_ANALYTICS: 'view_analytics',
-  SYSTEM_SETTINGS: 'system_settings',
-  // Brand manager-side
-  CREATE_CHALLENGES: 'create_challenges',
-  UPLOAD_CONTENT: 'upload_content',
-  VIEW_COMMUNITIES: 'view_communities',
-  POST_AS_BRAND: 'post_as_brand',
-  MANAGE_BRAND_CONFIG: 'manage_brand_config'
+  MANAGE_USERS: "manage_users",
+  APPROVE_VERIFICATIONS: "approve_verifications",
+  MANAGE_BRANDS: "manage_brands",
+  MANAGE_BRAND_CONTENT: "manage_brand_content",
+  MANAGE_BRAND_PRODUCTS: "manage_brand_products",
+  VIEW_ANALYTICS: "view_analytics",
+  MANAGE_CONTENT: "manage_content",
+  SYSTEM_SETTINGS: "system_settings",
 };
 
-// Define the useAuth hook here - make sure this is exported
+export const USER_ROLES = [
+  { value: "super_admin",    label: "Super Admin" },
+  { value: "brand_manager",  label: "Brand Manager" },
+  { value: "staff",          label: "Staff" },
+  { value: "verified_staff", label: "Verified Staff" },
+  { value: "retail_staff",   label: "Retail Staff" },
+  { value: "user",           label: "User" },
+  { value: "guest",          label: "Guest" },
+];
+
+export const ROLES = {
+  SUPER_ADMIN: "super_admin",
+  BRAND_MANAGER: "brand_manager",
+  STAFF: "staff",
+  VERIFIED_STAFF: "verified_staff",
+  RETAIL_STAFF: "retail_staff",
+  USER: "user",
+  GUEST: "guest",
+};
+
+const ROLE_PERMISSIONS = {
+  super_admin: Object.values(PERMISSIONS),
+  brand_manager: [
+    PERMISSIONS.MANAGE_BRAND_CONTENT,
+    PERMISSIONS.MANAGE_BRAND_PRODUCTS,
+    PERMISSIONS.VIEW_ANALYTICS,
+  ],
+  staff: [],
+  verified_staff: [],
+  retail_staff: [],
+  user: [],
+  guest: [],
+};
+
+const AuthContext = createContext(null);
+
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [firestoreProfile, setFirestoreProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
 
-  // Handle auth state changes
+  // Keep the listener unsub ref so we can clean it up on sign out
+  const userDocUnsubRef = useRef(null);
+
   useEffect(() => {
-    // For development/emulator environment
-    if (isLocalhost) {
-      console.log("Setting up auth state listener in emulator mode");
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          // For emulator, create a default admin profile in memory when Firestore might fail
-          let userProfile = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-            role: ROLES.USER
-          };
-
-          try {
-            // Try to get the user profile from Firestore
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            
-            if (userDoc.exists()) {
-              userProfile = {
-                ...userProfile,
-                ...userDoc.data()
-              };
-            }
-          } catch (error) {
-            console.warn("Error fetching user profile:", error);
-            // In emulator mode, give the user super admin role for testing
-            if (isLocalhost) {
-              console.log("Emulator mode: Assigning super_admin role");
-              userProfile.role = ROLES.SUPER_ADMIN;
-            }
-          }
-
-          // Check if the user is a super admin by email
-          const isSuperAdmin = ['admin@engagenatural.com', 'admin@example.com'].includes(firebaseUser.email);
-          if (isSuperAdmin) {
-            userProfile.role = ROLES.SUPER_ADMIN;
-          }
-
-          setUser(userProfile);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Error in auth state change handler:", error);
-        setAuthError(error);
-      } finally {
-        setLoading(false);
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      // Tear down old profile listener
+      if (userDocUnsubRef.current) {
+        userDocUnsubRef.current();
+        userDocUnsubRef.current = null;
       }
+
+      setFirebaseUser(user);
+      if (!user) {
+        setFirestoreProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // Live-subscribe to this user's profile
+      const userRef = doc(db, "users", user.uid);
+
+      // Ensure a minimal doc exists (safe merge)
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        await setDoc(
+          userRef,
+          {
+            uid: user.uid,
+            email: user.email || "",
+            // Default to "staff" role so the account can at least log in.
+            // The "approved" flag is intentionally omitted — this should
+            // only ever be set (or modified) by a privileged admin action
+            // in the dashboard, never automatically by the client.
+            role: "staff",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: false }
+        );
+      }
+
+      userDocUnsubRef.current = onSnapshot(userRef, (ds) => {
+        setFirestoreProfile(ds.exists() ? ds.data() : null);
+        setLoading(false);
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsub();
+      if (userDocUnsubRef.current) userDocUnsubRef.current();
+    };
   }, []);
 
-  // Sign in function
-  const signIn = async (email, password) => {
+  async function signIn(email, password) {
+    // Persistent session
+    await setPersistence(auth, browserLocalPersistence);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    return cred.user;
+  }
+
+  async function signOut() {
     try {
-      setAuthError(null);
-      return await signInWithEmailPassword(email, password);
-    } catch (error) {
-      console.error("Sign in error:", error);
-      setAuthError(error);
-      throw error;
+      // Stop any live Firestore listener on the user profile
+      if (userDocUnsubRef.current) {
+        userDocUnsubRef.current();
+        userDocUnsubRef.current = null;
+      }
+
+      // Firebase sign-out
+      await fbSignOut(auth);
+    } finally {
+      // Clear local React state
+      setFirebaseUser(null);
+      setFirestoreProfile(null);
+      setLoading(false);
     }
-  };
+  }
 
-  // Sign out function
-  const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-    } catch (error) {
-      console.error("Sign out error:", error);
-      setAuthError(error);
-      throw error;
+  const value = useMemo(() => {
+    // Safely coerce types from Firestore profile
+    const approved = firestoreProfile?.approved === true;
+    const role = typeof firestoreProfile?.role === 'string' ? firestoreProfile.role : undefined;
+    const brandId = firestoreProfile?.brandId || null;
+    const retailerId = firestoreProfile?.retailerId || null;
+    // Prefer Auth displayName → Firestore displayName → Firestore name
+    const displayName =
+      firebaseUser?.displayName ||
+      firestoreProfile?.displayName ||
+      firestoreProfile?.name ||
+      "";
+
+    // Extra profile fields with safe defaults
+    const verified = firestoreProfile?.verified === true;
+    const verificationStatus =
+      typeof firestoreProfile?.verificationStatus === "string"
+        ? firestoreProfile.verificationStatus
+        : (verified ? "approved" : "pending");
+    const joinedCommunities = Array.isArray(firestoreProfile?.joinedCommunities)
+      ? firestoreProfile.joinedCommunities
+      : [];
+    const storeName =
+      typeof firestoreProfile?.storeName === "string" ? firestoreProfile.storeName : "";
+    const level =
+      typeof firestoreProfile?.level === "number" ? firestoreProfile.level : null;
+    const points =
+      typeof firestoreProfile?.points === "number" ? firestoreProfile.points : 0;
+    const profileImage =
+      typeof firestoreProfile?.profileImage === "string"
+        ? firestoreProfile.profileImage
+        : null;
+    const storeCode =
+      typeof firestoreProfile?.storeCode === "string" ? firestoreProfile.storeCode : "";
+
+    // Combine Firebase Auth user with Firestore profile data
+    const user = firebaseUser
+      ? {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName,
+          role,
+          approved,
+          brandId,
+          retailerId,
+          verified,
+          verificationStatus,
+          joinedCommunities,
+          storeName,
+          storeCode,
+          level,
+          points,
+          profileImage,
+        }
+      : null;
+
+    // -----------------------------------------------------------------------
+    // Helper booleans & permission utilities (restored)
+    // -----------------------------------------------------------------------
+    const isAuthenticated = !!user;
+    const isSuperAdmin = role === ROLES.SUPER_ADMIN;
+    const isBrandManager = role === ROLES.BRAND_MANAGER;
+    const isVerified = verified;
+
+    const isRetailUser = ["retail_staff", "verified_staff", "staff"].includes(role || "");
+    const isCommunityUser = false; // placeholder for future community roles
+
+    function hasRole(required) {
+      if (!isAuthenticated) return false;
+      if (!required) return true;
+      const req = Array.isArray(required) ? required : [required];
+      return req.includes(role);
     }
-  };
 
-  /* ------------------------------------------------------------------ */
-  /*  Permissions helper                                                */
-  /* ------------------------------------------------------------------ */
-
-  // Brand managers are allowed this subset of permissions
-  const BRAND_MANAGER_PERMISSIONS = [
-    PERMISSIONS.VIEW_ANALYTICS,
-    PERMISSIONS.CREATE_CHALLENGES,
-    PERMISSIONS.UPLOAD_CONTENT,
-    PERMISSIONS.VIEW_COMMUNITIES,
-    PERMISSIONS.POST_AS_BRAND,
-    PERMISSIONS.MANAGE_BRAND_CONFIG
-  ];
-
-  /**
-   * Generic permission checker used by UI components.
-   * - Super Admins have every permission.
-   * - Brand Managers have a fixed subset (see above).
-   * - All others currently have none (extend as needed).
-   */
-  const hasPermission = (permissionKey) => {
-    if (!user) return false;
-    if (user.role === ROLES.SUPER_ADMIN) return true;
-    if (user.role === ROLES.BRAND_MANAGER) {
-      return BRAND_MANAGER_PERMISSIONS.includes(permissionKey);
+    function hasPermission(perm) {
+      if (!isAuthenticated) return false;
+      if (isSuperAdmin) return true; // super_admin bypass
+      const list = ROLE_PERMISSIONS[role] || [];
+      return list.includes(perm);
     }
-    return false;
-  };
 
-  const value = {
-    user,
-    loading,
-    error: authError,
-    signIn,
-    signOut,
-    isAuthenticated: !!user,
-    isSuperAdmin: user?.role === ROLES.SUPER_ADMIN,
-    isBrandManager: user?.role === ROLES.BRAND_MANAGER,
+    return {
+      user,
+      loading,
+      signIn,
+      signOut,
+      // restored helpers
+      isAuthenticated,
+      role,
+      isSuperAdmin,
+      isBrandManager,
+      isVerified,
+      hasRole,
+      hasPermission,
+      isRetailUser,
+      isCommunityUser,
+    };
+  }, [firebaseUser, firestoreProfile, loading]);
 
-    // Permissions
-    hasPermission,
-    PERMISSIONS
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

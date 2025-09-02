@@ -1,0 +1,106 @@
+rules_version = '2';
+
+// Craft rules based on data in your Firestore database
+// allow write: if firestore.get(
+//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+service firebase.storage {
+  match /b/{bucket}/o {
+    /*
+     * ---------------------------------------------------------------------
+     *  Helper functions
+     * ---------------------------------------------------------------------
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.role == 'admin' || request.auth.token.admin == true);
+    }
+
+    function isBrandManager() {
+      return isAuthenticated() && request.auth.token.role == 'brand';
+    }
+
+    function belongsToBrand(brandId) {
+      // brandId is usually stored in a custom claim on the user token
+      return isBrandManager() && request.auth.token.brandId == brandId;
+    }
+
+    /*
+     * ---------------------------------------------------------------------
+     *  Admin – full access
+     * ---------------------------------------------------------------------
+     */
+    match /{path=**} {
+      allow read, write: if isAdmin();
+    }
+
+    /*
+     * ---------------------------------------------------------------------
+     *  Public assets – anyone can read
+     * ---------------------------------------------------------------------
+     */
+    match /public/{allPublic=**} {
+      allow read: if true;
+      allow write: if isAuthenticated(); // still require auth to upload
+    }
+
+    /*
+     * ---------------------------------------------------------------------
+     *  Brand specific folders
+     *    lessons/{brandId}/...
+     *    communities/{brandId}/...
+     *    brands/{brandId}/...
+     * ---------------------------------------------------------------------
+     */
+    match /lessons/{brandId}/{file=**} {
+      // All users can read published lesson files
+      allow read: if true;
+      // Only the brand manager for the brand can write
+      allow write: if belongsToBrand(brandId);
+    }
+
+    match /communities/{brandId}/{file=**} {
+      allow read: if true;
+      allow write: if belongsToBrand(brandId);
+    }
+
+    match /brands/{brandId}/{file=**} {
+      allow read: if true;
+      allow write: if belongsToBrand(brandId);
+    }
+
+    /*
+     * ---------------------------------------------------------------------
+     *  User personal uploads – users/{userId}/...
+     * ---------------------------------------------------------------------
+     */
+    match /users/{userId}/{file=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /*
+     * ---------------------------------------------------------------------
+     *  Emulator diagnostics folder – unrestricted when running locally.
+     *  NOTE: These files should never exist in production buckets.
+     * ---------------------------------------------------------------------
+     */
+    match /emulator-diagnostics/{file=**} {
+      // Read/write allowed ONLY when running in the local emulator.
+      // request.auth == null is true when the JS SDK connects to storage
+      // emulator without auth, which is sufficient for local testing.
+      allow read, write: if !("production" in request.headers);
+    }
+
+    /*
+     * ---------------------------------------------------------------------
+     *  Catch-all – deny everything else
+     * ---------------------------------------------------------------------
+     */
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

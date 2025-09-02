@@ -1,18 +1,52 @@
 // src/pages/brand/BrandAnalyticsPage.jsx
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, getDocs, orderBy, limit, startAfter, Timestamp } from 'firebase/firestore';
-import { db } from '../../firebase';
-import { useAuth } from '../../contexts/auth-context';
-import BrandManagerLayout from '../../components/brand/BrandManagerLayout';
+import { db } from '../../lib/firebase';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { format, subDays, subMonths, parseISO, isAfter } from 'date-fns';
 
+// UI Components
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Button } from '../../components/ui/button';
+import { Separator } from '../../components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { Progress } from '../../components/ui/progress';
+import { Badge } from '../../components/ui/badge';
+import { Skeleton } from '../../components/ui/skeleton';
+
+// Icons
+import { 
+  BarChart3, 
+  LineChart, 
+  PieChart, 
+  TrendingUp, 
+  Users, 
+  Eye, 
+  MessageSquare, 
+  Heart, 
+  Share2, 
+  DollarSign, 
+  Calendar, 
+  Download, 
+  RefreshCw, 
+  AlertCircle, 
+  ChevronRight, 
+  Trophy, 
+  ArrowUp, 
+  ArrowDown, 
+  Layers, 
+  Video, 
+  FileText, 
+  BookOpen
+} from 'lucide-react';
+
 // Register Chart.js components
 ChartJS.register(ArcElement, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
-export default function BrandAnalyticsPage() {
-  const { user } = useAuth();
+export default function BrandAnalyticsPage({ brandId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('30d'); // '7d', '30d', '90d', '1y'
@@ -54,6 +88,7 @@ export default function BrandAnalyticsPage() {
   const geoDistributionChartRef = useRef(null);
   const salesAttributionChartRef = useRef(null);
   
+  // brandId is received via props from the Dashboard; validate it exists
   // Handle date range change
   const handleDateRangeChange = (range) => {
     setDateRange(range);
@@ -98,165 +133,311 @@ export default function BrandAnalyticsPage() {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(value);
   };
-
-  // Generate placeholder data for development
-  const generatePlaceholderData = () => {
-    // Generate dates for time series
-    const dates = [];
-    const startDate = getDateFromRange(dateRange);
-    const endDate = new Date();
-    let currentDate = new Date(startDate);
-    
-    while (currentDate <= endDate) {
-      dates.push(format(currentDate, 'MMM dd'));
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    // Generate random data for metrics
-    const views = dates.map(() => Math.floor(Math.random() * 100) + 50);
-    const engagement = dates.map(() => Math.floor(Math.random() * 30) + 60);
-    const completion = dates.map(() => Math.floor(Math.random() * 40) + 40);
-    const users = dates.map((_, index) => 100 + index * 2 + Math.floor(Math.random() * 10));
-    
-    // Content titles
-    const contentTitles = [
-      'Product Overview', 
-      'Sales Techniques', 
-      'Customer Objections', 
-      'Advanced Features', 
-      'Competitor Analysis',
-      'Market Trends'
-    ];
-    
-    // Content performance
-    const viewsByContent = contentTitles.map(title => ({
-      title,
-      views: Math.floor(Math.random() * 1000) + 200
-    }));
-    
-    // Completion rates by content
-    const completionRates = contentTitles.map(title => ({
-      title,
-      rate: Math.floor(Math.random() * 40) + 60
-    }));
-    
-    // Geographic distribution
-    const regions = ['North America', 'Europe', 'Asia', 'South America', 'Australia', 'Africa'];
-    const geoDistribution = regions.map(region => ({
-      region,
-      users: Math.floor(Math.random() * 500) + 100
-    }));
-    
-    // Sales attribution
-    const salesAttribution = contentTitles.map(title => ({
-      title,
-      sales: Math.floor(Math.random() * 200) + 50
-    }));
-    
-    // Products sold per user
-    const productsSoldPerUser = [
-      { category: 'Trained Users', value: 8 },
-      { category: 'Untrained Users', value: 5 }
-    ];
-    
-    // Set summary metrics
-    setSummaryMetrics({
-      totalViews: views.reduce((a, b) => a + b, 0),
-      engagementRate: engagement.reduce((a, b) => a + b, 0) / engagement.length,
-      completionRate: completion.reduce((a, b) => a + b, 0) / completion.length,
-      salesImpact: Math.floor(Math.random() * 20000) + 5000,
-      totalUsers: users[users.length - 1],
-      totalContent: contentTitles.length
-    });
-    
-    // Set content performance
-    setContentPerformance({
-      viewsByContent,
-      engagementOverTime: dates.map((date, index) => ({
-        date,
-        views: views[index],
-        engagement: engagement[index]
-      })),
-      completionRates
-    });
-    
-    // Set user metrics
-    setUserMetrics({
-      trainingCompletion: [
-        { status: 'Completed', count: Math.floor(Math.random() * 500) + 500 },
-        { status: 'In Progress', count: Math.floor(Math.random() * 300) + 200 },
-        { status: 'Not Started', count: Math.floor(Math.random() * 200) + 100 }
-      ],
-      userGrowth: dates.map((date, index) => ({
-        date,
-        users: users[index]
-      })),
-      geographicDistribution: geoDistribution
-    });
-    
-    // Set sales metrics
-    setSalesMetrics({
-      productsSoldPerUser,
-      salesAttribution,
-      revenueByContent: contentTitles.map(title => ({
-        title,
-        revenue: Math.floor(Math.random() * 10000) + 2000
-      }))
-    });
+  
+  // Format date
+  const formatDate = (date) => {
+    return format(date, 'MMM d, yyyy');
   };
   
   // Fetch analytics data
   useEffect(() => {
     const fetchAnalyticsData = async () => {
+      if (!brandId) {
+        setError("No brand ID available. Please select a brand.");
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
-        const brandId = localStorage.getItem('selectedBrandId');
+        setError(null);
         
-        if (!brandId) {
-          // For development, use placeholder data
-          generatePlaceholderData();
-          setLoading(false);
-          return;
+        const startDate = getDateFromRange(dateRange);
+        const startTimestamp = Timestamp.fromDate(startDate);
+        
+        // Fetch trainings
+        const trainingsQuery = query(
+          collection(db, 'trainings'),
+          where('brandId', '==', brandId),
+          orderBy('createdAt', 'desc')
+        );
+        
+        const trainingsSnapshot = await getDocs(trainingsQuery);
+        const trainings = trainingsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        // Get training IDs for further queries
+        const trainingIds = trainings.map(training => training.id);
+        
+        // Fetch training progress data
+        let progressData = [];
+        if (trainingIds.length > 0) {
+          // Firestore IN queries are limited to 10 items, so we might need multiple queries
+          const batchSize = 10;
+          for (let i = 0; i < trainingIds.length; i += batchSize) {
+            const batch = trainingIds.slice(i, i + batchSize);
+            
+            const progressQuery = query(
+              collection(db, 'training_progress'),
+              where('trainingId', 'in', batch),
+              where('updatedAt', '>=', startTimestamp)
+            );
+            
+            const progressSnapshot = await getDocs(progressQuery);
+            progressData = [
+              ...progressData,
+              ...progressSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }))
+            ];
+          }
         }
         
-        // In a real implementation, we would fetch data from Firestore
-        // For now, use placeholder data
-        generatePlaceholderData();
+        // Fetch sample requests
+        const requestsQuery = query(
+          collection(db, 'sample_requests'),
+          where('brandId', '==', brandId),
+          where('createdAt', '>=', startTimestamp),
+          orderBy('createdAt', 'desc')
+        );
         
-        setError(null);
+        const requestsSnapshot = await getDocs(requestsQuery);
+        const sampleRequests = requestsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        // Calculate summary metrics
+        const totalViews = progressData.reduce((sum, item) => sum + (item.viewCount || 0), 0);
+        const totalEngagements = progressData.reduce((sum, item) => sum + (item.engagementCount || 0), 0);
+        const completedTrainings = progressData.filter(item => item.status === 'completed').length;
+        const totalTrainingAttempts = progressData.length;
+        
+        // Calculate engagement and completion rates
+        const engagementRate = totalViews > 0 ? (totalEngagements / totalViews) * 100 : 0;
+        const completionRate = totalTrainingAttempts > 0 ? (completedTrainings / totalTrainingAttempts) * 100 : 0;
+        
+        // Calculate sales impact (based on sample requests and completed trainings)
+        // Assumption: Each completed training leads to 3 additional product sales
+        const avgProductPrice = 49.99; // Default value, could be fetched from settings
+        const profitMargin = 0.4; // 40% profit margin
+        const additionalSalesPerTraining = 3;
+        const salesImpact = completedTrainings * additionalSalesPerTraining * avgProductPrice * profitMargin;
+        
+        // Set summary metrics
+        setSummaryMetrics({
+          totalViews,
+          engagementRate,
+          completionRate,
+          salesImpact,
+          totalUsers: new Set(progressData.map(item => item.userId)).size,
+          totalContent: trainings.length
+        });
+        
+        // Process content performance data
+        const viewsByContent = trainings.map(training => {
+          const trainingProgress = progressData.filter(item => item.trainingId === training.id);
+          const views = trainingProgress.reduce((sum, item) => sum + (item.viewCount || 0), 0);
+          const engagements = trainingProgress.reduce((sum, item) => sum + (item.engagementCount || 0), 0);
+          const completions = trainingProgress.filter(item => item.status === 'completed').length;
+          
+          return {
+            id: training.id,
+            title: training.title,
+            type: training.type || 'training',
+            views,
+            engagements,
+            completions,
+            engagementRate: views > 0 ? (engagements / views) * 100 : 0,
+            completionRate: trainingProgress.length > 0 ? (completions / trainingProgress.length) * 100 : 0
+          };
+        }).sort((a, b) => b.views - a.views);
+        
+        // Generate engagement over time data
+        const engagementOverTime = [];
+        const now = new Date();
+        const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 365;
+        
+        for (let i = days - 1; i >= 0; i--) {
+          const date = subDays(now, i);
+          const dateStr = format(date, 'yyyy-MM-dd');
+          const dayStart = new Date(date);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(date);
+          dayEnd.setHours(23, 59, 59, 999);
+          
+          const dayProgress = progressData.filter(item => {
+            const updatedAt = item.updatedAt?.toDate();
+            return updatedAt && updatedAt >= dayStart && updatedAt <= dayEnd;
+          });
+          
+          engagementOverTime.push({
+            date: dateStr,
+            views: dayProgress.reduce((sum, item) => sum + (item.viewCount || 0), 0),
+            engagements: dayProgress.reduce((sum, item) => sum + (item.engagementCount || 0), 0),
+            completions: dayProgress.filter(item => item.status === 'completed').length
+          });
+        }
+        
+        // Calculate completion rates by content type
+        const completionRates = [];
+        const contentTypes = ['video', 'article', 'quiz', 'training'];
+        
+        contentTypes.forEach(type => {
+          const typeTrainings = trainings.filter(training => (training.type || 'training') === type);
+          const typeProgress = progressData.filter(item => {
+            const training = trainings.find(t => t.id === item.trainingId);
+            return training && (training.type || 'training') === type;
+          });
+          
+          const attempts = typeProgress.length;
+          const completed = typeProgress.filter(item => item.status === 'completed').length;
+          
+          completionRates.push({
+            type,
+            attempts,
+            completed,
+            rate: attempts > 0 ? (completed / attempts) * 100 : 0
+          });
+        });
+        
+        setContentPerformance({
+          viewsByContent,
+          engagementOverTime,
+          completionRates
+        });
+        
+        // Process user metrics
+        const trainingCompletion = [
+          {
+            status: 'completed',
+            count: progressData.filter(item => item.status === 'completed').length
+          },
+          {
+            status: 'in_progress',
+            count: progressData.filter(item => item.status === 'in_progress').length
+          },
+          {
+            status: 'not_started',
+            count: progressData.filter(item => item.status === 'not_started' || !item.status).length
+          }
+        ];
+        
+        // Generate user growth data
+        const userGrowth = [];
+        const usersByDate = new Map();
+        
+        progressData.forEach(item => {
+          if (item.createdAt && item.userId) {
+            const date = format(item.createdAt.toDate(), 'yyyy-MM-dd');
+            if (!usersByDate.has(date)) {
+              usersByDate.set(date, new Set());
+            }
+            usersByDate.get(date).add(item.userId);
+          }
+        });
+        
+        let cumulativeUsers = 0;
+        for (let i = days - 1; i >= 0; i--) {
+          const date = subDays(now, i);
+          const dateStr = format(date, 'yyyy-MM-dd');
+          const dateUsers = usersByDate.get(dateStr)?.size || 0;
+          cumulativeUsers += dateUsers;
+          
+          userGrowth.push({
+            date: dateStr,
+            users: cumulativeUsers,
+            newUsers: dateUsers
+          });
+        }
+        
+        // Mock geographic distribution (would be replaced with real data)
+        const geographicDistribution = [
+          { region: 'North America', users: 65 },
+          { region: 'Europe', users: 20 },
+          { region: 'Asia', users: 10 },
+          { region: 'Other', users: 5 }
+        ];
+        
+        setUserMetrics({
+          trainingCompletion,
+          userGrowth,
+          geographicDistribution
+        });
+        
+        // Process sales metrics
+        const productsSoldPerUser = [
+          { category: 'Trained Users', value: 4.5 },
+          { category: 'Untrained Users', value: 1.5 }
+        ];
+        
+        // Calculate sales attribution by content
+        const salesAttribution = viewsByContent.map(content => {
+          const completions = content.completions;
+          const salesPerCompletion = additionalSalesPerTraining;
+          const sales = completions * salesPerCompletion;
+          
+          return {
+            id: content.id,
+            title: content.title,
+            type: content.type,
+            sales,
+            revenue: sales * avgProductPrice,
+            profit: sales * avgProductPrice * profitMargin
+          };
+        }).sort((a, b) => b.sales - a.sales);
+        
+        setSalesMetrics({
+          productsSoldPerUser,
+          salesAttribution,
+          revenueByContent: salesAttribution
+        });
+        
       } catch (err) {
         console.error('Error fetching analytics data:', err);
-        setError('Failed to load analytics data');
+        setError(`Failed to load analytics data: ${err.message}`);
       } finally {
         setLoading(false);
       }
     };
     
     fetchAnalyticsData();
-  }, [dateRange, contentType, refreshTrigger]);
+  }, [brandId, dateRange, contentType, refreshTrigger]);
   
   // Chart data for engagement over time
   const engagementChartData = {
-    labels: contentPerformance.engagementOverTime.map(item => item.date),
+    labels: contentPerformance.engagementOverTime.map(item => format(parseISO(item.date), 'MMM d')),
     datasets: [
       {
         label: 'Views',
         data: contentPerformance.engagementOverTime.map(item => item.views),
-        borderColor: 'rgb(53, 162, 235)',
-        backgroundColor: 'rgba(53, 162, 235, 0.5)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
         tension: 0.4,
-        fill: false
+        fill: true
       },
       {
-        label: 'Engagement',
-        data: contentPerformance.engagementOverTime.map(item => item.engagement),
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        label: 'Engagements',
+        data: contentPerformance.engagementOverTime.map(item => item.engagements),
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
         tension: 0.4,
-        fill: false
+        fill: true
+      },
+      {
+        label: 'Completions',
+        data: contentPerformance.engagementOverTime.map(item => item.completions),
+        borderColor: 'rgba(153, 102, 255, 1)',
+        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+        tension: 0.4,
+        fill: true
       }
     ]
   };
@@ -271,33 +452,41 @@ export default function BrandAnalyticsPage() {
       },
       title: {
         display: true,
-        text: 'Views & Engagement Over Time'
+        text: 'Engagement Over Time'
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false
       }
     },
     scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Date'
+        }
+      },
       y: {
         beginAtZero: true,
         title: {
           display: true,
           text: 'Count'
         }
-      },
-      x: {
-        title: {
-          display: true,
-          text: 'Date'
-        }
       }
+    },
+    interaction: {
+      mode: 'index',
+      intersect: false
     }
   };
   
   // Chart data for views by content
   const viewsChartData = {
-    labels: contentPerformance.viewsByContent.map(item => item.title),
+    labels: contentPerformance.viewsByContent.slice(0, 10).map(item => item.title),
     datasets: [
       {
         label: 'Views',
-        data: contentPerformance.viewsByContent.map(item => item.views),
+        data: contentPerformance.viewsByContent.slice(0, 10).map(item => item.views),
         backgroundColor: [
           'rgba(255, 99, 132, 0.7)',
           'rgba(54, 162, 235, 0.7)',
@@ -387,7 +576,7 @@ export default function BrandAnalyticsPage() {
   
   // Chart data for user growth
   const userGrowthData = {
-    labels: userMetrics.userGrowth.map(item => item.date),
+    labels: userMetrics.userGrowth.map(item => format(parseISO(item.date), 'MMM d')),
     datasets: [
       {
         label: 'Users',
@@ -518,27 +707,20 @@ export default function BrandAnalyticsPage() {
   
   // Chart data for sales attribution
   const salesAttributionData = {
-    labels: salesMetrics.salesAttribution.map(item => item.title),
+    labels: salesMetrics.salesAttribution.slice(0, 10).map(item => item.title),
     datasets: [
       {
         label: 'Sales',
-        data: salesMetrics.salesAttribution.map(item => item.sales),
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.7)',
-          'rgba(54, 162, 235, 0.7)',
-          'rgba(255, 206, 86, 0.7)',
-          'rgba(75, 192, 192, 0.7)',
-          'rgba(153, 102, 255, 0.7)',
-          'rgba(255, 159, 64, 0.7)'
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 159, 64, 1)'
-        ],
+        data: salesMetrics.salesAttribution.slice(0, 10).map(item => item.sales),
+        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1
+      },
+      {
+        label: 'Revenue',
+        data: salesMetrics.salesAttribution.slice(0, 10).map(item => item.revenue / 100), // Scaled down for visibility
+        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 1
       }
     ]
@@ -549,12 +731,23 @@ export default function BrandAnalyticsPage() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false
-      },
       title: {
         display: true,
         text: 'Sales Attribution by Content'
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.dataset.label || '';
+            const value = context.raw;
+            
+            if (label === 'Revenue') {
+              return `${label}: ${formatCurrency(value * 100)}`; // Scale back up
+            }
+            
+            return `${label}: ${formatNumber(value)}`;
+          }
+        }
       }
     },
     scales: {
@@ -562,138 +755,125 @@ export default function BrandAnalyticsPage() {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Sales'
+          text: 'Count / Amount'
+        }
+      },
+      x: {
+        title: {
+          display: true,
+          text: 'Content'
         }
       }
     }
   };
-
+  
   return (
-    <BrandManagerLayout>
-      {/* Page header */}
-      <div className="bg-white shadow rounded-lg mb-6">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">
-            Analytics Dashboard
-          </h1>
+    <div className="container mx-auto px-4 py-6">
+      {/* Header and filters */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Brand Analytics</h1>
+          <p className="text-gray-500 dark:text-gray-400">Comprehensive analytics and insights for your brand</p>
+        </div>
+        
+        <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
+          {/* Date range filter */}
+          <Select value={dateRange} onValueChange={handleDateRangeChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select date range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="1y">Last year</SelectItem>
+            </SelectContent>
+          </Select>
           
-          <div className="flex space-x-3">
-            {/* Date range filter */}
-            <div className="inline-flex shadow-sm rounded-md">
-              <button
-                type="button"
-                onClick={() => handleDateRangeChange('7d')}
-                className={`px-4 py-2 text-sm font-medium rounded-l-md ${
-                  dateRange === '7d'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                } border border-gray-300`}
-              >
-                7D
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDateRangeChange('30d')}
-                className={`px-4 py-2 text-sm font-medium ${
-                  dateRange === '30d'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                } border-t border-b border-gray-300`}
-              >
-                30D
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDateRangeChange('90d')}
-                className={`px-4 py-2 text-sm font-medium ${
-                  dateRange === '90d'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                } border-t border-b border-gray-300`}
-              >
-                90D
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDateRangeChange('1y')}
-                className={`px-4 py-2 text-sm font-medium rounded-r-md ${
-                  dateRange === '1y'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                } border border-gray-300`}
-              >
-                1Y
-              </button>
-            </div>
-            
-            {/* Content type filter */}
-            <select
-              value={contentType}
-              onChange={(e) => handleContentTypeChange(e.target.value)}
-              className="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-            >
-              <option value="all">All Content Types</option>
-              <option value="lesson">Lessons</option>
-              <option value="article">Articles</option>
-              <option value="video">Videos</option>
-            </select>
-            
-            {/* Refresh button */}
-            <button
-              type="button"
-              onClick={() => setRefreshTrigger(prev => prev + 1)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
-          </div>
+          {/* Content type filter */}
+          <Select value={contentType} onValueChange={handleContentTypeChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select content type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Content</SelectItem>
+              <SelectItem value="video">Videos</SelectItem>
+              <SelectItem value="article">Articles</SelectItem>
+              <SelectItem value="quiz">Quizzes</SelectItem>
+              <SelectItem value="training">Trainings</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* Refresh button */}
+          <Button variant="outline" onClick={() => setRefreshTrigger(prev => prev + 1)}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          
+          {/* Export button */}
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
         </div>
-        
-        {/* Description */}
-        <div className="px-6 py-3 bg-blue-50 border-b border-gray-200">
-          <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm text-blue-700">
-              View analytics for your content performance, user engagement, and sales impact.
-            </span>
-          </div>
-        </div>
-        
-        {/* Error message */}
-        {error && (
-          <div className="px-6 py-3 bg-red-50 border-b border-gray-200">
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span className="text-sm text-red-700">{error}</span>
-            </div>
-          </div>
-        )}
       </div>
       
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
       {loading ? (
-        <div className="bg-white shadow rounded-lg p-6 flex justify-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          <span className="sr-only">Loading...</span>
-        </div>
+        // Loading state
+        <>
+          {/* Skeleton for summary cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-32 mb-2" />
+                  <Skeleton className="h-4 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {/* Skeleton for charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-5 w-40" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+            
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-5 w-40" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+          </div>
+        </>
       ) : (
         <>
-          {/* Summary metrics */}
+          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             {/* Total Views */}
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-md bg-blue-100 text-blue-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
+                  <Eye className="h-6 w-6" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -714,9 +894,7 @@ export default function BrandAnalyticsPage() {
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-md bg-green-100 text-green-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                  </svg>
+                  <Heart className="h-6 w-6" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -737,9 +915,7 @@ export default function BrandAnalyticsPage() {
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-md bg-indigo-100 text-indigo-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <BookOpen className="h-6 w-6" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -760,9 +936,7 @@ export default function BrandAnalyticsPage() {
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-md bg-purple-100 text-purple-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <DollarSign className="h-6 w-6" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -882,7 +1056,7 @@ export default function BrandAnalyticsPage() {
                         {formatNumber(content.views)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatPercentage(contentPerformance.completionRates[index]?.rate || 0)}
+                        {formatPercentage(contentPerformance.completionRates.find(rate => rate.type === content.type)?.rate || 0)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatNumber(salesMetrics.salesAttribution[index]?.sales || 0)} sales
@@ -898,6 +1072,6 @@ export default function BrandAnalyticsPage() {
           </div>
         </>
       )}
-    </BrandManagerLayout>
+    </div>
   );
 }

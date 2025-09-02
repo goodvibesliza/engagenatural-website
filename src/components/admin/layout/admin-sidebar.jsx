@@ -9,10 +9,15 @@ import {
   Package, 
   Activity, 
   Settings,
-  Home
+  Home,
+  Database,
+  Wrench,
+  LogOut
 } from 'lucide-react'
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRoleAccess } from '../../../hooks/use-role-access'
+import { useAuth } from '../../../contexts/auth-context'
 import { cn } from '../../../lib/utils'
 
 const navigation = [
@@ -25,10 +30,26 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: Package, current: false, permission: ['manage_brand_products'] },
   { name: 'Activity', href: '/admin/activity', icon: Activity, current: false },
   { name: 'Settings', href: '/admin/settings', icon: Settings, current: false, permission: ['system_settings'] },
+  // Demo Data management (super admin only)
+  { name: 'Demo Data', href: '/admin/demo', icon: Database, current: false, permission: ['system_settings'] },
+  // Dev Tools (visible only when env flag enabled)
+  ...(import.meta.env.VITE_SHOW_DEMO_TOOLS === 'true'
+    ? [
+        {
+          name: 'Dev Tools',
+          href: '/admin/dev',
+          icon: Wrench,
+          current: false,
+          permission: ['system_settings'],
+        },
+      ]
+    : []),
 ]
 
 export default function AdminSidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { signOut } = useAuth()
   /* ------------------------------------------------------------------
    * Safely consume the role-access hook
    * ------------------------------------------------------------------ */
@@ -78,6 +99,16 @@ export default function AdminSidebar() {
     )
     /* eslint-enable no-console */
   }, [role, location.pathname]) // log once per role / nav change
+  /* ------------------------------------------------------------------
+   * Handler: Sign the user out and redirect to public site
+   * ------------------------------------------------------------------ */
+  const handleLogout = async () => {
+    try {
+      await signOut()
+    } finally {
+      navigate('/?logout=true', { replace: true })
+    }
+  }
 
   return (
     <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
@@ -146,6 +177,16 @@ export default function AdminSidebar() {
                   <BarChart3 className="h-5 w-5 shrink-0" aria-hidden="true" />
                   Legacy Dashboard
                 </Link>
+              </div>
+              <div className="px-2 py-2">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="group flex w-full gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-500 hover:text-red-700 hover:bg-gray-50 transition-colors"
+                >
+                  <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  Logout
+                </button>
               </div>
             </li>
           </ul>
