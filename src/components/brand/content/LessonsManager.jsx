@@ -5,6 +5,7 @@ const isLocalhost = false; // Production-only build
 import { ref, deleteObject } from 'firebase/storage';
 import { useAuth } from '../../../contexts/auth-context';
 import { toast } from "sonner";
+import { getDocsWithIndexHint } from '../../../lib/firestoreIndexHelper';
 
 // UI Components
 import { Button } from '../../ui/button';
@@ -57,7 +58,10 @@ export default function LessonsManager() {
     
     try {
       const lessonsCollection = collection(db, 'lessons');
-      const lessonsSnapshot = await getDocs(lessonsCollection);
+      const lessonsSnapshot = await getDocsWithIndexHint(
+        lessonsCollection,
+        'LessonsManager list'
+      );
       const lessonsList = lessonsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()

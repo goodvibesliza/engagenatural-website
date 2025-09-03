@@ -10,6 +10,7 @@ import {
   onSnapshot,
   orderBy
 } from 'firebase/firestore';
+import { logIndexHint, onSnapshotWithIndexHint } from '../../lib/firestoreIndexHelper';
 import { 
   ArrowLeft, 
   Clock, 
@@ -118,6 +119,8 @@ export default function TrainingDetail() {
           ...prev,
           training: err.message
         }));
+        // Surface potential missing index or permission issues
+        logIndexHint(err, 'TrainingDetail: training doc');
         setLoading(prev => ({
           ...prev,
           training: false
@@ -137,8 +140,8 @@ export default function TrainingDetail() {
       where('trainingId', '==', id),
       orderBy('updatedAt', 'desc')
     );
-    
-    const unsubscribe = onSnapshot(
+
+    const unsubscribe = onSnapshotWithIndexHint(
       progressQuery,
       async (snapshot) => {
         try {
@@ -190,6 +193,7 @@ export default function TrainingDetail() {
       },
       (err) => {
         console.error('Error in progress snapshot:', err);
+        logIndexHint(err, 'TrainingDetail: progress');
         setError(prev => ({
           ...prev,
           progress: err.message

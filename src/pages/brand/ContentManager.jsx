@@ -19,6 +19,8 @@ import {
   getDownloadURL 
 } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
+// Helper to log and surface missing-index URLs
+import { getDocsWithIndexHint } from '../../lib/firestoreIndexHelper';
 
 // Import existing components
 import ChallengeEditor2 from '../../components/brand/ChallengeEditor2';
@@ -638,6 +640,11 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
   const [previewLesson, setPreviewLesson] = useState(null);
   const [showLessonPreview, setShowLessonPreview] = useState(false);
   
+  // State for announcements
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(true);
+  const [announcementsError, setAnnouncementsError] = useState(null);
+  
   // State for content library
   const [contentItems, setContentItems] = useState([]);
   const [contentLoading, setContentLoading] = useState(true);
@@ -684,7 +691,10 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
         orderBy('updatedAt', 'desc')
       );
       
-      const querySnapshot = await getDocs(lessonsQuery);
+      const querySnapshot = await getDocsWithIndexHint(
+        lessonsQuery,
+        `Lessons (brandId=${brandId})`
+      );
       const lessonsList = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -728,12 +738,40 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
       setContentItems([]);
     }
   };
+
+  // Fetch announcements
+  const fetchAnnouncements = async () => {
+    setAnnouncementsLoading(true);
+    setAnnouncementsError(null);
+    try {
+      const announcementsQuery = query(
+        collection(db, 'announcements'),
+        where('brandId', '==', brandId),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocsWithIndexHint(
+        announcementsQuery,
+        `Announcements (brandId=${brandId})`
+      );
+      const announcementsList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setAnnouncements(announcementsList);
+      setAnnouncementsLoading(false);
+    } catch (err) {
+      console.error('Error fetching announcements:', err);
+      setAnnouncementsError('Failed to load announcements. Please try again.');
+      setAnnouncementsLoading(false);
+    }
+  };
   
   // Initial data fetch
   useEffect(() => {
     fetchChallenges();
     fetchLessons();
     fetchContentLibrary();
+    fetchAnnouncements();
   }, [brandId]);
   
   // Apply challenge filters and search
@@ -972,6 +1010,7 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
   };
   
   return (
+
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
@@ -985,7 +1024,7 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-md">
           <TabsTrigger value="challenges" className="flex items-center gap-2">
             <FileQuestion className="h-4 w-4" />
             <span>Challenges</span>
@@ -993,6 +1032,10 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
           <TabsTrigger value="lessons" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             <span>Lessons</span>
+          </TabsTrigger>
+          <TabsTrigger value="announcements" className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <span>Announcements</span>
           </TabsTrigger>
           <TabsTrigger value="content" className="flex items-center gap-2">
             <Library className="h-4 w-4" />
@@ -1470,6 +1513,87 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
               </Card>
             </div>
           </div>
+        </TabsContent>
+        
+        {/* Announcements Tab */}
+        <TabsContent value="announcements" className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                  <CardTitle>Announcements</CardTitle>
+                  <CardDescription>
+                    View and manage announcements for your brand
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {announcementsError && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>
+                    {announcementsError}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2" 
+                      onClick={fetchAnnouncements}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {announcementsLoading ? (
+                <div className="flex justify-center items-center p-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                </div>
+              ) : announcements.length === 0 ? (
+                <div className="text-center p-12 border rounded-lg bg-gray-50 dark:bg-gray-800">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
+                    <AlertCircle className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                    No announcements found
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                    You haven't created any announcements yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {announcements.map((announcement) => (
+                    <Card key={announcement.id}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">{announcement.title}</CardTitle>
+                        <CardDescription className="line-clamp-2">
+                          {announcement.message}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardFooter className="flex justify-between pt-2 border-t">
+                        <span className="text-xs text-gray-500">
+                          {formatDate(announcement.createdAt)}
+                        </span>
+                        <Button 
+                          asChild 
+                          variant="outline" 
+                          size="sm"
+                        >
+                          <a href="#!" target="_blank" rel="noopener noreferrer">
+                            View
+                          </a>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
         
         {/* Content Library Tab */}
