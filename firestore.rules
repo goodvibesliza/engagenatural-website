@@ -97,8 +97,10 @@ service cloud.firestore {
     // ---------- community_comments ----------
     match /community_comments/{commentId} {
       // Read only if parent post is public
-      allow read: if request.auth != null &&
-        isPublicPost(/databases/$(database)/documents/community_posts/$(resource.data.postId));
+      allow read: if request.auth != null && (
+        isPublicPost(/databases/$(database)/documents/community_posts/$(resource.data.postId)) ||
+        get(/databases/$(database)/documents/community_posts/$(resource.data.postId)).data.userId == request.auth.uid
+      );
 
       // Create only if parent post is public
       allow create: if request.auth != null &&

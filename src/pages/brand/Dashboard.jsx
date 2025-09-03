@@ -8,6 +8,51 @@ import {
 } from 'lucide-react';
 import EnhancedBrandDashboard from '../EnhancedBrandDashboard';
 import { useAuth } from "../../contexts/auth-context";
+
+// Status badge renderer (moved out of BrandDashboardContent for reuse)
+const renderStatusBadge = (status) => {
+  let color = "";
+  switch (status) {
+    case 'pending':
+      color = "bg-yellow-100 text-yellow-800";
+      break;
+    case 'approved':
+      color = "bg-blue-100 text-blue-800";
+      break;
+    case 'shipped':
+      color = "bg-green-100 text-green-800";
+      break;
+    case 'denied':
+      color = "bg-red-100 text-red-800";
+      break;
+    case 'completed':
+      color = "bg-green-100 text-green-800";
+      break;
+    case 'in_progress':
+      color = "bg-blue-100 text-blue-800";
+      break;
+    default:
+      color = "bg-gray-100 text-gray-800";
+  }
+
+  return (
+    <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
+      {status.replace('_', ' ')}
+    </span>
+  );
+};
+
+// Date formatting helper (moved out of BrandDashboardContent for reuse)
+const formatDate = (timestamp) => {
+  if (!timestamp) return 'N/A';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+};
+
 // New content management component
 import IntegratedContentManager from './ContentManager';
 // Consistent logout hook
@@ -54,6 +99,8 @@ const BrandDashboardContent = ({ brandId }) => {
   const [sampleRequests, setSampleRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [engagement, setEngagement] = useState({ enrolled: 0, completed: 0 });
+  // map of trainingId -> { enrolled, completed }
+  const [trainingProgressCounts, setTrainingProgressCounts] = useState({});
   const [loading, setLoading] = useState({
     trainings: true,
     sampleRequests: true,
@@ -353,6 +400,69 @@ const BrandDashboardContent = ({ brandId }) => {
     };
   }, [brandId]);
 
+  /*
+   * -----------------------------------------
+   *  Training progress counts (enrolled/completed)
+   * -----------------------------------------
+   */
+  useEffect(() => {
+    if (!brandId) {
+      setTrainingProgressCounts({});
+      return;
+    }
+
+    // If no trainings yet, clear counts and exit
+    if (!trainings || trainings.length === 0) {
+      setTrainingProgressCounts({});
+      return;
+    }
+
+    // Track mounted state
+    let isMounted = true;
+
+    // Take first 10 training IDs (Firestore 'in' limit)
+    const trainingIds = trainings.slice(0, 10).map((t) => t.id);
+
+    const q = query(
+      collection(db, 'training_progress'),
+      where('trainingId', 'in', trainingIds)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        if (!isMounted) return;
+        const map = {};
+        snap.forEach((doc) => {
+          const d = doc.data();
+          const id = d.trainingId;
+          if (!map[id]) {
+            map[id] = { enrolled: 0, completed: 0 };
+          }
+          map[id].enrolled += 1;
+          if (d.status === 'completed') {
+            map[id].completed += 1;
+          }
+        });
+        setTrainingProgressCounts(map);
+      },
+      (err) => {
+        console.error('Error fetching training progress counts:', err);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      if (typeof unsubscribe === 'function') {
+        try {
+          unsubscribe();
+        } catch (err) {
+          console.error('Error unsubscribing training progress listener:', err);
+        }
+      }
+    };
+  }, [trainings, brandId]);
+
   // Helper function to render status badge
   const renderStatusBadge = (status) => {
     let color = "";
@@ -481,13 +591,17 @@ const BrandDashboardContent = ({ brandId }) => {
                   <div className="flex items-center mt-3 text-sm">
                     <div className="flex items-center text-gray-500 dark:text-gray-400 mr-4">
                       <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
-                        {training.metrics?.enrolled || 0}
+                        {trainingProgressCounts[training.id]?.enrolled ??
+                          training.metrics?.enrolled ??
+                          0}
                       </span>
                       Enrolled
                     </div>
                     <div className="flex items-center text-gray-500 dark:text-gray-400">
                       <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
-                        {training.metrics?.completed || 0}
+                        {trainingProgressCounts[training.id]?.completed ??
+                          training.metrics?.completed ??
+                          0}
                       </span>
                       Completed
                     </div>
@@ -538,142 +652,6 @@ const BrandDashboardContent = ({ brandId }) => {
                   )}
                 </p>
               </div>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Sample Requests Card */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-full">
-                <Package className="h-5 w-5 text-purple-600 dark:text-purple-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Sample Requests</h3>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/brand/samples">View All</Link>
-            </Button>
-          </div>
-
-          {loading.sampleRequests ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-            </div>
-          ) : error.sampleRequests ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading sample requests: {error.sampleRequests}</p>
-            </div>
-          ) : sampleRequests.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Sample Requests</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                You don't have any sample requests yet.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/brand/samples/programs">Create Sample Program</Link>
-              </Button>
-              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                <p>Need sample data? Use the Demo Data tool in Admin panel.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {sampleRequests.map((request) => (
-                    <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {request.quantity}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(request.createdAt)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {renderStatusBadge(request.status)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Announcements Card */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-amber-100 dark:bg-amber-900 p-2 rounded-full">
-                <Bell className="h-5 w-5 text-amber-600 dark:text-amber-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Announcements</h3>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/brand/announcements">View All</Link>
-            </Button>
-          </div>
-
-          {loading.announcements ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
-            </div>
-          ) : error.announcements ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading announcements: {error.announcements}</p>
-            </div>
-          ) : announcements.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
-              <Bell className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Announcements</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                You haven't created any announcements yet.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/brand/announcements/new">Create Announcement</Link>
-              </Button>
-              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                <p>Need sample data? Use the Demo Data tool in Admin panel.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">{announcement.title}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                    {announcement.message}
-                  </p>
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatDate(announcement.createdAt)}
-                    </span>
-                    {announcement.retailerIds && announcement.retailerIds.length > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        Store-specific
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>
@@ -785,6 +763,7 @@ const EnhancedBrandHome = () => {
     { id: 'analytics', label: 'Analytics Dashboard', icon: BarChart2, description: 'Key metrics and ROI' },
     { id: 'users', label: 'User Management', icon: Users, description: 'Manage team access' },
     { id: 'content', label: 'Content Management', icon: FileText, description: 'Publish and organize content' },
+    { id: 'samples', label: 'Sample Requests', icon: Package, description: 'Manage sample requests' },
     { id: 'communities', label: 'Communities', icon: Users, description: 'Manage communities & posts' },
     { id: 'brand', label: 'Brand Performance', icon: TrendingUp, description: 'Track engagement metrics' },
     { id: 'activity', label: 'Activity Feed', icon: Activity, description: 'Recent updates and events' },
@@ -834,6 +813,108 @@ const EnhancedBrandHome = () => {
       read: true
     }
   ];
+
+  // Sample Requests Section Component
+  const SampleRequestsSection = ({ brandId }) => {
+    const [sampleRequests, setSampleRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+  
+    useEffect(() => {
+      if (!brandId) return;
+      const q = query(
+        collection(db, 'sample_requests'),
+        where('brandId', '==', brandId),
+        orderBy('createdAt', 'desc')
+      );
+  
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          try {
+            setSampleRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+            setLoading(false);
+          } catch (e) {
+            console.error(e);
+            setError(e.message);
+            setLoading(false);
+          }
+        },
+        (err) => {
+          console.error(err);
+          setError(err.message);
+          setLoading(false);
+        }
+      );
+      return () => unsub();
+    }, [brandId]);
+  
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+            Sample Requests
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">
+            Review and manage all sample requests for your brand
+          </p>
+        </div>
+  
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-6 rounded-md">
+            <p>Error loading sample requests: {error}</p>
+          </div>
+        ) : sampleRequests.length === 0 ? (
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">
+              No Sample Requests
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              You don't have any sample requests yet.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {sampleRequests.map((req) => (
+                  <tr key={req.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {req.quantity}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {formatDate(req.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      {renderStatusBadge(req.status)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
   
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
@@ -1207,6 +1288,11 @@ const EnhancedBrandHome = () => {
             <div className="w-full p-0 md:p-6">
               {/* Render the integrated content-management system */}
               <IntegratedContentManager brandId={brandId} />
+            </div>
+          )}
+          {activeSection === 'samples' && (
+            <div className="w-full p-6">
+              <SampleRequestsSection brandId={brandId} />
             </div>
           )}
           {activeSection === 'communities' && (
