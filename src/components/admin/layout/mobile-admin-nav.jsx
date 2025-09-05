@@ -1,5 +1,18 @@
 import { useLocation, Link } from 'react-router-dom'
-import { X, Home, Users, UserCheck, Building, TrendingUp, FileText, Package, Activity, Settings } from 'lucide-react'
+import { 
+  X, 
+  Home, 
+  Users, 
+  UserCheck, 
+  Building, 
+  TrendingUp, 
+  FileText, 
+  Package, 
+  Activity, 
+  Settings,
+  Database,
+  Wrench
+} from 'lucide-react'
 import { useRoleAccess } from '../../../hooks/use-role-access'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../ui/sheet'
 import { Button } from '../../ui/button'
@@ -15,6 +28,32 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: Package, current: false, permission: ['manage_brand_products'] },
   { name: 'Activity', href: '/admin/activity', icon: Activity, current: false },
   { name: 'Settings', href: '/admin/settings', icon: Settings, current: false, permission: ['manage_system_settings'] },
+  // Additional tools only when demo tools flag is enabled
+  ...(import.meta.env.VITE_SHOW_DEMO_TOOLS === 'true'
+    ? [
+        {
+          name: 'Demo Data',
+          href: '/admin/demo',
+          icon: Database,
+          current: false,
+          permission: ['system_settings'],
+        },
+        {
+          name: 'Dev Tools',
+          href: '/admin/dev',
+          icon: Wrench,
+          current: false,
+          permission: ['system_settings'],
+        },
+        {
+          name: 'Env Check',
+          href: '/admin/env-check',
+          icon: Activity,
+          current: false,
+          permission: ['system_settings'],
+        },
+      ]
+    : []),
 ]
 
 export default function MobileAdminNav({ sidebarOpen, setSidebarOpen }) {

@@ -30,15 +30,27 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: Package, current: false, permission: ['manage_brand_products'] },
   { name: 'Activity', href: '/admin/activity', icon: Activity, current: false },
   { name: 'Settings', href: '/admin/settings', icon: Settings, current: false, permission: ['system_settings'] },
-  // Demo Data management (super admin only)
-  { name: 'Demo Data', href: '/admin/demo', icon: Database, current: false, permission: ['system_settings'] },
-  // Dev Tools (visible only when env flag enabled)
+  // Additional tools only when demo tools flag is enabled
   ...(import.meta.env.VITE_SHOW_DEMO_TOOLS === 'true'
     ? [
+        {
+          name: 'Demo Data',
+          href: '/admin/demo',
+          icon: Database,
+          current: false,
+          permission: ['system_settings'],
+        },
         {
           name: 'Dev Tools',
           href: '/admin/dev',
           icon: Wrench,
+          current: false,
+          permission: ['system_settings'],
+        },
+        {
+          name: 'Env Check',
+          href: '/admin/env-check',
+          icon: Activity,
           current: false,
           permission: ['system_settings'],
         },
@@ -57,8 +69,6 @@ export default function AdminSidebar() {
   try {
     rawRoleAccess = useRoleAccess()
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn('[AdminSidebar] useRoleAccess threw before context ready:', err)
     rawRoleAccess = {}
   }
 
@@ -87,18 +97,6 @@ export default function AdminSidebar() {
     return safeCanAccess(item.permission)
   })
 
-  /* ------------------------------------------------------------------
-   * Debug – log visible items whenever role changes
-   * ------------------------------------------------------------------ */
-  React.useEffect(() => {
-    /* eslint-disable no-console */
-    console.debug(
-      '[AdminSidebar] visible nav items for role',
-      role,
-      filteredNavigation.map((n) => n.name)
-    )
-    /* eslint-enable no-console */
-  }, [role, location.pathname]) // log once per role / nav change
   /* ------------------------------------------------------------------
    * Handler: Sign the user out and redirect to public site
    * ------------------------------------------------------------------ */

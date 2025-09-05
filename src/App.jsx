@@ -29,6 +29,7 @@ import ActivityPage from './pages/admin/Activity';
 import SettingsPage from './pages/admin/Settings';
 import DemoData from './pages/admin/DemoData';
 import DevTools from './pages/admin/DevTools';
+import EnvCheck from './pages/admin/EnvCheck';
 import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-approval page
 
 // Brand Manager Components
@@ -136,6 +137,8 @@ const RootEntry = () => {
 // Main App Component
 function App() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
+  // Feature flag for demo / dev tools & env check
+  const showDemoTools = import.meta.env.VITE_SHOW_DEMO_TOOLS === 'true';
   
   // Skip emulator setup since using production Firebase
   useEffect(() => {
@@ -243,27 +246,42 @@ function App() {
               </RoleGuard>
             } 
           />
-          <Route 
-            path="/admin/demo" 
-            element={
-              <RoleGuard allowedRoles={['super_admin']}>
-                <AdminLayout>
-                  <DemoData />
-                </AdminLayout>
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/admin/dev" 
-            element={
-              <RoleGuard allowedRoles={['super_admin']}>
-                <AdminLayout>
-                  <DevTools />
-                </AdminLayout>
-              </RoleGuard>
-            } 
-          />
-
+          {/* Demo / Dev / Env routes – only when flag enabled */}
+          {showDemoTools && (
+            <>
+              <Route 
+                path="/admin/demo" 
+                element={
+                  <RoleGuard allowedRoles={['super_admin']}>
+                    <AdminLayout>
+                      <DemoData />
+                    </AdminLayout>
+                  </RoleGuard>
+                } 
+              />
+              <Route 
+                path="/admin/dev" 
+                element={
+                  <RoleGuard allowedRoles={['super_admin']}>
+                    <AdminLayout>
+                      <DevTools />
+                    </AdminLayout>
+                  </RoleGuard>
+                } 
+              />
+              <Route 
+                path="/admin/env-check" 
+                element={
+                  <RoleGuard allowedRoles={['super_admin']}>
+                    <AdminLayout>
+                      <EnvCheck />
+                    </AdminLayout>
+                  </RoleGuard>
+                } 
+              />
+            </>
+          )}
+          
           {/* Template Management Routes */}
           <Route 
             path="/admin/templates" 
