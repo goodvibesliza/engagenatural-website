@@ -11,7 +11,7 @@
 
 [context.deploy-preview.environment]
   VITE_USE_EMULATOR = "false"
-  VITE_SHOW_DEMO_TOOLS = "true"
+  VITE_SHOW_DEMO_TOOLS = "false"
   VITE_SHOW_DEBUG = "false"
   VITE_NETLIFY_CONTEXT = "deploy-preview"
 
@@ -20,3 +20,13 @@
   VITE_SHOW_DEMO_TOOLS = "false"
   VITE_SHOW_DEBUG = "false"
   VITE_NETLIFY_CONTEXT = "production"
+
+# -------------------------------------------------------------------
+# SPA Redirect – send all paths to index.html so client-side routing
+# can resolve (e.g. /admin, /brand, deep links, etc.)
+# -------------------------------------------------------------------
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

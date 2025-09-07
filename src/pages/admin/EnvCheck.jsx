@@ -12,6 +12,8 @@ const EnvCheck = () => {
   const netlifyContext = import.meta.env.VITE_NETLIFY_CONTEXT;
   const mode = import.meta.env.MODE;
   const useEmulator = import.meta.env.VITE_USE_EMULATOR;
+  const showDemoToolsRaw = import.meta.env.VITE_SHOW_DEMO_TOOLS;
+  const showDemoTools = showDemoToolsRaw === 'true';
   
   // Determine environment badge
   const getBadgeType = () => {
@@ -82,6 +84,22 @@ const EnvCheck = () => {
           </CardContent>
         </Card>
         
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Show Demo Tools&nbsp;<span className="text-xs text-gray-500">(build-time)</span></CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Raw:&nbsp;
+              <span className="font-semibold">{String(showDemoToolsRaw)}</span>
+            </p>
+            <p className="text-sm">
+              Computed:&nbsp;
+              <span className="font-semibold">{String(showDemoTools)}</span>
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Firebase Project ID</CardTitle>
