@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../firebase.old';
-import AdminLayout from '../../components/admin/layout/AdminLayout';
+import { db } from '../../lib/firebase';
 import { usePermissions } from '../../hooks/usePermissions';
 import { seedTemplates } from '../../utils/seedFirestore';
 
@@ -57,7 +56,6 @@ export default function AdminTemplatesPage() {
   };
   
   return (
-    <AdminLayout requireSuperAdmin={true}>
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Content Templates</h1>
@@ -144,7 +142,6 @@ export default function AdminTemplatesPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
   );
 }
 

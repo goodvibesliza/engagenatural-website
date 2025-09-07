@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, query, orderBy, where, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../../firebase.old';
-import AdminLayout from '../../components/admin/layout/AdminLayout';
+import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 
 export default function AdminBrandsPage() {
@@ -78,7 +77,6 @@ export default function AdminBrandsPage() {
   };
   
   return (
-    <AdminLayout requireSuperAdmin={false}>
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Brands</h1>
@@ -269,6 +267,5 @@ export default function AdminBrandsPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
   );
 }

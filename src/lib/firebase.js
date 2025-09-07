@@ -1,20 +1,41 @@
 // src/lib/firebase.js
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage"; // 👈 add this
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCTv263abYUAbveuFraYSLdPpvsbaq08p0",
+  authDomain: "engagenatural-app.firebaseapp.com",
+  projectId: "engagenatural-app",
+  storageBucket: "engagenatural-app.appspot.com",
+  messagingSenderId: "314471463344",
+  appId: "1:314471463344:web:db0916256301b9eb6fbe75",
 };
 
+// initialise only once in any environment (SSR / hot-reload / tests)
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app); // 👈 add this
+export const storage = getStorage(app);
+
+// exposed helper (used by other modules)
+export const isLocalhost = window?.location?.hostname === "localhost";
+
+const useEmu = import.meta.env.VITE_USE_EMULATOR === 'true';
+const host = import.meta.env.VITE_EMULATOR_HOST || '127.0.0.1';
+if (useEmu && !globalThis.__EMU_CONNECTED__) {
+  try {
+    connectFirestoreEmulator(db, host, Number(import.meta.env.VITE_FIRESTORE_EMULATOR_PORT || 8080));
+  } catch {}
+  try {
+    connectAuthEmulator(auth, `http://${host}:${import.meta.env.VITE_AUTH_EMULATOR_PORT || 9099}`, { disableWarnings: true });
+  } catch {}
+  try {
+    connectStorageEmulator(storage, host, Number(import.meta.env.VITE_STORAGE_EMULATOR_PORT || 9199));
+  } catch {}
+  globalThis.__EMU_CONNECTED__ = true;
+}
+
+export { app };

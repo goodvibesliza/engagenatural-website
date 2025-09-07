@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
+import getLandingRouteFor from '../utils/landing'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Dialog, DialogContent, DialogTrigger, DialogTitle } from './ui/dialog'
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from './ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Alert, AlertDescription } from './ui/alert'
 import { LogIn, UserPlus, AlertCircle } from 'lucide-react'
@@ -40,33 +41,35 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
       
       // Get user document from Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid))
-      
+
       if (userDoc.exists()) {
         const userData = userDoc.data()
-        console.log('User profile loaded:', userData.role)
         
-        // Check if admin by email - redirect to /admin instead of /admin/dashboard
-        if (adminEmails.includes(user.email)) {
-          console.log('Admin user detected, navigating to admin panel')
-          navigate('/admin')
-        } 
-        // Check if brand manager
-        else if (userData.role === 'brand_manager' && userData.brandId) {
-          console.log('Brand manager detected, navigating to brand page:', userData.brandId)
-          navigate(`/brand/${userData.brandId}`)
+        // Extract role - handle both array and string formats
+        let userRole = userData.role
+        
+        // If role is an array, take the first element
+        if (Array.isArray(userRole)) {
+          console.log('User role is an array:', userRole)
+          userRole = userRole[0] || 'staff'
         }
-        // Check verification status for retailers
-        else if (userData.verified) {
-          console.log('Verified retailer detected, navigating to verified page')
-          navigate('/retailer/verified')
-        } else {
-          console.log('Unverified user detected, navigating to profile page')
-          navigate('/retailer/profile')
-        }
+        
+        console.log('User profile loaded, normalized role:', userRole)
+
+        // Use shared helper to find the correct landing page for this role
+        const landingRoute = getLandingRouteFor({
+          uid: user.uid,
+          email: user.email,
+          role: userRole,
+          verified: userData.verified || false,
+          approved: userData.approved || false,
+        })
+
+        console.log('Redirecting to landing route:', landingRoute)
+        navigate(landingRoute)
       } else {
-        console.log('No user profile found, creating default profile')
-        // Default path if no user document exists
-        navigate('/retailer/profile')
+        console.log('No user profile found, navigating to root')
+        navigate('/')
       }
       
       setIsOpen(false)
@@ -168,6 +171,10 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
       <DialogContent className="sm:max-w-md">
         {/* Added DialogTitle for accessibility */}
         <DialogTitle className="sr-only">Authentication</DialogTitle>
+        {/* Visually-hidden description for screen-readers */}
+        <DialogDescription className="sr-only">
+          Sign in to your account or create a new account
+        </DialogDescription>
         
         <div className="p-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "emu": "firebase emulators:start",
+    "emu:ui": "powershell -NoProfile -Command Start-Process http://127.0.0.1:4000"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",

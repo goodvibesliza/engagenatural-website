@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu, Bell, Search, User, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../../../contexts/auth-context'
+import { useLogout } from '../../../hooks/useLogout'
 import { Button } from '../../ui/button'
 import {
   DropdownMenu,
@@ -15,7 +16,8 @@ import { Input } from '../../ui/input'
 import { Badge } from '../../ui/badge'
 
 export default function AdminHeader({ setSidebarOpen }) {
-  const { user, userProfile, role, signOut } = useAuth()
+  const { user, userProfile, role } = useAuth()
+  const { logout } = useLogout()
   const navigate = useNavigate()
   const [notifications] = useState([
     { id: 1, message: 'New verification request', unread: true },
@@ -24,6 +26,20 @@ export default function AdminHeader({ setSidebarOpen }) {
   ])
 
   const unreadCount = notifications.filter(n => n.unread).length
+
+  /* ------------------------------------------------------------------ */
+  /* Environment summary chip (shows on md+ screens, dev/debug only)    */
+  /* ------------------------------------------------------------------ */
+  const showEnvChip = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEBUG === 'true'
+  let envLabel = 'Production'
+  let envClass = 'bg-green-600/90 text-white'
+  if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+    envLabel = 'Emulator'
+    envClass = 'bg-amber-600/90 text-white'
+  } else if (import.meta.env.VITE_NETLIFY_CONTEXT === 'deploy-preview') {
+    envLabel = 'Deploy Preview'
+    envClass = 'bg-purple-600/90 text-white'
+  }
 
   const getRoleDisplayName = (role) => {
     switch (role) {
@@ -38,20 +54,9 @@ export default function AdminHeader({ setSidebarOpen }) {
     }
   }
 
-  const handleLogout = async () => {
-    console.log("Attempting to log out...")
-    try {
-      const { success, error } = await signOut()
-      if (success) {
-        console.log("Logout successful. Navigating to homepage.")
-        navigate('/')
-      } else {
-        console.error("Logout failed:", error)
-        // Optionally, you can add a toast notification to inform the user
-      }
-    } catch (err) {
-      console.error("An unexpected error occurred during logout:", err)
-    }
+  const handleLogout = () => {
+    // Use centralized logout hook – it handles redirect to PublicWebsite
+    logout()
   }
 
   return (
@@ -82,6 +87,16 @@ export default function AdminHeader({ setSidebarOpen }) {
         </div>
 
         <div className="flex items-center gap-x-4 lg:gap-x-6">
+          {/* Env Summary Chip */}
+          {showEnvChip && (
+            <Badge
+              variant="outline"
+              className={`hidden md:flex px-2.5 py-1 text-xs font-medium ${envClass}`}
+            >
+              {envLabel}
+            </Badge>
+          )}
+
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

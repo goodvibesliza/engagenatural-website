@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../firebase.old';
+import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 
 export default function BrandManagerLayout({ children }) {
@@ -86,7 +86,8 @@ export default function BrandManagerLayout({ children }) {
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/login');
+      // Use logout flag so root route shows PublicWebsite instead of Login
+      navigate('/?logout=1');
     } catch (error) {
       console.error('Error signing out:', error);
     }
