@@ -13,10 +13,10 @@
   VITE_SHOW_DEBUG = "false"
   VITE_NETLIFY_CONTEXT = "deploy-preview"
 
-  + [context.branch-deploy.environment]
-+   VITE_USE_EMULATOR = "false"
-+   VITE_SHOW_DEBUG = "false"
-+   VITE_NETLIFY_CONTEXT = "branch-deploy"
+[context.branch-deploy.environment]
+   VITE_USE_EMULATOR = "false"
+   VITE_SHOW_DEBUG = "false"
+   VITE_NETLIFY_CONTEXT = "branch-deploy"
 
 
 [context.production.environment]
