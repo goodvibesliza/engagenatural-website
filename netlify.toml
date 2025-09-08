@@ -5,19 +5,22 @@
 [build.environment]
   # Default fallback if context not matched
   VITE_USE_EMULATOR = "false"
-  VITE_SHOW_DEMO_TOOLS = "false"
   VITE_SHOW_DEBUG = "false"
   VITE_NETLIFY_CONTEXT = "production" # used by EnvBadge
 
 [context.deploy-preview.environment]
   VITE_USE_EMULATOR = "false"
-  VITE_SHOW_DEMO_TOOLS = "false"
   VITE_SHOW_DEBUG = "false"
   VITE_NETLIFY_CONTEXT = "deploy-preview"
 
+  + [context.branch-deploy.environment]
++   VITE_USE_EMULATOR = "false"
++   VITE_SHOW_DEBUG = "false"
++   VITE_NETLIFY_CONTEXT = "branch-deploy"
+
+
 [context.production.environment]
   VITE_USE_EMULATOR = "false"
-  VITE_SHOW_DEMO_TOOLS = "false"
   VITE_SHOW_DEBUG = "false"
   VITE_NETLIFY_CONTEXT = "production"
 
