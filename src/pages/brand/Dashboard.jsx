@@ -101,6 +101,13 @@ const BrandDashboardContent = ({ brandId }) => {
   const [engagement, setEngagement] = useState({ enrolled: 0, completed: 0 });
   // map of trainingId -> { enrolled, completed }
   const [trainingProgressCounts, setTrainingProgressCounts] = useState({});
+  // Followers KPI stats
+  const [followersStats, setFollowersStats] = useState({
+    total: 0,
+    last7d: 0,
+    last30d: 0,
+    series30d: [] // array of length 30 with daily counts (oldest→newest)
+  });
   const [loading, setLoading] = useState({
     trainings: true,
     sampleRequests: true,
@@ -116,11 +123,13 @@ const BrandDashboardContent = ({ brandId }) => {
   });
 
   // Memoise current date range once per mount to prevent changing
-  const { now, sevenDaysAgo } = useMemo(() => {
+  const { now, sevenDaysAgo, thirtyDaysAgo } = useMemo(() => {
     const current = new Date();
     const sevenDaysPrior = new Date();
     sevenDaysPrior.setDate(current.getDate() - 7);
-    return { now: current, sevenDaysAgo: sevenDaysPrior };
+    const thirtyPrior = new Date();
+    thirtyPrior.setDate(current.getDate() - 30);
+    return { now: current, sevenDaysAgo: sevenDaysPrior, thirtyDaysAgo: thirtyPrior };
   }, []);
 
   useEffect(() => {
@@ -326,6 +335,57 @@ const BrandDashboardContent = ({ brandId }) => {
                 const completed = progressData.filter(p => p.status === 'completed').length;
                 
                 setEngagement({ enrolled, completed });
+  /*
+   * -----------------------------------------
+   *  Followers metrics (live)
+   * -----------------------------------------
+   */
+  useEffect(() => {
+    if (!brandId) return;
+
+    const q = query(
+      collection(db, 'brand_follows'),
+      where('brandId', '==', brandId)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const total = snap.size;
+        let last7d = 0;
+        let last30d = 0;
+        // build daily buckets for last 30 days initialised at 0
+        const buckets = new Array(30).fill(0);
+
+        snap.forEach((d) => {
+          const ts = d.data()?.createdAt;
+          const date = ts?.toDate ? ts.toDate() : null;
+          if (!date) return;
+          const diffMs = now - date;
+          const diffDays = Math.floor(diffMs / 86_400_000);
+
+          if (diffDays < 30) {
+            last30d += 1;
+            // bucket index (0 oldest, 29 today)
+            const idx = 29 - diffDays;
+            buckets[idx] += 1;
+          }
+          if (diffDays < 7) last7d += 1;
+        });
+
+        setFollowersStats({
+          total,
+          last7d,
+          last30d,
+          series30d: buckets
+        });
+      },
+      (err) => console.error('followers snapshot error:', err)
+    );
+
+    return () => unsub();
+  }, [brandId, now]);
+
                 setLoading(prev => ({ ...prev, engagement: false }));
               } catch (err) {
                 console.error("Error processing engagement data:", err);
@@ -654,6 +714,53 @@ const BrandDashboardContent = ({ brandId }) => {
               </div>
             </div>
           )}
+        </div>
+      </Card>
+
+      {/* Followers Card */}
+      <Card className="overflow-hidden">
+        <div className="p-6 bg-white dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-full">
+                <Users className="h-5 w-5 text-purple-600 dark:text-purple-300" />
+              </div>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Followers (30&nbsp;days)
+              </h3>
+            </div>
+          </div>
+
+          {/* KPI chips */}
+          <div className="flex space-x-4 mb-4">
+            <div className="text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
+              <p className="text-xl font-bold">{followersStats.total}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Last 7 d</p>
+              <p className="text-xl font-bold">{followersStats.last7d}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Last 30 d</p>
+              <p className="text-xl font-bold">{followersStats.last30d}</p>
+            </div>
+          </div>
+
+          {/* Simple inline bar chart */}
+          <div className="flex items-end space-x-0.5 h-20">
+            {followersStats.series30d.map((v, i) => {
+              const max = Math.max(...followersStats.series30d, 1);
+              const heightPct = (v / max) * 100;
+              return (
+                <div
+                  key={i}
+                  style={{ height: `${heightPct}%` }}
+                  className="flex-1 bg-purple-400/70 dark:bg-purple-300/80 rounded-t"
+                ></div>
+              );
+            })}
+          </div>
         </div>
       </Card>
     </div>

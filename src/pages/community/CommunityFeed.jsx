@@ -13,7 +13,9 @@ import {
   orderBy,
   addDoc,
   serverTimestamp,
-  limit
+  limit,
+  updateDoc,
+  increment
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
@@ -36,6 +38,10 @@ export default function CommunityFeed() {
   const [commentLikesByMe, setCommentLikesByMe] = useState(new Set());
   const [commentsLoading, setCommentsLoading] = useState({});
   const commentsUnsubRef = useRef({});
+
+  // New state for post likes
+  const [postLikesByMe, setPostLikesByMe] = useState(new Set());
+  const postLikesUnsubRef = useRef(null);
 
   // Fetch community data
   useEffect(() => {
@@ -160,8 +166,59 @@ export default function CommunityFeed() {
         }
       });
       commentsUnsubRef.current = {};
+      
+      // Clean up post likes subscription
+      if (postLikesUnsubRef.current) {
+        try {
+          postLikesUnsubRef.current();
+        } catch (err) {
+          console.error('Error unsubscribing from post likes:', err);
+        }
+      }
     };
   }, [communityId]);
+
+  // Subscribe to post likes by current user
+  useEffect(() => {
+    if (!communityId || !user) return;
+    
+    try {
+      const postLikesQuery = query(
+        collection(db, 'post_likes'),
+        where('communityId', '==', communityId),
+        where('userId', '==', user.uid)
+      );
+      
+      postLikesUnsubRef.current = onSnapshot(
+        postLikesQuery,
+        (snapshot) => {
+          const likedPostIds = new Set();
+          snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.postId) {
+              likedPostIds.add(data.postId);
+            }
+          });
+          setPostLikesByMe(likedPostIds);
+        },
+        (err) => {
+          console.error('Error with post likes query:', err);
+        }
+      );
+    } catch (err) {
+      console.error('Error setting up post likes query:', err);
+    }
+    
+    return () => {
+      if (postLikesUnsubRef.current) {
+        try {
+          postLikesUnsubRef.current();
+        } catch (err) {
+          console.error('Error unsubscribing from post likes:', err);
+        }
+      }
+    };
+  }, [communityId, user]);
 
   // Subscribe to comments for each post
   useEffect(() => {
@@ -264,6 +321,54 @@ export default function CommunityFeed() {
     };
   }, [posts, user]);
 
+  // Toggle like on a post
+  const togglePostLike = async (post) => {
+    if (!user) return;
+    
+    const likeId = `${user.uid}_${post.id}`;
+    const likeRef = doc(db, 'post_likes', likeId);
+    const postRef = doc(db, 'community_posts', post.id);
+    
+    try {
+      if (postLikesByMe.has(post.id)) {
+        // Unlike
+        await deleteDoc(likeRef);
+        await updateDoc(postRef, { 
+          likeCount: increment(-1) 
+        });
+        
+        // Update local state
+        setPostLikesByMe(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(post.id);
+          return newSet;
+        });
+      } else {
+        // Like
+        await setDoc(likeRef, {
+          postId: post.id,
+          communityId,
+          brandId: community?.brandId || null,
+          userId: user.uid,
+          createdAt: serverTimestamp()
+        });
+        
+        await updateDoc(postRef, { 
+          likeCount: increment(1) 
+        });
+        
+        // Update local state
+        setPostLikesByMe(prev => {
+          const newSet = new Set(prev);
+          newSet.add(post.id);
+          return newSet;
+        });
+      }
+    } catch (err) {
+      console.error('Error toggling post like:', err);
+    }
+  };
+
   // Create a new post
   const handleCreatePost = async () => {
     if (!user || !newPostContent.trim()) return;
@@ -301,12 +406,18 @@ export default function CommunityFeed() {
       await addDoc(collection(db, 'community_comments'), {
         postId,
         communityId,
+        brandId: community?.brandId || null,
         userId: user.uid,
         userName: user.name || user.displayName || 'Anonymous',
         content: commentInputs[postId].trim(),
         likeCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
+      });
+      
+      // Update post's comment count
+      await updateDoc(doc(db, 'community_posts', postId), {
+        commentCount: increment(1)
       });
       
       // Clear the input
@@ -340,6 +451,8 @@ export default function CommunityFeed() {
         // Like
         await setDoc(likeRef, {
           commentId,
+          communityId,
+          brandId: community?.brandId || null,
           userId: user.uid,
           createdAt: serverTimestamp()
         });
@@ -529,6 +642,23 @@ export default function CommunityFeed() {
                 {formatDate(post.createdAt)}
               </div>
               <p className="whitespace-pre-wrap mb-4">{post.content}</p>
+              
+              {/* Post actions */}
+              <div className="flex items-center space-x-4 mb-4">
+                <button
+                  onClick={() => togglePostLike(post)}
+                  className={`text-sm px-3 py-1 rounded flex items-center ${
+                    postLikesByMe.has(post.id)
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {postLikesByMe.has(post.id) ? 'Liked' : 'Like'}
+                  <span className="ml-2 text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full">
+                    {post.likeCount || 0}
+                  </span>
+                </button>
+              </div>
               
               {/* Comments section */}
               <div className="mt-4 border-t pt-3">

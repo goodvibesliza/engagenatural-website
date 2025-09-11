@@ -27,7 +27,7 @@ service cloud.firestore {
     // Allow full access to user documents to unblock seeding/migration.
     // Tighten these rules once permissions are fully resolved.
     match /users/{uid} {
-      allow read, write: if true; // TEMPORARY – unrestricted for debugging
+      allow read, write: if true; // TEMPORARY â€“ unrestricted for debugging
     }
 
     // ---------- brands (reference data for brand-owned content) ----------
@@ -65,7 +65,7 @@ service cloud.firestore {
     // to unblock demo seeding in emulator/prod. Tighten
     // once seeding is confirmed working.
     match /trainings/{trainingId} {
-      allow read, write: if request.auth != null; // TEMPORARY – unrestricted
+      allow read, write: if request.auth != null; // TEMPORARY â€“ unrestricted
     }
 
     // ---------- training_progress (per-user enrollment/progress) ----------
@@ -201,8 +201,21 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         resource.data.userId == request.auth.uid;
 
-      // Likes are immutable – no updates
+      // Likes are immutable â€“ no updates
       allow update: if false;
+    }
+      // ---------- brand_follows (user follows brands) ----------
+    match /brand_follows/{docId} {
+      // Users can create follow docs for themselves
+      allow create: if request.auth != null &&
+                    request.resource.data.userId == request.auth.uid;
+
+      // Users can read/update/delete their own follow docs
+      allow read, update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
     }
   }
 }

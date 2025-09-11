@@ -42,6 +42,16 @@ import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 import StaffDashboard from './pages/staff/Dashboard';
 // Staff Training Detail
 import StaffTrainingDetail from './pages/staff/TrainingDetail.jsx';
+// Error boundary to catch runtime errors in heavy pages
+import ErrorBoundary from './components/ErrorBoundary';
+// New sidebar layout & pages
+import StaffDashboardLayout from './pages/staff/dashboard/StaffDashboardLayout.jsx';
+import ProfilePage from './pages/staff/dashboard/ProfilePage.jsx';
+import VerificationPage from './pages/staff/dashboard/VerificationPage.jsx';
+import CommunitiesPage from './pages/staff/dashboard/CommunitiesPage.jsx';
+import MyBrandsPage from './pages/staff/dashboard/MyBrandsPage.jsx';
+import LearningPage from './pages/staff/dashboard/LearningPage.jsx';
+import RequireVerification from './pages/staff/dashboard/RequireVerification.jsx';
 
 // Emulator Components
 import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
@@ -52,6 +62,8 @@ import CommunityFeed from './pages/community/CommunityFeed';
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
 import EnvBadge from './components/dev/EnvBadge';
+// Global user dropdown
+import UserDropdownMenu from './components/UserDropdownMenu';
 
 // Simple spinner component for loading states
 const LoadingSpinner = () => (
@@ -148,6 +160,10 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        {/* Global user menu (top-right, visible on every route) */}
+        <div className="fixed top-3 right-3 z-50">
+          <UserDropdownMenu />
+        </div>
         <Routes>
           {/* Root path with simplified routing logic */}
           <Route
@@ -389,24 +405,48 @@ function App() {
           />
 
           {/* Staff Routes - Protected for staff role */}
-          {/* Staff Dashboard - Exact route */}
-          <Route 
-            path="/staff" 
-            element={
-              <RoleGuard allowedRoles={['staff']}>
-                <StaffDashboard />
-              </RoleGuard>
-            } 
+          {/* Staff Dashboard – new sidebar layout */}
+          {/* bare /staff → redirect to profile */}
+          <Route
+            path="/staff"
+            element={<Navigate to="/staff/profile" replace />}
           />
 
-          <Route 
-            path="/staff/*" 
+          {/* Nested staff routes under sidebar layout */}
+          <Route
+            path="/staff/*"
             element={
               <RoleGuard allowedRoles={['staff']}>
-                <StaffDashboard />
+                <ErrorBoundary>
+                  <StaffDashboardLayout />
+                </ErrorBoundary>
               </RoleGuard>
-            } 
-          />
+            }
+          >
+            <Route index element={<Navigate to="/staff/profile" replace />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="verification" element={<VerificationPage />} />
+            <Route
+              path="communities"
+              element={<CommunitiesPage />}
+            />
+            <Route
+              path="my-brands"
+              element={
+                <RequireVerification>
+                  <MyBrandsPage />
+                </RequireVerification>
+              }
+            />
+            <Route
+              path="learning"
+              element={
+                <RequireVerification>
+                  <LearningPage />
+                </RequireVerification>
+              }
+            />
+          </Route>
 
           {/* Staff Training Detail */}
           <Route 
