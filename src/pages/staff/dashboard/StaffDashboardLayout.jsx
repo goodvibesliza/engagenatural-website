@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 
 export default function StaffDashboardLayout() {
   // No per-page user menu; global menu now handles sign-out and profile actions.
@@ -9,18 +9,12 @@ export default function StaffDashboardLayout() {
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            {/* Left – Home link */}
+            {/* Left - Title */}
             <div className="flex items-center space-x-4">
-              <Link
-                to="/"
-                className="text-brand-primary hover:text-brand-primary/80 font-medium"
-              >
-                ← Home
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Staff Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">EngageNatural</h1>
             </div>
 
-            {/* Right – User menu */}
+            {/* Right �?\" User menu */}
             {/* global UserDropdownMenu rendered in App.jsx */}
           </div>
         </div>
@@ -43,7 +37,7 @@ export default function StaffDashboardLayout() {
                     }`
                   }
                 >
-                  <span className="mr-3">👤</span>
+                  <span className="mr-3">dY`</span>
                   <span>Profile</span>
                 </NavLink>
 
@@ -57,7 +51,7 @@ export default function StaffDashboardLayout() {
                     }`
                   }
                 >
-                  <span className="mr-3">🔐</span>
+                  <span className="mr-3">dY"?</span>
                   <span>Verification</span>
                 </NavLink>
 
@@ -71,7 +65,7 @@ export default function StaffDashboardLayout() {
                     }`
                   }
                 >
-                  <span className="mr-3">👥</span>
+                  <span className="mr-3">dY`�</span>
                   <span>Communities</span>
                 </NavLink>
 
@@ -85,7 +79,7 @@ export default function StaffDashboardLayout() {
                     }`
                   }
                 >
-                  <span className="mr-3">🏢</span>
+                  <span className="mr-3">dY?�</span>
                   <span>My Brands</span>
                 </NavLink>
 
@@ -99,7 +93,7 @@ export default function StaffDashboardLayout() {
                     }`
                   }
                 >
-                  <span className="mr-3">📚</span>
+                  <span className="mr-3">dY"s</span>
                   <span>Learning</span>
                 </NavLink>
               </nav>
