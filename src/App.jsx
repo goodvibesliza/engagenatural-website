@@ -404,6 +404,24 @@ function App() {
             } 
           />
 
+          {/* Community Post Detail (any authenticated user) */}
+          <Route
+            path="/community/:postId"
+            element={
+              <ProtectedRoute>
+                <PostDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community/:id"
+            element={
+              <ProtectedRoute>
+                <PostDetail />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Staff Routes - Protected for staff role */}
           {/* Staff Dashboard �?\" new sidebar layout */}
           {/* bare /staff �+' redirect to profile */}
@@ -472,16 +490,6 @@ function App() {
 
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
-
-          {/* Community Post Detail (any authenticated user) */}
-          <Route
-            path="/community/:postId"
-            element={
-              <ProtectedRoute>
-                <PostDetail />
-              </ProtectedRoute>
-            }
-          />
 
           {/* Catch-all for unknown routes */}
           <Route path="*" element={<Navigate to="/" />} />
