@@ -30,7 +30,7 @@ import SettingsPage from './pages/admin/Settings';
 import DemoData from './pages/admin/DemoData';
 import DevTools from './pages/admin/DevTools';
 import EnvCheck from './pages/admin/EnvCheck';
-import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-approval page
+import PendingApproval from './pages/PendingApproval';   // ��.�,? pending-approval page
 
 // Brand Manager Components
 import BrandDashboard from './pages/brand/Dashboard';
@@ -56,8 +56,8 @@ import RequireVerification from './pages/staff/dashboard/RequireVerification.jsx
 // Emulator Components
 import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
-// Community Feed
-import CommunityFeed from './pages/community/CommunityFeed';
+// Community Components
+import PostDetail from './pages/community/PostDetail';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -73,7 +73,7 @@ const LoadingSpinner = () => (
 );
 
 // ---------------------------------------------------------------------------
-// Protected Route – keeps returnUrl so users can be sent back after login
+// Protected Route �?\" keeps returnUrl so users can be sent back after login
 // ---------------------------------------------------------------------------
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -103,7 +103,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Root entry – simplified component that handles auth state and routing
+// Root entry �?\" simplified component that handles auth state and routing
 const RootEntry = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -135,7 +135,7 @@ const RootEntry = () => {
 
   // Redirect to appropriate landing page based on role
   const landingRoute = getLandingRouteFor(user);
-  // Prevent infinite redirects – only navigate if we're not already
+  // Prevent infinite redirects �?\" only navigate if we're not already
   // on the desired landing route.
   if (location.pathname !== landingRoute) {
     return <Navigate to={landingRoute} state={{ from: location }} replace />;
@@ -262,7 +262,7 @@ function App() {
               </RoleGuard>
             } 
           />
-          {/* Demo / Dev / Env routes – only when flag enabled */}
+          {/* Demo / Dev / Env routes �?\" only when flag enabled */}
           {showDemoTools && (
             <>
               <Route 
@@ -405,8 +405,8 @@ function App() {
           />
 
           {/* Staff Routes - Protected for staff role */}
-          {/* Staff Dashboard – new sidebar layout */}
-          {/* bare /staff → redirect to profile */}
+          {/* Staff Dashboard �?\" new sidebar layout */}
+          {/* bare /staff �+' redirect to profile */}
           <Route
             path="/staff"
             element={<Navigate to="/staff/profile" replace />}
@@ -473,12 +473,12 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
-          {/* Community Feed (any authenticated user) */}
+          {/* Community Post Detail (any authenticated user) */}
           <Route
-            path="/community/:id"
+            path="/community/:postId"
             element={
               <ProtectedRoute>
-                <CommunityFeed />
+                <PostDetail />
               </ProtectedRoute>
             }
           />
