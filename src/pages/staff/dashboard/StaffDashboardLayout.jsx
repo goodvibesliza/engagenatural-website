@@ -21,6 +21,38 @@ export default function StaffDashboardLayout() {
       </div>
 
       {/* Main content */}
+      {/* Tab bar for quick navigation */}
+      <div className="container mx-auto px-4">
+        <div className="mb-4 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-6">
+            <NavLink
+              to="/staff/learning"
+              className={({ isActive }) =>
+                `pb-2 border-b-2 text-sm ${
+                  isActive
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'
+                }`
+              }
+            >
+              Learning
+            </NavLink>
+            <NavLink
+              to="/staff/communities"
+              className={({ isActive }) =>
+                `pb-2 border-b-2 text-sm ${
+                  isActive
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'
+                }`
+              }
+            >
+              Communities
+            </NavLink>
+          </nav>
+        </div>
+      </div>
+
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar - stacks on top on small screens */}
