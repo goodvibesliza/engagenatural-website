@@ -56,7 +56,7 @@ const PostCard = ({ post, user, onLikeToggle, isLiked, isPendingLike, comments }
             } ${isLiked ? 'text-brand-primary' : 'text-gray-500'}`}
           >
             <span role="img" aria-label="like">
-              {isLiked ? '❤️' : '🤍'}
+              {isLiked ? '♥️' : '♡'}
             </span>
             <span>{post.likesCount || 0}</span>
           </button>
@@ -124,6 +124,7 @@ const PostSkeleton = () => (
 
 export default function CommunitiesPage() {
   const { user } = useAuth();
+  const useEmulator = import.meta.env.VITE_USE_EMULATOR === 'true';
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -148,36 +149,44 @@ export default function CommunitiesPage() {
     
     setLoading(true);
     
-    // Set up real-time listener for first page
-    const unsubscribe = onSnapshot(
-      postsQuery,
-      (snapshot) => {
-        const postsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        // Store the last visible document for pagination
-        if (snapshot.docs.length > 0) {
-          lastVisibleRef.current = snapshot.docs[snapshot.docs.length - 1];
+    if (useEmulator) {
+      (async () => {
+        try {
+          const snapshot = await getDocs(postsQuery);
+          const postsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          if (snapshot.docs.length > 0) {
+            lastVisibleRef.current = snapshot.docs[snapshot.docs.length - 1];
+          }
+          setPosts(postsData);
+          // Load comments for each post
+          postsData.forEach(post => { loadComments(post.id); });
+        } finally {
+          setLoading(false);
         }
-        
-        setPosts(postsData);
-        setLoading(false);
-        
-        // Load comments for each post
-        postsData.forEach(post => {
-          loadComments(post.id);
-        });
-      },
-      (error) => {
-        // Silent error handling
-        setLoading(false);
-        setHasMore(false);
-      }
-    );
-    
-    unsubscribeRef.current = unsubscribe;
+      })();
+      unsubscribeRef.current = null;
+    } else {
+      const unsubscribe = onSnapshot(
+        postsQuery,
+        (snapshot) => {
+          const postsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          if (snapshot.docs.length > 0) {
+            lastVisibleRef.current = snapshot.docs[snapshot.docs.length - 1];
+          }
+          setPosts(postsData);
+          setLoading(false);
+          postsData.forEach(post => { loadComments(post.id); });
+        },
+        (error) => {
+          setLoading(false);
+          setHasMore(false);
+        }
+      );
+      unsubscribeRef.current = unsubscribe;
+    }
     
     // Check which posts are liked by the user
     if (user?.uid) {

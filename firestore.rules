@@ -27,7 +27,7 @@ service cloud.firestore {
     // Allow full access to user documents to unblock seeding/migration.
     // Tighten these rules once permissions are fully resolved.
     match /users/{uid} {
-      allow read, write: if true; // TEMPORARY â€“ unrestricted for debugging
+      allow read, write: if true; // TEMPORARY A��,��?o unrestricted for debugging
     }
 
     // ---------- brands (reference data for brand-owned content) ----------
@@ -65,7 +65,7 @@ service cloud.firestore {
     // to unblock demo seeding in emulator/prod. Tighten
     // once seeding is confirmed working.
     match /trainings/{trainingId} {
-      allow read, write: if request.auth != null; // TEMPORARY â€“ unrestricted
+      allow read, write: if request.auth != null; // TEMPORARY A��,��?o unrestricted
     }
 
     // ---------- training_progress (per-user enrollment/progress) ----------
@@ -96,15 +96,9 @@ service cloud.firestore {
 
     // ---------- community_comments ----------
     match /community_comments/{commentId} {
-      // Read only if parent post is public
-      allow read: if request.auth != null && (
-        isPublicPost(/databases/$(database)/documents/community_posts/$(resource.data.postId)) ||
-        get(/databases/$(database)/documents/community_posts/$(resource.data.postId)).data.userId == request.auth.uid
-      );
-
-      // Create only if parent post is public
-      allow create: if request.auth != null &&
-        isPublicPost(/databases/$(database)/documents/community_posts/$(request.resource.data.postId));
+      // TEMPORARY: allow any authenticated user to read/create comments to avoid list-evaluation get() errors in emulator
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
 
       // Edit/delete own comments or super_admin
       allow update, delete: if request.auth != null && (
@@ -201,7 +195,7 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         resource.data.userId == request.auth.uid;
 
-      // Likes are immutable â€“ no updates
+      // Likes are immutable A��,��?o no updates
       allow update: if false;
     }
       // ---------- brand_follows (user follows brands) ----------

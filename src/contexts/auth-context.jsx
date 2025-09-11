@@ -74,6 +74,7 @@ export function AuthProvider({ children }) {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [firestoreProfile, setFirestoreProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const useEmulator = import.meta.env.VITE_USE_EMULATOR === 'true';
 
   // Keep the listener unsub ref so we can clean it up on sign out
   const userDocUnsubRef = useRef(null);
@@ -105,7 +106,7 @@ export function AuthProvider({ children }) {
             uid: user.uid,
             email: user.email || "",
             // Default to "staff" role so the account can at least log in.
-            // The "approved" flag is intentionally omitted — this should
+            // The "approved" flag is intentionally omitted – this should
             // only ever be set (or modified) by a privileged admin action
             // in the dashboard, never automatically by the client.
             role: "staff",
@@ -116,10 +117,18 @@ export function AuthProvider({ children }) {
         );
       }
 
-      userDocUnsubRef.current = onSnapshot(userRef, (ds) => {
-        setFirestoreProfile(ds.exists() ? ds.data() : null);
+      if (useEmulator) {
+        // Read once to avoid watch assertions in emulator
+        const latest = await getDoc(userRef);
+        setFirestoreProfile(latest.exists() ? latest.data() : null);
         setLoading(false);
-      });
+        userDocUnsubRef.current = null; // no live listener in emulator
+      } else {
+        userDocUnsubRef.current = onSnapshot(userRef, (ds) => {
+          setFirestoreProfile(ds.exists() ? ds.data() : null);
+          setLoading(false);
+        });
+      }
     });
 
     return () => {

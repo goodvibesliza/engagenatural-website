@@ -5,6 +5,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   deleteDoc,
   query,
@@ -70,6 +71,7 @@ export default function PostDetail() {
   const { postId, id } = useParams(); // Support both postId and id keys
   const actualPostId = postId || id;
   const { user } = useAuth();
+  const useEmulator = import.meta.env.VITE_USE_EMULATOR === 'true';
   
   // State
   const [post, setPost] = useState(null);
@@ -97,41 +99,67 @@ export default function PostDetail() {
     
     const postRef = doc(db, 'community_posts', actualPostId);
     
-    unsubscribePostRef.current = onSnapshot(
-      postRef,
-      (docSnapshot) => {
-        if (docSnapshot.exists()) {
-          const postData = {
-            id: docSnapshot.id,
-            ...docSnapshot.data()
-          };
-          
-          // Check if post is public
-          if (postData.visibility !== 'public') {
-            setError('This post is not available');
-            setPost(null);
+    if (useEmulator) {
+      (async () => {
+        try {
+          const docSnapshot = await getDoc(postRef);
+          if (docSnapshot.exists()) {
+            const postData = { id: docSnapshot.id, ...docSnapshot.data() };
+            if (postData.visibility !== 'public') {
+              setError('This post is not available');
+              setPost(null);
+            } else {
+              setPost(postData);
+              setError(null);
+            }
           } else {
-            setPost(postData);
-            setError(null);
+            setError('Post not found');
+            setPost(null);
           }
-        } else {
-          setError('Post not found');
-          setPost(null);
+        } catch (e) {
+          setError('Error loading post');
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
-      },
-      (err) => {
-        setError('Error loading post');
-        setLoading(false);
-      }
-    );
+      })();
+      unsubscribePostRef.current = null;
+    } else {
+      unsubscribePostRef.current = onSnapshot(
+        postRef,
+        (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const postData = {
+              id: docSnapshot.id,
+              ...docSnapshot.data()
+            };
+            
+            // Check if post is public
+            if (postData.visibility !== 'public') {
+              setError('This post is not available');
+              setPost(null);
+            } else {
+              setPost(postData);
+              setError(null);
+            }
+          } else {
+            setError('Post not found');
+            setPost(null);
+          }
+          setLoading(false);
+        },
+        (err) => {
+          setError('Error loading post');
+          setLoading(false);
+        }
+      );
+    }
     
     return () => {
       if (unsubscribePostRef.current) {
         unsubscribePostRef.current();
       }
     };
-  }, [actualPostId]);
+  }, [actualPostId, useEmulator]);
   
   // Subscribe to comments
   useEffect(() => {
@@ -145,27 +173,42 @@ export default function PostDetail() {
     
     setLoadingComments(true);
     
-    unsubscribeCommentsRef.current = onSnapshot(
-      commentsQuery,
-      (snapshot) => {
-        const commentsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setComments(commentsData);
-        setLoadingComments(false);
-      },
-      (err) => {
-        setLoadingComments(false);
-      }
-    );
+    if (useEmulator) {
+      (async () => {
+        try {
+          setLoadingComments(true);
+          const snapshot = await getDocs(commentsQuery);
+          const commentsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          setComments(commentsData);
+        } finally {
+          setLoadingComments(false);
+        }
+      })();
+      unsubscribeCommentsRef.current = null;
+    } else {
+      setLoadingComments(true);
+      unsubscribeCommentsRef.current = onSnapshot(
+        commentsQuery,
+        (snapshot) => {
+          const commentsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setComments(commentsData);
+          setLoadingComments(false);
+        },
+        (err) => {
+          setLoadingComments(false);
+        }
+      );
+    }
     
     return () => {
       if (unsubscribeCommentsRef.current) {
         unsubscribeCommentsRef.current();
       }
     };
-  }, [actualPostId]);
+  }, [actualPostId, useEmulator]);
   
   // Check if user has liked the post
   useEffect(() => {
@@ -344,7 +387,7 @@ export default function PostDetail() {
                 } ${isLiked ? 'text-brand-primary' : 'text-gray-500'}`}
               >
                 <span role="img" aria-label="like">
-                  {isLiked ? '❤️' : '🤍'}
+                  {isLiked ? '♥️' : '♡'}
                 </span>
                 <span>{post.likesCount || 0}</span>
               </button>

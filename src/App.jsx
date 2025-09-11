@@ -422,6 +422,24 @@ function App() {
             }
           />
 
+          {/* Staff-scoped Community Post Detail aliases (any authenticated user) */}
+          <Route
+            path="/staff/community/:postId"
+            element={
+              <ProtectedRoute>
+                <PostDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/community/:id"
+            element={
+              <ProtectedRoute>
+                <PostDetail />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Staff Routes - Protected for staff role */}
           {/* Staff Dashboard �?\" new sidebar layout */}
           {/* bare /staff �+' redirect to profile */}
