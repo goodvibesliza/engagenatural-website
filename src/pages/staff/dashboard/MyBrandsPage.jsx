@@ -34,7 +34,6 @@ export default function MyBrandsPage() {
   const [pendingFollowIds, setPendingFollowIds] = useState(new Set());
   
   // Refs for cleanup
-  const followsUnsubRef = useRef(null);
   const detailsUnsubRefs = useRef({});
 
   // Load initial brands and handle search
@@ -106,22 +105,21 @@ export default function MyBrandsPage() {
       where('userId', '==', user.uid)
     );
     
-    followsUnsubRef.current = onSnapshot(
-      followsQuery,
-      (snapshot) => {
-        const followsData = snapshot.docs.map(doc => doc.data());
+    const loadFollows = async () => {
+      try {
+        const snapshot = await getDocs(followsQuery);
+        const followsData = snapshot.docs.map(d => d.data());
         setFollows(followsData);
-      },
-      (err) => {
+      } catch (err) {
         console.error('Error loading follows:', err);
         setFollows([]);
       }
-    );
+    };
+    
+    loadFollows();
     
     return () => {
-      if (followsUnsubRef.current) {
-        followsUnsubRef.current();
-      }
+      // No-op cleanup since we're not using a listener
     };
   }, [user]);
   
@@ -381,7 +379,7 @@ export default function MyBrandsPage() {
           className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
         />
         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-          <span role="img" aria-label="search">🔍</span>
+          <span role="img" aria-label="search">dY"?</span>
         </div>
       </div>
 
