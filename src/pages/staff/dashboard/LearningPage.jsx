@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import {
   collection,
@@ -16,7 +17,14 @@ import {
 import { db } from '../../../lib/firebase';
 
 // Training card component for reuse across sections
-const TrainingCard = ({ training, progress, onStart, onComplete, isPending }) => {
+const TrainingCard = ({
+  training,
+  progress,
+  onStart,
+  onComplete,
+  isPending,
+  onOpen,
+}) => {
   const status = progress?.status || null;
   const isCompleted = status === 'completed';
   const isInProgress = status === 'in_progress';
@@ -37,7 +45,10 @@ const TrainingCard = ({ training, progress, onStart, onComplete, isPending }) =>
   const startedDate = progress?.startedAt ? formatDate(progress.startedAt) : '';
   
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full">
+    <div
+      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full cursor-pointer"
+      onClick={onOpen}
+    >
       <div>
         <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">{training.title || 'Untitled Training'}</h3>
         <p className="text-sm text-gray-600 mb-2 line-clamp-2">{training.description || 'No description available'}</p>
@@ -64,7 +75,10 @@ const TrainingCard = ({ training, progress, onStart, onComplete, isPending }) =>
         </div>
         
         <button
-          onClick={isCompleted ? onComplete : onStart}
+          onClick={(e) => {
+            e.stopPropagation();
+            (isCompleted ? onComplete : onStart)();
+          }}
           disabled={isPending || isCompleted}
           className={`px-3 py-1 text-sm rounded font-medium ${
             isCompleted
@@ -104,6 +118,7 @@ const TrainingCardSkeleton = () => (
 
 export default function LearningPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   // States for data
   const [trainings, setTrainings] = useState([]);
@@ -412,6 +427,7 @@ export default function LearningPage() {
                   onStart={() => handleStartTraining(training)}
                   onComplete={() => handleCompleteTraining(training)}
                   isPending={pendingTrainingIds.has(training.id)}
+                  onOpen={() => navigate(`/staff/trainings/${training.id}`)}
                 />
               ))}
             </div>
@@ -446,6 +462,7 @@ export default function LearningPage() {
                   onStart={() => handleStartTraining(training)}
                   onComplete={() => handleCompleteTraining(training)}
                   isPending={pendingTrainingIds.has(training.id)}
+                  onOpen={() => navigate(`/staff/trainings/${training.id}`)}
                 />
               ))}
             </div>
@@ -515,6 +532,7 @@ export default function LearningPage() {
                     onStart={() => handleStartTraining(training)}
                     onComplete={() => handleCompleteTraining(training)}
                     isPending={pendingTrainingIds.has(training.id)}
+                    onOpen={() => navigate(`/staff/trainings/${training.id}`)}
                   />
                 );
               })}
