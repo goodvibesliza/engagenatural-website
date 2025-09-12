@@ -1,11 +1,11 @@
 // src/lib/firebase.js
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getFirestore, initializeFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCTv263abYUAbveuFraYSLdPpvsbaq08p0",
+  apiKey: "***************************************",
   authDomain: "engagenatural-app.firebaseapp.com",
   projectId: "engagenatural-app",
   storageBucket: "engagenatural-app.appspot.com",
@@ -17,7 +17,20 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+let __db;
+try {
+  __db = initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true,
+    useFetchStreams: false,
+    ...(import.meta.env.VITE_FORCE_LONG_POLLING === 'true' ? { experimentalForceLongPolling: true } : {}),
+  });
+} catch (e) {
+  // If Firestore was already initialized (e.g., HMR), fall back to the existing instance
+  __db = getFirestore(app);
+}
+
+export const db = __db;
 export const storage = getStorage(app);
 
 // exposed helper (used by other modules)
