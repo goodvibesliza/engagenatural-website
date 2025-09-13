@@ -12,6 +12,16 @@ const firebaseConfig = {
   messagingSenderId: "314471463344",
   appId: "1:314471463344:web:db0916256301b9eb6fbe75",
 };
+const req = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID'
+];
+const miss = req.filter(k => !import.meta.env[k]);
+if (miss.length) throw new Error(`Missing Firebase env: ${miss.join(', ')}`);
 
 // initialise only once in any environment (SSR / hot-reload / tests)
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
