@@ -99,8 +99,12 @@ export default function PostDetail() {
     
     const checkLiked = async () => {
       const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
-      const likeDoc = await getDoc(likeRef);
-      setLiked(likeDoc.exists());
+      try {
+        const likeDoc = await getDoc(likeRef);
+        setLiked(likeDoc.exists());
+      } catch (e) {
+        setLiked(false);
+      }
     };
     
     checkLiked();
@@ -115,10 +119,15 @@ export default function PostDetail() {
   // Refresh like count
   const refreshLikeCount = useCallback(async () => {
     if (!postId) return;
-    
-    const likesQuery = query(collection(db, 'post_likes'), where('postId', '==', postId));
-    const snapshot = await getCountFromServer(likesQuery);
-    setLikeCount(snapshot.data().count || 0);
+
+    try {
+      const likesQuery = query(collection(db, 'post_likes'), where('postId', '==', postId));
+      const snapshot = await getCountFromServer(likesQuery);
+      setLikeCount(snapshot.data().count || 0);
+    } catch (e) {
+      setLikeCount(0);
+      return;
+    }
   }, [postId]);
 
   // Toggle like

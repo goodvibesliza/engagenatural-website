@@ -30,7 +30,10 @@ import SettingsPage from './pages/admin/Settings';
 import DemoData from './pages/admin/DemoData';
 import DevTools from './pages/admin/DevTools';
 import EnvCheck from './pages/admin/EnvCheck';
-import PendingApproval from './pages/PendingApproval';   // ��.�,? pending-approval page
+import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-approval page
+
+// Public Env Check (preview/dev only)
+import { EnvCheckPublic } from './pages/EnvCheckPublic.jsx';
 
 // Brand Manager Components
 import BrandDashboard from './pages/brand/Dashboard';
@@ -39,31 +42,27 @@ import BrandContentManager from './pages/brand/BrandContentManager';
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 
 // Staff Components
-import StaffDashboard from './pages/staff/Dashboard';
+import StaffDashboardLayout from './pages/staff/dashboard/StaffDashboardLayout';
+import RequireVerification from './pages/staff/dashboard/RequireVerification';
+import ProfilePage from './pages/staff/dashboard/ProfilePage';
+import VerificationPage from './pages/staff/dashboard/VerificationPage';
+import CommunitiesPage from './pages/staff/dashboard/CommunitiesPage';
+import MyBrandsPage from './pages/staff/dashboard/MyBrandsPage';
+import LearningPage from './pages/staff/dashboard/LearningPage';
 // Staff Training Detail
 import StaffTrainingDetail from './pages/staff/TrainingDetail.jsx';
-// Error boundary to catch runtime errors in heavy pages
-import ErrorBoundary from './components/ErrorBoundary';
-// New sidebar layout & pages
-import StaffDashboardLayout from './pages/staff/dashboard/StaffDashboardLayout.jsx';
-import ProfilePage from './pages/staff/dashboard/ProfilePage.jsx';
-import VerificationPage from './pages/staff/dashboard/VerificationPage.jsx';
-import CommunitiesPage from './pages/staff/dashboard/CommunitiesPage.jsx';
-import MyBrandsPage from './pages/staff/dashboard/MyBrandsPage.jsx';
-import LearningPage from './pages/staff/dashboard/LearningPage.jsx';
-import RequireVerification from './pages/staff/dashboard/RequireVerification.jsx';
 
 // Emulator Components
 import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
-// Community Components
-import PostDetail from './pages/community/PostDetail';
+// Community Feed
+import CommunityFeed from './pages/CommunityFeed.jsx';
+// Community Post Detail
+import PostDetail from './pages/community/PostDetail.jsx';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
 import EnvBadge from './components/dev/EnvBadge';
-// Global user dropdown
-import UserDropdownMenu from './components/UserDropdownMenu';
 
 // Simple spinner component for loading states
 const LoadingSpinner = () => (
@@ -73,7 +72,7 @@ const LoadingSpinner = () => (
 );
 
 // ---------------------------------------------------------------------------
-// Protected Route �?\" keeps returnUrl so users can be sent back after login
+// Protected Route – keeps returnUrl so users can be sent back after login
 // ---------------------------------------------------------------------------
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -103,7 +102,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Root entry �?\" simplified component that handles auth state and routing
+// Root entry – simplified component that handles auth state and routing
 const RootEntry = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -135,7 +134,7 @@ const RootEntry = () => {
 
   // Redirect to appropriate landing page based on role
   const landingRoute = getLandingRouteFor(user);
-  // Prevent infinite redirects �?\" only navigate if we're not already
+  // Prevent infinite redirects – only navigate if we're not already
   // on the desired landing route.
   if (location.pathname !== landingRoute) {
     return <Navigate to={landingRoute} state={{ from: location }} replace />;
@@ -160,10 +159,6 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        {/* Global user menu (top-right, visible on every route) */}
-        <div className="fixed top-3 right-3 z-50">
-          <UserDropdownMenu />
-        </div>
         <Routes>
           {/* Root path with simplified routing logic */}
           <Route
@@ -262,7 +257,7 @@ function App() {
               </RoleGuard>
             } 
           />
-          {/* Demo / Dev / Env routes �?\" only when flag enabled */}
+          {/* Demo / Dev / Env routes – only when flag enabled */}
           {showDemoTools && (
             <>
               <Route 
@@ -404,84 +399,21 @@ function App() {
             } 
           />
 
-          {/* Community Post Detail (any authenticated user) */}
-          <Route
-            path="/community/:postId"
-            element={
-              <ProtectedRoute>
-                <PostDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/community/:id"
-            element={
-              <ProtectedRoute>
-                <PostDetail />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Staff-scoped Community Post Detail aliases (any authenticated user) */}
-          <Route
-            path="/staff/community/:postId"
-            element={
-              <ProtectedRoute>
-                <PostDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/staff/community/:id"
-            element={
-              <ProtectedRoute>
-                <PostDetail />
-              </ProtectedRoute>
-            }
-          />
-
           {/* Staff Routes - Protected for staff role */}
-          {/* Staff Dashboard �?\" new sidebar layout */}
-          {/* bare /staff �+' redirect to profile */}
-          <Route
-            path="/staff"
-            element={<Navigate to="/staff/profile" replace />}
-          />
-
-          {/* Nested staff routes under sidebar layout */}
-          <Route
-            path="/staff/*"
+          <Route 
+            path="/staff/*" 
             element={
               <RoleGuard allowedRoles={['staff']}>
-                <ErrorBoundary>
-                  <StaffDashboardLayout />
-                </ErrorBoundary>
+                <StaffDashboardLayout />
               </RoleGuard>
             }
           >
-            <Route index element={<Navigate to="/staff/profile" replace />} />
+            <Route index element={<Navigate to="profile" replace />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="verification" element={<VerificationPage />} />
-            <Route
-              path="communities"
-              element={<CommunitiesPage />}
-            />
-            <Route
-              path="my-brands"
-              element={
-                <RequireVerification>
-                  <MyBrandsPage />
-                </RequireVerification>
-              }
-            />
-            <Route
-              path="learning"
-              element={
-                <RequireVerification>
-                  <LearningPage />
-                </RequireVerification>
-              }
-            />
+            <Route path="communities" element={<CommunitiesPage />} />
+            <Route path="my-brands" element={<RequireVerification><MyBrandsPage /></RequireVerification>} />
+            <Route path="learning" element={<RequireVerification><LearningPage /></RequireVerification>} />
           </Route>
 
           {/* Staff Training Detail */}
@@ -508,6 +440,31 @@ function App() {
 
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
+
+          {/* Public Env Check (only in dev or Netlify deploy-preview) */}
+          {(import.meta.env.DEV || import.meta.env.VITE_NETLIFY_CONTEXT === 'deploy-preview') && (
+            <Route path="/env-check" element={<EnvCheckPublic />} />
+          )}
+
+          {/* Community Feed (any authenticated user) */}
+          <Route
+            path="/community/:id"
+            element={
+              <ProtectedRoute>
+                <CommunityFeed />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Community Post Detail (any authenticated user) */}
+          <Route
+            path="/community/post/:id"
+            element={
+              <ProtectedRoute>
+                <PostDetail />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Catch-all for unknown routes */}
           <Route path="*" element={<Navigate to="/" />} />

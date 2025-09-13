@@ -13,6 +13,7 @@ import {
   startAfter,
   doc,
   getDoc,
+  addDoc,
   setDoc,
   deleteDoc,
   serverTimestamp,
@@ -74,7 +75,7 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
         </div>
 
         <Link
-          to={`/community/${post.id}`}
+          to={`/community/post/${post.id}`}
           className="text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
         >
           View thread
@@ -115,6 +116,23 @@ export default function CommunitiesPage() {
   const [likeCounts, setLikeCounts] = useState({});
   const [commentCounts, setCommentCounts] = useState({});
   const [commentsMap, setCommentsMap] = useState({});
+
+  /* -------------------------------------------------------------------
+   * Communities list + post composer state
+   * ------------------------------------------------------------------*/
+  const [communities, setCommunities] = useState([]);
+  const [loadingCommunities, setLoadingCommunities] = useState(true);
+  const [newTitle, setNewTitle] = useState('');
+  const [newBody, setNewBody] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [communitiesError, setCommunitiesError] = useState(false);
+
+  const canCreate =
+    user?.role === 'super_admin' || user?.role === 'brand_manager';
+
+  const truncate = (t, n = 140) =>
+    t && t.length > n ? `${t.slice(0, n)}...` : t || '';
 
   const loadCountsFor = useCallback(async (postIds) => {
     if (!postIds || postIds.length === 0) return;
@@ -264,6 +282,67 @@ export default function CommunitiesPage() {
     });
   };
 
+  /* -------------------------------------------------------------------
+   * Create Post Handler
+   * ------------------------------------------------------------------*/
+  const handleCreatePost = async (e) => {
+    e.preventDefault();
+    if (!canCreate || !newTitle.trim() || !newBody.trim() || creating) return;
+
+    setCreating(true);
+    setCreateError('');
+    try {
+      await addDoc(collection(db, 'community_posts'), {
+        title: newTitle.trim(),
+        body: newBody.trim(),
+        visibility: 'public',
+        createdAt: serverTimestamp(),
+        userId: user?.uid || null,
+        authorRole: user?.role || 'user'
+      });
+      setNewTitle('');
+      setNewBody('');
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      setCreateError('Failed to create post');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  /* -------------------------------------------------------------------
+   * Load Communities list (public & active)
+   * ------------------------------------------------------------------*/
+  useEffect(() => {
+    const loadCommunities = async () => {
+      try {
+        const q = query(
+          collection(db, 'communities'),
+          where('isActive', '==', true)
+        );
+        const snap = await getDocs(q);
+        let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        // staff users only see public ones
+        items = items.filter((c) => c.isPublic === true);
+        // put what's-good first
+        items.sort((a, b) => {
+          if (a.id === 'whats-good') return -1;
+          if (b.id === 'whats-good') return 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        setCommunities(items);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Error loading communities', err);
+        setCommunitiesError(true);
+      } finally {
+        setLoadingCommunities(false);
+      }
+    };
+    loadCommunities();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div>
@@ -271,6 +350,104 @@ export default function CommunitiesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Communities</h1>
           <p className="text-gray-600 mt-1">Public community posts</p>
         </div>
+
+        {/* ---------------- Communities Grid ---------------- */}
+        <div className="mt-2">
+          <h2 className="text-xl font-semibold text-gray-900">Communities</h2>
+          {loadingCommunities ? (
+            <div className="text-gray-500 text-sm mt-2">Loading communities…</div>
+          ) : communitiesError && communities.length === 0 ? (
+            <div className="mt-3">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-lg font-medium text-gray-900">What's Good</h3>
+                      <span className="text-xs px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary">
+                        Open to All
+                      </span>
+                    </div>
+                    <p className="text-gray-600 text-sm mt-1">
+                      Latest product drops and industry buzz.
+                    </p>
+                    <div className="text-xs text-gray-500 mt-2">2500 members</div>
+                  </div>
+                  <Link
+                    to="/community/whats-good"
+                    className="ml-3 text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
+                  >
+                    Open
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : communities.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+              {communities.map((c) => (
+                <div key={c.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-medium text-gray-900">{c.name || c.id}</h3>
+                        {c.badge && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary">
+                            {c.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-600 text-sm mt-1">{truncate(c.description, 140)}</p>
+                      <div className="text-xs text-gray-500 mt-2">
+                        {(c.members ?? c.memberCount ?? 0)} members
+                      </div>
+                    </div>
+                    <Link
+                      to={`/community/${c.id}`}
+                      className="ml-3 text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
+                    >
+                      Open
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-gray-500 text-sm mt-2">No public communities available.</div>
+          )}
+        </div>
+
+        {/* ---------------- Post Composer ---------------- */}
+        {canCreate && (
+          <form
+            onSubmit={handleCreatePost}
+            className="mt-6 bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Create a Post</h3>
+            {createError && <div className="mb-2 text-sm text-red-600">{createError}</div>}
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Post title"
+              className="w-full mb-3 p-2 border border-gray-300 rounded"
+            />
+            <textarea
+              value={newBody}
+              onChange={(e) => setNewBody(e.target.value)}
+              placeholder="Write your post…"
+              rows="4"
+              className="w-full mb-3 p-2 border border-gray-300 rounded"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={creating || !newTitle.trim() || !newBody.trim()}
+                className="px-4 py-2 rounded bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creating ? 'Posting…' : 'Post'}
+              </button>
+            </div>
+          </form>
+        )}
 
         {initialLoading ? (
           <div className="flex flex-col py-4">
