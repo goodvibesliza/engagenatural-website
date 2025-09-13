@@ -1,0 +1,208 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helpers ----------
+    function userSnap(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+    function userData(uid) {
+      return userSnap(uid).data;
+    }
+    function isSuperAdmin(uid) {
+      return userData(uid).role == 'super_admin';
+    }
+    function isApprovedBrandManager(uid) {
+      let u = userData(uid);
+      return u.role == 'brand_manager' && u.approved == true;
+    }
+
+    // Pass a PATH to a post doc
+    function isPublicPost(path) {
+      return exists(path) && get(path).data.visibility == 'public';
+    }
+
+    // ---------- users ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow full access to user documents to unblock seeding/migration.
+    // Tighten these rules once permissions are fully resolved.
+    match /users/{uid} {
+      allow read, write: if true; // TEMPORARY – unrestricted for debugging
+    }
+
+    // ---------- brands (reference data for brand-owned content) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user to read/write brand documents.
+    // NOTE: This is intentionally permissive to unblock demo data seeding.
+    //       Tighten these rules after seeding is verified.
+    match /brands/{brandId} {
+      allow read, write: if true; // TEMPORARY - allows everyone for debugging
+    }
+
+    // Allow access to ANY subcollection or document under a brand during debugging
+    match /brands/{brandId}/{document=**} {
+      allow read, write: if true; // TEMPORARY - allows all subcollections for debugging
+    }
+
+    // ---------- test_brands (debugging helper) ----------
+    // Used exclusively by local demo seeding scripts to verify permissions.
+    // Remove or lock down once seeding issues are resolved.
+    match /test_brands/{testId} {
+      allow read, write: if true; // TEMPORARY - unrestricted for debugging
+    }
+
+    // ---------- retailers (reference data for staff stores) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any user (even unauthenticated) full access while debugging.
+    // Tighten these rules once seeding is confirmed working.
+    match /retailers/{retailerId} {
+      allow read, write: if true; // TEMPORARY - unrestricted for debugging
+    }
+
+    // ---------- trainings (brand publishes; staff self-enroll) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user full access to trainings
+    // to unblock demo seeding in emulator/prod. Tighten
+    // once seeding is confirmed working.
+    match /trainings/{trainingId} {
+      allow read, write: if request.auth != null; // TEMPORARY – unrestricted
+    }
+
+    // ---------- training_progress (per-user enrollment/progress) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user to read/write training_progress documents.
+    // NOTE: This is intentionally permissive to unblock demo data reset.
+    //       Tighten these rules after seeding is verified.
+    match /training_progress/{progressId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+    }
+
+    // ---------- user_easter_eggs (per-user easter egg finds) ----------
+    // TEMPORARY DEMO SEEDING/DEV FIX:
+    // Allow any authenticated user to read/write their easter egg progress.
+    // Tighten these rules once feature and seeding are verified.
+    match /user_easter_eggs/{docId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+    }
+
+    // ---------- community_posts ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user to read/write community_posts documents.
+    // NOTE: This is intentionally permissive to unblock demo data reset.
+    //       Tighten these rules after seeding is verified.
+    match /community_posts/{postId} {
+      allow read, write: if request.auth != null && request.auth.uid != null;
+    }
+
+    // ---------- community_comments ----------
+    match /community_comments/{commentId} {
+      // Read only if parent post is public
+      allow read: if request.auth != null && (
+        isPublicPost(/databases/$(database)/documents/community_posts/$(resource.data.postId)) ||
+        get(/databases/$(database)/documents/community_posts/$(resource.data.postId)).data.userId == request.auth.uid
+      );
+
+      // Create only if parent post is public
+      allow create: if request.auth != null &&
+        isPublicPost(/databases/$(database)/documents/community_posts/$(request.resource.data.postId));
+
+      // Edit/delete own comments or super_admin
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid || isSuperAdmin(request.auth.uid)
+      );
+    }
+
+    // ---------- post_likes (one doc per user+post) ----------
+    match /post_likes/{likeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ---------- sample_programs (brand-funded product campaigns) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user full access to sample_programs for seeding.
+    // Tighten these rules once seeding is confirmed working.
+    match /sample_programs/{programId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+    }
+
+    // ---------- sample_requests (staff request; brand fulfills) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user full access to sample_requests for seeding.
+    // Tighten these rules once seeding is confirmed working.
+    match /sample_requests/{reqId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+    }
+
+    // ---------- announcements (brand -> staff) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user full access to announcements for seeding.
+    // Tighten these rules once seeding is confirmed working.
+    match /announcements/{annId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+    }
+
+    // ---------- lessons (brand educational content) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user full access to lessons for seeding.
+    // Tighten these rules once seeding is confirmed working.
+    match /lessons/{lessonId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+    }
+
+    // ---------- templates ----------
+    match /templates/{templateId} {
+      // Any signed-in user can read templates
+      allow read: if request.auth != null;
+
+      // Only approved brand managers (any brand) or super_admin may create
+      allow create: if request.auth != null &&
+        (isApprovedBrandManager(request.auth.uid) || isSuperAdmin(request.auth.uid));
+
+      // Same roles can update / delete
+      allow update, delete: if request.auth != null &&
+        (isApprovedBrandManager(request.auth.uid) || isSuperAdmin(request.auth.uid));
+    }
+
+    // ---------- test_permissions (demo seeding helper) ----------
+    match /test_permissions/{docId} {
+      // Restrict to super_admin so production data stays safe
+      allow read, write: if request.auth != null && isSuperAdmin(request.auth.uid);
+    }
+
+    // ---------- communities ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user full access to communities for seeding.
+    // Tighten these rules once seeding is confirmed working.
+    match /communities/{communityId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+    }
+
+    // ---------- community_likes ----------
+    match /community_likes/{likeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if false; // likes are immutable
+    }
+
+    // ---------- comment_likes ----------
+    match /comment_likes/{likeId} {
+      // Any signed-in user can read likes to display counts
+      allow read: if request.auth != null;
+
+      // A user may create a like doc only for themselves
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+
+      // A user may remove their own like
+      allow delete: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+
+      // Likes are immutable – no updates
+      allow update: if false;
+    }
+  }
+}

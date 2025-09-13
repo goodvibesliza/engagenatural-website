@@ -95,6 +95,7 @@ export const PhotoUploadComponent = ({ onPhotoCapture, onFileUpload }) => {
       const photoBlob = await camera.capturePhoto()
       setCapturedPhoto(photoBlob)
       onPhotoCapture(photoBlob)
+
       setShowCamera(false)
       camera.stopCamera()
     } catch (error) {
@@ -233,4 +234,3 @@ export const PhotoUploadComponent = ({ onPhotoCapture, onFileUpload }) => {
 }
 
 export default PhotoUploadComponent
-

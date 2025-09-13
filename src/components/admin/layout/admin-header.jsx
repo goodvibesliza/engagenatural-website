@@ -27,6 +27,20 @@ export default function AdminHeader({ setSidebarOpen }) {
 
   const unreadCount = notifications.filter(n => n.unread).length
 
+  /* ------------------------------------------------------------------ */
+  /* Environment summary chip (shows on md+ screens, dev/debug only)    */
+  /* ------------------------------------------------------------------ */
+  const showEnvChip = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEBUG === 'true'
+  let envLabel = 'Production'
+  let envClass = 'bg-green-600/90 text-white'
+  if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+    envLabel = 'Emulator'
+    envClass = 'bg-amber-600/90 text-white'
+  } else if (import.meta.env.VITE_NETLIFY_CONTEXT === 'deploy-preview') {
+    envLabel = 'Deploy Preview'
+    envClass = 'bg-purple-600/90 text-white'
+  }
+
   const getRoleDisplayName = (role) => {
     switch (role) {
       case 'super_admin':
@@ -73,6 +87,16 @@ export default function AdminHeader({ setSidebarOpen }) {
         </div>
 
         <div className="flex items-center gap-x-4 lg:gap-x-6">
+          {/* Env Summary Chip */}
+          {showEnvChip && (
+            <Badge
+              variant="outline"
+              className={`hidden md:flex px-2.5 py-1 text-xs font-medium ${envClass}`}
+            >
+              {envLabel}
+            </Badge>
+          )}
+
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

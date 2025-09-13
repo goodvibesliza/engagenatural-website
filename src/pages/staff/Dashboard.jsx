@@ -33,6 +33,8 @@ import {
   Award, 
   TrendingUp 
 } from 'lucide-react';
+// New profile panel component
+import StaffProfilePanel from './ProfilePanel';
 
 // FIXED font styles - Headlines thicker, subheadings Inter
 const fontStyles = {
@@ -1231,202 +1233,18 @@ export default function CompleteRetailerProfile() {
         {activeTab === 'profile' && (
           <div className="grid md:grid-cols-3 gap-8">
             <div className="md:col-span-1">
-              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                <h2 className="text-xl mb-4" style={fontStyles.sectionHeading}>Profile Information</h2>
-                
-                {/* Profile Image Section */}
-                <div className="text-center mb-6">
-                  <div className="relative inline-block">
-                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-4xl mx-auto mb-4">
-                      {profileImage ? (
-                        typeof profileImage === 'string' && profileImage.startsWith('http') ? (
-                          <img src={profileImage} alt="Profile" className="w-24 h-24 rounded-full object-cover" />
-                        ) : (
-                          <span>{profileImage}</span>
-                        )
-                      ) : (
-                        '👤'
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setShowAvatarSelector(!showAvatarSelector)}
-                      className="absolute bottom-0 right-0 bg-brand-primary text-white rounded-full p-2 hover:bg-brand-primary/90"
-                    >
-                      📷
-                    </button>
-                  </div>
-                  
-                  {showAvatarSelector && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium mb-3">Choose Avatar or Upload Photo</h3>
-                      <div className="grid grid-cols-5 gap-2 mb-4">
-                        {avatarOptions.map((avatar, index) => (
-                          <button
-                            key={index}
-                            onClick={() => selectAvatar(avatar)}
-                            className="text-2xl p-2 hover:bg-gray-200 rounded"
-                          >
-                            {avatar}
-                          </button>
-                        ))}
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                        ref={avatarFileInputRef}
-                        className="hidden"
-                      />
-                      <button
-                        onClick={() => avatarFileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="w-full bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 mb-2 disabled:opacity-50"
-                      >
-                        {uploading ? '⏳ Uploading...' : '📁 Upload Custom Photo'}
-                      </button>
-                      <button
-                        onClick={() => setShowAvatarSelector(false)}
-                        className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-
-                  {/* NEW: Editable User Info */}
-                  {editingUserInfo ? (
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        value={userInfo.name}
-                        onChange={(e) => setUserInfo(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded text-center font-medium"
-                        placeholder="Your Name"
-                      />
-                      <input
-                        type="text"
-                        value={userInfo.storeName}
-                        onChange={(e) => setUserInfo(prev => ({ ...prev, storeName: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded text-center text-gray-600"
-                        placeholder="Store Name"
-                      />
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={updateUserInfo}
-                          className="flex-1 bg-brand-primary text-white py-1 px-3 rounded text-sm hover:bg-brand-primary/90"
-                        >
-                          💾 Save
-                        </button>
-                        <button
-                          onClick={() => setEditingUserInfo(false)}
-                          className="flex-1 bg-gray-100 text-gray-700 py-1 px-3 rounded text-sm hover:bg-gray-200"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center justify-center space-x-2">
-                        <h2
-                          className="text-xl text-gray-900"
-                          style={fontStyles.subsectionTitle}
-                        >
-                          {(user?.name || user?.displayName || 'New User')}
-                        </h2>
-                        <button
-                          onClick={() => setEditingUserInfo(true)}
-                          className="text-brand-primary hover:text-brand-primary/80 text-sm"
-                        >
-                          ✏️
-                        </button>
-                      </div>
-                      <p className="text-gray-600">
-                        {user?.storeName || user?.storeCode || 'Unknown Store'}
-                      </p>
-                      <div className="mt-2">{getStatusBadge()}</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* About Me Section - Integrated */}
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg" style={fontStyles.subsectionTitle}>About Me</h3>
-                    <button
-                      onClick={() => setEditingAboutMe(!editingAboutMe)}
-                      className="text-brand-primary hover:text-brand-primary/80 text-sm"
-                    >
-                      {editingAboutMe ? 'Cancel' : 'Edit'}
-                    </button>
-                  </div>
-                  
-                  {editingAboutMe ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Interests</label>
-                        <textarea
-                          value={aboutMe.interests}
-                          onChange={(e) => setAboutMe(prev => ({ ...prev, interests: e.target.value }))}
-                          placeholder="What products are you passionate about?"
-                          className="w-full p-2 border border-gray-300 rounded text-sm"
-                          rows={2}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                        <input
-                          type="text"
-                          value={aboutMe.location}
-                          onChange={(e) => setAboutMe(prev => ({ ...prev, location: e.target.value }))}
-                          placeholder="City, State"
-                          className="w-full p-2 border border-gray-300 rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Your Story</label>
-                        <textarea
-                          value={aboutMe.story}
-                          onChange={(e) => setAboutMe(prev => ({ ...prev, story: e.target.value }))}
-                          placeholder="Tell us about your journey..."
-                          className="w-full p-2 border border-gray-300 rounded text-sm"
-                          rows={3}
-                        />
-                      </div>
-                      <button
-                        onClick={updateAboutMe}
-                        className="w-full bg-brand-primary text-white py-2 px-4 rounded-lg hover:bg-brand-primary/90 text-sm"
-                      >
-                        💾 Save Changes
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 text-sm">
-                      {aboutMe.interests && (
-                        <div>
-                          <span className="font-medium text-gray-700">Interests:</span>
-                          <p className="text-gray-600 mt-1">{aboutMe.interests}</p>
-                        </div>
-                      )}
-                      {aboutMe.location && (
-                        <div>
-                          <span className="font-medium text-gray-700">Location:</span>
-                          <p className="text-gray-600 mt-1">{aboutMe.location}</p>
-                        </div>
-                      )}
-                      {aboutMe.story && (
-                        <div>
-                          <span className="font-medium text-gray-700">Story:</span>
-                          <p className="text-gray-600 mt-1">{aboutMe.story}</p>
-                        </div>
-                      )}
-                      {!aboutMe.interests && !aboutMe.location && !aboutMe.story && (
-                        <p className="text-gray-500 italic">Click "Edit" to add your information</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <StaffProfilePanel
+                user={user}
+                profileImage={profileImage}
+                showAvatarSelector={showAvatarSelector}
+                setShowAvatarSelector={setShowAvatarSelector}
+                avatarOptions={avatarOptions}
+                uploadProfileImage={(file) =>
+                  handleAvatarUpload({ target: { files: [file] } })
+                }
+                selectAvatar={selectAvatar}
+                getStatusBadge={getStatusBadge}
+              />
             </div>
             <div className="md:col-span-2">
               {getVerificationBenefits()}
