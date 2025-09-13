@@ -6,10 +6,19 @@ const EnvCheckPublic = () => {
   const netlifyContext = import.meta.env.VITE_NETLIFY_CONTEXT || 'not set';
   const useEmulator = import.meta.env.VITE_USE_EMULATOR || 'not set';
 
-  // Preview / dev guard
+  // Preview / dev guard (relaxed + manual override)
+  const host =
+    typeof window !== 'undefined' ? window.location.hostname : '';
+  const params =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search)
+      : new URLSearchParams();
+  const forced = params.get('force') === '1' || params.has('preview');
   const isPreview =
     import.meta.env.DEV ||
-    import.meta.env.VITE_NETLIFY_CONTEXT === 'deploy-preview';
+    import.meta.env.VITE_NETLIFY_CONTEXT === 'deploy-preview' ||
+    host.includes('deploy-preview-') ||
+    forced;
   
   // Firebase config from env
   const firebaseConfig = {
