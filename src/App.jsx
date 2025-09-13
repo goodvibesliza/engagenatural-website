@@ -71,6 +71,19 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const EnvCheckLink = () => {
+  const { user } = useAuth();
+  if (user) return null;
+  return (
+    <a
+      href="/env-check"
+      className="fixed bottom-4 right-4 z-50 px-3 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white shadow hover:bg-indigo-700"
+    >
+      Env Check
+    </a>
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Protected Route – keeps returnUrl so users can be sent back after login
 // ---------------------------------------------------------------------------
@@ -441,10 +454,8 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
-          {/* Public Env Check (only in dev or Netlify deploy-preview) */}
-          {(import.meta.env.DEV || import.meta.env.VITE_NETLIFY_CONTEXT === 'deploy-preview') && (
-            <Route path="/env-check" element={<EnvCheckPublic />} />
-          )}
+          {/* Public Env Check (always available) */}
+          <Route path="/env-check" element={<EnvCheckPublic />} />
 
           {/* Community Feed (any authenticated user) */}
           <Route
@@ -470,6 +481,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
+      <EnvCheckLink />
       {/* Dev-only user debug widget */}
       <UserDebugCard />
       {/* Environment badge (Emulator / Production) */}

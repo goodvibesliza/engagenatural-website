@@ -9,50 +9,6 @@ import {
 import EnhancedBrandDashboard from '../EnhancedBrandDashboard';
 import { useAuth } from "../../contexts/auth-context";
 
-// Status badge renderer (moved out of BrandDashboardContent for reuse)
-const renderStatusBadge = (status) => {
-  let color = "";
-  switch (status) {
-    case 'pending':
-      color = "bg-yellow-100 text-yellow-800";
-      break;
-    case 'approved':
-      color = "bg-blue-100 text-blue-800";
-      break;
-    case 'shipped':
-      color = "bg-green-100 text-green-800";
-      break;
-    case 'denied':
-      color = "bg-red-100 text-red-800";
-      break;
-    case 'completed':
-      color = "bg-green-100 text-green-800";
-      break;
-    case 'in_progress':
-      color = "bg-blue-100 text-blue-800";
-      break;
-    default:
-      color = "bg-gray-100 text-gray-800";
-  }
-
-  return (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-};
-
-// Date formatting helper (moved out of BrandDashboardContent for reuse)
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'N/A';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-};
-
 // New content management component
 import IntegratedContentManager from './ContentManager';
 // Consistent logout hook
@@ -84,1146 +40,1054 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Skeleton } from '../../components/ui/skeleton';
 
 // Import analytics components
 import BrandAnalyticsPage from './BrandAnalyticsPage';
 import BrandROICalculatorPage from './BrandROICalculatorPage';
 import CommunityMetricsChart from '../../components/brand/CommunityMetricsChart';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 // Communities manager
 import CommunitiesManager from '../../components/brand/communities/CommunitiesManager';
+// Shared user dropdown
+import UserDropdownMenuUpdated from '../../components/UserDropdownMenu';
 
-// Brand Dashboard Content component
+// Shared helpers
+const renderStatusBadge = (status) => {
+  let color = "";
+  switch (status) {
+    case 'pending':
+      color = "bg-yellow-100 text-yellow-800";
+      break;
+    case 'approved':
+      color = "bg-blue-100 text-blue-800";
+      break;
+    case 'shipped':
+      color = "bg-green-100 text-green-800";
+      break;
+    case 'denied':
+      color = "bg-red-100 text-red-800";
+      break;
+    case 'completed':
+      color = "bg-green-100 text-green-800";
+      break;
+    case 'in_progress':
+      color = "bg-blue-100 text-blue-800";
+      break;
+    default:
+      color = "bg-gray-100 text-gray-800";
+  }
+  return (
+    <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
+      {String(status || '').replace('_', ' ')}
+    </span>
+  );
+};
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return 'N/A';
+  const date = timestamp.toDate ? timestamp.toDate() : (timestamp instanceof Date ? timestamp : new Date(timestamp));
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+};
+
+// Utility to chunk arrays for Firestore 'in' queries
+const chunkArray = (array, size) => {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) chunks.push(array.slice(i, i + size));
+  return chunks;
+};
+
+// Brand Dashboard Content with KPI-first layout
 const BrandDashboardContent = ({ brandId }) => {
-  const [trainings, setTrainings] = useState([]);
-  const [sampleRequests, setSampleRequests] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
-  const [engagement, setEngagement] = useState({ enrolled: 0, completed: 0 });
-  // map of trainingId -> { enrolled, completed }
-  const [trainingProgressCounts, setTrainingProgressCounts] = useState({});
-  // Followers KPI stats
-  const [followersStats, setFollowersStats] = useState({
-    total: 0,
-    last7d: 0,
-    last30d: 0,
-    series30d: [] // array of length 30 with daily counts (oldest→newest)
+  // Data
+  const [trainings, setTrainings] = useState([]); // live
+  const [sampleRequests, setSampleRequests] = useState([]); // live (7d)
+  const [progressStats, setProgressStats] = useState({
+    enrollments7d: 0,
+    completions7d: 0,
+    enrollments30d: 0,
+    completions30d: 0,
+    topTrainings: []
   });
+
+  // Loading
   const [loading, setLoading] = useState({
     trainings: true,
     sampleRequests: true,
-    announcements: true,
-    engagement: true
-  });
-  const [error, setError] = useState({
-    trainings: null,
-    sampleRequests: null,
-    announcements: null,
-    engagement: null,
-    brandId: null
+    progressStats: true
   });
 
-  // Memoise current date range once per mount to prevent changing
-  const { now, sevenDaysAgo, thirtyDaysAgo } = useMemo(() => {
-    const current = new Date();
-    const sevenDaysPrior = new Date();
-    sevenDaysPrior.setDate(current.getDate() - 7);
-    const thirtyPrior = new Date();
-    thirtyPrior.setDate(current.getDate() - 30);
-    return { now: current, sevenDaysAgo: sevenDaysPrior, thirtyDaysAgo: thirtyPrior };
+  // Date ranges (stable per mount)
+  const { sevenDaysAgoTS, thirtyDaysAgoTS } = useMemo(() => {
+    const now = new Date();
+    const seven = new Date(now);
+    seven.setDate(now.getDate() - 7);
+    const thirty = new Date(now);
+    thirty.setDate(now.getDate() - 30);
+    return { sevenDaysAgoTS: Timestamp.fromDate(seven), thirtyDaysAgoTS: Timestamp.fromDate(thirty) };
   }, []);
 
-  useEffect(() => {
-    // Track if component is still mounted to avoid setting state after unmount
-    let isMounted = true;
-    
-    // Initialize all unsubscribe functions as null
-    let unsubscribeTrainings = null;
-    let unsubscribeRequests = null;
-    let unsubscribeAnnouncements = null;
-    let unsubscribeProgress = null;
-
-    // Validate brandId before making any queries
-    if (!brandId) {
-      console.error("Missing brandId in BrandDashboardContent");
-      setError(prev => ({ 
-        ...prev, 
-        brandId: "No brand ID provided. Please contact support if this issue persists.",
-        trainings: "Cannot fetch trainings: Brand ID is missing",
-        sampleRequests: "Cannot fetch sample requests: Brand ID is missing",
-        announcements: "Cannot fetch announcements: Brand ID is missing",
-        engagement: "Cannot fetch engagement data: Brand ID is missing"
-      }));
-      setLoading({
-        trainings: false,
-        sampleRequests: false,
-        announcements: false,
-        engagement: false
-      });
-      return () => {};
-    }
-
-    // Reset any previous brandId error
-    setError(prev => ({ ...prev, brandId: null }));
-
-    try {
-      // Fetch trainings
-      const trainingsQuery = query(
-        collection(db, 'trainings'),
-        where('brandId', '==', brandId),
-        where('published', '==', true),
-        orderBy('createdAt', 'desc')
-      );
-
-      unsubscribeTrainings = onSnapshot(
-        trainingsQuery,
-        (snapshot) => {
-          if (!isMounted) return;
-          try {
-            const trainingsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setTrainings(trainingsData);
-            setLoading(prev => ({ ...prev, trainings: false }));
-          } catch (err) {
-            console.error("Error processing trainings data:", err);
-            setError(prev => ({ ...prev, trainings: `Error processing data: ${err.message}` }));
-            setLoading(prev => ({ ...prev, trainings: false }));
-          }
-        },
-        (err) => {
-          if (!isMounted) return;
-          console.error("Error fetching trainings:", err);
-          setError(prev => ({ ...prev, trainings: err.message }));
-          setLoading(prev => ({ ...prev, trainings: false }));
-        }
-      );
-    } catch (err) {
-      console.error("Error setting up trainings query:", err);
-      if (isMounted) {
-        setError(prev => ({ ...prev, trainings: `Error setting up query: ${err.message}` }));
-        setLoading(prev => ({ ...prev, trainings: false }));
-      }
-    }
-
-    try {
-      // Fetch sample requests
-      const requestsQuery = query(
-        collection(db, 'sample_requests'),
-        where('brandId', '==', brandId),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-
-      unsubscribeRequests = onSnapshot(
-        requestsQuery,
-        (snapshot) => {
-          if (!isMounted) return;
-          try {
-            const requestsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setSampleRequests(requestsData);
-            setLoading(prev => ({ ...prev, sampleRequests: false }));
-          } catch (err) {
-            console.error("Error processing sample requests data:", err);
-            setError(prev => ({ ...prev, sampleRequests: `Error processing data: ${err.message}` }));
-            setLoading(prev => ({ ...prev, sampleRequests: false }));
-          }
-        },
-        (err) => {
-          if (!isMounted) return;
-          console.error("Error fetching sample requests:", err);
-          setError(prev => ({ ...prev, sampleRequests: err.message }));
-          setLoading(prev => ({ ...prev, sampleRequests: false }));
-        }
-      );
-    } catch (err) {
-      console.error("Error setting up sample requests query:", err);
-      if (isMounted) {
-        setError(prev => ({ ...prev, sampleRequests: `Error setting up query: ${err.message}` }));
-        setLoading(prev => ({ ...prev, sampleRequests: false }));
-      }
-    }
-
-    try {
-      // Fetch announcements
-      const announcementsQuery = query(
-        collection(db, 'announcements'),
-        where('brandId', '==', brandId),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-
-      unsubscribeAnnouncements = onSnapshot(
-        announcementsQuery,
-        (snapshot) => {
-          if (!isMounted) return;
-          try {
-            const announcementsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setAnnouncements(announcementsData);
-            setLoading(prev => ({ ...prev, announcements: false }));
-          } catch (err) {
-            console.error("Error processing announcements data:", err);
-            setError(prev => ({ ...prev, announcements: `Error processing data: ${err.message}` }));
-            setLoading(prev => ({ ...prev, announcements: false }));
-          }
-        },
-        (err) => {
-          if (!isMounted) return;
-          console.error("Error fetching announcements:", err);
-          setError(prev => ({ ...prev, announcements: err.message }));
-          setLoading(prev => ({ ...prev, announcements: false }));
-        }
-      );
-    } catch (err) {
-      console.error("Error setting up announcements query:", err);
-      if (isMounted) {
-        setError(prev => ({ ...prev, announcements: `Error setting up query: ${err.message}` }));
-        setLoading(prev => ({ ...prev, announcements: false }));
-      }
-    }
-
-    // Fetch engagement metrics from training_progress
-    const fetchEngagement = async () => {
-      try {
-        if (!isMounted) return;
-        
-        // Get all training IDs for this brand
-        const trainingsQueryForIds = query(
-          collection(db, 'trainings'),
-          where('brandId', '==', brandId)
-        );
-
-        const trainingsSnapshot = await getDocs(trainingsQueryForIds);
-        let trainingIds = trainingsSnapshot.docs.map(doc => doc.id);
-
-        // Guard: no trainings
-        if (trainingIds.length === 0) {
-          if (isMounted) {
-            setLoading(prev => ({ ...prev, engagement: false }));
-          }
-          return;
-        }
-
-        // Firestore "in" operator supports max 10 values; trim if longer
-        if (trainingIds.length > 10) {
-          trainingIds = trainingIds.slice(0, 10);
-        }
-
-        try {
-          // Query training_progress for these trainings in the last 7 days
-          const progressQuery = query(
-            collection(db, 'training_progress'),
-            where('trainingId', 'in', trainingIds),
-            where('updatedAt', '>=', Timestamp.fromDate(sevenDaysAgo))
-          );
-          
-          unsubscribeProgress = onSnapshot(
-            progressQuery,
-            (snapshot) => {
-              if (!isMounted) return;
-              try {
-                const progressData = snapshot.docs.map(doc => doc.data());
-                
-                // Calculate metrics
-                const enrolled = progressData.length;
-                const completed = progressData.filter(p => p.status === 'completed').length;
-                
-                setEngagement({ enrolled, completed });
-                setLoading(prev => ({ ...prev, engagement: false }));
-              } catch (err) {
-                console.error("Error processing engagement data:", err);
-                if (isMounted) {
-                  setError(prev => ({ ...prev, engagement: `Error processing data: ${err.message}` }));
-                  setLoading(prev => ({ ...prev, engagement: false }));
-                }
-              }
-            },
-            (err) => {
-              console.error("Error fetching engagement:", err);
-              if (isMounted) {
-                setError(prev => ({ ...prev, engagement: err.message }));
-                setLoading(prev => ({ ...prev, engagement: false }));
-              }
-            }
-          );
-        } catch (err) {
-          console.error("Error setting up progress query:", err);
-          if (isMounted) {
-            setError(prev => ({ ...prev, engagement: `Error setting up query: ${err.message}` }));
-            setLoading(prev => ({ ...prev, engagement: false }));
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching training IDs:", err);
-        if (isMounted) {
-          setError(prev => ({ ...prev, engagement: `Error fetching training IDs: ${err.message}` }));
-          setLoading(prev => ({ ...prev, engagement: false }));
-        }
-      }
-    };
-
-    fetchEngagement();
-
-    // Cleanup subscriptions
-    return () => {
-      isMounted = false;
-      
-      // Safely unsubscribe from all listeners
-      if (typeof unsubscribeTrainings === 'function') {
-        try {
-          unsubscribeTrainings();
-        } catch (err) {
-          console.error("Error unsubscribing from trainings:", err);
-        }
-      }
-      
-      if (typeof unsubscribeRequests === 'function') {
-        try {
-          unsubscribeRequests();
-        } catch (err) {
-          console.error("Error unsubscribing from requests:", err);
-        }
-      }
-      
-      if (typeof unsubscribeAnnouncements === 'function') {
-        try {
-          unsubscribeAnnouncements();
-        } catch (err) {
-          console.error("Error unsubscribing from announcements:", err);
-        }
-      }
-      
-      if (typeof unsubscribeProgress === 'function') {
-        try {
-          unsubscribeProgress();
-        } catch (err) {
-          console.error("Error unsubscribing from progress:", err);
-        }
-      }
-    };
-  }, [brandId]);
-
-  /*
-   * -----------------------------------------
-   *  Followers metrics (live)
-   * -----------------------------------------
-   */
+  // Live trainings for this brand (limit 50)
   useEffect(() => {
     if (!brandId) return;
-
     const q = query(
-      collection(db, 'brand_follows'),
-      where('brandId', '==', brandId)
+      collection(db, 'trainings'),
+      where('brandId', '==', brandId),
+      where('published', '==', true),
+      orderBy('createdAt', 'desc'),
+      limit(50)
     );
-
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const total = snap.size;
-        let last7d = 0;
-        let last30d = 0;
-        const buckets = new Array(30).fill(0);
-
-        snap.forEach((d) => {
-          const ts = d.data()?.createdAt;
-          const date = ts?.toDate ? ts.toDate() : null;
-          if (!date) return;
-          const diffMs = now - date;
-          const diffDays = Math.floor(diffMs / 86400000);
-
-          if (diffDays < 30) {
-            last30d += 1;
-            const idx = 29 - diffDays;
-            if (idx >= 0 && idx < 30) buckets[idx] += 1;
-          }
-          if (diffDays < 7) last7d += 1;
-        });
-
-        setFollowersStats({ total, last7d, last30d, series30d: buckets });
+        setTrainings(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setLoading((s) => ({ ...s, trainings: false }));
       },
-      (err) => console.error('followers snapshot error:', err)
+      () => setLoading((s) => ({ ...s, trainings: false }))
     );
-
     return () => unsub();
-  }, [brandId, now]);
+  }, [brandId]);
 
-  /*
-   * -----------------------------------------
-   *  Training progress counts (enrolled/completed)
-   * -----------------------------------------
-   */
+  // Live sample requests in last 7 days (latest 5)
   useEffect(() => {
-    if (!brandId) {
-      setTrainingProgressCounts({});
-      return;
-    }
-
-    // If no trainings yet, clear counts and exit
-    if (!trainings || trainings.length === 0) {
-      setTrainingProgressCounts({});
-      return;
-    }
-
-    // Track mounted state
-    let isMounted = true;
-
-    // Take first 10 training IDs (Firestore 'in' limit)
-    const trainingIds = trainings.slice(0, 10).map((t) => t.id);
-
+    if (!brandId) return;
     const q = query(
-      collection(db, 'training_progress'),
-      where('trainingId', 'in', trainingIds)
+      collection(db, 'sample_requests'),
+      where('brandId', '==', brandId),
+      where('createdAt', '>=', sevenDaysAgoTS),
+      orderBy('createdAt', 'desc'),
+      limit(5)
     );
-
-    const unsubscribe = onSnapshot(
+    const unsub = onSnapshot(
       q,
       (snap) => {
-        if (!isMounted) return;
-        const map = {};
+        setSampleRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setLoading((s) => ({ ...s, sampleRequests: false }));
+      },
+      () => setLoading((s) => ({ ...s, sampleRequests: false }))
+    );
+    return () => unsub();
+  }, [brandId, sevenDaysAgoTS]);
+
+  // Heavy aggregation: training_progress over 30d, derived 7d; batch in chunks of 10
+  useEffect(() => {
+    if (!brandId) return;
+    if (loading.trainings) return; // wait for trainings load
+    if (trainings.length === 0) {
+      setProgressStats({
+        enrollments7d: 0,
+        completions7d: 0,
+        enrollments30d: 0,
+        completions30d: 0,
+        topTrainings: []
+      });
+      setLoading((s) => ({ ...s, progressStats: false }));
+      return;
+    }
+
+    const run = async () => {
+      const ids = trainings.map((t) => t.id);
+      const chunks = chunkArray(ids, 10);
+
+      let enrollments7d = 0;
+      let completions7d = 0;
+      let enrollments30d = 0;
+      let completions30d = 0;
+      const completionMap = new Map(); // trainingId -> count
+
+      for (const chunk of chunks) {
+        const q = query(
+          collection(db, 'training_progress'),
+          where('trainingId', 'in', chunk),
+          where('updatedAt', '>=', thirtyDaysAgoTS)
+        );
+        const snap = await getDocs(q);
         snap.forEach((doc) => {
           const d = doc.data();
-          const id = d.trainingId;
-          if (!map[id]) {
-            map[id] = { enrolled: 0, completed: 0 };
+          const status = d.status;
+          const tId = d.trainingId;
+          const updatedAt = d.updatedAt;
+
+          // 30d totals
+          enrollments30d += 1;
+          if (status === 'completed') {
+            completions30d += 1;
+            completionMap.set(tId, (completionMap.get(tId) || 0) + 1);
           }
-          map[id].enrolled += 1;
-          if (d.status === 'completed') {
-            map[id].completed += 1;
+
+          // 7d totals (Timestamp-safe)
+          const upMs = updatedAt?.toMillis?.() ?? 0;
+          const sevenMs = sevenDaysAgoTS.toMillis();
+          if (upMs >= sevenMs) {
+            enrollments7d += 1;
+            if (status === 'completed') completions7d += 1;
           }
         });
-        setTrainingProgressCounts(map);
-      },
-      (err) => {
-        console.error('Error fetching training progress counts:', err);
       }
-    );
 
-    return () => {
-      isMounted = false;
-      if (typeof unsubscribe === 'function') {
-        try {
-          unsubscribe();
-        } catch (err) {
-          console.error('Error unsubscribing training progress listener:', err);
-        }
-      }
+      // Build top trainings array
+      const topTrainings = Array.from(completionMap.entries())
+        .map(([id, count]) => ({
+          id,
+          title: trainings.find((t) => t.id === id)?.title || 'Unknown Training',
+          completions: count
+        }))
+        .sort((a, b) => b.completions - a.completions)
+        .slice(0, 5);
+
+      setProgressStats({
+        enrollments7d,
+        completions7d,
+        enrollments30d,
+        completions30d,
+        topTrainings
+      });
+      setLoading((s) => ({ ...s, progressStats: false }));
     };
-  }, [trainings, brandId]);
 
-  // Helper function to render status badge
-  const renderStatusBadge = (status) => {
-    let color = "";
-    switch (status) {
-      case 'pending':
-        color = "bg-yellow-100 text-yellow-800";
-        break;
-      case 'approved':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      case 'shipped':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'denied':
-        color = "bg-red-100 text-red-800";
-        break;
-      case 'completed':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'in_progress':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      default:
-        color = "bg-gray-100 text-gray-800";
-    }
-    
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
-        {status.replace('_', ' ')}
-      </span>
-    );
-  };
+    run();
+  }, [brandId, trainings, thirtyDaysAgoTS, sevenDaysAgoTS, loading.trainings]);
 
-  // Format date function
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return new Intl.DateTimeFormat('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
-  };
+  const sampleRequests7dCount = useMemo(() => sampleRequests.length, [sampleRequests]);
 
-  // Display global error for brandId if present
-  if (error.brandId) {
+  // Overview content (KPI-first)
+  const renderDashboardCards = () => (
+    <div className="space-y-6">
+      {/* KPI tiles */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Enrollments (7d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Enrollments (7d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <Users className="h-5 w-5 text-blue-500 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.enrollments7d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Completions (7d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Completions (7d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <BookOpen className="h-5 w-5 text-green-600 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.completions7d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Enrollments (30d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Enrollments (30d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <Users className="h-5 w-5 text-blue-500 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.enrollments30d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Completions (30d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Completions (30d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <BookOpen className="h-5 w-5 text-green-600 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.completions30d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Sample Requests (7d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Sample Requests (7d)</div>
+          {loading.sampleRequests ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <Package className="h-5 w-5 text-purple-600 mr-2" />
+              <div className="text-2xl font-bold">{sampleRequests7dCount}</div>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Trainings (30d) */}
+        <Card className="p-6">
+          <div className="flex items-center mb-4">
+            <TrendingUp className="h-5 w-5 text-blue-500 mr-2" />
+            <h3 className="text-lg font-semibold">Top Trainings (30d)</h3>
+          </div>
+          {loading.progressStats ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : progressStats.topTrainings.length === 0 ? (
+            <div className="text-center text-gray-500">
+              <BarChart2 className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+              No completions in the last 30 days
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {progressStats.topTrainings.map((t) => (
+                <div key={t.id} className="flex items-center justify-between border-b pb-2 last:border-0">
+                  <Link to={`/brand/trainings/${t.id}`} className="text-blue-600 hover:underline truncate max-w-[70%]">{t.title}</Link>
+                  <span className="text-sm font-semibold bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                    {t.completions} completed
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Recent Sample Requests (7d) */}
+        <Card className="p-6">
+          <div className="flex items-center mb-4">
+            <Package className="h-5 w-5 text-purple-600 mr-2" />
+            <h3 className="text-lg font-semibold">Recent Sample Requests (7d)</h3>
+          </div>
+          {loading.sampleRequests ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : sampleRequests.length === 0 ? (
+            <div className="text-center text-gray-500">
+              <Package className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+              No sample requests in the last 7 days
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sampleRequests.map((req) => (
+                    <tr key={req.id}>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm">{formatDate(req.createdAt)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm">{req.quantity || 1}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{renderStatusBadge(req.status)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Brand Trainings quick list */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <BookOpen className="h-5 w-5 text-green-600 mr-2" />
+            <h3 className="text-lg font-semibold">Brand Trainings</h3>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/brand/content">View All</Link>
+          </Button>
+        </div>
+        {loading.trainings ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between border-b pb-3 last:border-0">
+                <div>
+                  <Skeleton className="h-5 w-48 mb-2" />
+                  <Skeleton className="h-4 w-72" />
+                </div>
+                <Skeleton className="h-9 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : trainings.length === 0 ? (
+          <div className="text-center text-gray-500">
+            <BookOpen className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+            No trainings found for your brand
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {trainings.slice(0, 4).map((t) => (
+              <div key={t.id} className="flex items-start justify-between border-b pb-4 last:border-0">
+                <div>
+                  <h4 className="font-medium text-gray-900">{t.title}</h4>
+                  <p className="text-sm text-gray-500 line-clamp-1 mt-1">{t.description || 'No description provided'}</p>
+                </div>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to={`/brand/trainings/${t.id}`}>
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+
+  // No brandId: render error card (no console)
+  if (!brandId) {
     return (
       <div className="p-6">
         <Card className="p-6 bg-red-50 border border-red-200">
           <div className="flex flex-col items-center text-center">
             <Shield className="h-12 w-12 text-red-500 mb-4" />
             <h2 className="text-xl font-semibold text-red-700 mb-2">Brand Dashboard Error</h2>
-            <p className="text-red-600 mb-4">{error.brandId}</p>
-            <p className="text-gray-600 mb-6">
-              This could be due to missing permissions or an invalid brand identifier.
-              Please ensure you are logged in with the correct account and have brand manager permissions.
-            </p>
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
+            <p className="text-red-600 mb-4">No brand ID provided. Please contact support if this issue persists.</p>
+            <p className="text-gray-600 mb-6">This could be due to missing permissions or an invalid brand identifier.</p>
+            <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </Card>
       </div>
     );
   }
 
-  // Dashboard content with tabs
-  const renderDashboardCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* My Trainings Card */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
-                <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">My Trainings</h3>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/brand/trainings">View All</Link>
-            </Button>
-          </div>
-
-          {loading.trainings ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : error.trainings ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading trainings: {error.trainings}</p>
-            </div>
-          ) : trainings.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
-              <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Trainings Found</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                You don't have any published trainings yet.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/brand/trainings/new">Create Training</Link>
-              </Button>
-              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                <p>Need sample data? Use the Demo Data tool in Admin panel.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {trainings.slice(0, 4).map((training) => (
-                <div key={training.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{training.title}</h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
-                        {training.description}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="ml-2">
-                      {training.status || 'draft'}
-                    </Badge>
-                  </div>
-                  
-                  {/* Progress stats if available */}
-                  {trainingProgressCounts[training.id] && (
-                    <div className="mt-3 flex items-center text-sm">
-                      <div className="flex items-center mr-4">
-                        <Users className="h-4 w-4 text-gray-500 mr-1" />
-                        <span className="text-gray-600">
-                          {trainingProgressCounts[training.id].enrolled} enrolled
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <BookOpen className="h-4 w-4 text-gray-500 mr-1" />
-                        <span className="text-gray-600">
-                          {trainingProgressCounts[training.id].completed} completed
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="mt-3 flex justify-end">
-                    <Button variant="outline" size="sm" asChild className="text-xs">
-                      <Link to={`/brand/trainings/${training.id}`}>View Details</Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              
-              {trainings.length > 4 && (
-                <div className="flex justify-center mt-2">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/brand/trainings">View All {trainings.length} Trainings</Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Recent Sample Requests */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-full">
-                <Package className="h-5 w-5 text-purple-600 dark:text-purple-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Sample Requests</h3>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/brand/samples">View All</Link>
-            </Button>
-          </div>
-
-          {loading.sampleRequests ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-            </div>
-          ) : error.sampleRequests ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading sample requests: {error.sampleRequests}</p>
-            </div>
-          ) : sampleRequests.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Sample Requests</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                You don't have any sample requests yet.
-              </p>
-              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                <p>Staff members can request samples from your product catalog.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {sampleRequests.map((request) => (
-                <div key={request.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                        {request.productName || 'Unnamed Product'}
-                      </h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Requested by: {request.userName || 'Unknown User'}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {formatDate(request.createdAt)}
-                      </p>
-                    </div>
-                    <div>
-                      {renderStatusBadge(request.status || 'pending')}
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 flex justify-end">
-                    <Button variant="outline" size="sm" asChild className="text-xs">
-                      <Link to={`/brand/samples/${request.id}`}>View Details</Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              
-              {sampleRequests.length > 0 && (
-                <div className="flex justify-center mt-2">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/brand/samples">View All Requests</Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Engagement Metrics */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full">
-                <Activity className="h-5 w-5 text-green-600 dark:text-green-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Engagement</h3>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/brand/analytics">View Analytics</Link>
-            </Button>
-          </div>
-
-          {loading.engagement ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
-            </div>
-          ) : error.engagement ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading engagement data: {error.engagement}</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 text-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Training Enrollments (7d)</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
-                    {engagement.enrolled}
-                  </p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 text-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Completions (7d)</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
-                    {engagement.completed}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Followers</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {followersStats.total}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Last 7d</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {followersStats.last7d}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Last 30d</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {followersStats.last30d}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Mini chart for followers trend */}
-                {followersStats.series30d.length > 0 && (
-                  <div className="h-20 mt-2">
-                    <CommunityMetricsChart 
-                      data={followersStats.series30d.map((value, i) => ({ 
-                        date: new Date(Date.now() - (29 - i) * 86400000),
-                        value 
-                      }))}
-                      showXAxis={false}
-                      showTooltip={true}
-                      color="#22c55e"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Recent Announcements */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-amber-100 dark:bg-amber-900 p-2 rounded-full">
-                <Bell className="h-5 w-5 text-amber-600 dark:text-amber-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Announcements</h3>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/brand/announcements">View All</Link>
-            </Button>
-          </div>
-
-          {loading.announcements ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
-            </div>
-          ) : error.announcements ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading announcements: {error.announcements}</p>
-            </div>
-          ) : announcements.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
-              <Bell className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Announcements</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                You haven't published any announcements yet.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/brand/announcements/new">Create Announcement</Link>
-              </Button>
-              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                <p>Announcements will be shown to staff members who follow your brand.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                      {announcement.title || 'Untitled Announcement'}
-                    </h4>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {formatDate(announcement.createdAt)}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">
-                      {announcement.content || 'No content'}
-                    </p>
-                  </div>
-                  
-                  <div className="mt-3 flex justify-end">
-                    <Button variant="outline" size="sm" asChild className="text-xs">
-                      <Link to={`/brand/announcements/${announcement.id}`}>View Details</Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              
-              {announcements.length > 0 && (
-                <div className="flex justify-center mt-2">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/brand/announcements">View All Announcements</Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-
-  // Render the main dashboard content with tabs
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Brand Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage your brand content, trainings, and engagement
-          </p>
-        </div>
-        <div className="flex space-x-2 mt-4 md:mt-0">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/brand/content">
-              <FileText className="mr-1 h-4 w-4" /> Content
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/brand/trainings/new">
-              <BookOpen className="mr-1 h-4 w-4" /> New Training
-            </Link>
-          </Button>
-          <Button variant="default" size="sm" asChild>
-            <Link to="/brand/analytics">
-              <BarChart2 className="mr-1 h-4 w-4" /> Analytics
-            </Link>
-          </Button>
-        </div>
+    <div className="p-6">
+      {/* Dashboard Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Brand Dashboard</h1>
+        <p className="text-gray-500 dark:text-gray-400">Overview of your brand's performance and activities</p>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="grid grid-cols-4 mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="roi">ROI Calculator</TabsTrigger>
-          <TabsTrigger value="communities">Communities</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-6">
-          {renderDashboardCards()}
-        </TabsContent>
-        <TabsContent value="analytics">
-          <BrandAnalyticsPage brandId={brandId} embedded={true} />
-        </TabsContent>
-        <TabsContent value="roi">
-          <BrandROICalculatorPage brandId={brandId} embedded={true} />
-        </TabsContent>
-        <TabsContent value="communities">
-          <CommunitiesManager brandId={brandId} />
-        </TabsContent>
-      </Tabs>
+      {/* KPI-first overview */}
+      {renderDashboardCards()}
     </div>
   );
 };
 
-// Main Dashboard component
-export default function Dashboard() {
-  const { user, isBrandManager } = useAuth();
+const EnhancedBrandHome = () => {
+  const { brandId: paramBrandId } = useParams();
   const navigate = useNavigate();
-  const { brandId } = useParams();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
+  // Centralised logout that always redirects to PublicWebsite
   const { logout } = useLogout();
+  // Determine active brandId in priority order
+  const storedBrandId =
+    typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
+  const brandId = storedBrandId || user?.brandId || paramBrandId || 'demo-brand';
   
-  // Check if user is authorized
+  // State for mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // State for active section
+  const [activeSection, setActiveSection] = useState('analytics');
+  
+  // State for notifications dropdown
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  
+  // State for user dropdown
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  
+  // Close dropdowns when clicking outside
   useEffect(() => {
-    if (!user) {
-      navigate('/auth/login');
-      return;
-    }
-    
-    if (!isBrandManager && user.role !== 'super_admin') {
-      navigate('/');
-      return;
-    }
-  }, [user, isBrandManager, navigate]);
+    const handleClickOutside = (event) => {
+      if (notificationsOpen || userDropdownOpen) {
+        if (!event.target.closest('.dropdown-container')) {
+          setNotificationsOpen(false);
+          setUserDropdownOpen(false);
+        }
+      }
+    };
 
-  // If no brandId in URL but user has a brandId, redirect to it
-  useEffect(() => {
-    if (user?.brandId && !brandId) {
-      navigate(`/brand/${user.brandId}/dashboard`);
-    }
-  }, [user, brandId, navigate]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [notificationsOpen, userDropdownOpen]);
+  
+  // Mock user data - use actual user data if available
+  const userData = user || {
+    name: 'Brand Manager',
+    email: 'manager@engagenatural.com',
+    avatar: null,
+    notifications: 3
+  };
+  
+  // Navigation items with enhanced styling
+  const navItems = [
+    { id: 'analytics', label: 'Analytics Dashboard', icon: BarChart2, description: 'Key metrics and ROI' },
+    { id: 'users', label: 'User Management', icon: Users, description: 'Manage team access' },
+    { id: 'content', label: 'Content Management', icon: FileText, description: 'Publish and organize content' },
+    { id: 'samples', label: 'Sample Requests', icon: Package, description: 'Manage sample requests' },
+    { id: 'communities', label: 'Communities', icon: Users, description: 'Manage communities & posts' },
+    { id: 'brand', label: 'Brand Performance', icon: TrendingUp, description: 'Track engagement metrics' },
+    { id: 'activity', label: 'Activity Feed', icon: Activity, description: 'Recent updates and events' },
+    { id: 'settings', label: 'Settings', icon: Settings, description: 'Configure brand preferences' },
+    { id: 'help', label: 'Help & Support', icon: HelpCircle, description: 'Documentation and resources' }
+  ];
+  
+  // Function to handle section change
+  const handleSectionChange = (section) => {
+    setActiveSection(section);
+    setSidebarOpen(false);
+  };
+  
+  // Function to get user initials for avatar
+  const getUserInitials = () => {
+    if (!userData.name) return 'U';
+    return userData.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
 
-  // If no user or still checking auth, show loading
-  if (!user) {
+  // Handle logout
+  const handleLogout = async () => {
+    logout();
+  };
+  
+  // Mock notifications
+  const notifications = [
+    {
+      id: 1,
+      title: 'New challenge completed',
+      description: 'User John D. completed the Eco-Shopping challenge',
+      time: '10 minutes ago',
+      read: false
+    },
+    {
+      id: 2,
+      title: 'ROI milestone reached',
+      description: 'Your brand has reached 250% ROI growth',
+      time: '2 hours ago',
+      read: false
+    },
+    {
+      id: 3,
+      title: 'New user registration spike',
+      description: '25 new users registered in the last hour',
+      time: '5 hours ago',
+      read: true
+    }
+  ];
+
+  // Sample Requests Section Component (kept as in original)
+  const SampleRequestsSection = ({ brandId }) => {
+    const [sampleRequests, setSampleRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+  
+    useEffect(() => {
+      if (!brandId) return;
+      const q = query(
+        collection(db, 'sample_requests'),
+        where('brandId', '==', brandId),
+        orderBy('createdAt', 'desc')
+      );
+  
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          try {
+            setSampleRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+            setLoading(false);
+          } catch (e) {
+            setError(e.message);
+            setLoading(false);
+          }
+        },
+        (err) => {
+          setError(err.message);
+          setLoading(false);
+        }
+      );
+      return () => unsub();
+    }, [brandId]);
+  
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  // If user doesn't have a brand assigned and isn't super admin, show error
-  if (!user.brandId && user.role !== 'super_admin') {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
-          <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">No Brand Access</h1>
-          <p className="text-gray-600 mb-6">
-            Your account doesn't have a brand assigned. Please contact an administrator
-            to get access to a brand dashboard.
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+            Sample Requests
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">
+            Review and manage all sample requests for your brand
           </p>
-          <Button onClick={() => navigate('/')}>Return to Home</Button>
         </div>
+  
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-6 rounded-md">
+            <p>Error loading sample requests: {error}</p>
+          </div>
+        ) : sampleRequests.length === 0 ? (
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">
+              No Sample Requests
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              You don't have any sample requests yet.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {sampleRequests.map((req) => (
+                  <tr key={req.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {req.quantity}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {formatDate(req.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      {renderStatusBadge(req.status)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
-  }
-
-  // If super_admin but no brandId specified, show enhanced dashboard
-  if (user.role === 'super_admin' && !brandId) {
-    return <EnhancedBrandDashboard />;
-  }
-
-  // Otherwise show the brand dashboard for the specified or assigned brand
-  const activeBrandId = brandId || user.brandId;
-
+  };
+  
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Mobile menu overlay */}
-      {mobileMenuOpen && (
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
         />
       )}
-
+      
       {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen
-        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex flex-col h-full">
-          {/* Sidebar header */}
-          <div className="flex items-center justify-between px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center">
-              <Building className="h-6 w-6 text-brand-primary" />
-              <h2 className="ml-2 text-xl font-bold text-gray-900 dark:text-gray-100">Brand Portal</h2>
+      <div className="lg:w-72 flex-shrink-0">
+        <div className="h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+          {/* Logo */}
+          <div className="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center text-white font-bold text-lg">
+              E
             </div>
-            <button 
-              className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={() => setMobileMenuOpen(false)}
+            <span className="ml-3 text-lg font-semibold text-gray-800 dark:text-gray-200">EngageNatural</span>
+          </div>
+          
+          {/* Brand selector */}
+          <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Building className="h-4 w-4 text-primary" />
+                </div>
+                <div className="ml-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {brandId}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Brand Manager
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto py-4 px-3">
+            <div className="mb-2 px-3">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Main
+              </h3>
+            </div>
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors ${
+                  activeSection === item.id 
+                    ? 'text-primary-foreground bg-primary font-medium' 
+                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                onClick={() => handleSectionChange(item.id)}
+              >
+                <item.icon className={`h-5 w-5 mr-3 ${activeSection === item.id ? 'text-primary-foreground' : 'text-gray-500 dark:text-gray-400'}`} />
+                <div className="flex flex-col items-start">
+                  <span>{item.label}</span>
+                  {activeSection === item.id && (
+                    <span className="text-xs opacity-80">{item.description}</span>
+                  )}
+                </div>
+              </button>
+            ))}
+            
+            <Separator className="my-4" />
+            
+            <div className="mb-2 px-3">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Account
+              </h3>
+            </div>
+            <button
+              className="flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={handleLogout}
             >
-              <X className="h-6 w-6" />
+              <LogOut className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+              <span>Sign Out</span>
             </button>
-          </div>
-
-          {/* Sidebar content */}
-          <div className="flex-1 overflow-y-auto py-4">
-            <nav className="px-2 space-y-1">
-              <Link
-                to={`/brand/${activeBrandId}/dashboard`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Home className="mr-3 h-5 w-5" />
-                Dashboard
-              </Link>
-              <Link
-                to={`/brand/${activeBrandId}/analytics`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <BarChart2 className="mr-3 h-5 w-5" />
-                Analytics
-              </Link>
-              <Link
-                to={`/brand/${activeBrandId}/content`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <FileText className="mr-3 h-5 w-5" />
-                Content Manager
-              </Link>
-              <Link
-                to={`/brand/${activeBrandId}/trainings`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <BookOpen className="mr-3 h-5 w-5" />
-                Trainings
-              </Link>
-              <Link
-                to={`/brand/${activeBrandId}/communities`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Users className="mr-3 h-5 w-5" />
-                Communities
-              </Link>
-              <Link
-                to={`/brand/${activeBrandId}/samples`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Package className="mr-3 h-5 w-5" />
-                Sample Requests
-              </Link>
-              <Link
-                to={`/brand/${activeBrandId}/announcements`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Bell className="mr-3 h-5 w-5" />
-                Announcements
-              </Link>
-              <Link
-                to={`/brand/${activeBrandId}/config`}
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Settings className="mr-3 h-5 w-5" />
-                Settings
-              </Link>
-              
-              {/* Divider */}
-              <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-              
-              {/* View as Staff link */}
-              <Link
-                to="/"
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Eye className="mr-3 h-5 w-5" />
-                View as Staff
-              </Link>
-              
-              {/* External resources */}
-              <a
-                href="https://help.engagenatural.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <HelpCircle className="mr-3 h-5 w-5" />
-                Help Center
-                <ExternalLink className="ml-auto h-4 w-4" />
-              </a>
-            </nav>
-          </div>
-
-          {/* Sidebar footer */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          </nav>
+          
+          {/* User profile section */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
-              <Avatar>
-                <AvatarImage src={user.profileImage} />
-                <AvatarFallback className="bg-brand-primary text-white">
-                  {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
+              <Avatar className="h-10 w-10 border border-primary/20">
+                <AvatarImage src={userData.avatar} alt={userData.name} />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {getUserInitials()}
                 </AvatarFallback>
               </Avatar>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.displayName || user.email}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{user.role}</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{userData.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{userData.email}</p>
               </div>
-              <DropdownMenu>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Mobile sidebar */}
+      <div 
+        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 transform ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } transition-transform duration-300 ease-in-out lg:hidden shadow-xl`}
+      >
+        {/* Mobile sidebar header */}
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center text-white font-bold text-lg">
+              E
+            </div>
+            <span className="ml-3 text-lg font-semibold text-gray-800 dark:text-gray-200">EngageNatural</span>
+          </div>
+          <button 
+            onClick={() => setSidebarOpen(false)}
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        
+        {/* Mobile brand selector */}
+        <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                <Building className="h-4 w-4 text-primary" />
+              </div>
+              <div className="ml-2">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {brandId}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Brand Manager
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        {/* Mobile navigation */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3">
+          <div className="mb-2 px-3">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Main
+            </h3>
+          </div>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors ${
+                activeSection === item.id 
+                  ? 'text-primary-foreground bg-primary font-medium' 
+                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+              onClick={() => handleSectionChange(item.id)}
+            >
+              <item.icon className={`h-5 w-5 mr-3 ${activeSection === item.id ? 'text-primary-foreground' : 'text-gray-500 dark:text-gray-400'}`} />
+              <div className="flex flex-col items-start">
+                <span>{item.label}</span>
+                {activeSection === item.id && (
+                  <span className="text-xs opacity-80">{item.description}</span>
+                )}
+              </div>
+            </button>
+          ))}
+          
+          <Separator className="my-4" />
+          
+          <div className="mb-2 px-3">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Account
+            </h3>
+          </div>
+          <button
+            className="flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+            <span>Sign Out</span>
+          </button>
+        </nav>
+        
+        {/* Mobile user profile section */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center">
+            <Avatar className="h-10 w-10 border border-primary/20">
+              <AvatarImage src={userData.avatar} alt={userData.name} />
+              <AvatarFallback className="bg-primary/10 text-primary">
+                {getUserInitials()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{userData.name}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{userData.email}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top header */}
+        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between h-16 px-4 lg:px-6">
+          {/* Left section: Mobile menu button and breadcrumbs */}
+          <div className="flex items-center">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 lg:hidden mr-3"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            
+            {/* Breadcrumbs */}
+            <div className="hidden md:flex items-center text-sm">
+              <Link to="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                Home
+              </Link>
+              <span className="mx-2 text-gray-400 dark:text-gray-500">/</span>
+              <Link to={`/brand/${brandId}`} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                Brands
+              </Link>
+              <span className="mx-2 text-gray-400 dark:text-gray-500">/</span>
+              <span className="text-gray-900 dark:text-gray-100 font-medium">
+                {navItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
+              </span>
+            </div>
+            
+            <div className="md:hidden text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {navItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
+            </div>
+          </div>
+          
+          {/* Right section: Actions and user profile */}
+          <div className="flex items-center space-x-3">
+            {/* Search */}
+            <div className="relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search..."
+                className="pl-10 pr-4 py-2 w-64 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:text-gray-200 text-sm"
+              />
+            </div>
+            
+            {/* Export button */}
+            <Button variant="outline" size="sm" className="hidden md:flex items-center space-x-1">
+              <Download className="h-4 w-4 mr-1" />
+              <span>Export</span>
+            </Button>
+            
+            {/* Date range selector */}
+            <Button variant="outline" size="sm" className="hidden md:flex items-center space-x-1">
+              <Calendar className="h-4 w-4 mr-1" />
+              <span>Last 30 Days</span>
+              <ChevronDown className="h-4 w-4 ml-1" />
+            </Button>
+            
+            {/* Notifications dropdown */}
+            <div className="relative dropdown-container">
+              <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                 <DropdownMenuTrigger asChild>
-                  <button className="ml-auto text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
+                  <Button variant="ghost" size="sm" className="relative h-9 w-9 rounded-full p-0">
+                    <Bell className="h-5 w-5" />
+                    {userData.notifications > 0 && (
+                      <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white dark:ring-gray-800"></span>
+                    )}
+                  </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" /> Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" /> Settings
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">Notifications</h3>
+                      <Badge variant="outline" className="text-xs">
+                        {notifications.filter(n => !n.read).length} new
+                      </Badge>
+                    </div>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
-                    <LogOut className="mr-2 h-4 w-4" /> Logout
+                  {notifications.map(notification => (
+                    <DropdownMenuItem key={notification.id} className="p-0 focus:bg-transparent">
+                      <div className={`w-full p-3 border-l-2 ${notification.read ? 'border-transparent' : 'border-primary'} hover:bg-muted/50`}>
+                        <div className="flex justify-between items-start">
+                          <p className="text-sm font-medium">{notification.title}</p>
+                          <span className="text-xs text-muted-foreground">{notification.time}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{notification.description}</p>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="justify-center text-center text-sm text-primary">
+                    View all notifications
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top navigation */}
-        <div className="bg-white dark:bg-gray-800 shadow">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex">
-                <button
-                  className="px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary lg:hidden"
-                  onClick={() => setMobileMenuOpen(true)}
-                >
-                  <Menu className="h-6 w-6" />
-                </button>
-              </div>
-              <div className="flex items-center">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
-                  />
-                </div>
-                <div className="ml-4">
-                  <Button variant="outline" size="sm">
-                    <Calendar className="mr-2 h-4 w-4" /> Calendar
-                  </Button>
-                </div>
-                <div className="ml-4">
-                  <Button variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" /> Export
-                  </Button>
-                </div>
-              </div>
+            
+            {/* User profile dropdown */}
+            <div className="relative dropdown-container">
+              <UserDropdownMenuUpdated />
             </div>
           </div>
-        </div>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
-          <BrandDashboardContent brandId={activeBrandId} />
+        </header>
+        
+        {/* Main content area */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+          {/* Render the appropriate section based on activeSection */}
+          {activeSection === 'analytics' && <BrandDashboardContent brandId={brandId} />}
+          {activeSection === 'users' && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">User Management</h1>
+                <p className="text-gray-500 dark:text-gray-400">Manage team members and their access permissions</p>
+              </div>
+              <Card className="p-6">
+                <p>User management content will be displayed here.</p>
+              </Card>
+            </div>
+          )}
+          {activeSection === 'content' && (
+            /* Full-width workspace for the content manager */
+            <div className="w-full p-0 md:p-6">
+              {/* Render the integrated content-management system */}
+              <IntegratedContentManager brandId={brandId} />
+            </div>
+          )}
+          {activeSection === 'samples' && (
+            <div className="w-full p-6">
+              <SampleRequestsSection brandId={brandId} />
+            </div>
+          )}
+          {activeSection === 'communities' && (
+            <div className="w-full p-0 md:p-6">
+              <CommunitiesManager brandId={brandId} />
+            </div>
+          )}
+          {activeSection === 'brand' && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Brand Performance</h1>
+                <p className="text-gray-500 dark:text-gray-400">Track your brand's performance and engagement metrics</p>
+              </div>
+              <Card className="p-6">
+                <p>Brand performance metrics will be displayed here.</p>
+              </Card>
+            </div>
+          )}
+          {activeSection === 'activity' && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Activity Feed</h1>
+                <p className="text-gray-500 dark:text-gray-400">Recent activity and events from your brand</p>
+              </div>
+              <Card className="p-6">
+                <p>Activity feed will be displayed here.</p>
+              </Card>
+            </div>
+          )}
+          {activeSection === 'settings' && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Settings</h1>
+                <p className="text-gray-500 dark:text-gray-400">Configure your brand settings and preferences</p>
+              </div>
+              <Card className="p-6 space-y-4">
+                <p>Settings options will be displayed here.</p>
+                {/* Link to Brand Style Guide */}
+                <Button
+                  asChild
+                  variant="outline"
+                >
+                  <Link to={`/brand-dashboard/${brandId}/style-guide`}>
+                    View Brand Style Guide
+                  </Link>
+                </Button>
+              </Card>
+            </div>
+          )}
+          {activeSection === 'help' && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Help & Support</h1>
+                <p className="text-gray-500 dark:text-gray-400">Resources and documentation to help you succeed</p>
+              </div>
+              <Card className="p-6">
+                <p>Help and support resources will be displayed here.</p>
+              </Card>
+            </div>
+          )}
         </main>
       </div>
     </div>
   );
-}
+};
+
+export default EnhancedBrandHome;
