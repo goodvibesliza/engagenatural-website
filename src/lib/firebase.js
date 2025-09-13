@@ -1,17 +1,15 @@
-// src/lib/firebase.js
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { getFirestore, initializeFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getStorage, connectStorageEmulator } from "firebase/storage";
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
-const firebaseConfig = {
-  apiKey: "***************************************",
-  authDomain: "engagenatural-app.firebaseapp.com",
-  projectId: "engagenatural-app",
-  storageBucket: "engagenatural-app.appspot.com",
-  messagingSenderId: "314471463344",
-  appId: "1:314471463344:web:db0916256301b9eb6fbe75",
-};
+// Check if we're running locally
+export const isLocalhost = 
+  typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+// Required environment variables
 const req = [
   'VITE_FIREBASE_API_KEY',
   'VITE_FIREBASE_AUTH_DOMAIN',
@@ -20,45 +18,54 @@ const req = [
   'VITE_FIREBASE_MESSAGING_SENDER_ID',
   'VITE_FIREBASE_APP_ID'
 ];
+
+// Check for missing environment variables
 const miss = req.filter(k => !import.meta.env[k]);
-if (miss.length) throw new Error(`Missing Firebase env: ${miss.join(', ')}`);
-
-// initialise only once in any environment (SSR / hot-reload / tests)
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-export const auth = getAuth(app);
-
-let __db;
-try {
-  __db = initializeFirestore(app, {
-    experimentalAutoDetectLongPolling: true,
-    useFetchStreams: false,
-    ...(import.meta.env.VITE_FORCE_LONG_POLLING === 'true' ? { experimentalForceLongPolling: true } : {}),
-  });
-} catch (e) {
-  // If Firestore was already initialized (e.g., HMR), fall back to the existing instance
-  __db = getFirestore(app);
+const host = typeof window !== 'undefined' ? window.location.hostname : '';
+const isPreview = (
+  import.meta.env.DEV ||
+  import.meta.env.VITE_NETLIFY_CONTEXT === 'deploy-preview' ||
+  host.includes('deploy-preview-')
+);
+if (miss.length) {
+  // Expose missing list for UIs like EnvCheckPublic without crashing
+  globalThis.__FIREBASE_MISSING_ENV__ = miss;
+  // Do NOT throw; allow app to remain undefined so the site can render
 }
 
-export const db = __db;
-export const storage = getStorage(app);
+// initialise only once in any environment (SSR / hot-reload / tests)
+let app;
+if (!miss.length) {
+  const existingApps = getApps();
+  if (existingApps.length === 0) {
+    const firebaseConfig = {
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    };
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = existingApps[0];
+  }
+} else {
+  app = undefined; // skip init when env missing
+}
 
-// exposed helper (used by other modules)
-export const isLocalhost = window?.location?.hostname === "localhost";
+// Get service instances
+export const db = app ? getFirestore(app) : undefined;
+export const auth = app ? getAuth(app) : undefined;
+export const storage = app ? getStorage(app) : undefined;
+export const functions = app ? getFunctions(app) : undefined;
 
-const useEmu = import.meta.env.VITE_USE_EMULATOR === 'true';
-const host = import.meta.env.VITE_EMULATOR_HOST || '127.0.0.1';
-if (useEmu && !globalThis.__EMU_CONNECTED__) {
-  try {
-    connectFirestoreEmulator(db, host, Number(import.meta.env.VITE_FIRESTORE_EMULATOR_PORT || 8080));
-  } catch {}
-  try {
-    connectAuthEmulator(auth, `http://${host}:${import.meta.env.VITE_AUTH_EMULATOR_PORT || 9099}`, { disableWarnings: true });
-  } catch {}
-  try {
-    connectStorageEmulator(storage, host, Number(import.meta.env.VITE_STORAGE_EMULATOR_PORT || 9199));
-  } catch {}
-  globalThis.__EMU_CONNECTED__ = true;
+// Connect to emulators if running locally and emulator flag is set
+if (isLocalhost && import.meta.env.VITE_USE_EMULATOR === 'true') {
+  if (db) connectFirestoreEmulator(db, 'localhost', 8080);
+  if (auth) connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  if (storage) connectStorageEmulator(storage, 'localhost', 9199);
+  if (functions) connectFunctionsEmulator(functions, 'localhost', 5001);
 }
 
 export { app };
