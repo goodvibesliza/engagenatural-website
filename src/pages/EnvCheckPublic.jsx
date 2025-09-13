@@ -152,6 +152,10 @@ const EnvCheckPublic = () => {
                   <dd className="text-sm text-gray-900">{maskValue(firebaseConfig.apiKey)}</dd>
                 </div>
                 <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">App API Key Tail</dt>
+                  <dd className="text-sm text-gray-900">{appTail}</dd>
+                </div>
+                <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Auth Domain</dt>
                   <dd className="text-sm text-gray-900">{maskValue(firebaseConfig.authDomain, true)}</dd>
                 </div>
