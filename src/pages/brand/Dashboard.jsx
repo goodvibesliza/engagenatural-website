@@ -335,57 +335,6 @@ const BrandDashboardContent = ({ brandId }) => {
                 const completed = progressData.filter(p => p.status === 'completed').length;
                 
                 setEngagement({ enrolled, completed });
-  /*
-   * -----------------------------------------
-   *  Followers metrics (live)
-   * -----------------------------------------
-   */
-  useEffect(() => {
-    if (!brandId) return;
-
-    const q = query(
-      collection(db, 'brand_follows'),
-      where('brandId', '==', brandId)
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const total = snap.size;
-        let last7d = 0;
-        let last30d = 0;
-        // build daily buckets for last 30 days initialised at 0
-        const buckets = new Array(30).fill(0);
-
-        snap.forEach((d) => {
-          const ts = d.data()?.createdAt;
-          const date = ts?.toDate ? ts.toDate() : null;
-          if (!date) return;
-          const diffMs = now - date;
-          const diffDays = Math.floor(diffMs / 86_400_000);
-
-          if (diffDays < 30) {
-            last30d += 1;
-            // bucket index (0 oldest, 29 today)
-            const idx = 29 - diffDays;
-            buckets[idx] += 1;
-          }
-          if (diffDays < 7) last7d += 1;
-        });
-
-        setFollowersStats({
-          total,
-          last7d,
-          last30d,
-          series30d: buckets
-        });
-      },
-      (err) => console.error('followers snapshot error:', err)
-    );
-
-    return () => unsub();
-  }, [brandId, now]);
-
                 setLoading(prev => ({ ...prev, engagement: false }));
               } catch (err) {
                 console.error("Error processing engagement data:", err);
@@ -459,6 +408,50 @@ const BrandDashboardContent = ({ brandId }) => {
       }
     };
   }, [brandId]);
+
+  /*
+   * -----------------------------------------
+   *  Followers metrics (live)
+   * -----------------------------------------
+   */
+  useEffect(() => {
+    if (!brandId) return;
+
+    const q = query(
+      collection(db, 'brand_follows'),
+      where('brandId', '==', brandId)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const total = snap.size;
+        let last7d = 0;
+        let last30d = 0;
+        const buckets = new Array(30).fill(0);
+
+        snap.forEach((d) => {
+          const ts = d.data()?.createdAt;
+          const date = ts?.toDate ? ts.toDate() : null;
+          if (!date) return;
+          const diffMs = now - date;
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          if (diffDays < 30) {
+            last30d += 1;
+            const idx = 29 - diffDays;
+            if (idx >= 0 && idx < 30) buckets[idx] += 1;
+          }
+          if (diffDays < 7) last7d += 1;
+        });
+
+        setFollowersStats({ total, last7d, last30d, series30d: buckets });
+      },
+      (err) => console.error('followers snapshot error:', err)
+    );
+
+    return () => unsub();
+  }, [brandId, now]);
 
   /*
    * -----------------------------------------
@@ -641,48 +634,137 @@ const BrandDashboardContent = ({ brandId }) => {
                         {training.description}
                       </p>
                     </div>
-                    <Button variant="ghost" size="sm" className="ml-2" asChild>
-                      <Link to={`/brand/trainings/${training.id}`}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Link>
-                    </Button>
+                    <Badge variant="outline" className="ml-2">
+                      {training.status || 'draft'}
+                    </Badge>
                   </div>
-                  <div className="flex items-center mt-3 text-sm">
-                    <div className="flex items-center text-gray-500 dark:text-gray-400 mr-4">
-                      <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
-                        {trainingProgressCounts[training.id]?.enrolled ??
-                          training.metrics?.enrolled ??
-                          0}
-                      </span>
-                      Enrolled
+                  
+                  {/* Progress stats if available */}
+                  {trainingProgressCounts[training.id] && (
+                    <div className="mt-3 flex items-center text-sm">
+                      <div className="flex items-center mr-4">
+                        <Users className="h-4 w-4 text-gray-500 mr-1" />
+                        <span className="text-gray-600">
+                          {trainingProgressCounts[training.id].enrolled} enrolled
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <BookOpen className="h-4 w-4 text-gray-500 mr-1" />
+                        <span className="text-gray-600">
+                          {trainingProgressCounts[training.id].completed} completed
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center text-gray-500 dark:text-gray-400">
-                      <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
-                        {trainingProgressCounts[training.id]?.completed ??
-                          training.metrics?.completed ??
-                          0}
-                      </span>
-                      Completed
-                    </div>
+                  )}
+                  
+                  <div className="mt-3 flex justify-end">
+                    <Button variant="outline" size="sm" asChild className="text-xs">
+                      <Link to={`/brand/trainings/${training.id}`}>View Details</Link>
+                    </Button>
                   </div>
                 </div>
               ))}
+              
+              {trainings.length > 4 && (
+                <div className="flex justify-center mt-2">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/brand/trainings">View All {trainings.length} Trainings</Link>
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
       </Card>
 
-      {/* Engagement Card */}
+      {/* Recent Sample Requests */}
+      <Card className="overflow-hidden">
+        <div className="p-6 bg-white dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-full">
+                <Package className="h-5 w-5 text-purple-600 dark:text-purple-300" />
+              </div>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Sample Requests</h3>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/brand/samples">View All</Link>
+            </Button>
+          </div>
+
+          {loading.sampleRequests ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+            </div>
+          ) : error.sampleRequests ? (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
+              <p>Error loading sample requests: {error.sampleRequests}</p>
+            </div>
+          ) : sampleRequests.length === 0 ? (
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Sample Requests</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                You don't have any sample requests yet.
+              </p>
+              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                <p>Staff members can request samples from your product catalog.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sampleRequests.map((request) => (
+                <div key={request.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                        {request.productName || 'Unnamed Product'}
+                      </h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Requested by: {request.userName || 'Unknown User'}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        {formatDate(request.createdAt)}
+                      </p>
+                    </div>
+                    <div>
+                      {renderStatusBadge(request.status || 'pending')}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 flex justify-end">
+                    <Button variant="outline" size="sm" asChild className="text-xs">
+                      <Link to={`/brand/samples/${request.id}`}>View Details</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              {sampleRequests.length > 0 && (
+                <div className="flex justify-center mt-2">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/brand/samples">View All Requests</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Engagement Metrics */}
       <Card className="overflow-hidden">
         <div className="p-6 bg-white dark:bg-gray-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
               <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full">
-                <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-300" />
+                <Activity className="h-5 w-5 text-green-600 dark:text-green-300" />
               </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Engagement (7 days)</h3>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Engagement</h3>
             </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/brand/analytics">View Analytics</Link>
+            </Button>
           </div>
 
           {loading.engagement ? (
@@ -694,776 +776,454 @@ const BrandDashboardContent = ({ brandId }) => {
               <p>Error loading engagement data: {error.engagement}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">New Enrollments</p>
-                <h4 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{engagement.enrolled}</h4>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Training Enrollments (7d)</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
+                    {engagement.enrolled}
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Completions (7d)</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">
+                    {engagement.completed}
+                  </p>
+                </div>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
-                <h4 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{engagement.completed}</h4>
-              </div>
-              <div className="col-span-2 mt-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                  {engagement.enrolled === 0 && engagement.completed === 0 ? (
-                    <span>No recent engagement data. Try seeding demo data for testing.</span>
-                  ) : (
-                    <span>Showing data from {formatDate(sevenDaysAgo)} to {formatDate(now)}</span>
-                  )}
-                </p>
+              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Followers</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      {followersStats.total}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Last 7d</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      {followersStats.last7d}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Last 30d</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      {followersStats.last30d}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Mini chart for followers trend */}
+                {followersStats.series30d.length > 0 && (
+                  <div className="h-20 mt-2">
+                    <CommunityMetricsChart 
+                      data={followersStats.series30d.map((value, i) => ({ 
+                        date: new Date(Date.now() - (29 - i) * 86400000),
+                        value 
+                      }))}
+                      showXAxis={false}
+                      showTooltip={true}
+                      color="#22c55e"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
       </Card>
 
-      {/* Followers Card */}
+      {/* Recent Announcements */}
       <Card className="overflow-hidden">
         <div className="p-6 bg-white dark:bg-gray-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-full">
-                <Users className="h-5 w-5 text-purple-600 dark:text-purple-300" />
+              <div className="bg-amber-100 dark:bg-amber-900 p-2 rounded-full">
+                <Bell className="h-5 w-5 text-amber-600 dark:text-amber-300" />
               </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Followers (30&nbsp;days)
-              </h3>
+              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Announcements</h3>
             </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/brand/announcements">View All</Link>
+            </Button>
           </div>
 
-          {/* KPI chips */}
-          <div className="flex space-x-4 mb-4">
-            <div className="text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
-              <p className="text-xl font-bold">{followersStats.total}</p>
+          {loading.announcements ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Last 7 d</p>
-              <p className="text-xl font-bold">{followersStats.last7d}</p>
+          ) : error.announcements ? (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
+              <p>Error loading announcements: {error.announcements}</p>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Last 30 d</p>
-              <p className="text-xl font-bold">{followersStats.last30d}</p>
+          ) : announcements.length === 0 ? (
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
+              <Bell className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Announcements</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                You haven't published any announcements yet.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/brand/announcements/new">Create Announcement</Link>
+              </Button>
+              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                <p>Announcements will be shown to staff members who follow your brand.</p>
+              </div>
             </div>
-          </div>
-
-          {/* Simple inline bar chart */}
-          <div className="flex items-end space-x-0.5 h-20">
-            {followersStats.series30d.map((v, i) => {
-              const max = Math.max(...followersStats.series30d, 1);
-              const heightPct = (v / max) * 100;
-              return (
-                <div
-                  key={i}
-                  style={{ height: `${heightPct}%` }}
-                  className="flex-1 bg-purple-400/70 dark:bg-purple-300/80 rounded-t"
-                ></div>
-              );
-            })}
-          </div>
+          ) : (
+            <div className="space-y-4">
+              {announcements.map((announcement) => (
+                <div key={announcement.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                      {announcement.title || 'Untitled Announcement'}
+                    </h4>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      {formatDate(announcement.createdAt)}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">
+                      {announcement.content || 'No content'}
+                    </p>
+                  </div>
+                  
+                  <div className="mt-3 flex justify-end">
+                    <Button variant="outline" size="sm" asChild className="text-xs">
+                      <Link to={`/brand/announcements/${announcement.id}`}>View Details</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              {announcements.length > 0 && (
+                <div className="flex justify-center mt-2">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/brand/announcements">View All Announcements</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Card>
     </div>
   );
 
+  // Render the main dashboard content with tabs
   return (
-    <div className="p-6">
-      {/* Dashboard Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Brand Dashboard</h1>
-        <p className="text-gray-500 dark:text-gray-400">Overview of your brand's performance and activities</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Brand Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Manage your brand content, trainings, and engagement
+          </p>
+        </div>
+        <div className="flex space-x-2 mt-4 md:mt-0">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/brand/content">
+              <FileText className="mr-1 h-4 w-4" /> Content
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/brand/trainings/new">
+              <BookOpen className="mr-1 h-4 w-4" /> New Training
+            </Link>
+          </Button>
+          <Button variant="default" size="sm" asChild>
+            <Link to="/brand/analytics">
+              <BarChart2 className="mr-1 h-4 w-4" /> Analytics
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Tabs for different dashboard views */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="mb-6">
+      <Tabs defaultValue="overview">
+        <TabsList className="grid grid-cols-4 mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="roi">ROI Calculator</TabsTrigger>
-          <TabsTrigger value="community">Community Metrics</TabsTrigger>
+          <TabsTrigger value="communities">Communities</TabsTrigger>
         </TabsList>
-        
-        {/* Overview Tab - Shows the original cards */}
-        <TabsContent value="overview">
+        <TabsContent value="overview" className="space-y-6">
           {renderDashboardCards()}
         </TabsContent>
-        
-        {/* Analytics Tab - Shows the BrandAnalyticsPage component */}
         <TabsContent value="analytics">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <BrandAnalyticsPage brandId={brandId} />
-          </div>
+          <BrandAnalyticsPage brandId={brandId} embedded={true} />
         </TabsContent>
-        
-        {/* ROI Calculator Tab - Shows the BrandROICalculatorPage component */}
         <TabsContent value="roi">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <BrandROICalculatorPage brandId={brandId} />
-          </div>
+          <BrandROICalculatorPage brandId={brandId} embedded={true} />
         </TabsContent>
-        
-        {/* Community Metrics Tab - Shows the CommunityMetricsChart component */}
-        <TabsContent value="community">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <CommunityMetricsChart brandId={brandId} />
-          </div>
+        <TabsContent value="communities">
+          <CommunitiesManager brandId={brandId} />
         </TabsContent>
       </Tabs>
     </div>
   );
 };
 
-const EnhancedBrandHome = () => {
-  const { brandId: paramBrandId } = useParams();
+// Main Dashboard component
+export default function Dashboard() {
+  const { user, isBrandManager } = useAuth();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  // Centralised logout that always redirects to PublicWebsite
+  const { brandId } = useParams();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logout } = useLogout();
-  // Determine active brandId in priority order:
-  // 1) brand chosen in sidebar (saved in localStorage)
-  // 2) brandId on the authenticated user document
-  // 3) brandId from URL params
-  // 4) default seeded brand ("demo-brand")
-  const storedBrandId =
-    typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
-  const brandId = storedBrandId || user?.brandId || paramBrandId || 'demo-brand';
   
-  // State for mobile sidebar
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // State for active section (analytics, users, content, etc.)
-  const [activeSection, setActiveSection] = useState('analytics');
-  
-  // State for notifications dropdown
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  
-  // State for user dropdown
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  
-  // Close dropdowns when clicking outside
+  // Check if user is authorized
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (notificationsOpen || userDropdownOpen) {
-        if (!event.target.closest('.dropdown-container')) {
-          setNotificationsOpen(false);
-          setUserDropdownOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [notificationsOpen, userDropdownOpen]);
-  
-  // Mock user data - use actual user data if available
-  const userData = user || {
-    name: 'Brand Manager',
-    email: 'manager@engagenatural.com',
-    avatar: null,
-    notifications: 3
-  };
-  
-  // Navigation items with enhanced styling
-  const navItems = [
-    { id: 'analytics', label: 'Analytics Dashboard', icon: BarChart2, description: 'Key metrics and ROI' },
-    { id: 'users', label: 'User Management', icon: Users, description: 'Manage team access' },
-    { id: 'content', label: 'Content Management', icon: FileText, description: 'Publish and organize content' },
-    { id: 'samples', label: 'Sample Requests', icon: Package, description: 'Manage sample requests' },
-    { id: 'communities', label: 'Communities', icon: Users, description: 'Manage communities & posts' },
-    { id: 'brand', label: 'Brand Performance', icon: TrendingUp, description: 'Track engagement metrics' },
-    { id: 'activity', label: 'Activity Feed', icon: Activity, description: 'Recent updates and events' },
-    { id: 'settings', label: 'Settings', icon: Settings, description: 'Configure brand preferences' },
-    { id: 'help', label: 'Help & Support', icon: HelpCircle, description: 'Documentation and resources' }
-  ];
-  
-  // Function to handle section change
-  const handleSectionChange = (section) => {
-    setActiveSection(section);
-    setSidebarOpen(false); // Close mobile sidebar when navigating
-  };
-  
-  // Function to get user initials for avatar
-  const getUserInitials = () => {
-    if (!userData.name) return 'U';
-    return userData.name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
-
-  // Handle logout
-  const handleLogout = async () => {
-    // use standardised logout flow
-    logout();
-  };
-  
-  // Mock notifications
-  const notifications = [
-    {
-      id: 1,
-      title: 'New challenge completed',
-      description: 'User John D. completed the Eco-Shopping challenge',
-      time: '10 minutes ago',
-      read: false
-    },
-    {
-      id: 2,
-      title: 'ROI milestone reached',
-      description: 'Your brand has reached 250% ROI growth',
-      time: '2 hours ago',
-      read: false
-    },
-    {
-      id: 3,
-      title: 'New user registration spike',
-      description: '25 new users registered in the last hour',
-      time: '5 hours ago',
-      read: true
+    if (!user) {
+      navigate('/auth/login');
+      return;
     }
-  ];
+    
+    if (!isBrandManager && user.role !== 'super_admin') {
+      navigate('/');
+      return;
+    }
+  }, [user, isBrandManager, navigate]);
 
-  // Sample Requests Section Component
-  const SampleRequestsSection = ({ brandId }) => {
-    const [sampleRequests, setSampleRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-  
-    useEffect(() => {
-      if (!brandId) return;
-      const q = query(
-        collection(db, 'sample_requests'),
-        where('brandId', '==', brandId),
-        orderBy('createdAt', 'desc')
-      );
-  
-      const unsub = onSnapshot(
-        q,
-        (snap) => {
-          try {
-            setSampleRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-            setLoading(false);
-          } catch (e) {
-            console.error(e);
-            setError(e.message);
-            setLoading(false);
-          }
-        },
-        (err) => {
-          console.error(err);
-          setError(err.message);
-          setLoading(false);
-        }
-      );
-      return () => unsub();
-    }, [brandId]);
-  
+  // If no brandId in URL but user has a brandId, redirect to it
+  useEffect(() => {
+    if (user?.brandId && !brandId) {
+      navigate(`/brand/${user.brandId}/dashboard`);
+    }
+  }, [user, brandId, navigate]);
+
+  // If no user or still checking auth, show loading
+  if (!user) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-            Sample Requests
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            Review and manage all sample requests for your brand
-          </p>
-        </div>
-  
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-6 rounded-md">
-            <p>Error loading sample requests: {error}</p>
-          </div>
-        ) : sampleRequests.length === 0 ? (
-          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">
-              No Sample Requests
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              You don't have any sample requests yet.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {sampleRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {req.quantity}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatDate(req.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      {renderStatusBadge(req.status)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
-  };
-  
+  }
+
+  // If user doesn't have a brand assigned and isn't super admin, show error
+  if (!user.brandId && user.role !== 'super_admin') {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
+          <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-gray-900 mb-2">No Brand Access</h1>
+          <p className="text-gray-600 mb-6">
+            Your account doesn't have a brand assigned. Please contact an administrator
+            to get access to a brand dashboard.
+          </p>
+          <Button onClick={() => navigate('/')}>Return to Home</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If super_admin but no brandId specified, show enhanced dashboard
+  if (user.role === 'super_admin' && !brandId) {
+    return <EnhancedBrandDashboard />;
+  }
+
+  // Otherwise show the brand dashboard for the specified or assigned brand
+  const activeBrandId = brandId || user.brandId;
+
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
         />
       )}
-      
-      {/* Sidebar (always visible on desktop & larger screens) */}
-      <div className="lg:w-72 flex-shrink-0">
-        <div className="h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-          {/* Logo */}
-          <div className="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center text-white font-bold text-lg">
-              E
-            </div>
-            <span className="ml-3 text-lg font-semibold text-gray-800 dark:text-gray-200">EngageNatural</span>
-          </div>
-          
-          {/* Brand selector */}
-          <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                  <Building className="h-4 w-4 text-primary" />
-                </div>
-                <div className="ml-2">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {brandId}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Brand Manager
-                  </p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3">
-            <div className="mb-2 px-3">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Main
-              </h3>
-            </div>
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors ${
-                  activeSection === item.id 
-                    ? 'text-primary-foreground bg-primary font-medium' 
-                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-                onClick={() => handleSectionChange(item.id)}
-              >
-                <item.icon className={`h-5 w-5 mr-3 ${activeSection === item.id ? 'text-primary-foreground' : 'text-gray-500 dark:text-gray-400'}`} />
-                <div className="flex flex-col items-start">
-                  <span>{item.label}</span>
-                  {activeSection === item.id && (
-                    <span className="text-xs opacity-80">{item.description}</span>
-                  )}
-                </div>
-              </button>
-            ))}
-            
-            <Separator className="my-4" />
-            
-            <div className="mb-2 px-3">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Account
-              </h3>
-            </div>
-            <button
-              className="flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
-              <span>Sign Out</span>
-            </button>
-          </nav>
-          
-          {/* User profile section */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="flex flex-col h-full">
+          {/* Sidebar header */}
+          <div className="flex items-center justify-between px-4 py-5 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
-              <Avatar className="h-10 w-10 border border-primary/20">
-                <AvatarImage src={userData.avatar} alt={userData.name} />
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {getUserInitials()}
+              <Building className="h-6 w-6 text-brand-primary" />
+              <h2 className="ml-2 text-xl font-bold text-gray-900 dark:text-gray-100">Brand Portal</h2>
+            </div>
+            <button 
+              className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Sidebar content */}
+          <div className="flex-1 overflow-y-auto py-4">
+            <nav className="px-2 space-y-1">
+              <Link
+                to={`/brand/${activeBrandId}/dashboard`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Home className="mr-3 h-5 w-5" />
+                Dashboard
+              </Link>
+              <Link
+                to={`/brand/${activeBrandId}/analytics`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <BarChart2 className="mr-3 h-5 w-5" />
+                Analytics
+              </Link>
+              <Link
+                to={`/brand/${activeBrandId}/content`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <FileText className="mr-3 h-5 w-5" />
+                Content Manager
+              </Link>
+              <Link
+                to={`/brand/${activeBrandId}/trainings`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <BookOpen className="mr-3 h-5 w-5" />
+                Trainings
+              </Link>
+              <Link
+                to={`/brand/${activeBrandId}/communities`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Users className="mr-3 h-5 w-5" />
+                Communities
+              </Link>
+              <Link
+                to={`/brand/${activeBrandId}/samples`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Package className="mr-3 h-5 w-5" />
+                Sample Requests
+              </Link>
+              <Link
+                to={`/brand/${activeBrandId}/announcements`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Bell className="mr-3 h-5 w-5" />
+                Announcements
+              </Link>
+              <Link
+                to={`/brand/${activeBrandId}/config`}
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Settings className="mr-3 h-5 w-5" />
+                Settings
+              </Link>
+              
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+              
+              {/* View as Staff link */}
+              <Link
+                to="/"
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Eye className="mr-3 h-5 w-5" />
+                View as Staff
+              </Link>
+              
+              {/* External resources */}
+              <a
+                href="https://help.engagenatural.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <HelpCircle className="mr-3 h-5 w-5" />
+                Help Center
+                <ExternalLink className="ml-auto h-4 w-4" />
+              </a>
+            </nav>
+          </div>
+
+          {/* Sidebar footer */}
+          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center">
+              <Avatar>
+                <AvatarImage src={user.profileImage} />
+                <AvatarFallback className="bg-brand-primary text-white">
+                  {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{userData.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{userData.email}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.displayName || user.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{user.role}</p>
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="ml-auto text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" /> Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" /> Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" /> Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Mobile sidebar */}
-      <div 
-        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 transform ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } transition-transform duration-300 ease-in-out lg:hidden shadow-xl`}
-      >
-        {/* Mobile sidebar header */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center text-white font-bold text-lg">
-              E
-            </div>
-            <span className="ml-3 text-lg font-semibold text-gray-800 dark:text-gray-200">EngageNatural</span>
-          </div>
-          <button 
-            onClick={() => setSidebarOpen(false)}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        
-        {/* Mobile brand selector */}
-        <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                <Building className="h-4 w-4 text-primary" />
-              </div>
-              <div className="ml-2">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {brandId}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Brand Manager
-                </p>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        
-        {/* Mobile navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3">
-          <div className="mb-2 px-3">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Main
-            </h3>
-          </div>
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors ${
-                activeSection === item.id 
-                  ? 'text-primary-foreground bg-primary font-medium' 
-                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              onClick={() => handleSectionChange(item.id)}
-            >
-              <item.icon className={`h-5 w-5 mr-3 ${activeSection === item.id ? 'text-primary-foreground' : 'text-gray-500 dark:text-gray-400'}`} />
-              <div className="flex flex-col items-start">
-                <span>{item.label}</span>
-                {activeSection === item.id && (
-                  <span className="text-xs opacity-80">{item.description}</span>
-                )}
-              </div>
-            </button>
-          ))}
-          
-          <Separator className="my-4" />
-          
-          <div className="mb-2 px-3">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Account
-            </h3>
-          </div>
-          <button
-            className="flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
-            <span>Sign Out</span>
-          </button>
-        </nav>
-        
-        {/* Mobile user profile section */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <Avatar className="h-10 w-10 border border-primary/20">
-              <AvatarImage src={userData.avatar} alt={userData.name} />
-              <AvatarFallback className="bg-primary/10 text-primary">
-                {getUserInitials()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{userData.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{userData.email}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      
+
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top header */}
-        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between h-16 px-4 lg:px-6">
-          {/* Left section: Mobile menu button and breadcrumbs */}
-          <div className="flex items-center">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 lg:hidden mr-3"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-            
-            {/* Breadcrumbs */}
-            <div className="hidden md:flex items-center text-sm">
-              <Link to="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-                Home
-              </Link>
-              <span className="mx-2 text-gray-400 dark:text-gray-500">/</span>
-              <Link to={`/brand/${brandId}`} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-                Brands
-              </Link>
-              <span className="mx-2 text-gray-400 dark:text-gray-500">/</span>
-              <span className="text-gray-900 dark:text-gray-100 font-medium">
-                {navItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
-              </span>
-            </div>
-            
-            <div className="md:hidden text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {navItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
-            </div>
-          </div>
-          
-          {/* Right section: Actions and user profile */}
-          <div className="flex items-center space-x-3">
-            {/* Search */}
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="pl-10 pr-4 py-2 w-64 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:text-gray-200 text-sm"
-              />
-            </div>
-            
-            {/* Export button */}
-            <Button variant="outline" size="sm" className="hidden md:flex items-center space-x-1">
-              <Download className="h-4 w-4 mr-1" />
-              <span>Export</span>
-            </Button>
-            
-            {/* Date range selector */}
-            <Button variant="outline" size="sm" className="hidden md:flex items-center space-x-1">
-              <Calendar className="h-4 w-4 mr-1" />
-              <span>Last 30 Days</span>
-              <ChevronDown className="h-4 w-4 ml-1" />
-            </Button>
-            
-            {/* Notifications dropdown */}
-            <div className="relative dropdown-container">
-              <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="relative h-9 w-9 rounded-full p-0">
-                    <Bell className="h-5 w-5" />
-                    {userData.notifications > 0 && (
-                      <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white dark:ring-gray-800"></span>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Notifications</h3>
-                      <Badge variant="outline" className="text-xs">
-                        {notifications.filter(n => !n.read).length} new
-                      </Badge>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {notifications.map(notification => (
-                    <DropdownMenuItem key={notification.id} className="p-0 focus:bg-transparent">
-                      <div className={`w-full p-3 border-l-2 ${notification.read ? 'border-transparent' : 'border-primary'} hover:bg-muted/50`}>
-                        <div className="flex justify-between items-start">
-                          <p className="text-sm font-medium">{notification.title}</p>
-                          <span className="text-xs text-muted-foreground">{notification.time}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">{notification.description}</p>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="justify-center text-center text-sm text-primary">
-                    View all notifications
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            
-            {/* User profile dropdown */}
-            <div className="relative dropdown-container">
-              <DropdownMenu open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 flex items-center space-x-2 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={userData.avatar} alt={userData.name} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {getUserInitials()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden md:inline-block text-sm">{userData.name}</span>
-                    <ChevronDown className="hidden md:block h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{userData.name}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{userData.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>My Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Building className="mr-2 h-4 w-4" />
-                    <span>Brand Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Account Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sign out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </header>
-        
-        {/* Main content area */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-          {/* Render the appropriate section based on activeSection */}
-          {activeSection === 'analytics' && <BrandDashboardContent brandId={brandId} />}
-          {activeSection === 'users' && (
-            <div className="p-6">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">User Management</h1>
-                <p className="text-gray-500 dark:text-gray-400">Manage team members and their access permissions</p>
-              </div>
-              <Card className="p-6">
-                <p>User management content will be displayed here.</p>
-              </Card>
-            </div>
-          )}
-          {activeSection === 'content' && (
-            /* Full-width workspace for the content manager */
-            <div className="w-full p-0 md:p-6">
-              {/* Render the integrated content-management system */}
-              <IntegratedContentManager brandId={brandId} />
-            </div>
-          )}
-          {activeSection === 'samples' && (
-            <div className="w-full p-6">
-              <SampleRequestsSection brandId={brandId} />
-            </div>
-          )}
-          {activeSection === 'communities' && (
-            <div className="w-full p-0 md:p-6">
-              <CommunitiesManager brandId={brandId} />
-            </div>
-          )}
-          {activeSection === 'brand' && (
-            <div className="p-6">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Brand Performance</h1>
-                <p className="text-gray-500 dark:text-gray-400">Track your brand's performance and engagement metrics</p>
-              </div>
-              <Card className="p-6">
-                <p>Brand performance metrics will be displayed here.</p>
-              </Card>
-            </div>
-          )}
-          {activeSection === 'activity' && (
-            <div className="p-6">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Activity Feed</h1>
-                <p className="text-gray-500 dark:text-gray-400">Recent activity and events from your brand</p>
-              </div>
-              <Card className="p-6">
-                <p>Activity feed will be displayed here.</p>
-              </Card>
-            </div>
-          )}
-          {activeSection === 'settings' && (
-            <div className="p-6">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Settings</h1>
-                <p className="text-gray-500 dark:text-gray-400">Configure your brand settings and preferences</p>
-              </div>
-              <Card className="p-6 space-y-4">
-                <p>Settings options will be displayed here.</p>
-                {/* Link to Brand Style Guide */}
-                <Button
-                  asChild
-                  variant="outline"
+        {/* Top navigation */}
+        <div className="bg-white dark:bg-gray-800 shadow">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16">
+              <div className="flex">
+                <button
+                  className="px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary lg:hidden"
+                  onClick={() => setMobileMenuOpen(true)}
                 >
-                  <Link to={`/brand-dashboard/${brandId}/style-guide`}>
-                    View Brand Style Guide
-                  </Link>
-                </Button>
-              </Card>
-            </div>
-          )}
-          {activeSection === 'help' && (
-            <div className="p-6">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Help & Support</h1>
-                <p className="text-gray-500 dark:text-gray-400">Resources and documentation to help you succeed</p>
+                  <Menu className="h-6 w-6" />
+                </button>
               </div>
-              <Card className="p-6">
-                <p>Help and support resources will be displayed here.</p>
-              </Card>
+              <div className="flex items-center">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
+                  />
+                </div>
+                <div className="ml-4">
+                  <Button variant="outline" size="sm">
+                    <Calendar className="mr-2 h-4 w-4" /> Calendar
+                  </Button>
+                </div>
+                <div className="ml-4">
+                  <Button variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" /> Export
+                  </Button>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
+          <BrandDashboardContent brandId={activeBrandId} />
         </main>
       </div>
     </div>
   );
-};
-
-export default EnhancedBrandHome;
+}

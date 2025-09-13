@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import {
@@ -19,6 +19,7 @@ import { db } from '../../../lib/firebase';
 export default function MyBrandsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const useEmulator = import.meta.env.VITE_USE_EMULATOR === 'true';
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,29 +63,47 @@ export default function MyBrandsPage() {
             )
           : brandsData;
         
-        // Always ensure we have at least the example brand
-        const hasExampleBrand = filteredBrands.some(b => b.id === 'calm-well-co');
+        // De-duplicate brands by id or name (case-insensitive)
+        const seenKeys = new Set();
+        const dedupedBrands = filteredBrands.filter(brand => {
+          const key = (brand.id || brand.name || '').toLowerCase();
+          if (seenKeys.has(key)) return false;
+          seenKeys.add(key);
+          return true;
+        });
+        
+        // Create inline SVG data URI for logos
+        const inlineLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-size='12'>CWC</text></svg>";
+        
+        // Check if we need to add the example brand
+        const hasExampleBrand = dedupedBrands.some(b => 
+          b.id?.toLowerCase() === 'calm-well-co' || 
+          b.name?.toLowerCase() === 'calm well co'
+        );
+        
         if (!hasExampleBrand) {
-          filteredBrands.push({
+          dedupedBrands.push({
             id: 'calm-well-co',
             name: 'Calm Well Co',
             description: 'Natural wellness and CBD products',
             category: 'Wellness',
-            logo: 'https://via.placeholder.com/100?text=CWC',
+            logo: inlineLogo,
             isExample: true
           });
         }
         
-        setBrands(filteredBrands);
+        setBrands(dedupedBrands);
       } catch (err) {
         console.error('Error loading brands:', err);
         // Fallback to example brand if error
+        const inlineLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-size='12'>CWC</text></svg>";
+        
         setBrands([{
           id: 'calm-well-co',
           name: 'Calm Well Co',
           description: 'Natural wellness and CBD products',
           category: 'Wellness',
-          logo: 'https://via.placeholder.com/100?text=CWC',
+          logo: inlineLogo,
           isExample: true
         }]);
       } finally {
@@ -161,54 +180,12 @@ export default function MyBrandsPage() {
         limit(5)
       );
       
-      detailsUnsubRefs.current[brandId].communities = onSnapshot(
-        communitiesQuery,
-        (snapshot) => {
-          const communitiesData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              communities: communitiesData
-            }
-          }));
-        },
-        (err) => {
-          console.error(`Error loading communities for ${brandId}:`, err);
-        }
-      );
-      
       // Get trainings
       const trainingsQuery = query(
         collection(db, 'trainings'),
         where('brandId', '==', brandId),
         where('published', '==', true),
         limit(5)
-      );
-      
-      detailsUnsubRefs.current[brandId].trainings = onSnapshot(
-        trainingsQuery,
-        (snapshot) => {
-          const trainingsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              trainings: trainingsData
-            }
-          }));
-        },
-        (err) => {
-          console.error(`Error loading trainings for ${brandId}:`, err);
-        }
       );
       
       // Get challenges
@@ -218,35 +195,127 @@ export default function MyBrandsPage() {
         limit(5)
       );
       
-      detailsUnsubRefs.current[brandId].challenges = onSnapshot(
-        challengesQuery,
-        (snapshot) => {
-          const challengesData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              challenges: challengesData,
-              loading: false
-            }
-          }));
-        },
-        (err) => {
-          console.error(`Error loading challenges for ${brandId}:`, err);
-          // Still mark as loaded even if there was an error
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              loading: false
-            }
-          }));
-        }
-      );
+      if (useEmulator) {
+        // Use Promise.all to fetch all data in parallel
+        (async () => {
+          try {
+            const [comSnap, trSnap, chSnap] = await Promise.all([
+              getDocs(communitiesQuery),
+              getDocs(trainingsQuery),
+              getDocs(challengesQuery)
+            ]);
+            
+            const communitiesData = comSnap.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            const trainingsData = trSnap.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            const challengesData = chSnap.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            // Update state once with all data
+            setFollowingDetails(prev => ({
+              ...prev,
+              [brandId]: {
+                ...prev[brandId],
+                communities: communitiesData,
+                trainings: trainingsData,
+                challenges: challengesData,
+                loading: false
+              }
+            }));
+          } catch (err) {
+            console.error(`Error loading data for brand ${brandId}:`, err);
+            // Set loading to false even on error
+            setFollowingDetails(prev => ({
+              ...prev,
+              [brandId]: {
+                ...prev[brandId],
+                loading: false
+              }
+            }));
+          }
+        })();
+      } else {
+        detailsUnsubRefs.current[brandId].communities = onSnapshot(
+          communitiesQuery,
+          (snapshot) => {
+            const communitiesData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            setFollowingDetails(prev => ({
+              ...prev,
+              [brandId]: {
+                ...prev[brandId],
+                communities: communitiesData
+              }
+            }));
+          },
+          (err) => {
+            console.error(`Error loading communities for ${brandId}:`, err);
+          }
+        );
+        
+        detailsUnsubRefs.current[brandId].trainings = onSnapshot(
+          trainingsQuery,
+          (snapshot) => {
+            const trainingsData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            setFollowingDetails(prev => ({
+              ...prev,
+              [brandId]: {
+                ...prev[brandId],
+                trainings: trainingsData
+              }
+            }));
+          },
+          (err) => {
+            console.error(`Error loading trainings for ${brandId}:`, err);
+          }
+        );
+        
+        detailsUnsubRefs.current[brandId].challenges = onSnapshot(
+          challengesQuery,
+          (snapshot) => {
+            const challengesData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            setFollowingDetails(prev => ({
+              ...prev,
+              [brandId]: {
+                ...prev[brandId],
+                challenges: challengesData,
+                loading: false
+              }
+            }));
+          },
+          (err) => {
+            console.error(`Error loading challenges for ${brandId}:`, err);
+            // Still mark as loaded even if there was an error
+            setFollowingDetails(prev => ({
+              ...prev,
+              [brandId]: {
+                ...prev[brandId],
+                loading: false
+              }
+            }));
+          }
+        );
+      }
     });
     
     return () => {
@@ -259,7 +328,7 @@ export default function MyBrandsPage() {
         });
       });
     };
-  }, [follows]);
+  }, [follows, useEmulator]);
   
   // Follow brand with optimistic updates
   const followBrand = async (brand) => {
@@ -379,7 +448,7 @@ export default function MyBrandsPage() {
           className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
         />
         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-          <span role="img" aria-label="search">dY"?</span>
+          <span role="img" aria-label="search">🔍</span>
         </div>
       </div>
 
@@ -406,7 +475,8 @@ export default function MyBrandsPage() {
                       className="w-12 h-12 object-contain rounded mr-3"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/48?text=Logo';
+                        const inlineLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-size='12'>CWC</text></svg>";
+                        e.target.src = inlineLogo;
                       }}
                     />
                   ) : (
