@@ -13,7 +13,7 @@ const isLocalhost =
 function initializeFirebase() {
   // For local development with emulators
   const firebaseConfig = {
-    apiKey: isLocalhost ? "demo-api-key" : "AIzaSyCO65kN7L3OR7VnORRwYZckzoUEUJAoJQg",
+    apiKey: isLocalhost ? "demo-api-key" : "",
     authDomain: "engagenatural-app.firebaseapp.com",
     projectId: "engagenatural-app",
     storageBucket: "engagenatural-app.appspot.com",
