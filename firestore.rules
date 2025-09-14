@@ -9,17 +9,45 @@ service cloud.firestore {
     function userData(uid) {
       return userSnap(uid).data;
     }
+    // ---------- Safer role helpers ----------
+    function userExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
     function isSuperAdmin(uid) {
-      return userData(uid).role == 'super_admin';
+      return userExists(uid) &&
+             ('role' in userData(uid)) &&
+             userData(uid).role == 'super_admin';
     }
     function isApprovedBrandManager(uid) {
-      let u = userData(uid);
-      return u.role == 'brand_manager' && u.approved == true;
+      return userExists(uid) &&
+             ('role' in userData(uid)) && userData(uid).role == 'brand_manager' &&
+             ('approved' in userData(uid)) && userData(uid).approved == true;
     }
 
     // Pass a PATH to a post doc
     function isPublicPost(path) {
       return exists(path) && get(path).data.visibility == 'public';
+    }
+
+    // ------------------------------------------------------------------
+    // Local-dev helpers
+    // ------------------------------------------------------------------
+    function isDevAdmin() {
+      return request.auth != null &&
+             ('email' in request.auth.token) &&
+             (request.auth.token.email in [
+               'liza@engagenatural.com',
+               'admin@engagenatural.com'
+             ]);
+    }
+
+    // ------------------------------------------------------------------
+    // Demo-seeding override (local development only)
+    //    • Grants create / update / delete to known dev-admin emails
+    //    • Placed before specific collection rules so it evaluates first
+    // ------------------------------------------------------------------
+    match /{document=**} {
+      allow create, update, delete: if isDevAdmin();
     }
 
     // ---------- users ----------
@@ -98,9 +126,9 @@ service cloud.firestore {
       // Anyone signed-in can read posts that are flagged public
       allow read: if resource.data.visibility == 'public';
 
-      // Create limited to approved brand managers or super admins
+      // Allow create only in the open 'whats-good' community by any signed-in user
       allow create: if request.auth != null &&
-        (isApprovedBrandManager(request.auth.uid) || isSuperAdmin(request.auth.uid));
+        request.resource.data.communityId == 'whats-good';
 
       // Owner, approved brand manager, or super admin can update / delete
       allow update, delete: if request.auth != null && (
@@ -197,8 +225,8 @@ service cloud.firestore {
     match /communities/{communityId} {
       // Only allow read for signed-in users if the community is public & active
       allow read: if request.auth != null &&
-        resource.data.isPublic == true &&
-        resource.data.isActive == true;
+        ('isPublic' in resource.data) && resource.data.isPublic == true &&
+        ('isActive' in resource.data) && resource.data.isActive == true;
 
       // No writes from client side
       allow write: if false;

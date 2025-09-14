@@ -17,6 +17,8 @@ import {
   getCountFromServer
 } from 'firebase/firestore';
 
+// Shared user avatar / dropdown
+import UserDropdownMenu from '../../components/userdropdownmenu';
 // Loading skeleton for post
 const PostSkeleton = () => (
   <div className="bg-white rounded-lg border border-gray-200 p-6 mb-4 shadow-sm animate-pulse">
@@ -210,6 +212,11 @@ export default function PostDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* Top-right user dropdown */}
+      <div className="flex justify-end items-center mb-4">
+        <UserDropdownMenu />
+      </div>
+
       {/* Post Header */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 shadow-sm">
         <div className="flex justify-between items-start mb-4">

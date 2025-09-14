@@ -124,12 +124,18 @@ export default function CommunitiesPage() {
   const [loadingCommunities, setLoadingCommunities] = useState(true);
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
+  /* which community the composer is for – toggled by Whats-Good card */
+  const [composerCommunityId, setComposerCommunityId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [communitiesError, setCommunitiesError] = useState(false);
 
   const canCreate =
     user?.role === 'super_admin' || user?.role === 'brand_manager';
+  /* For staff: always allow composer when Whats-Good selected, or if elevated role */
+  const showComposer = composerCommunityId === 'whats-good' || canCreate;
+  /* Posting permission – brand managers/super_admin OR anyone in "whats-good" */
+  const canPostHere = canCreate || composerCommunityId === 'whats-good';
 
   const truncate = (t, n = 140) =>
     t && t.length > n ? `${t.slice(0, n)}...` : t || '';
@@ -287,7 +293,7 @@ export default function CommunitiesPage() {
    * ------------------------------------------------------------------*/
   const handleCreatePost = async (e) => {
     e.preventDefault();
-    if (!canCreate || !newTitle.trim() || !newBody.trim() || creating) return;
+    if (!canPostHere || !newTitle.trim() || !newBody.trim() || creating) return;
 
     setCreating(true);
     setCreateError('');
@@ -298,7 +304,9 @@ export default function CommunitiesPage() {
         visibility: 'public',
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
-        authorRole: user?.role || 'user'
+        authorRole: user?.role || 'user',
+        communityId: composerCommunityId || 'whats-good',
+        communityName: composerCommunityId || 'whats-good'
       });
       setNewTitle('');
       setNewBody('');
@@ -319,18 +327,39 @@ export default function CommunitiesPage() {
       try {
         const q = query(
           collection(db, 'communities'),
-          where('isActive', '==', true)
+          where('isActive', '==', true),
+          // must be public to satisfy Firestore rules
+          where('isPublic', '==', true)
         );
         const snap = await getDocs(q);
         let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        // staff users only see public ones
-        items = items.filter((c) => c.isPublic === true);
+
         // put what's-good first
         items.sort((a, b) => {
           if (a.id === 'whats-good') return -1;
           if (b.id === 'whats-good') return 1;
           return (a.name || '').localeCompare(b.name || '');
         });
+
+        // ------------------------------------------------------------------
+        // Fallback: if Firestore returns zero public communities make sure
+        // at least the universal “What’s Good” community is present so the
+        // page always shows something useful.
+        // ------------------------------------------------------------------
+        if (!items || items.length === 0) {
+          items = [
+            {
+              id: 'whats-good',
+              name: "What's Good",
+              description: 'Open community for all users',
+              members: 0,
+              badge: 'Open to All',
+              isPublic: true,
+              isActive: true
+            }
+          ];
+        }
+
         setCommunities(items);
       } catch (err) {
         // eslint-disable-next-line no-console
@@ -400,12 +429,25 @@ export default function CommunitiesPage() {
                         {(c.members ?? c.memberCount ?? 0)} members
                       </div>
                     </div>
-                    <Link
-                      to={`/community/${c.id}`}
-                      className="ml-3 text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
-                    >
-                      Open
-                    </Link>
+                    {c.id === 'whats-good' ? (
+                      <button
+                        onClick={() =>
+                          setComposerCommunityId((prev) =>
+                            prev === 'whats-good' ? null : 'whats-good'
+                          )
+                        }
+                        className="ml-3 text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
+                      >
+                        {composerCommunityId === 'whats-good' ? 'Close' : 'Open'}
+                      </button>
+                    ) : (
+                      <Link
+                        to={`/community/${c.id}`}
+                        className="ml-3 text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
+                      >
+                        Open
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
@@ -415,13 +457,76 @@ export default function CommunitiesPage() {
           )}
         </div>
 
+        {/* ---------------- Community Feed Box ---------------- */}
+        {/* ---------------- Community Overview (Top 3) ---------------- */}
+        {communities.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold text-gray-900">Community Overview</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+              {communities.slice(0, 3).map((co) => (
+                <div key={co.id} className="text-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                  <div className="font-medium text-gray-900">{co.name || co.id}</div>
+                  <div className="text-sm text-gray-600 mt-1">{truncate(co.description, 100)}</div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {(co.members ?? co.memberCount ?? 0)} members
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- Community Feed Box ---------------- */}
+        <div className="mt-6">
+          <h2 className="text-xl font-semibold text-gray-900">Community Feed</h2>
+          {initialLoading ? (
+            <div className="flex flex-col py-4">
+              <PostSkeleton />
+              <PostSkeleton />
+              <PostSkeleton />
+            </div>
+          ) : posts.length > 0 ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm mt-3">
+              <div className="grid grid-cols-1 gap-4">
+                {posts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    liked={likedPosts.has(post.id)}
+                    likeCount={likeCounts[post.id]}
+                    commentCount={commentCounts[post.id]}
+                    onToggleLike={toggleLike}
+                    pendingLike={pendingLikes.has(post.id)}
+                    comments={commentsMap[post.id] || []}
+                  />
+                ))}
+              </div>
+              {hasMore && (
+                <div className="flex justify-center mt-2">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="px-4 py-2 rounded bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingMore ? 'Loading…' : 'Load More'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center mt-4">
+              <p className="text-gray-500">No public posts yet</p>
+            </div>
+          )}
+        </div>
+
         {/* ---------------- Post Composer ---------------- */}
-        {canCreate && (
+        {showComposer && (
           <form
             onSubmit={handleCreatePost}
             className="mt-6 bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Create a Post</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Create a Post {composerCommunityId ? `in ${composerCommunityId}` : ''}</h3>
             {createError && <div className="mb-2 text-sm text-red-600">{createError}</div>}
             <input
               type="text"
@@ -448,45 +553,46 @@ export default function CommunitiesPage() {
             </div>
           </form>
         )}
+{false && (
+  initialLoading ? (
+    <div className="flex flex-col py-4">
+      <PostSkeleton />
+      <PostSkeleton />
+      <PostSkeleton />
+    </div>
+  ) : posts.length > 0 ? (
+    <div className="grid grid-cols-1 gap-4 mt-4">
+      {posts.map((post) => (
+        <PostCard
+          key={post.id}
+          post={post}
+          liked={likedPosts.has(post.id)}
+          likeCount={likeCounts[post.id]}
+          commentCount={commentCounts[post.id]}
+          onToggleLike={toggleLike}
+          pendingLike={pendingLikes.has(post.id)}
+          comments={commentsMap[post.id] || []}
+        />
+      ))}
 
-        {initialLoading ? (
-          <div className="flex flex-col py-4">
-            <PostSkeleton />
-            <PostSkeleton />
-            <PostSkeleton />
-          </div>
-        ) : posts.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 mt-4">
-            {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                liked={likedPosts.has(post.id)}
-                likeCount={likeCounts[post.id]}
-                commentCount={commentCounts[post.id]}
-                onToggleLike={toggleLike}
-                pendingLike={pendingLikes.has(post.id)}
-                comments={commentsMap[post.id] || []}
-              />
-            ))}
-
-            {hasMore && (
-              <div className="flex justify-center mt-2">
-                <button
-                  onClick={loadMore}
-                  disabled={loadingMore}
-                  className="px-4 py-2 rounded bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingMore ? 'Loading…' : 'Load More'}
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center mt-4">
-            <p className="text-gray-500">No public posts yet</p>
-          </div>
-        )}
+      {hasMore && (
+        <div className="flex justify-center mt-2">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="px-4 py-2 rounded bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingMore ? 'Loading…' : 'Load More'}
+          </button>
+        </div>
+      )}
+    </div>
+  ) : (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center mt-4">
+      <p className="text-gray-500">No public posts yet</p>
+    </div>
+  )
+)}
       </div>
     </div>
   );
