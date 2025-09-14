@@ -124,7 +124,7 @@ export default function StaffDashboardLayout() {
               <ul className="flex flex-row md:flex-col space-y-0 space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto md:overflow-x-visible">
                 <li>
                   <NavLink
-                    to="profile"
+                    to="/staff/profile"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive
@@ -138,7 +138,7 @@ export default function StaffDashboardLayout() {
                 </li>
                 <li>
                   <NavLink
-                    to="verification"
+                    to="/staff/verification"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive
@@ -152,7 +152,7 @@ export default function StaffDashboardLayout() {
                 </li>
                 <li>
                   <NavLink
-                    to="communities"
+                    to="/staff/communities"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive
@@ -166,7 +166,7 @@ export default function StaffDashboardLayout() {
                 </li>
                 <li>
                   <NavLink
-                    to="my-brands"
+                    to="/staff/my-brands"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive
@@ -180,7 +180,7 @@ export default function StaffDashboardLayout() {
                 </li>
                 <li>
                   <NavLink
-                    to="learning"
+                    to="/staff/learning"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive

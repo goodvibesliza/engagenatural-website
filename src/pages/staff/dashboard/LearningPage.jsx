@@ -77,7 +77,14 @@ const TrainingCard = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            (isCompleted ? onComplete : onStart)();
+            if (isCompleted) {
+              onComplete();
+            } else if (isInProgress) {
+              onOpen();
+            } else {
+              onStart();
+              onOpen();
+            }
           }}
           disabled={isPending || isCompleted}
           className={`px-3 py-1 text-sm rounded font-medium ${

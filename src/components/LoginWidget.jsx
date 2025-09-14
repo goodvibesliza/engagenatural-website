@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, getAuth } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
-import { auth, db } from '../lib/firebase'
+import { auth, db, app } from '../lib/firebase'
 import getLandingRouteFor from '../utils/landing'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -35,7 +35,11 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
 
     try {
       console.log('Attempting to sign in with email:', email)
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const userCredential = await signInWithEmailAndPassword(
+        auth || getAuth(app),
+        email,
+        password
+      )
       const user = userCredential.user
       console.log('User authenticated successfully:', user.uid)
       
@@ -114,7 +118,11 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
 
     try {
       console.log('Attempting to create account for:', email)
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const userCredential = await createUserWithEmailAndPassword(
+        auth || getAuth(app),
+        email,
+        password
+      )
       const user = userCredential.user
       console.log('User account created successfully:', user.uid)
       

@@ -416,7 +416,7 @@ function App() {
           <Route 
             path="/staff/*" 
             element={
-              <RoleGuard allowedRoles={['staff']}>
+              <RoleGuard allowedRoles={['staff','verified_staff','retail_staff']}>
                 <StaffDashboardLayout />
               </RoleGuard>
             }
@@ -433,7 +433,7 @@ function App() {
           <Route 
             path="/staff/trainings/:id" 
             element={
-              <RoleGuard allowedRoles={['staff']}>
+              <RoleGuard allowedRoles={['staff','verified_staff','retail_staff']}>
                 <StaffTrainingDetail />
               </RoleGuard>
             } 

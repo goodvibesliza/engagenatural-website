@@ -4,10 +4,32 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
-// Check if we're running locally
-export const isLocalhost = 
-  typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+// ---------------------------------------------------------------------------
+// Local-host detection
+// ---------------------------------------------------------------------------
+// Broaden detection so development hostnames like 127.0.0.1, ::1 and
+// sub-domains ending in “.localhost” (e.g. app.localhost) are treated as
+// “localhost” for the purpose of connecting Firebase emulators.
+//
+// This allows Vite/Netlify Dev proxies or custom hosts in /etc/hosts to work
+// seamlessly without additional configuration.
+const __USE_EMU__ = import.meta.env.VITE_USE_EMULATOR === 'true';
+export const isLocalhost = (() => {
+  // When developer explicitly enables the emulator, always treat the
+  // environment as “localhost” so helper logic (e.g. custom-claim merging)
+  // engages even if the site is accessed via a non-localhost host header
+  // such as 127.0.0.1, ::1, or a *.test/.local domain.
+  if (__USE_EMU__) return true;
+
+  if (typeof window === 'undefined') return false;
+  const hn = window.location.hostname || '';
+  return (
+    hn === 'localhost' ||
+    hn === '127.0.0.1' ||
+    hn === '::1' ||
+    hn.endsWith('.localhost')
+  );
+})();
 
 // Required environment variables
 const req = [
@@ -33,25 +55,38 @@ if (miss.length) {
   // Do NOT throw; allow app to remain undefined so the site can render
 }
 
-// initialise only once in any environment (SSR / hot-reload / tests)
+// Initialise exactly once (SSR / hot-reload / tests)
 let app;
-if (!miss.length) {
-  const existingApps = getApps();
-  if (existingApps.length === 0) {
-    const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    };
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = existingApps[0];
-  }
+const existingApps = getApps();
+if (existingApps.length > 0) {
+  // Re-use singleton if it already exists
+  app = existingApps[0];
+} else if (!miss.length) {
+  // All required env vars present → use real project config
+  const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  };
+  app = initializeApp(firebaseConfig);
+} else if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+  // Missing real keys but running with emulator → bootstrap with minimal config
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project';
+  const firebaseConfig = {
+    apiKey: 'demo',
+    authDomain: `${projectId}.firebaseapp.com`,
+    projectId,
+    storageBucket: `${projectId}.appspot.com`,
+    messagingSenderId: '1234567890',
+    appId: 'demo-app-id',
+  };
+  app = initializeApp(firebaseConfig);
 } else {
-  app = undefined; // skip init when env missing
+  // Not using emulator and vars missing → keep undefined (UI can handle gracefully)
+  app = undefined;
 }
 
 // Get service instances

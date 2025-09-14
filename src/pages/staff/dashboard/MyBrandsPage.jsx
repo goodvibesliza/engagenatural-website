@@ -177,6 +177,9 @@ export default function MyBrandsPage() {
       const communitiesQuery = query(
         collection(db, 'communities'),
         where('brandId', '==', brandId),
+        // must satisfy security rules: only public & active communities
+        where('isPublic', '==', true),
+        where('isActive', '==', true),
         limit(5)
       );
       
@@ -184,7 +187,6 @@ export default function MyBrandsPage() {
       const trainingsQuery = query(
         collection(db, 'trainings'),
         where('brandId', '==', brandId),
-        where('published', '==', true),
         limit(5)
       );
       
@@ -213,7 +215,7 @@ export default function MyBrandsPage() {
             const trainingsData = trSnap.docs.map(doc => ({
               id: doc.id,
               ...doc.data()
-            }));
+            })).filter(t => t.published !== false); // keep if published missing or true
             
             const challengesData = chSnap.docs.map(doc => ({
               id: doc.id,
@@ -271,7 +273,7 @@ export default function MyBrandsPage() {
             const trainingsData = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data()
-            }));
+            })).filter(t => t.published !== false); // keep if published missing or true
             
             setFollowingDetails(prev => ({
               ...prev,

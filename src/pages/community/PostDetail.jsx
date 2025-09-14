@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore';
 
 // Shared user avatar / dropdown
-import UserDropdownMenu from '../../components/userdropdownmenu';
+import UserDropdownMenu from '../../components/UserDropdownMenu.jsx';
 // Loading skeleton for post
 const PostSkeleton = () => (
   <div className="bg-white rounded-lg border border-gray-200 p-6 mb-4 shadow-sm animate-pulse">
