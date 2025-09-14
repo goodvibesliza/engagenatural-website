@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/auth-context';
-import UserDropdownMenu from '../components/userdropdownmenu';
+import UserDropdownMenu from '../components/UserDropdownMenu.jsx';
 import { 
   MessageSquare, 
   Heart, 
