@@ -1,11 +1,15 @@
 // src/components/admin/layout/AdminLayout.jsx
+import React, { useState } from 'react';
 import { Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import AdminSidebar from './admin-sidebar';
+import UserDropdownMenuUpdated from '../../UserDropdownMenu';
 
 export default function AdminLayout({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const handleSignOut = () => { window.location.href = '/?logout=true'; };
   
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">
@@ -22,6 +26,16 @@ export default function AdminLayout({ children }) {
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <AdminSidebar />
+      
+      {/* Top Bar */}
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 lg:ml-64">
+        <div className="px-6 h-16 flex items-center justify-between">
+          <div className="font-semibold text-gray-900">Admin</div>
+          <div className="fixed top-4 right-4 z-50">
+            <UserDropdownMenuUpdated />
+          </div>
+        </div>
+      </header>
       
       {/* Main Content */}
       {/*  

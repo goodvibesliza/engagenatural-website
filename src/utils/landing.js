@@ -33,7 +33,10 @@ export default function getLandingRouteFor(user) {
   }
 
   // 5. Staff (all staff land on /staff)
-  if (role === 'staff') return '/staff';
+  //    Accept any staff-family role aliases
+  if (role === 'staff' || role === 'verified_staff' || role === 'retail_staff') {
+    return '/staff';
+  }
 
   // 6. Default fallback
   return '/';

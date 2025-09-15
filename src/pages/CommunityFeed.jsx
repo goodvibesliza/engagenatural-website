@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/auth-context';
+import UserDropdownMenu from '../components/UserDropdownMenu.jsx';
 import { 
   MessageSquare, 
   Heart, 
@@ -21,6 +23,11 @@ export default function CommunityFeed({ brandId }) {
     isBrandManager,
     PERMISSIONS 
   } = useAuth();
+
+  // route param for nicer title
+  const { id } = useParams();
+  const pageTitle = id === 'whats-good' ? "What's Good Community Feed" : 'Community Feed';
+  const isWhatsGood = id === 'whats-good';
   
   const [posts, setPosts] = useState([]);
   const [communities, setCommunities] = useState([]);
@@ -33,18 +40,20 @@ export default function CommunityFeed({ brandId }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (hasPermission(PERMISSIONS.VIEW_COMMUNITIES)) {
+    if (isWhatsGood || hasPermission(PERMISSIONS.VIEW_COMMUNITIES)) {
       fetchCommunities();
       fetchPosts();
     } else {
       setLoading(false);
     }
-  }, [hasPermission, brandId]);
+  }, [isWhatsGood, hasPermission, brandId]);
+
+  /* signOut handled by shared UserDropdownMenu */
 
   const fetchCommunities = async () => {
     try {
       console.log(`[CommunityFeed] Fetching communities for brandId: ${brandId}`);
-      console.log(`[CommunityFeed] User is brand manager: ${isBrandManager()}`);
+      console.log(`[CommunityFeed] User is brand manager: ${isBrandManager}`);
       console.log(`[CommunityFeed] User profile brandId: ${userProfile?.brandId}`);
       
       // Replace with your actual API call
@@ -56,7 +65,7 @@ export default function CommunityFeed({ brandId }) {
       // Filter communities based on permissions
       const accessibleCommunities = data.filter(community => {
         // Brand managers can only see their own brand communities and public communities
-        if (isBrandManager()) {
+        if (isBrandManager) {
           const hasAccess = community.brandId === brandId || community.isPublic;
           console.log(`[CommunityFeed] Community ${community.name} access for brand manager: ${hasAccess}`);
           return hasAccess;
@@ -100,7 +109,7 @@ export default function CommunityFeed({ brandId }) {
       // Filter mock communities based on permissions
       const accessibleMockCommunities = mockCommunities.filter(community => {
         // Brand managers can only see their own brand communities and public communities
-        if (isBrandManager()) {
+        if (isBrandManager) {
           const hasAccess = community.brandId === brandId || community.isPublic;
           console.log(`[CommunityFeed] Mock community ${community.name} access for brand manager: ${hasAccess}`);
           return hasAccess;
@@ -261,7 +270,8 @@ export default function CommunityFeed({ brandId }) {
   });
 
   // Check if user has permission to view communities
-  if (!hasPermission(PERMISSIONS.VIEW_COMMUNITIES)) {
+  // Always allow access when viewing the universal "what's-good" community
+  if (!isWhatsGood && !hasPermission(PERMISSIONS.VIEW_COMMUNITIES)) {
     return (
       <div className="text-center py-8">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
@@ -272,8 +282,8 @@ export default function CommunityFeed({ brandId }) {
   }
 
   // Check if brand manager is accessing their own brand
-  // Improved condition to handle undefined values and add more robust checking
-  if (isBrandManager() && userProfile?.brandId && brandId && userProfile.brandId !== brandId) {
+  // Skip this restriction for the open \"what's-good\" community
+  if (!isWhatsGood && isBrandManager && userProfile?.brandId && brandId && userProfile.brandId !== brandId) {
     console.log(`[CommunityFeed] Access denied: Brand manager with brandId ${userProfile.brandId} trying to access brandId ${brandId}`);
     return (
       <div className="text-center py-8">
@@ -321,7 +331,7 @@ export default function CommunityFeed({ brandId }) {
         <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-gray-800 mb-2">No Communities Found</h2>
         <p className="text-gray-600">
-          {isBrandManager() 
+          {isBrandManager 
             ? "No communities are associated with your brand yet."
             : "No communities are available at this time."
           }
@@ -334,30 +344,34 @@ export default function CommunityFeed({ brandId }) {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between relative">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Community Feed</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{pageTitle}</h1>
             <p className="text-gray-600">
-              {isBrandManager() 
+          {isBrandManager 
                 ? `Participate in your brand communities as ${userProfile?.firstName}`
                 : 'Engage with communities and fellow members'
               }
             </p>
           </div>
           
-          {hasPermission(PERMISSIONS.POST_IN_COMMUNITIES) && (
-            <button
-              onClick={() => setShowNewPostForm(!showNewPostForm)}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Post</span>
-            </button>
-          )}
+          <div className="flex items-center space-x-4">
+            {hasPermission(PERMISSIONS.POST_IN_COMMUNITIES) && (
+              <button
+                onClick={() => setShowNewPostForm(!showNewPostForm)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Post</span>
+              </button>
+            )}
+            <UserDropdownMenu />
+          </div>
         </div>
       </div>
 
       {/* Filters */}
+      {!isWhatsGood && (
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           {/* Community Filter */}
@@ -390,6 +404,7 @@ export default function CommunityFeed({ brandId }) {
           </div>
         </div>
       </div>
+      )}
 
       {/* New Post Form */}
       {showNewPostForm && hasPermission(PERMISSIONS.POST_IN_COMMUNITIES) && (
@@ -439,7 +454,21 @@ export default function CommunityFeed({ brandId }) {
 
       {/* Posts Feed */}
       <div className="space-y-4">
-        {filteredPosts.length > 0 ? (
+        {isWhatsGood ? (
+          <div className="bg-white rounded-lg shadow-sm border p-6 text-center">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">What's Good</h2>
+            <p className="text-gray-600">
+              This is EngageNatural’s open community for everyone. <br />
+              To view and participate in the full feed, head over to the Communities page.
+            </p>
+            <a
+              href="/staff/communities"
+              className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Go to Community Feed
+            </a>
+          </div>
+        ) : filteredPosts.length > 0 ? (
           filteredPosts.map((post) => (
             <div key={post.id} className="bg-white rounded-lg shadow-sm border">
               <div className="p-6">
@@ -528,24 +557,7 @@ export default function CommunityFeed({ brandId }) {
         )}
       </div>
 
-      {/* Community Stats */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Community Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {communities.slice(0, 3).map((community) => (
-            <div key={community.id} className="text-center p-4 border rounded-lg">
-              <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-              <h3 className="font-medium text-gray-900">{community.name}</h3>
-              <p className="text-sm text-gray-600">{community.members} members</p>
-              {community.brandId === brandId && (
-                <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                  Your Brand
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Community Stats card removed as requested */}
     </div>
   );
 }

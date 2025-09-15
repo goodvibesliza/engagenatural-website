@@ -45,6 +45,17 @@ export default function RoleGuard({
     (Array.isArray(roles) && roles.length > 0 && roles) ||
     [];
 
+  /* --------------------------------------------------------------
+   * Super Admin bypass
+   * ------------------------------------------------------------ */
+  /* Super admins can access any guarded route, regardless of the
+     allowedRoles list. We short-circuit here to avoid subsequent
+     role/approval checks for them while keeping all other gates
+     intact for non-super_admin users. */
+  if (user.role === "super_admin") {
+    return children;
+  }
+
   if (
     effectiveRoleList.length > 0 &&
     (typeof user.role !== "string" || !effectiveRoleList.includes(user.role))

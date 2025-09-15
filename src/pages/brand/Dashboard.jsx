@@ -9,50 +9,6 @@ import {
 import EnhancedBrandDashboard from '../EnhancedBrandDashboard';
 import { useAuth } from "../../contexts/auth-context";
 
-// Status badge renderer (moved out of BrandDashboardContent for reuse)
-const renderStatusBadge = (status) => {
-  let color = "";
-  switch (status) {
-    case 'pending':
-      color = "bg-yellow-100 text-yellow-800";
-      break;
-    case 'approved':
-      color = "bg-blue-100 text-blue-800";
-      break;
-    case 'shipped':
-      color = "bg-green-100 text-green-800";
-      break;
-    case 'denied':
-      color = "bg-red-100 text-red-800";
-      break;
-    case 'completed':
-      color = "bg-green-100 text-green-800";
-      break;
-    case 'in_progress':
-      color = "bg-blue-100 text-blue-800";
-      break;
-    default:
-      color = "bg-gray-100 text-gray-800";
-  }
-
-  return (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-};
-
-// Date formatting helper (moved out of BrandDashboardContent for reuse)
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'N/A';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-};
-
 // New content management component
 import IntegratedContentManager from './ContentManager';
 // Consistent logout hook
@@ -84,580 +40,434 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Skeleton } from '../../components/ui/skeleton';
 
 // Import analytics components
 import BrandAnalyticsPage from './BrandAnalyticsPage';
 import BrandROICalculatorPage from './BrandROICalculatorPage';
 import CommunityMetricsChart from '../../components/brand/CommunityMetricsChart';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 // Communities manager
 import CommunitiesManager from '../../components/brand/communities/CommunitiesManager';
+// Shared user dropdown
+import UserDropdownMenuUpdated from '../../components/UserDropdownMenu';
 
-// Brand Dashboard Content component
+// Shared helpers
+const renderStatusBadge = (status) => {
+  let color = "";
+  switch (status) {
+    case 'pending':
+      color = "bg-yellow-100 text-yellow-800";
+      break;
+    case 'approved':
+      color = "bg-blue-100 text-blue-800";
+      break;
+    case 'shipped':
+      color = "bg-green-100 text-green-800";
+      break;
+    case 'denied':
+      color = "bg-red-100 text-red-800";
+      break;
+    case 'completed':
+      color = "bg-green-100 text-green-800";
+      break;
+    case 'in_progress':
+      color = "bg-blue-100 text-blue-800";
+      break;
+    default:
+      color = "bg-gray-100 text-gray-800";
+  }
+  return (
+    <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
+      {String(status || '').replace('_', ' ')}
+    </span>
+  );
+};
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return 'N/A';
+  const date = timestamp.toDate ? timestamp.toDate() : (timestamp instanceof Date ? timestamp : new Date(timestamp));
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+};
+
+// Utility to chunk arrays for Firestore 'in' queries
+const chunkArray = (array, size) => {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) chunks.push(array.slice(i, i + size));
+  return chunks;
+};
+
+// Brand Dashboard Content with KPI-first layout
 const BrandDashboardContent = ({ brandId }) => {
-  const [trainings, setTrainings] = useState([]);
-  const [sampleRequests, setSampleRequests] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
-  const [engagement, setEngagement] = useState({ enrolled: 0, completed: 0 });
-  // map of trainingId -> { enrolled, completed }
-  const [trainingProgressCounts, setTrainingProgressCounts] = useState({});
+  // Data
+  const [trainings, setTrainings] = useState([]); // live
+  const [sampleRequests, setSampleRequests] = useState([]); // live (7d)
+  const [progressStats, setProgressStats] = useState({
+    enrollments7d: 0,
+    completions7d: 0,
+    enrollments30d: 0,
+    completions30d: 0,
+    topTrainings: []
+  });
+
+  // Loading
   const [loading, setLoading] = useState({
     trainings: true,
     sampleRequests: true,
-    announcements: true,
-    engagement: true
-  });
-  const [error, setError] = useState({
-    trainings: null,
-    sampleRequests: null,
-    announcements: null,
-    engagement: null,
-    brandId: null
+    progressStats: true
   });
 
-  // Memoise current date range once per mount to prevent changing
-  const { now, sevenDaysAgo } = useMemo(() => {
-    const current = new Date();
-    const sevenDaysPrior = new Date();
-    sevenDaysPrior.setDate(current.getDate() - 7);
-    return { now: current, sevenDaysAgo: sevenDaysPrior };
+  // Date ranges (stable per mount)
+  const { sevenDaysAgoTS, thirtyDaysAgoTS } = useMemo(() => {
+    const now = new Date();
+    const seven = new Date(now);
+    seven.setDate(now.getDate() - 7);
+    const thirty = new Date(now);
+    thirty.setDate(now.getDate() - 30);
+    return { sevenDaysAgoTS: Timestamp.fromDate(seven), thirtyDaysAgoTS: Timestamp.fromDate(thirty) };
   }, []);
 
+  // Live trainings for this brand (limit 50)
   useEffect(() => {
-    // Track if component is still mounted to avoid setting state after unmount
-    let isMounted = true;
-    
-    // Initialize all unsubscribe functions as null
-    let unsubscribeTrainings = null;
-    let unsubscribeRequests = null;
-    let unsubscribeAnnouncements = null;
-    let unsubscribeProgress = null;
-
-    // Validate brandId before making any queries
-    if (!brandId) {
-      console.error("Missing brandId in BrandDashboardContent");
-      setError(prev => ({ 
-        ...prev, 
-        brandId: "No brand ID provided. Please contact support if this issue persists.",
-        trainings: "Cannot fetch trainings: Brand ID is missing",
-        sampleRequests: "Cannot fetch sample requests: Brand ID is missing",
-        announcements: "Cannot fetch announcements: Brand ID is missing",
-        engagement: "Cannot fetch engagement data: Brand ID is missing"
-      }));
-      setLoading({
-        trainings: false,
-        sampleRequests: false,
-        announcements: false,
-        engagement: false
-      });
-      return () => {};
-    }
-
-    // Reset any previous brandId error
-    setError(prev => ({ ...prev, brandId: null }));
-
-    try {
-      // Fetch trainings
-      const trainingsQuery = query(
-        collection(db, 'trainings'),
-        where('brandId', '==', brandId),
-        where('published', '==', true),
-        orderBy('createdAt', 'desc')
-      );
-
-      unsubscribeTrainings = onSnapshot(
-        trainingsQuery,
-        (snapshot) => {
-          if (!isMounted) return;
-          try {
-            const trainingsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setTrainings(trainingsData);
-            setLoading(prev => ({ ...prev, trainings: false }));
-          } catch (err) {
-            console.error("Error processing trainings data:", err);
-            setError(prev => ({ ...prev, trainings: `Error processing data: ${err.message}` }));
-            setLoading(prev => ({ ...prev, trainings: false }));
-          }
-        },
-        (err) => {
-          if (!isMounted) return;
-          console.error("Error fetching trainings:", err);
-          setError(prev => ({ ...prev, trainings: err.message }));
-          setLoading(prev => ({ ...prev, trainings: false }));
-        }
-      );
-    } catch (err) {
-      console.error("Error setting up trainings query:", err);
-      if (isMounted) {
-        setError(prev => ({ ...prev, trainings: `Error setting up query: ${err.message}` }));
-        setLoading(prev => ({ ...prev, trainings: false }));
-      }
-    }
-
-    try {
-      // Fetch sample requests
-      const requestsQuery = query(
-        collection(db, 'sample_requests'),
-        where('brandId', '==', brandId),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-
-      unsubscribeRequests = onSnapshot(
-        requestsQuery,
-        (snapshot) => {
-          if (!isMounted) return;
-          try {
-            const requestsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setSampleRequests(requestsData);
-            setLoading(prev => ({ ...prev, sampleRequests: false }));
-          } catch (err) {
-            console.error("Error processing sample requests data:", err);
-            setError(prev => ({ ...prev, sampleRequests: `Error processing data: ${err.message}` }));
-            setLoading(prev => ({ ...prev, sampleRequests: false }));
-          }
-        },
-        (err) => {
-          if (!isMounted) return;
-          console.error("Error fetching sample requests:", err);
-          setError(prev => ({ ...prev, sampleRequests: err.message }));
-          setLoading(prev => ({ ...prev, sampleRequests: false }));
-        }
-      );
-    } catch (err) {
-      console.error("Error setting up sample requests query:", err);
-      if (isMounted) {
-        setError(prev => ({ ...prev, sampleRequests: `Error setting up query: ${err.message}` }));
-        setLoading(prev => ({ ...prev, sampleRequests: false }));
-      }
-    }
-
-    try {
-      // Fetch announcements
-      const announcementsQuery = query(
-        collection(db, 'announcements'),
-        where('brandId', '==', brandId),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-
-      unsubscribeAnnouncements = onSnapshot(
-        announcementsQuery,
-        (snapshot) => {
-          if (!isMounted) return;
-          try {
-            const announcementsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setAnnouncements(announcementsData);
-            setLoading(prev => ({ ...prev, announcements: false }));
-          } catch (err) {
-            console.error("Error processing announcements data:", err);
-            setError(prev => ({ ...prev, announcements: `Error processing data: ${err.message}` }));
-            setLoading(prev => ({ ...prev, announcements: false }));
-          }
-        },
-        (err) => {
-          if (!isMounted) return;
-          console.error("Error fetching announcements:", err);
-          setError(prev => ({ ...prev, announcements: err.message }));
-          setLoading(prev => ({ ...prev, announcements: false }));
-        }
-      );
-    } catch (err) {
-      console.error("Error setting up announcements query:", err);
-      if (isMounted) {
-        setError(prev => ({ ...prev, announcements: `Error setting up query: ${err.message}` }));
-        setLoading(prev => ({ ...prev, announcements: false }));
-      }
-    }
-
-    // Fetch engagement metrics from training_progress
-    const fetchEngagement = async () => {
-      try {
-        if (!isMounted) return;
-        
-        // Get all training IDs for this brand
-        const trainingsQueryForIds = query(
-          collection(db, 'trainings'),
-          where('brandId', '==', brandId)
-        );
-
-        const trainingsSnapshot = await getDocs(trainingsQueryForIds);
-        let trainingIds = trainingsSnapshot.docs.map(doc => doc.id);
-
-        // Guard: no trainings
-        if (trainingIds.length === 0) {
-          if (isMounted) {
-            setLoading(prev => ({ ...prev, engagement: false }));
-          }
-          return;
-        }
-
-        // Firestore "in" operator supports max 10 values; trim if longer
-        if (trainingIds.length > 10) {
-          trainingIds = trainingIds.slice(0, 10);
-        }
-
-        try {
-          // Query training_progress for these trainings in the last 7 days
-          const progressQuery = query(
-            collection(db, 'training_progress'),
-            where('trainingId', 'in', trainingIds),
-            where('updatedAt', '>=', Timestamp.fromDate(sevenDaysAgo))
-          );
-          
-          unsubscribeProgress = onSnapshot(
-            progressQuery,
-            (snapshot) => {
-              if (!isMounted) return;
-              try {
-                const progressData = snapshot.docs.map(doc => doc.data());
-                
-                // Calculate metrics
-                const enrolled = progressData.length;
-                const completed = progressData.filter(p => p.status === 'completed').length;
-                
-                setEngagement({ enrolled, completed });
-                setLoading(prev => ({ ...prev, engagement: false }));
-              } catch (err) {
-                console.error("Error processing engagement data:", err);
-                if (isMounted) {
-                  setError(prev => ({ ...prev, engagement: `Error processing data: ${err.message}` }));
-                  setLoading(prev => ({ ...prev, engagement: false }));
-                }
-              }
-            },
-            (err) => {
-              console.error("Error fetching engagement:", err);
-              if (isMounted) {
-                setError(prev => ({ ...prev, engagement: err.message }));
-                setLoading(prev => ({ ...prev, engagement: false }));
-              }
-            }
-          );
-        } catch (err) {
-          console.error("Error setting up progress query:", err);
-          if (isMounted) {
-            setError(prev => ({ ...prev, engagement: `Error setting up query: ${err.message}` }));
-            setLoading(prev => ({ ...prev, engagement: false }));
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching training IDs:", err);
-        if (isMounted) {
-          setError(prev => ({ ...prev, engagement: `Error fetching training IDs: ${err.message}` }));
-          setLoading(prev => ({ ...prev, engagement: false }));
-        }
-      }
-    };
-
-    fetchEngagement();
-
-    // Cleanup subscriptions
-    return () => {
-      isMounted = false;
-      
-      // Safely unsubscribe from all listeners
-      if (typeof unsubscribeTrainings === 'function') {
-        try {
-          unsubscribeTrainings();
-        } catch (err) {
-          console.error("Error unsubscribing from trainings:", err);
-        }
-      }
-      
-      if (typeof unsubscribeRequests === 'function') {
-        try {
-          unsubscribeRequests();
-        } catch (err) {
-          console.error("Error unsubscribing from requests:", err);
-        }
-      }
-      
-      if (typeof unsubscribeAnnouncements === 'function') {
-        try {
-          unsubscribeAnnouncements();
-        } catch (err) {
-          console.error("Error unsubscribing from announcements:", err);
-        }
-      }
-      
-      if (typeof unsubscribeProgress === 'function') {
-        try {
-          unsubscribeProgress();
-        } catch (err) {
-          console.error("Error unsubscribing from progress:", err);
-        }
-      }
-    };
-  }, [brandId]);
-
-  /*
-   * -----------------------------------------
-   *  Training progress counts (enrolled/completed)
-   * -----------------------------------------
-   */
-  useEffect(() => {
-    if (!brandId) {
-      setTrainingProgressCounts({});
-      return;
-    }
-
-    // If no trainings yet, clear counts and exit
-    if (!trainings || trainings.length === 0) {
-      setTrainingProgressCounts({});
-      return;
-    }
-
-    // Track mounted state
-    let isMounted = true;
-
-    // Take first 10 training IDs (Firestore 'in' limit)
-    const trainingIds = trainings.slice(0, 10).map((t) => t.id);
-
+    if (!brandId) return;
     const q = query(
-      collection(db, 'training_progress'),
-      where('trainingId', 'in', trainingIds)
+      collection(db, 'trainings'),
+      where('brandId', '==', brandId),
+      where('published', '==', true),
+      orderBy('createdAt', 'desc'),
+      limit(50)
     );
-
-    const unsubscribe = onSnapshot(
+    const unsub = onSnapshot(
       q,
       (snap) => {
-        if (!isMounted) return;
-        const map = {};
+        setTrainings(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setLoading((s) => ({ ...s, trainings: false }));
+      },
+      () => setLoading((s) => ({ ...s, trainings: false }))
+    );
+    return () => unsub();
+  }, [brandId]);
+
+  // Live sample requests in last 7 days (latest 5)
+  useEffect(() => {
+    if (!brandId) return;
+    const q = query(
+      collection(db, 'sample_requests'),
+      where('brandId', '==', brandId),
+      where('createdAt', '>=', sevenDaysAgoTS),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setSampleRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setLoading((s) => ({ ...s, sampleRequests: false }));
+      },
+      () => setLoading((s) => ({ ...s, sampleRequests: false }))
+    );
+    return () => unsub();
+  }, [brandId, sevenDaysAgoTS]);
+
+  // Heavy aggregation: training_progress over 30d, derived 7d; batch in chunks of 10
+  useEffect(() => {
+    if (!brandId) return;
+    if (loading.trainings) return; // wait for trainings load
+    if (trainings.length === 0) {
+      setProgressStats({
+        enrollments7d: 0,
+        completions7d: 0,
+        enrollments30d: 0,
+        completions30d: 0,
+        topTrainings: []
+      });
+      setLoading((s) => ({ ...s, progressStats: false }));
+      return;
+    }
+
+    const run = async () => {
+      const ids = trainings.map((t) => t.id);
+      const chunks = chunkArray(ids, 10);
+
+      let enrollments7d = 0;
+      let completions7d = 0;
+      let enrollments30d = 0;
+      let completions30d = 0;
+      const completionMap = new Map(); // trainingId -> count
+
+      for (const chunk of chunks) {
+        const q = query(
+          collection(db, 'training_progress'),
+          where('trainingId', 'in', chunk),
+          where('updatedAt', '>=', thirtyDaysAgoTS)
+        );
+        const snap = await getDocs(q);
         snap.forEach((doc) => {
           const d = doc.data();
-          const id = d.trainingId;
-          if (!map[id]) {
-            map[id] = { enrolled: 0, completed: 0 };
+          const status = d.status;
+          const tId = d.trainingId;
+          const updatedAt = d.updatedAt;
+
+          // 30d totals
+          enrollments30d += 1;
+          if (status === 'completed') {
+            completions30d += 1;
+            completionMap.set(tId, (completionMap.get(tId) || 0) + 1);
           }
-          map[id].enrolled += 1;
-          if (d.status === 'completed') {
-            map[id].completed += 1;
+
+          // 7d totals (Timestamp-safe)
+          const upMs = updatedAt?.toMillis?.() ?? 0;
+          const sevenMs = sevenDaysAgoTS.toMillis();
+          if (upMs >= sevenMs) {
+            enrollments7d += 1;
+            if (status === 'completed') completions7d += 1;
           }
         });
-        setTrainingProgressCounts(map);
-      },
-      (err) => {
-        console.error('Error fetching training progress counts:', err);
       }
-    );
 
-    return () => {
-      isMounted = false;
-      if (typeof unsubscribe === 'function') {
-        try {
-          unsubscribe();
-        } catch (err) {
-          console.error('Error unsubscribing training progress listener:', err);
-        }
-      }
+      // Build top trainings array
+      const topTrainings = Array.from(completionMap.entries())
+        .map(([id, count]) => ({
+          id,
+          title: trainings.find((t) => t.id === id)?.title || 'Unknown Training',
+          completions: count
+        }))
+        .sort((a, b) => b.completions - a.completions)
+        .slice(0, 5);
+
+      setProgressStats({
+        enrollments7d,
+        completions7d,
+        enrollments30d,
+        completions30d,
+        topTrainings
+      });
+      setLoading((s) => ({ ...s, progressStats: false }));
     };
-  }, [trainings, brandId]);
 
-  // Helper function to render status badge
-  const renderStatusBadge = (status) => {
-    let color = "";
-    switch (status) {
-      case 'pending':
-        color = "bg-yellow-100 text-yellow-800";
-        break;
-      case 'approved':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      case 'shipped':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'denied':
-        color = "bg-red-100 text-red-800";
-        break;
-      case 'completed':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'in_progress':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      default:
-        color = "bg-gray-100 text-gray-800";
-    }
-    
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
-        {status.replace('_', ' ')}
-      </span>
-    );
-  };
+    run();
+  }, [brandId, trainings, thirtyDaysAgoTS, sevenDaysAgoTS, loading.trainings]);
 
-  // Format date function
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return new Intl.DateTimeFormat('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
-  };
+  const sampleRequests7dCount = useMemo(() => sampleRequests.length, [sampleRequests]);
 
-  // Display global error for brandId if present
-  if (error.brandId) {
+  // Overview content (KPI-first)
+  const renderDashboardCards = () => (
+    <div className="space-y-6">
+      {/* KPI tiles */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Enrollments (7d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Enrollments (7d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <Users className="h-5 w-5 text-blue-500 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.enrollments7d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Completions (7d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Completions (7d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <BookOpen className="h-5 w-5 text-green-600 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.completions7d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Enrollments (30d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Enrollments (30d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <Users className="h-5 w-5 text-blue-500 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.enrollments30d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Completions (30d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Completions (30d)</div>
+          {loading.progressStats ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <BookOpen className="h-5 w-5 text-green-600 mr-2" />
+              <div className="text-2xl font-bold">{progressStats.completions30d}</div>
+            </div>
+          )}
+        </Card>
+        {/* Sample Requests (7d) */}
+        <Card className="p-4">
+          <div className="text-sm text-gray-500">Sample Requests (7d)</div>
+          {loading.sampleRequests ? (
+            <Skeleton className="h-8 w-16 mt-2" />
+          ) : (
+            <div className="flex items-center mt-2">
+              <Package className="h-5 w-5 text-purple-600 mr-2" />
+              <div className="text-2xl font-bold">{sampleRequests7dCount}</div>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Trainings (30d) */}
+        <Card className="p-6">
+          <div className="flex items-center mb-4">
+            <TrendingUp className="h-5 w-5 text-blue-500 mr-2" />
+            <h3 className="text-lg font-semibold">Top Trainings (30d)</h3>
+          </div>
+          {loading.progressStats ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : progressStats.topTrainings.length === 0 ? (
+            <div className="text-center text-gray-500">
+              <BarChart2 className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+              No completions in the last 30 days
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {progressStats.topTrainings.map((t) => (
+                <div key={t.id} className="flex items-center justify-between border-b pb-2 last:border-0">
+                  <Link to={`/brand/trainings/${t.id}`} className="text-blue-600 hover:underline truncate max-w-[70%]">{t.title}</Link>
+                  <span className="text-sm font-semibold bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                    {t.completions} completed
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Recent Sample Requests (7d) */}
+        <Card className="p-6">
+          <div className="flex items-center mb-4">
+            <Package className="h-5 w-5 text-purple-600 mr-2" />
+            <h3 className="text-lg font-semibold">Recent Sample Requests (7d)</h3>
+          </div>
+          {loading.sampleRequests ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : sampleRequests.length === 0 ? (
+            <div className="text-center text-gray-500">
+              <Package className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+              No sample requests in the last 7 days
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sampleRequests.map((req) => (
+                    <tr key={req.id}>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm">{formatDate(req.createdAt)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm">{req.quantity || 1}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{renderStatusBadge(req.status)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Brand Trainings quick list */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <BookOpen className="h-5 w-5 text-green-600 mr-2" />
+            <h3 className="text-lg font-semibold">Brand Trainings</h3>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/brand/content">View All</Link>
+          </Button>
+        </div>
+        {loading.trainings ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between border-b pb-3 last:border-0">
+                <div>
+                  <Skeleton className="h-5 w-48 mb-2" />
+                  <Skeleton className="h-4 w-72" />
+                </div>
+                <Skeleton className="h-9 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : trainings.length === 0 ? (
+          <div className="text-center text-gray-500">
+            <BookOpen className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+            No trainings found for your brand
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {trainings.slice(0, 4).map((t) => (
+              <div key={t.id} className="flex items-start justify-between border-b pb-4 last:border-0">
+                <div>
+                  <h4 className="font-medium text-gray-900">{t.title}</h4>
+                  <p className="text-sm text-gray-500 line-clamp-1 mt-1">{t.description || 'No description provided'}</p>
+                </div>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to={`/brand/trainings/${t.id}`}>
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+
+  // No brandId: render error card (no console)
+  if (!brandId) {
     return (
       <div className="p-6">
         <Card className="p-6 bg-red-50 border border-red-200">
           <div className="flex flex-col items-center text-center">
             <Shield className="h-12 w-12 text-red-500 mb-4" />
             <h2 className="text-xl font-semibold text-red-700 mb-2">Brand Dashboard Error</h2>
-            <p className="text-red-600 mb-4">{error.brandId}</p>
-            <p className="text-gray-600 mb-6">
-              This could be due to missing permissions or an invalid brand identifier.
-              Please ensure you are logged in with the correct account and have brand manager permissions.
-            </p>
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
+            <p className="text-red-600 mb-4">No brand ID provided. Please contact support if this issue persists.</p>
+            <p className="text-gray-600 mb-6">This could be due to missing permissions or an invalid brand identifier.</p>
+            <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </Card>
       </div>
     );
   }
-
-  // Dashboard content with tabs
-  const renderDashboardCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* My Trainings Card */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
-                <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">My Trainings</h3>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/brand/trainings">View All</Link>
-            </Button>
-          </div>
-
-          {loading.trainings ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : error.trainings ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading trainings: {error.trainings}</p>
-            </div>
-          ) : trainings.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-6 text-center">
-              <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">No Trainings Found</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                You don't have any published trainings yet.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/brand/trainings/new">Create Training</Link>
-              </Button>
-              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                <p>Need sample data? Use the Demo Data tool in Admin panel.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {trainings.slice(0, 4).map((training) => (
-                <div key={training.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{training.title}</h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
-                        {training.description}
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm" className="ml-2" asChild>
-                      <Link to={`/brand/trainings/${training.id}`}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Link>
-                    </Button>
-                  </div>
-                  <div className="flex items-center mt-3 text-sm">
-                    <div className="flex items-center text-gray-500 dark:text-gray-400 mr-4">
-                      <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
-                        {trainingProgressCounts[training.id]?.enrolled ??
-                          training.metrics?.enrolled ??
-                          0}
-                      </span>
-                      Enrolled
-                    </div>
-                    <div className="flex items-center text-gray-500 dark:text-gray-400">
-                      <span className="font-medium text-gray-900 dark:text-gray-100 mr-1">
-                        {trainingProgressCounts[training.id]?.completed ??
-                          training.metrics?.completed ??
-                          0}
-                      </span>
-                      Completed
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Engagement Card */}
-      <Card className="overflow-hidden">
-        <div className="p-6 bg-white dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full">
-                <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-300" />
-              </div>
-              <h3 className="ml-3 text-lg font-semibold text-gray-900 dark:text-gray-100">Engagement (7 days)</h3>
-            </div>
-          </div>
-
-          {loading.engagement ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
-            </div>
-          ) : error.engagement ? (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 p-4 rounded-md">
-              <p>Error loading engagement data: {error.engagement}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">New Enrollments</p>
-                <h4 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{engagement.enrolled}</h4>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
-                <h4 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{engagement.completed}</h4>
-              </div>
-              <div className="col-span-2 mt-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                  {engagement.enrolled === 0 && engagement.completed === 0 ? (
-                    <span>No recent engagement data. Try seeding demo data for testing.</span>
-                  ) : (
-                    <span>Showing data from {formatDate(sevenDaysAgo)} to {formatDate(now)}</span>
-                  )}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
 
   return (
     <div className="p-6">
@@ -667,41 +477,8 @@ const BrandDashboardContent = ({ brandId }) => {
         <p className="text-gray-500 dark:text-gray-400">Overview of your brand's performance and activities</p>
       </div>
 
-      {/* Tabs for different dashboard views */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="roi">ROI Calculator</TabsTrigger>
-          <TabsTrigger value="community">Community Metrics</TabsTrigger>
-        </TabsList>
-        
-        {/* Overview Tab - Shows the original cards */}
-        <TabsContent value="overview">
-          {renderDashboardCards()}
-        </TabsContent>
-        
-        {/* Analytics Tab - Shows the BrandAnalyticsPage component */}
-        <TabsContent value="analytics">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <BrandAnalyticsPage brandId={brandId} />
-          </div>
-        </TabsContent>
-        
-        {/* ROI Calculator Tab - Shows the BrandROICalculatorPage component */}
-        <TabsContent value="roi">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <BrandROICalculatorPage brandId={brandId} />
-          </div>
-        </TabsContent>
-        
-        {/* Community Metrics Tab - Shows the CommunityMetricsChart component */}
-        <TabsContent value="community">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <CommunityMetricsChart brandId={brandId} />
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* KPI-first overview */}
+      {renderDashboardCards()}
     </div>
   );
 };
@@ -709,14 +486,10 @@ const BrandDashboardContent = ({ brandId }) => {
 const EnhancedBrandHome = () => {
   const { brandId: paramBrandId } = useParams();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   // Centralised logout that always redirects to PublicWebsite
   const { logout } = useLogout();
-  // Determine active brandId in priority order:
-  // 1) brand chosen in sidebar (saved in localStorage)
-  // 2) brandId on the authenticated user document
-  // 3) brandId from URL params
-  // 4) default seeded brand ("demo-brand")
+  // Determine active brandId in priority order
   const storedBrandId =
     typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
   const brandId = storedBrandId || user?.brandId || paramBrandId || 'demo-brand';
@@ -724,7 +497,7 @@ const EnhancedBrandHome = () => {
   // State for mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // State for active section (analytics, users, content, etc.)
+  // State for active section
   const [activeSection, setActiveSection] = useState('analytics');
   
   // State for notifications dropdown
@@ -774,7 +547,7 @@ const EnhancedBrandHome = () => {
   // Function to handle section change
   const handleSectionChange = (section) => {
     setActiveSection(section);
-    setSidebarOpen(false); // Close mobile sidebar when navigating
+    setSidebarOpen(false);
   };
   
   // Function to get user initials for avatar
@@ -785,7 +558,6 @@ const EnhancedBrandHome = () => {
 
   // Handle logout
   const handleLogout = async () => {
-    // use standardised logout flow
     logout();
   };
   
@@ -814,7 +586,7 @@ const EnhancedBrandHome = () => {
     }
   ];
 
-  // Sample Requests Section Component
+  // Sample Requests Section Component (kept as in original)
   const SampleRequestsSection = ({ brandId }) => {
     const [sampleRequests, setSampleRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -835,13 +607,11 @@ const EnhancedBrandHome = () => {
             setSampleRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
             setLoading(false);
           } catch (e) {
-            console.error(e);
             setError(e.message);
             setLoading(false);
           }
         },
         (err) => {
-          console.error(err);
           setError(err.message);
           setLoading(false);
         }
@@ -926,7 +696,7 @@ const EnhancedBrandHome = () => {
         />
       )}
       
-      {/* Sidebar (always visible on desktop & larger screens) */}
+      {/* Sidebar */}
       <div className="lg:w-72 flex-shrink-0">
         <div className="h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
           {/* Logo */}
@@ -1224,46 +994,7 @@ const EnhancedBrandHome = () => {
             
             {/* User profile dropdown */}
             <div className="relative dropdown-container">
-              <DropdownMenu open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 flex items-center space-x-2 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={userData.avatar} alt={userData.name} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {getUserInitials()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden md:inline-block text-sm">{userData.name}</span>
-                    <ChevronDown className="hidden md:block h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{userData.name}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{userData.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>My Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Building className="mr-2 h-4 w-4" />
-                    <span>Brand Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Account Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sign out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <UserDropdownMenuUpdated />
             </div>
           </div>
         </header>

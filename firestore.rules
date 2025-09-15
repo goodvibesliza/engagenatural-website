@@ -9,12 +9,19 @@ service cloud.firestore {
     function userData(uid) {
       return userSnap(uid).data;
     }
+    // ---------- Safer role helpers ----------
+    function userExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
     function isSuperAdmin(uid) {
-      return userData(uid).role == 'super_admin';
+      return userExists(uid) &&
+             ('role' in userData(uid)) &&
+             userData(uid).role == 'super_admin';
     }
     function isApprovedBrandManager(uid) {
-      let u = userData(uid);
-      return u.role == 'brand_manager' && u.approved == true;
+      return userExists(uid) &&
+             ('role' in userData(uid)) && userData(uid).role == 'brand_manager' &&
+             ('approved' in userData(uid)) && userData(uid).approved == true;
     }
 
     // Pass a PATH to a post doc
@@ -22,12 +29,33 @@ service cloud.firestore {
       return exists(path) && get(path).data.visibility == 'public';
     }
 
+    // ------------------------------------------------------------------
+    // Local-dev helpers
+    // ------------------------------------------------------------------
+    function isDevAdmin() {
+      return request.auth != null &&
+             ('email' in request.auth.token) &&
+             (request.auth.token.email in [
+               'liza@engagenatural.com',
+               'admin@engagenatural.com'
+             ]);
+    }
+
+    // ------------------------------------------------------------------
+    // Demo-seeding override (local development only)
+    //    • Grants create / update / delete to known dev-admin emails
+    //    • Placed before specific collection rules so it evaluates first
+    // ------------------------------------------------------------------
+    match /{document=**} {
+      allow create, update, delete: if isDevAdmin();
+    }
+
     // ---------- users ----------
     // TEMPORARY DEMO SEEDING FIX:
     // Allow full access to user documents to unblock seeding/migration.
     // Tighten these rules once permissions are fully resolved.
     match /users/{uid} {
-      allow read, write: if true; // TEMPORARY – unrestricted for debugging
+      allow read, write: if true; // TEMPORARY A������,������?o unrestricted for debugging
     }
 
     // ---------- brands (reference data for brand-owned content) ----------
@@ -65,7 +93,15 @@ service cloud.firestore {
     // to unblock demo seeding in emulator/prod. Tighten
     // once seeding is confirmed working.
     match /trainings/{trainingId} {
-      allow read, write: if request.auth != null; // TEMPORARY – unrestricted
+      allow read, write: if request.auth != null; // TEMPORARY A������,������?o unrestricted
+    }
+
+    // ---------- challenges (brand engagement tasks) ----------
+    // TEMPORARY DEMO SEEDING FIX:
+    // Allow any authenticated user full access while seeding/dev.
+    // Tighten these rules once feature and seeding are verified.
+    match /challenges/{challengeId} {
+      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
     }
 
     // ---------- training_progress (per-user enrollment/progress) ----------
@@ -86,37 +122,50 @@ service cloud.firestore {
     }
 
     // ---------- community_posts ----------
-    // TEMPORARY DEMO SEEDING FIX:
-    // Allow any authenticated user to read/write community_posts documents.
-    // NOTE: This is intentionally permissive to unblock demo data reset.
-    //       Tighten these rules after seeding is verified.
     match /community_posts/{postId} {
-      allow read, write: if request.auth != null && request.auth.uid != null;
+      // Anyone signed-in can read posts that are flagged public
+      allow read: if resource.data.visibility == 'public';
+
+      // Allow create only in the open 'whats-good' community by any signed-in user
+      allow create: if request.auth != null &&
+        request.resource.data.communityId == 'whats-good';
+
+      // Owner, approved brand manager, or super admin can update / delete
+      allow update, delete: if request.auth != null && (
+        (resource.data.userId == request.auth.uid) ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
     }
 
     // ---------- community_comments ----------
     match /community_comments/{commentId} {
-      // Read only if parent post is public
-      allow read: if request.auth != null && (
-        isPublicPost(/databases/$(database)/documents/community_posts/$(resource.data.postId)) ||
-        get(/databases/$(database)/documents/community_posts/$(resource.data.postId)).data.userId == request.auth.uid
-      );
+      // Readable by any authenticated user (needed for post threads)
+      allow read: if request.auth != null;
 
-      // Create only if parent post is public
+      // Only the signed-in author may create
       allow create: if request.auth != null &&
-        isPublicPost(/databases/$(database)/documents/community_posts/$(request.resource.data.postId));
+        request.resource.data.userId == request.auth.uid;
 
-      // Edit/delete own comments or super_admin
+      // Author or super admin may edit / delete
       allow update, delete: if request.auth != null && (
-        resource.data.userId == request.auth.uid || isSuperAdmin(request.auth.uid)
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin(request.auth.uid)
       );
     }
 
     // ---------- post_likes (one doc per user+post) ----------
     match /post_likes/{likeId} {
+      // Counts require read for signed-in users
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      // Like/unlike allowed only for the owner
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+
+      // Likes are immutable otherwise
       allow update: if false;
     }
 
@@ -173,11 +222,14 @@ service cloud.firestore {
     }
 
     // ---------- communities ----------
-    // TEMPORARY DEMO SEEDING FIX:
-    // Allow any authenticated user full access to communities for seeding.
-    // Tighten these rules once seeding is confirmed working.
     match /communities/{communityId} {
-      allow read, write: if request.auth != null; // TEMPORARY - permissive for debugging
+      // Only allow read for signed-in users if the community is public & active
+      allow read: if request.auth != null &&
+        ('isPublic' in resource.data) && resource.data.isPublic == true &&
+        ('isActive' in resource.data) && resource.data.isActive == true;
+
+      // No writes from client side
+      allow write: if false;
     }
 
     // ---------- community_likes ----------
@@ -188,21 +240,14 @@ service cloud.firestore {
       allow update: if false; // likes are immutable
     }
 
-    // ---------- comment_likes ----------
-    match /comment_likes/{likeId} {
-      // Any signed-in user can read likes to display counts
+    // ---------- brand_follows (user follows brands) ----------
+    match /brand_follows/{docId} {
+      // Create limited to the owner
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Temporarily allow read to any authenticated user so brand managers can list followers
       allow read: if request.auth != null;
-
-      // A user may create a like doc only for themselves
-      allow create: if request.auth != null &&
-        request.resource.data.userId == request.auth.uid;
-
-      // A user may remove their own like
-      allow delete: if request.auth != null &&
-        resource.data.userId == request.auth.uid;
-
-      // Likes are immutable – no updates
-      allow update: if false;
+      // Owner-only updates/deletes; guard against missing userId field
+      allow update, delete: if request.auth != null && ('userId' in resource.data) && resource.data.userId == request.auth.uid;
     }
   }
 }

@@ -161,65 +161,59 @@ async function createDemoAuthAccounts(
       console.log(`    ✓ Created auth account with UID: ${cred.user.uid}`);
       await signOut(seedAuth); // Immediately sign the new user out
     } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        // Account exists – sign in to retrieve UID, then sign out
-        console.log(
-          `    ⚠️ Account ${userData.email} already exists – signing in to retrieve UID…`
+      /* ----------------------------------------------------------------
+       * Creation failed – the Auth emulator sometimes returns 400 for
+       * weak-password, recaptcha, or unknown reasons.  Try sign-in next.
+       * -------------------------------------------------------------- */
+      console.warn(
+        `    ⚠️ Create failed for ${userData.email} → attempting sign-in…`,
+        error?.code || error?.message || error
+      );
+
+      try {
+        const existingCred = await signInWithEmailAndPassword(
+          seedAuth,
+          userData.email,
+          userData.password
         );
-        try {
-          const existingCred = await signInWithEmailAndPassword(
-            seedAuth,
-            userData.email,
-            userData.password
+        createdUsers.push({
+          uid: existingCred.user.uid,
+          email: userData.email,
+          displayName: userData.displayName
+        });
+        console.log(
+          `    ✓ Using existing account with UID: ${existingCred.user.uid}`
+        );
+        await signOut(seedAuth);
+      } catch (signInErr: any) {
+        if (signInErr.code === 'auth/invalid-credential') {
+          // Password mismatch: fall back to placeholder UID so seeding continues
+          console.warn(
+            `    ⚠️ Existing account password mismatch for ${userData.email}. Using placeholder UID.`
           );
+          const placeholderUid = `EXISTING_ACCOUNT_${userData.email
+            .replace(/[@.]/g, '_')
+            .toUpperCase()}_${Date.now()}`;
           createdUsers.push({
-            uid: existingCred.user.uid,
+            uid: placeholderUid,
             email: userData.email,
             displayName: userData.displayName
           });
-          console.log(
-            `    ✓ Using existing account with UID: ${existingCred.user.uid}`
+          console.log(`    ✓ Placeholder UID assigned for ${userData.email}`);
+        } else if (signInErr.code === 'auth/user-not-found') {
+          // Neither create nor sign-in succeeded – surface concise error
+          throw new Error(
+            `Create and sign-in failed for ${userData.email}: ${error?.message || 'unknown error'}`
           );
-          await signOut(seedAuth);
-        } catch (signInErr: any) {
-          if (signInErr.code === 'auth/invalid-credential') {
-            // Password mismatch: continue with placeholder UID, instruct user what to do
-            console.warn(
-              `    ⚠️ Account ${userData.email} exists but password doesn't match 'password123'`
-            );
-            console.warn(`    📝 Please either:`);
-            console.warn(`       1. Delete the existing account in Firebase Console`);
-            console.warn(`       2. Change the password to 'password123'`);
-            console.warn(`       3. Use the existing password when logging in`);
-            console.warn(`    🔄 Continuing with placeholder UID for now...`);
-
-            const placeholderUid = `EXISTING_ACCOUNT_${userData.email
-              .replace(/[@.]/g, '_')
-              .toUpperCase()}_${Date.now()}`;
-            createdUsers.push({
-              uid: placeholderUid,
-              email: userData.email,
-              displayName: userData.displayName
-            });
-            console.log(`    ✓ Using placeholder UID for ${userData.email}`);
-          } else {
-            console.error(
-              `    ❌ Failed to sign in to existing account ${userData.email}:`,
-              signInErr
-            );
-            throw new Error(
-              `Account ${userData.email} exists but sign-in failed: ${signInErr.message}`
-            );
-          }
+        } else {
+          console.error(
+            `    ❌ Sign-in fallback failed for ${userData.email}:`,
+            signInErr
+          );
+          throw new Error(
+            `Account flow failed for ${userData.email}: ${signInErr?.message || 'unknown error'}`
+          );
         }
-      } else {
-        console.error(
-          `    ❌ Failed to create account for ${userData.email}:`,
-          error
-        );
-        throw new Error(
-          `Failed to create account for ${userData.email}: ${error.message}`
-        );
       }
     }
   }

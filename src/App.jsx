@@ -32,6 +32,9 @@ import DevTools from './pages/admin/DevTools';
 import EnvCheck from './pages/admin/EnvCheck';
 import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-approval page
 
+// Public Env Check (preview/dev only)
+import { EnvCheckPublic } from './pages/EnvCheckPublic.jsx';
+
 // Brand Manager Components
 import BrandDashboard from './pages/brand/Dashboard';
 import BrandContentManager from './pages/brand/BrandContentManager';
@@ -39,7 +42,13 @@ import BrandContentManager from './pages/brand/BrandContentManager';
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 
 // Staff Components
-import StaffDashboard from './pages/staff/Dashboard';
+import StaffDashboardLayout from './pages/staff/dashboard/StaffDashboardLayout';
+import RequireVerification from './pages/staff/dashboard/RequireVerification';
+import ProfilePage from './pages/staff/dashboard/ProfilePage';
+import VerificationPage from './pages/staff/dashboard/VerificationPage';
+import CommunitiesPage from './pages/staff/dashboard/CommunitiesPage';
+import MyBrandsPage from './pages/staff/dashboard/MyBrandsPage';
+import LearningPage from './pages/staff/dashboard/LearningPage';
 // Staff Training Detail
 import StaffTrainingDetail from './pages/staff/TrainingDetail.jsx';
 
@@ -47,7 +56,9 @@ import StaffTrainingDetail from './pages/staff/TrainingDetail.jsx';
 import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community Feed
-import CommunityFeed from './pages/community/CommunityFeed';
+import CommunityFeed from './pages/CommunityFeed.jsx';
+// Community Post Detail
+import PostDetail from './pages/community/PostDetail.jsx';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -59,6 +70,19 @@ const LoadingSpinner = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
   </div>
 );
+
+const EnvCheckLink = () => {
+  const { user } = useAuth();
+  if (user) return null;
+  return (
+    <a
+      href="/env-check"
+      className="fixed bottom-4 right-4 z-50 px-3 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white shadow hover:bg-indigo-700"
+    >
+      Env Check
+    </a>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Protected Route – keeps returnUrl so users can be sent back after login
@@ -389,30 +413,27 @@ function App() {
           />
 
           {/* Staff Routes - Protected for staff role */}
-          {/* Staff Dashboard - Exact route */}
-          <Route 
-            path="/staff" 
-            element={
-              <RoleGuard allowedRoles={['staff']}>
-                <StaffDashboard />
-              </RoleGuard>
-            } 
-          />
-
           <Route 
             path="/staff/*" 
             element={
-              <RoleGuard allowedRoles={['staff']}>
-                <StaffDashboard />
+              <RoleGuard allowedRoles={['staff','verified_staff','retail_staff']}>
+                <StaffDashboardLayout />
               </RoleGuard>
-            } 
-          />
+            }
+          >
+            <Route index element={<Navigate to="profile" replace />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="verification" element={<VerificationPage />} />
+            <Route path="communities" element={<CommunitiesPage />} />
+            <Route path="my-brands" element={<RequireVerification><MyBrandsPage /></RequireVerification>} />
+            <Route path="learning" element={<RequireVerification><LearningPage /></RequireVerification>} />
+          </Route>
 
           {/* Staff Training Detail */}
           <Route 
             path="/staff/trainings/:id" 
             element={
-              <RoleGuard allowedRoles={['staff']}>
+              <RoleGuard allowedRoles={['staff','verified_staff','retail_staff']}>
                 <StaffTrainingDetail />
               </RoleGuard>
             } 
@@ -433,6 +454,9 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
+          {/* Public Env Check (always available) */}
+          <Route path="/env-check" element={<EnvCheckPublic />} />
+
           {/* Community Feed (any authenticated user) */}
           <Route
             path="/community/:id"
@@ -443,10 +467,21 @@ function App() {
             }
           />
 
+          {/* Community Post Detail (any authenticated user) */}
+          <Route
+            path="/community/post/:id"
+            element={
+              <ProtectedRoute>
+                <PostDetail />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Catch-all for unknown routes */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
+      <EnvCheckLink />
       {/* Dev-only user debug widget */}
       <UserDebugCard />
       {/* Environment badge (Emulator / Production) */}
