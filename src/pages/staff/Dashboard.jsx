@@ -616,26 +616,14 @@ export default function CompleteRetailerProfile() {
     let unsubscribe = null;
     (async () => {
       try {
-        let q;
-        try {
-          // try status in clause ordered by createdAt
-          q = query(
-            collection(db, 'communities'),
-            where('status', 'in', ['active', 'draft']),
-            orderBy('createdAt', 'desc')
-          );
-        } catch {
-          try {
-            q = query(
-              collection(db, 'communities'),
-              where('status', '==', 'active'),
-              orderBy('createdAt', 'desc')
-            );
-          } catch {
-            // fallback – unfiltered
-            q = collection(db, 'communities');
-          }
-        }
+        // Prefer brand-scoped communities so staff only see items
+        // that belong to their brand. Fall back to `null` (no brand)
+        // which will match docs without a brandId.
+        const q = query(
+          collection(db, 'communities'),
+          where('brandId', '==', user.brandId || null),
+          orderBy('createdAt', 'desc')
+        );
 
         unsubscribe = onSnapshot(
           q,

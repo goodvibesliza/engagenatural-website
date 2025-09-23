@@ -15,7 +15,10 @@ import {
   serverTimestamp,
   limit,
   updateDoc,
-  increment
+  increment,
+  collectionGroup,
+  documentId,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
@@ -56,7 +59,28 @@ export default function CommunityFeed() {
             ...communitySnap.data()
           });
         } else {
-          setError('Community not found');
+          /* -----------------------------------------------------------
+             Fallback: look for brand-scoped community documents
+             located under brands/{brandId}/communities/{communityId}
+          ----------------------------------------------------------- */
+          try {
+            const cgQuery = query(
+              collectionGroup(db, 'communities'),
+              where(documentId(), '==', communityId),
+              limit(1)
+            );
+            const cgSnap = await getDocs(cgQuery);
+
+            if (!cgSnap.empty) {
+              const d = cgSnap.docs[0];
+              setCommunity({ id: d.id, ...d.data() });
+            } else {
+              setError('Community not found');
+            }
+          } catch (cgErr) {
+            console.error('Error in collectionGroup fallback:', cgErr);
+            setError('Community not found');
+          }
         }
       } catch (err) {
         console.error('Error fetching community:', err);
