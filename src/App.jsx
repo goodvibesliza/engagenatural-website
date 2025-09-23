@@ -149,7 +149,23 @@ const RootEntry = () => {
   return null;
 };
 
-// Main App Component
+/**
+ * Top-level React application component that provides authentication context and routing.
+ *
+ * Renders the global UI chrome (user dropdown and environment badge), initializes emulator state,
+ * and configures the entire application's route hierarchy including:
+ * - Root entry handler that determines whether to show the public site or redirect authenticated users.
+ * - Admin routes protected for `super_admin`.
+ * - Brand manager routes (including nested community management) protected for `brand_manager`.
+ * - Staff routes under a sidebar layout with per-route protections for `staff`.
+ * - Local-only emulator dashboard (when running on localhost) and a public emulator diagnostics page.
+ * - Auth-protected community feed and a catch-all redirect to the root.
+ *
+ * Side effects:
+ * - Sets `emulatorInitialized` to true on mount to indicate emulator state is ready.
+ *
+ * @returns {JSX.Element} The application root element containing providers and route configuration.
+ */
 function App() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
   // Feature flag for demo / dev tools & env check

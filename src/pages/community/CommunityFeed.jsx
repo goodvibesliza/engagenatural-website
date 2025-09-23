@@ -22,6 +22,25 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
+/**
+ * CommunityFeed React component — displays and manages a community's posts and comments.
+ *
+ * Renders a community header, a post creation form (when signed in), and a realtime list of
+ * community posts with their comments. Handles:
+ * - Fetching community metadata (with a collectionGroup fallback to find brand-scoped communities).
+ * - Subscribing to community posts, per-post comments, and the current user's post/comment likes via Firestore realtime listeners.
+ * - Creating posts and comments, and toggling likes for posts and comments.
+ * - Client-side loading, error, and "not found" states, and navigation helpers for profile/communities.
+ *
+ * Side effects:
+ * - Establishes multiple Firestore subscriptions (posts, comments per post, post likes) and cleans them up on unmount or when relevant IDs change.
+ * - Updates Firestore documents for creating posts/comments and incrementing/decrementing like and comment counts.
+ *
+ * Notes:
+ * - Many actions (create post/comment, like/unlike) require an authenticated user; UI controls are disabled or hidden when no user is present.
+ *
+ * @returns {JSX.Element} The community feed UI.
+ */
 export default function CommunityFeed() {
   const { id: communityId } = useParams();
   const navigate = useNavigate();

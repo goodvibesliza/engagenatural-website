@@ -35,7 +35,14 @@ import {
   signOut 
 } from 'firebase/auth';
 
-// Helper function to create URL-friendly slugs
+/**
+ * Convert a string into a URL-friendly slug.
+ *
+ * Produces a lowercase, trimmed slug that strips characters except ASCII letters and digits, collapses whitespace into single hyphens, and collapses consecutive hyphens.
+ *
+ * @param s - Input string to slugify
+ * @returns A URL-safe slug (e.g. "Hello World!" -> "hello-world")
+ */
 function slugify(s: string) { 
   return s.toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-'); 
 }
@@ -104,9 +111,17 @@ async function testFirestorePermissions(uid: string): Promise<boolean> {
 }
 
 /**
- * Creates Firebase Auth accounts for demo users
- * @param users Array of user objects with email, password, and displayName
- * @returns Promise with array of created user records (uid, email, displayName)
+ * Create or verify Firebase Auth accounts for the provided demo users and return their UIDs.
+ *
+ * Creates accounts using a secondary Firebase Auth instance so the primary (super_admin) session remains signed in.
+ * On localhost the secondary instance will attempt to connect to the Auth emulator. If an email already exists the
+ * function will try to sign in to retrieve the existing UID. If sign-in fails due to invalid credentials, a
+ * deterministic placeholder UID is returned for that email so seeding can continue.
+ *
+ * @param users - List of demo users to create. Each item must include `email`, `password`, and `displayName`.
+ *                (The seeding scripts expect known demo passwords; if an existing account uses a different password,
+ *                a placeholder UID will be produced for that email.)
+ * @returns Array of created or verified user records containing `uid`, `email`, and `displayName`.
  */
 async function createDemoAuthAccounts(
   users: { email: string; password: string; displayName: string }[]
@@ -251,10 +266,16 @@ async function createDemoAuthAccounts(
 }
 
 /**
- * Seeds the database with demo data for testing and development
- * @param currentUserUid The UID of the current user (super_admin) creating the demo data
- * @param opts Optional parameters for using existing UIDs instead of creating placeholders
- * @returns Promise with counts of created items
+ * Seed deterministic demo data (brands, retailers, users, trainings, communities, posts, comments, sample programs/requests) into Firestore and create required Firebase Auth demo accounts.
+ *
+ * Performs a permissions check using the provided super-admin UID, creates demo Auth accounts (or reuses existing accounts), writes demo documents with `demoSeed: true`, and returns counts of items created.
+ *
+ * @param currentUserUid - UID of the super_admin executing the seed; used to validate Firestore permissions before any writes.
+ * @param opts - Optional overrides:
+ *   - brandManagerUid: (unused in the current flow) placeholder to allow supplying an existing brand manager UID.
+ *   - staffUids: array of existing staff UIDs to use instead of creating new placeholder staff accounts (first two entries will replace the seeded staff UIDs).
+ * @returns An object with a `counts` record that maps collection/section keys (e.g., brands, retailers, staff, trainings, community_posts, sample_programs, sample_requests) to the number of items created.
+ * @throws If permission checks fail, if Firebase Auth account creation/sign-in encounters unrecoverable errors, or if any Firestore write operations fail; errors are propagated with descriptive messages.
  */
 export async function seedDemoData(
   currentUserUid: string, 
@@ -789,9 +810,15 @@ export async function seedDemoData(
 }
 
 /**
- * Resets (deletes) all demo data from the database
- * @returns Promise that resolves when complete
- */
+ * Remove all demo (seed) data from Firestore.
+ *
+ * Performs a permission check by creating and deleting a short-lived test document, then deletes documents
+ * marked with `demoSeed: true` from the following collections: brands, retailers, users, trainings,
+ * training_progress, sample_programs, sample_requests, announcements, communities, community_posts,
+ * community_comments, and community_likes.
+ *
+ * @returns A promise that resolves when all targeted demo documents have been removed.
+ * @throws {Error} If the permission check fails or deletions for any collection fail.
 export async function resetDemoData(): Promise<void> {
   console.log('🗑️ Starting demo data reset...');
   

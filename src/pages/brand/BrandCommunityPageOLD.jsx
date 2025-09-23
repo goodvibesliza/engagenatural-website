@@ -39,6 +39,23 @@ const fontStyles = {
   }
 };
 
+/**
+ * BrandCommunityPage — React page component for managing a brand's communities.
+ *
+ * Renders a multi-tab admin UI (Overview, Content Management, Moderation, Featured Content)
+ * that displays community metrics, a recent activity feed, content tables, flagged items,
+ * and featured-content management and settings.
+ *
+ * Notes:
+ * - On mount and whenever `brandId` or `selectedCommunity` change, the component fetches
+ *   community metrics, posts, flagged items, and featured items (currently simulated/sample data).
+ * - Provides in-place handlers that update local component state for: changing post status,
+ *   deleting posts, resolving flagged items, and featuring/unfeaturing posts. In a real
+ *   implementation these handlers would persist changes to a backend (e.g., Firestore).
+ * - Exposes UI controls for searching, filtering by status and community, and basic featured-content settings.
+ *
+ * @returns {JSX.Element} The Brand Community management page.
+ */
 export default function BrandCommunityPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');

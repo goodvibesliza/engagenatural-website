@@ -12,6 +12,18 @@ import {
   Building
 } from 'lucide-react';
 
+/**
+ * UI for creating and managing official brand posts.
+ *
+ * Renders a posting interface that lets an authorized user publish posts as the given brand,
+ * select a target community, choose a post type (text/image/announcement), and view recent brand posts.
+ * On mount it verifies posting permissions, fetches communities the brand can post to, and loads recent posts.
+ * Submitting the form validates input and sends a POST to the posts API, then refreshes recent posts on success.
+ * Access is restricted if the current user is a brand manager for a different brand or lacks permission to post as a brand.
+ *
+ * @param {string} brandId - Identifier of the brand to post as (used for API calls and display).
+ * @returns {JSX.Element} The BrandPosting component UI.
+ */
 export default function BrandPosting({ brandId }) {
   const { 
     canPostAsBrand, 

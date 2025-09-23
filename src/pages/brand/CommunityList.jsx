@@ -13,6 +13,23 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
+/**
+ * Display and manage the current user's community posts.
+ *
+ * Renders a responsive list (table on desktop, cards on mobile) of posts authored by the signed-in user,
+ * provides edit and delete actions, and a button to create a new post. Subscribes to Firestore
+ * collection `community_posts` filtered by the current user's uid (ordered by `createdAt` desc, limited to 20)
+ * and updates the UI in real time. Shows loading and error states, and uses a per-post deletion state to
+ * disable actions while a delete is in progress. Deletion removes the Firestore document but does not remove
+ * any associated storage assets.
+ *
+ * Side effects:
+ * - Starts a Firestore onSnapshot listener and cleans it up on unmount or when the user changes.
+ * - Navigates to edit and create pages via React Router.
+ * - Deletes documents from `community_posts` when a post is confirmed for deletion.
+ *
+ * Returns: A React element representing the CommunityList UI.
+ */
 export default function CommunityList() {
   const { user } = useAuth();
   const navigate = useNavigate();

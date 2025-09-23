@@ -57,6 +57,25 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 // Icons
 import { Plus, Edit, Trash2, Users, Tag, RefreshCw, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
+/**
+ * Manage and view brand communities with real-time post feeds.
+ *
+ * Renders a UI for listing, creating, editing, and deleting communities for a brand,
+ * plus a live feed panel for a selected community with real-time posts/comments
+ * subscriptions and quick-post capabilities. Handles permission checks (super admins
+ * can manage all communities; brand managers can manage communities they created),
+ * and performs Firestore CRUD operations for communities, posts, and comments.
+ *
+ * Side effects:
+ * - Subscribes to Firestore listeners for posts and comments when viewing a community
+ *   and cleans them up on unmount or when switching communities.
+ * - Reads and writes documents in the `communities`, `community_posts`, and
+ *   `community_comments` collections.
+ * - Shows toast notifications for success/error conditions.
+ *
+ * @param {string} [brandId] - Optional brand id to scope the manager; when omitted the current user's brand is used.
+ * @returns {JSX.Element} The CommunitiesManager component UI.
+ */
 export default function CommunitiesManager({ brandId }) {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";

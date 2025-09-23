@@ -16,6 +16,22 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 
+/**
+ * MyBrandsPage — page for discovering brands and managing follows.
+ *
+ * Renders a searchable list of available brands, ensures a built-in example brand is always present,
+ * and shows the user's followed brands with merged, real-time details (communities, trainings, challenges).
+ * Subscribes to Firestore for the current user's brand_follows and, for each followed brand, sets up
+ * listeners or one-time fetches to populate per-brand details. Provides optimistic follow/unfollow
+ * operations with rollback on failure and tracks pending operations to disable UI controls.
+ *
+ * Side effects:
+ * - Reads authentication state to determine the current user.
+ * - Performs Firestore reads and realtime subscriptions; unsubscribes on unmount or when dependencies change.
+ * - Writes/deletes follow documents in Firestore when following/unfollowing brands.
+ *
+ * @returns {JSX.Element} The My Brands page React component.
+ */
 export default function MyBrandsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();

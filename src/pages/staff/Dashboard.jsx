@@ -61,6 +61,23 @@ const fontStyles = {
   }
 }
 
+/**
+ * Retailer profile dashboard component that provides profile management, verification,
+ * community discovery/joining, brand challenges, and an integrated learning dashboard.
+ *
+ * Renders a multi-tab UI (Profile, Verification, Communities, Challenges, Learning)
+ * and manages user state, real-time Firestore subscriptions, Firebase Storage uploads,
+ * camera/file capture for verification, and navigation. On mount it subscribes to
+ * auth state and loads or initializes the user's document; when the Learning or
+ * Communities tabs are active it attaches Firestore onSnapshot listeners and cleans
+ * them up on unmount or tab change. Actions performed in the UI update Firestore
+ * (profile updates, verification requests, training progress, joined communities,
+ * easter-egg records) and may navigate the user to other routes.
+ *
+ * Returns a React element representing the complete retailer profile dashboard.
+ *
+ * @return {JSX.Element} The retailer profile dashboard UI.
+ */
 export default function CompleteRetailerProfile() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)

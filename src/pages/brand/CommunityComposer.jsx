@@ -18,6 +18,20 @@ import {
 } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
 
+/**
+ * Render a form to create or edit a community post, with optional image upload and delete support.
+ *
+ * In "create" mode the component builds a new post document in Firestore, optionally uploads an image to storage,
+ * and navigates back to the community list on success. In "edit" mode it loads the post (real-time), enforces author-only
+ * editing, allows replacing or removing the existing image, updates the post document, and supports deleting the post
+ * (with confirmation). The component performs client-side validation for required fields (title and body) and manages
+ * UI states for loading, saving, validation errors, not-found, and unauthorized access. Requires an authenticated user;
+ * if no user is present it renders a sign-in prompt instead of the form.
+ *
+ * @param {Object} props - Component props.
+ * @param {'create'|'edit'} [props.mode='create'] - Determines whether the form creates a new post or edits an existing post.
+ * @returns {JSX.Element} The composer UI.
+ */
 export default function CommunityComposer({ mode = 'create' }) {
   const { postId } = useParams();
   const { user } = useAuth();
