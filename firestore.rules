@@ -7,20 +7,22 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(uid));
     }
     function userData(uid) {
-      return userSnap(uid).data;
+      let snap = userSnap(uid);
+      return snap != null ? snap.data : null;
     }
     function isSuperAdmin(uid) {
-      return userData(uid).role == 'super_admin';
+      let u = userData(uid);
+      return u != null && u.role == 'super_admin';
     }
     function isApprovedBrandManager(uid) {
       let u = userData(uid);
-      return u.role == 'brand_manager' && u.approved == true;
+      return u != null && u.role == 'brand_manager' && u.approved == true;
     }
 
     // Looser check to accommodate legacy / variant brand-manager role fields
     function isBrandManagerLoose(uid) {
       let u = userData(uid);
-      return (
+      return u != null && (
         // role field may use different casing or variants
         (u.role == 'brand_manager' || u.role == 'brandManager' ||
          u.role == 'manager'       || u.role == 'brand') ||
@@ -119,14 +121,19 @@ service cloud.firestore {
       // Guard against missing field to avoid property access error
       allow read: if ('visibility' in resource.data) && resource.data.visibility == 'public';
 
-      // Create limited to approved brand managers or super admins
-      allow create: if request.auth != null &&
-        (isApprovedBrandManager(request.auth.uid) || isSuperAdmin(request.auth.uid));
+      // Create allowed for approved brand managers, loose brand managers, or super admins
+      // Posts can be created in ANY community (not restricted to 'whats-good' only)
+      allow create: if request.auth != null && (
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
 
-      // Owner, approved brand manager, or super admin can update / delete
+      // Owner, approved brand manager, loose brand manager, or super admin can update / delete
       allow update, delete: if request.auth != null && (
         (resource.data.userId == request.auth.uid) ||
         isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
       );
     }

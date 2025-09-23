@@ -18,6 +18,23 @@ import {
 } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
 
+/**
+ * Community post create/edit form component.
+ *
+ * Renders a form for creating or editing community posts (mode: 'create' | 'edit').
+ * - In "create" mode it builds a new post document in Firestore and optionally uploads an image.
+ * - In "edit" mode it loads the post in real time, enforces authorization (author OR legacy owner OR `super_admin`),
+ *   lets the user update title/body and add/replace/remove an image, and saves updates back to Firestore.
+ *
+ * The component handles client-side validation (title and body required), image file validation and preview,
+ * uploads image files to Firebase Storage under `app/community/{postId}/hero.{ext}`, and navigates back to
+ * /brand/community after successful create/update/delete. It also displays loading, saving, error, not-found,
+ * and unauthorized states. Requires an authenticated user from the app's auth context.
+ *
+ * @param {Object} props
+ * @param {'create'|'edit'} [props.mode='create'] - Determines whether the component creates a new post or edits an existing one.
+ * @returns {JSX.Element} The composer UI.
+ */
 export default function CommunityComposer({ mode = 'create' }) {
   const { postId } = useParams();
   const { user } = useAuth();
@@ -56,8 +73,12 @@ export default function CommunityComposer({ mode = 'create' }) {
         if (docSnap.exists()) {
           const postData = docSnap.data();
           
-          // Check if user is the author
-          if (postData.authorUid !== user.uid) {
+          // Check if user has authorization (author, legacy owner, or super_admin)
+          const unauthorized = postData.authorUid !== user.uid && 
+                               postData.userId !== user.uid && 
+                               user.role !== 'super_admin';
+          
+          if (unauthorized) {
             setUnauthorized(true);
             setLoading(false);
             return;
@@ -217,7 +238,11 @@ export default function CommunityComposer({ mode = 'create' }) {
         }
         
         const postData = postSnap.data();
-        if (postData.authorUid !== user.uid) {
+        const unauthorized = postData.authorUid !== user.uid && 
+                             postData.userId !== user.uid && 
+                             user.role !== 'super_admin';
+        
+        if (unauthorized) {
           setUnauthorized(true);
           setSaving(false);
           return;
