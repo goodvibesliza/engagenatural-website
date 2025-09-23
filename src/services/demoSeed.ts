@@ -246,7 +246,15 @@ export async function seedDemoData(
   // ------------------------------------------------------------------
   // DEBUG: Confirm the updated demoSeed.ts file is loaded/executing
   // ------------------------------------------------------------------
-  console.log('🔥 DEBUGGING: Updated demoSeed.ts file is being used!');
+  console.log('🔥 DEBUGGING: Comprehensive updated demoSeed.ts file is being used!');
+  
+  // Explicit guard for undefined Firestore db - ADDED FIX
+  if (!db) {
+    const errorMsg = '❌ CRITICAL ERROR: Firestore database instance is undefined or null. Cannot proceed with seeding. Please check your Firebase configuration and ensure db is properly initialized.';
+    console.error(errorMsg);
+    throw new Error('Firestore database not initialized - check Firebase configuration');
+  }
+  
   try {
     // Test permissions before proceeding
     await testFirestorePermissions(currentUserUid);
@@ -360,12 +368,13 @@ export async function seedDemoData(
       console.log('📝 Creating brand...');
       // ------------------------------------------------------------------
       // Use deterministic brand ID instead of auto-generated ID
+      // Fix: Use proper brand name and slug matching the deterministic ID
       // ------------------------------------------------------------------
       const brandRef = doc(db, 'brands', DEMO_BRANDS.rescue);
 
       const brand = {
-        name: "Calm Well Co",
-        slug: "calm-well-co",
+        name: "Rescue Remedy",        // Fixed: was "Calm Well Co"
+        slug: "rescue-remedy",        // Fixed: was "calm-well-co"
         ownerUid: currentUserUid,
         createdAt: serverTimestamp(),
         demoSeed: true
@@ -504,16 +513,16 @@ export async function seedDemoData(
       throw new Error(`Failed to create user documents: ${err.message}`);
     }
     
-    // Create trainings
+    // Create comprehensive trainings
     try {
-      console.log('📝 Creating trainings and progress...');
+      console.log('📝 Creating comprehensive trainings...');
       const trainingRefs = [];
       const trainings = [
         {
           brandId,
           authorUid: brandManagerRefs[0].id,
           title: "Rescue Sleep: How to Recommend",
-          description: "Learn how to effectively recommend Rescue Sleep products to customers with sleep concerns.",
+          description: "Learn how to effectively recommend Rescue Sleep products to customers with sleep concerns. This comprehensive training covers the science behind natural sleep support and practical customer interaction strategies.",
           durationMins: 30,
           modules: ["Sleep Basics", "Product Information", "Customer Scenarios"],
           published: true,
@@ -525,19 +534,26 @@ export async function seedDemoData(
               id: "section1",
               title: "Understanding Sleep Issues",
               type: "text",
-              content: "<h2>Common Sleep Problems</h2><p>This section covers the most common sleep issues customers face...</p>"
+              content: "<h2>Common Sleep Problems</h2><p>This section covers the most common sleep issues customers face, from difficulty falling asleep to staying asleep throughout the night. Understanding these challenges helps you recommend appropriate solutions.</p><h3>Types of Sleep Issues</h3><ul><li>Difficulty falling asleep (sleep onset insomnia)</li><li>Frequent nighttime awakenings</li><li>Early morning awakening</li><li>Non-restorative sleep</li></ul><p>Each type may require different approaches and product recommendations.</p>"
             },
             {
               id: "section2",
               title: "Product Features & Benefits",
               type: "text",
-              content: "<h2>Key Ingredients</h2><p>Our sleep formula contains scientifically-backed ingredients...</p>"
+              content: "<h2>Key Ingredients</h2><p>Our sleep formula contains scientifically-backed ingredients that work synergistically to promote natural sleep.</p><h3>Active Ingredients:</h3><ul><li><strong>Valerian Root Extract:</strong> Traditional sleep aid that helps reduce the time it takes to fall asleep</li><li><strong>Passionflower:</strong> Calms the nervous system and reduces anxiety</li><li><strong>Lemon Balm:</strong> Promotes relaxation and improves sleep quality</li><li><strong>Chamomile:</strong> Gentle sedative properties for peaceful sleep</li></ul><p>These ingredients are carefully selected for their synergistic effects and safety profile.</p>"
             },
             {
               id: "section3",
-              title: "Customer Interactions",
+              title: "Customer Interaction Scenarios",
               type: "video",
+              content: "<h2>Practical Customer Scenarios</h2><p>This video module demonstrates real customer interactions and how to handle common questions about sleep products.</p>",
               videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+            },
+            {
+              id: "section4",
+              title: "Dosage and Safety Guidelines",
+              type: "text",
+              content: "<h2>Proper Dosage Recommendations</h2><p>Understanding correct dosage is crucial for customer satisfaction and safety.</p><h3>Standard Dosing:</h3><ul><li>Adults: 2-3 drops under tongue 30 minutes before bedtime</li><li>Sensitive individuals: Start with 1 drop</li><li>Maximum: 4 drops per night</li></ul><h3>Safety Considerations:</h3><ul><li>Not recommended during pregnancy or nursing</li><li>May interact with sedative medications</li><li>Advise customers to consult healthcare providers if on medications</li></ul>"
             }
           ],
           demoSeed: true
@@ -546,7 +562,7 @@ export async function seedDemoData(
           brandId,
           authorUid: brandManagerRefs[0].id,
           title: "Bach Flower Basics for Floor Staff",
-          description: "Essential knowledge about Bach Flower remedies for retail staff.",
+          description: "Essential knowledge about Bach Flower remedies for retail staff. Learn the history, philosophy, and practical application of these time-tested natural remedies.",
           durationMins: 45,
           modules: ["History of Bach Flowers", "Core Remedies", "Recommendation Guide"],
           published: true,
@@ -556,15 +572,21 @@ export async function seedDemoData(
           sections: [
             {
               id: "section1",
-              title: "Bach Flower History",
+              title: "Bach Flower History & Philosophy",
               type: "text",
-              content: "<h2>Dr. Edward Bach</h2><p>Learn about the founder of Bach flower remedies...</p>"
+              content: "<h2>Dr. Edward Bach's Legacy</h2><p>Learn about the founder of Bach flower remedies and his revolutionary approach to natural healing through emotional balance.</p><h3>Dr. Bach's Discovery</h3><p>In the 1930s, Dr. Edward Bach, a prominent physician and homeopath, discovered that emotional states directly impact physical health. He identified 38 flower essences that address specific emotional imbalances.</p><h3>Core Philosophy</h3><ul><li>Treat the person, not just the symptoms</li><li>Address emotional root causes</li><li>Gentle, natural healing without side effects</li><li>Self-healing through emotional balance</li></ul><p>This holistic approach revolutionized natural healthcare and remains relevant today.</p>"
             },
             {
               id: "section2",
-              title: "38 Flower Remedies",
+              title: "The 38 Flower Remedies",
               type: "text",
-              content: "<h2>Core Remedies</h2><p>Understanding the key flower essences and their properties...</p>"
+              content: "<h2>Understanding the Core Remedies</h2><p>The 38 Bach flower remedies are organized into seven emotional groups, each addressing specific psychological states.</p><h3>The Seven Groups:</h3><ol><li><strong>Fear:</strong> Rock Rose, Mimulus, Cherry Plum, Aspen, Red Chestnut</li><li><strong>Uncertainty:</strong> Cerato, Scleranthus, Gentian, Gorse, Hornbeam, Wild Oat</li><li><strong>Insufficient Interest:</strong> Clematis, Honeysuckle, Wild Rose, Olive, White Chestnut, Mustard, Chestnut Bud</li><li><strong>Loneliness:</strong> Water Violet, Impatiens, Heather</li><li><strong>Over-sensitivity:</strong> Agrimony, Centaury, Walnut, Holly</li><li><strong>Despondency:</strong> Larch, Pine, Elm, Sweet Chestnut, Star of Bethlehem, Willow, Oak, Crab Apple</li><li><strong>Over-care:</strong> Chicory, Vervain, Vine, Beech, Rock Water</li></ol><p>Understanding these groups helps in making appropriate recommendations.</p>"
+            },
+            {
+              id: "section3",
+              title: "Practical Recommendation Guide",
+              type: "text",
+              content: "<h2>How to Recommend Bach Flowers</h2><p>Practical guidance for helping customers select the most appropriate remedies for their emotional needs.</p><h3>Assessment Questions:</h3><ul><li>What emotional challenges are you facing?</li><li>How long have you been experiencing this?</li><li>What triggers these feelings?</li><li>How do you typically cope with stress?</li></ul><h3>Common Combinations:</h3><ul><li><strong>Stress & Anxiety:</strong> Rock Rose + Impatiens + Clematis</li><li><strong>Work Pressure:</strong> Elm + Olive + Oak</li><li><strong>Sleep Issues:</strong> White Chestnut + Rock Rose</li><li><strong>Decision Making:</strong> Scleranthus + Cerato</li></ul><h3>Usage Instructions:</h3><p>4 drops, 4 times daily under the tongue or in water. Can be used individually or in combinations up to 7 remedies.</p>"
             }
           ],
           demoSeed: true
@@ -572,10 +594,10 @@ export async function seedDemoData(
         {
           brandId,
           authorUid: brandManagerRefs[0].id,
-          title: "Spatone Iron: Absorption 101",
-          description: "Understand the science behind Spatone's liquid iron and its superior absorption.",
-          durationMins: 20,
-          modules: ["Iron Basics", "Absorption Science", "Customer FAQs"],
+          title: "Spatone Iron: Absorption Science",
+          description: "Understand the science behind Spatone's liquid iron and its superior absorption compared to traditional iron supplements.",
+          durationMins: 25,
+          modules: ["Iron Deficiency Basics", "Absorption Science", "Customer Education"],
           published: true,
           visibility: 'public',
           createdAt: serverTimestamp(),
@@ -583,15 +605,21 @@ export async function seedDemoData(
           sections: [
             {
               id: "section1",
-              title: "Iron Deficiency Basics",
+              title: "Iron Deficiency: Recognition and Impact",
               type: "text",
-              content: "<h2>Signs and Symptoms</h2><p>Understanding iron deficiency and its impact...</p>"
+              content: "<h2>Understanding Iron Deficiency</h2><p>Iron deficiency is one of the most common nutritional deficiencies worldwide, particularly affecting women, vegetarians, and athletes.</p><h3>Signs and Symptoms:</h3><ul><li>Fatigue and weakness</li><li>Pale skin, nails, or inner eyelids</li><li>Shortness of breath</li><li>Cold hands and feet</li><li>Brittle or spoon-shaped nails</li><li>Cravings for ice or starch</li><li>Restless leg syndrome</li></ul><h3>Who's at Risk:</h3><ul><li>Menstruating women (especially heavy periods)</li><li>Pregnant and breastfeeding women</li><li>Vegetarians and vegans</li><li>Endurance athletes</li><li>People with digestive disorders</li><li>Frequent blood donors</li></ul><p>Understanding these risk factors helps identify customers who may benefit from iron supplementation.</p>"
             },
             {
               id: "section2",
-              title: "Absorption Science",
+              title: "Superior Absorption Science",
               type: "text",
-              content: "<h2>Liquid vs. Pill Form</h2><p>Why liquid iron has superior absorption rates...</p>"
+              content: "<h2>Why Liquid Iron Works Better</h2><p>Spatone's unique liquid iron format offers significant advantages over traditional iron tablets and capsules.</p><h3>Absorption Advantages:</h3><ul><li><strong>Natural Iron Form:</strong> Spatone contains iron in its natural sulfate form, which is readily absorbed</li><li><strong>Low Iron Content:</strong> 5mg per sachet - gentle on the stomach while being highly bioavailable</li><li><strong>No Additives:</strong> Pure iron-rich water without synthetic additives that can interfere with absorption</li><li><strong>Optimal pH:</strong> Natural acidity enhances iron absorption in the digestive tract</li></ul><h3>Comparison to Tablets:</h3><table><tr><th>Factor</th><th>Spatone Liquid</th><th>Iron Tablets</th></tr><tr><td>Absorption Rate</td><td>Up to 40%</td><td>5-20%</td></tr><tr><td>Stomach Irritation</td><td>Minimal</td><td>Common</td></tr><tr><td>Constipation</td><td>Rare</td><td>Frequent</td></tr><tr><td>Metallic Taste</td><td>Mild</td><td>Strong</td></tr></table><p>This superior absorption means customers need less iron to achieve better results.</p>"
+            },
+            {
+              id: "section3",
+              title: "Customer Education & FAQs",
+              type: "text",
+              content: "<h2>Common Customer Questions</h2><p>Prepare for the most frequently asked questions about iron supplementation and Spatone specifically.</p><h3>Frequently Asked Questions:</h3><h4>Q: Why is Spatone better than my current iron supplement?</h4><p>A: Spatone offers superior absorption with fewer side effects. Many customers experience less stomach upset and constipation compared to traditional iron tablets.</p><h4>Q: How quickly will I see results?</h4><p>A: Most customers notice increased energy within 2-4 weeks of consistent use. Full iron stores may take 2-3 months to replenish.</p><h4>Q: Can I take it with other supplements?</h4><p>A: Yes, but avoid taking with calcium, zinc, or coffee as these can reduce absorption. Take with vitamin C (orange juice) to enhance absorption.</p><h4>Q: Is it safe during pregnancy?</h4><p>A: Spatone is safe for pregnancy and breastfeeding. Many healthcare providers recommend it specifically because of its gentle nature.</p><h4>Q: What if I forget a dose?</h4><p>A: Simply take it when you remember, but don't double up. Consistency is more important than perfection.</p><h3>Usage Tips for Customers:</h3><ul><li>Take on an empty stomach for best absorption</li><li>Mix with orange juice to enhance absorption and improve taste</li><li>Take away from coffee, tea, and dairy products</li><li>Be consistent with daily use</li><li>Monitor energy levels and consider retesting iron levels after 3 months</li></ul>"
             }
           ],
           demoSeed: true
@@ -600,9 +628,9 @@ export async function seedDemoData(
           brandId,
           authorUid: brandManagerRefs[0].id,
           title: "Stress & Anxiety Support Products",
-          description: "Comprehensive guide to recommending products for stress and anxiety relief.",
+          description: "Comprehensive guide to recommending products for stress and anxiety relief, including natural alternatives and lifestyle recommendations.",
           durationMins: 35,
-          modules: ["Understanding Stress", "Product Categories", "Personalized Recommendations"],
+          modules: ["Understanding Stress", "Product Categories", "Holistic Approaches"],
           published: true,
           visibility: 'public',
           createdAt: serverTimestamp(),
@@ -610,9 +638,21 @@ export async function seedDemoData(
           sections: [
             {
               id: "section1",
-              title: "Stress Physiology",
+              title: "Stress Physiology & Modern Triggers",
               type: "text",
-              content: "<h2>Stress Response</h2><p>The body's response to stress and anxiety...</p>"
+              content: "<h2>The Science of Stress Response</h2><p>Understanding how stress affects the body helps you recommend appropriate natural solutions to customers.</p><h3>The Stress Response System:</h3><ul><li><strong>Acute Stress:</strong> Fight-or-flight response - short-term, adaptive</li><li><strong>Chronic Stress:</strong> Long-term activation leading to health problems</li><li><strong>Hormonal Impact:</strong> Cortisol, adrenaline, and other stress hormones</li><li><strong>Physical Symptoms:</strong> Tension, digestive issues, sleep problems</li></ul><h3>Modern Stress Triggers:</h3><ul><li>Work pressure and deadlines</li><li>Financial concerns</li><li>Relationship challenges</li><li>Health issues</li><li>Information overload</li><li>Social media and constant connectivity</li></ul><h3>Signs Customers May Mention:</h3><ul><li>Feeling overwhelmed or anxious</li><li>Difficulty concentrating</li><li>Muscle tension or headaches</li><li>Sleep disturbances</li><li>Digestive upset</li><li>Irritability or mood swings</li><li>Fatigue despite adequate sleep</li></ul><p>Recognizing these patterns helps you suggest targeted natural solutions.</p>"
+            },
+            {
+              id: "section2",
+              title: "Natural Stress Relief Categories",
+              type: "text",
+              content: "<h2>Categories of Stress Support Products</h2><p>Different types of stress and anxiety benefit from different natural approaches and products.</p><h3>Adaptogenic Herbs:</h3><ul><li><strong>Ashwagandha:</strong> Reduces cortisol levels, improves stress resilience</li><li><strong>Rhodiola:</strong> Enhances energy and mental clarity under stress</li><li><strong>Holy Basil:</strong> Balances stress hormones, promotes calm alertness</li><li><strong>Schisandra:</strong> Supports adrenal function and mental endurance</li></ul><h3>Calming Nervines:</h3><ul><li><strong>Passionflower:</strong> Reduces anxiety without drowsiness</li><li><strong>Lemon Balm:</strong> Calms nervous tension and improves mood</li><li><strong>Chamomile:</strong> Gentle relaxation for mild anxiety</li><li><strong>Lavender:</strong> Promotes relaxation and better sleep</li></ul><h3>Amino Acids & Nutrients:</h3><ul><li><strong>L-Theanine:</strong> Promotes calm alertness without sedation</li><li><strong>GABA:</strong> Naturally calming neurotransmitter</li><li><strong>Magnesium:</strong> Muscle relaxation and nervous system support</li><li><strong>B-Complex:</strong> Supports healthy stress response and energy</li></ul><h3>Bach Flower Remedies for Stress:</h3><ul><li><strong>Rescue Remedy:</strong> Emergency stress relief blend</li><li><strong>Impatiens:</strong> For irritability and impatience</li><li><strong>Rock Rose:</strong> For panic and terror</li><li><strong>White Chestnut:</strong> For repetitive worried thoughts</li></ul>"
+            },
+            {
+              id: "section3",
+              title: "Holistic Stress Management Approach",
+              type: "text",
+              content: "<h2>Beyond Supplements: Complete Stress Support</h2><p>While natural products provide valuable support, customers benefit most from a holistic approach to stress management.</p><h3>Lifestyle Recommendations:</h3><h4>Sleep Hygiene:</h4><ul><li>Consistent bedtime routine</li><li>Limit screens before bed</li><li>Create a calming bedroom environment</li><li>Consider sleep-supporting supplements</li></ul><h4>Nutrition for Stress:</h4><ul><li>Regular, balanced meals to stabilize blood sugar</li><li>Limit caffeine, especially in the afternoon</li><li>Increase omega-3 rich foods</li><li>Consider probiotic foods for gut-brain connection</li></ul><h4>Movement & Exercise:</h4><ul><li>Regular physical activity reduces stress hormones</li><li>Yoga or tai chi for mind-body connection</li><li>Nature walks for natural stress relief</li><li>Even 10 minutes of movement helps</li></ul><h4>Mindfulness Practices:</h4><ul><li>Meditation apps for beginners</li><li>Deep breathing exercises</li><li>Journaling for emotional processing</li><li>Gratitude practices to shift perspective</li></ul><h3>When to Recommend Professional Help:</h3><ul><li>Symptoms interfere with daily functioning</li><li>Persistent anxiety or panic attacks</li><li>Depression or mood changes</li><li>Substance use as coping mechanism</li><li>Customer expresses thoughts of self-harm</li></ul><p>Remember: Natural products support overall wellness but don't replace professional mental health care when needed.</p><h3>Creating Personalized Recommendations:</h3><p>Ask customers about:</p><ul><li>Primary stress triggers</li><li>Time of day symptoms are worst</li><li>Current coping strategies</li><li>Sleep quality and energy levels</li><li>Any current medications or supplements</li></ul><p>This information helps you suggest the most appropriate combination of products and lifestyle strategies.</p>"
             }
           ],
           demoSeed: true
@@ -621,9 +661,9 @@ export async function seedDemoData(
           brandId,
           authorUid: brandManagerRefs[0].id,
           title: "Immune Support Essentials",
-          description: "Learn about our immune support product line and seasonal recommendations.",
-          durationMins: 25,
-          modules: ["Immune System Basics", "Product Overview", "Seasonal Strategies"],
+          description: "Learn about immune system basics and seasonal support strategies to help customers maintain optimal health year-round.",
+          durationMins: 30,
+          modules: ["Immune System Basics", "Key Nutrients", "Seasonal Strategies"],
           published: true,
           visibility: 'public',
           createdAt: serverTimestamp(),
@@ -633,25 +673,19 @@ export async function seedDemoData(
               id: "section1",
               title: "Immune System Overview",
               type: "text",
-              content: "<h2>Innate vs. Adaptive Immunity</h2><p>Understanding the immune system components...</p>"
+              content: "<h2>Understanding Immune Function</h2><p>The immune system is our body's defense network against pathogens, toxins, and other harmful substances.</p><h3>Two Types of Immunity:</h3><h4>Innate Immunity (First Line of Defense):</h4><ul><li>Physical barriers: skin, mucous membranes</li><li>Chemical barriers: stomach acid, enzymes</li><li>Cellular defenses: white blood cells, macrophages</li><li>Responds quickly but non-specifically</li></ul><h4>Adaptive Immunity (Learned Defense):</h4><ul><li>B cells: produce antibodies</li><li>T cells: cell-mediated immunity</li><li>Memory cells: remember past threats</li><li>Highly specific but slower to respond</li></ul><h3>Factors That Weaken Immunity:</h3><ul><li>Chronic stress and lack of sleep</li><li>Poor nutrition and dehydration</li><li>Sedentary lifestyle</li><li>Excessive alcohol consumption</li><li>Smoking and environmental toxins</li><li>Age-related immune decline</li><li>Certain medications</li></ul><h3>Signs of Compromised Immunity:</h3><ul><li>Frequent colds or infections</li><li>Slow wound healing</li><li>Persistent fatigue</li><li>Recurring digestive issues</li><li>Seasonal allergies</li></ul>"
             },
             {
               id: "section2",
-              title: "Key Ingredients",
+              title: "Key Immune Supporting Nutrients",
               type: "text",
-              content: "<h2>Vitamin C, D, and Zinc</h2><p>The science behind key immune supporting nutrients...</p>"
+              content: "<h2>Essential Nutrients for Immune Health</h2><p>Certain vitamins, minerals, and compounds play crucial roles in maintaining optimal immune function.</p><h3>Vitamin C:</h3><ul><li><strong>Function:</strong> Antioxidant, supports white blood cell function</li><li><strong>Sources:</strong> Citrus fruits, berries, leafy greens</li><li><strong>Supplementation:</strong> 500-1000mg daily for prevention, up to 3000mg during illness</li><li><strong>Benefits:</strong> Reduces duration and severity of colds</li></ul><h3>Vitamin D:</h3><ul><li><strong>Function:</strong> Regulates immune cell activity, antimicrobial peptide production</li><li><strong>Sources:</strong> Sun exposure, fatty fish, fortified foods</li><li><strong>Supplementation:</strong> 1000-4000 IU daily (test levels first)</li><li><strong>Note:</strong> Deficiency linked to increased infection risk</li></ul><h3>Zinc:</h3><ul><li><strong>Function:</strong> Essential for immune cell development and function</li><li><strong>Sources:</strong> Oysters, meat, pumpkin seeds, legumes</li><li><strong>Supplementation:</strong> 8-11mg daily for adults</li><li><strong>Timing:</strong> Take on empty stomach or with small amount of food</li></ul><h3>Probiotics:</h3><ul><li><strong>Function:</strong> Support gut-associated lymphoid tissue (70% of immune system)</li><li><strong>Strains:</strong> Lactobacillus acidophilus, Bifidobacterium bifidum</li><li><strong>Benefits:</strong> Reduce respiratory and digestive infections</li><li><strong>Sources:</strong> Fermented foods, quality supplements</li></ul><h3>Elderberry:</h3><ul><li><strong>Function:</strong> Antiviral properties, immune modulation</li><li><strong>Research:</strong> May reduce flu duration by 3-4 days</li><li><strong>Forms:</strong> Syrup, gummies, capsules</li><li><strong>Dosage:</strong> Follow product instructions, start at first symptoms</li></ul>"
             },
             {
               id: "section3",
-              title: "Elderberry Benefits",
+              title: "Seasonal Immune Strategies",
               type: "text",
-              content: "<h2>Elderberry Research</h2><p>Clinical studies on elderberry for immune support...</p>"
-            },
-            {
-              id: "section4",
-              title: "Seasonal Recommendations",
-              type: "text",
-              content: "<h2>Winter vs Summer</h2><p>Adjusting recommendations based on seasonal needs...</p>"
+              content: "<h2>Year-Round Immune Support</h2><p>Different seasons present unique challenges and opportunities for immune support.</p><h3>Fall/Winter Strategy (Cold & Flu Season):</h3><h4>Prevention Focus:</h4><ul><li>Daily vitamin D supplementation (higher doses)</li><li>Consistent vitamin C intake</li><li>Zinc lozenges at first sign of symptoms</li><li>Elderberry syrup for family use</li><li>Probiotic maintenance</li></ul><h4>Lifestyle Support:</h4><ul><li>Adequate sleep (7-9 hours)</li><li>Hand hygiene and surface cleaning</li><li>Stay hydrated with warm liquids</li><li>Manage stress levels</li><li>Indoor air quality (humidifiers, air purifiers)</li></ul><h3>Spring Strategy (Allergy Season):</h3><h4>Natural Antihistamines:</h4><ul><li>Quercetin with bromelain</li><li>Nettle leaf extract</li><li>Vitamin C for mast cell stabilization</li><li>Local honey for seasonal allergies</li></ul><h4>Detox Support:</h4><ul><li>Liver supporting herbs (milk thistle, dandelion)</li><li>Increased water intake</li><li>Fresh, seasonal produce</li><li>Gentle exercise to support lymphatic drainage</li></ul><h3>Summer Strategy (Travel & Activity Season):</h3><h4>On-the-Go Support:</h4><ul><li>Portable immune support packets</li><li>Electrolyte replacement</li><li>Digestive enzymes for varied diets</li><li>Travel-size hand sanitizers</li></ul><h4>Heat Stress Management:</h4><ul><li>Increased fluid intake</li><li>Cooling foods and herbs (mint, cucumber)</li><li>Adaptogens for physical stress</li><li>Sun protection for skin barrier function</li></ul><h3>Customizing Recommendations:</h3><h4>For Frequent Travelers:</h4><ul><li>Immune support packs</li><li>Probiotic maintenance</li><li>Vitamin C powder for flights</li><li>Sleep support for jet lag</li></ul><h4>For Parents/Teachers:</h4><ul><li>Family-friendly immune products</li><li>Hand hygiene education</li><li>Stress management tools</li><li>Back-to-school immune prep</li></ul><h4>For Active Individuals:</h4><ul><li>Post-workout recovery support</li><li>Anti-inflammatory nutrients</li><li>Electrolyte balance</li><li>Sleep optimization</li></ul><h4>For Seniors:</h4><ul><li>Higher vitamin D doses</li><li>B-complex for energy and immune function</li><li>Antioxidants for cellular protection</li><li>Digestive support for nutrient absorption</li></ul>"
             }
           ],
           demoSeed: true
@@ -665,7 +699,7 @@ export async function seedDemoData(
         operationCount++;
       }
       results.trainings = trainings.length;
-      console.log(`  ✓ Created ${trainings.length} trainings`);
+      console.log(`  ✓ Created ${trainings.length} comprehensive trainings`);
       
       // Commit batch if getting close to limit
       if (operationCount > 350) {
@@ -684,159 +718,9 @@ export async function seedDemoData(
         operationCount = 0;
         console.log('  ✓ Batch committed successfully');
       }
-
-      /* ------------------------------------------------------------------
-       *  TEMPORARILY DISABLED – training_progress creation & metrics update
-       *  Permissions require further investigation.  Once Firestore rules
-       *  are finalized, remove this block comment to re-enable seeding of
-       *  training progress documents & metric updates.
-       * ------------------------------------------------------------------
-       *
-       *  NOTE:  The entire block below (from "// Create training progress"
-       *  down to "console.log('  ✓ Updated training metrics');") was the
-       *  original code responsible for:
-       *    • Creating staff × training progress docs
-       *    • Updating the metrics.enrolled / metrics.completed fields
-       *  Commenting it out prevents the batch from writing to the
-       *  training_progress collection while we resolve security-rule issues.
-       *
-       * ------------------------------------------------------------------ */
-      /*
-      // Create training progress
-      const trainingProgressCount = {
-        enrolled: 0,
-        completed: 0
-      };
-      
-      // Staff A: 2 trainings → one completed, one in_progress
-      const staffAProgressCompleted = {
-        id: `${staffRefs[0].id}_${trainingRefs[0].id}`,
-        userId: staffRefs[0].id,
-        trainingId: trainingRefs[0].id,
-        status: 'completed',
-        startedAt: serverTimestamp(),
-        completedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        completedSections: ['section1', 'section2', 'section3'], // Example section IDs
-        timeSpentMins: 28,
-        demoSeed: true
-      };
-      
-      const staffAProgressInProgress = {
-        id: `${staffRefs[0].id}_${trainingRefs[1].id}`,
-        userId: staffRefs[0].id,
-        trainingId: trainingRefs[1].id,
-        status: 'in_progress',
-        startedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        completedSections: ['section1'], // Partially completed
-        currentSection: 1,
-        timeSpentMins: 15,
-        demoSeed: true
-      };
-      
-      batch.set(doc(db, 'training_progress', staffAProgressCompleted.id), staffAProgressCompleted);
-      batch.set(doc(db, 'training_progress', staffAProgressInProgress.id), staffAProgressInProgress);
-      trainingProgressCount.enrolled += 2;
-      trainingProgressCount.completed += 1;
-      operationCount += 2;
-      
-      // Staff B: 2 trainings → both in_progress
-      const staffBProgress1 = {
-        id: `${staffRefs[1].id}_${trainingRefs[2].id}`,
-        userId: staffRefs[1].id,
-        trainingId: trainingRefs[2].id,
-        status: 'in_progress',
-        startedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        completedSections: ['section1', 'section2'],
-        currentSection: 2,
-        timeSpentMins: 12,
-        demoSeed: true
-      };
-      
-      const staffBProgress2 = {
-        id: `${staffRefs[1].id}_${trainingRefs[3].id}`,
-        userId: staffRefs[1].id,
-        trainingId: trainingRefs[3].id,
-        status: 'in_progress',
-        startedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        completedSections: [],
-        currentSection: 0,
-        timeSpentMins: 5,
-        demoSeed: true
-      };
-      
-      batch.set(doc(db, 'training_progress', staffBProgress1.id), staffBProgress1);
-      batch.set(doc(db, 'training_progress', staffBProgress2.id), staffBProgress2);
-      trainingProgressCount.enrolled += 2;
-      operationCount += 2;
-      
-      // Staff C: 1 training → completed
-      const staffCProgress = {
-        id: `${staffRefs[2].id}_${trainingRefs[4].id}`,
-        userId: staffRefs[2].id,
-        trainingId: trainingRefs[4].id,
-        status: 'completed',
-        startedAt: serverTimestamp(),
-        completedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        completedSections: ['section1', 'section2', 'section3', 'section4'],
-        timeSpentMins: 23,
-        demoSeed: true
-      };
-      
-      batch.set(doc(db, 'training_progress', staffCProgress.id), staffCProgress);
-      trainingProgressCount.enrolled += 1;
-      trainingProgressCount.completed += 1;
-      operationCount += 1;
-      
-      results.training_progress = trainingProgressCount.enrolled;
-      console.log(`  ✓ Created ${trainingProgressCount.enrolled} training progress records (${trainingProgressCount.completed} completed)`);
-      
-      // Commit batch if getting close to limit
-      if (operationCount > 350) {
-        console.log('  ⚡ Committing batch due to size limit...');
-        await batch.commit();
-        batch = writeBatch(db);
-        operationCount = 0;
-        console.log('  ✓ Batch committed successfully');
-      }
-      
-      // Update training metrics based on actual progress data
-      const trainingEnrollments = {
-        [trainingRefs[0].id]: 1, // Staff A completed
-        [trainingRefs[1].id]: 1, // Staff A in progress
-        [trainingRefs[2].id]: 1, // Staff B in progress
-        [trainingRefs[3].id]: 1, // Staff B in progress
-        [trainingRefs[4].id]: 1  // Staff C completed
-      };
-      
-      const trainingCompletions = {
-        [trainingRefs[0].id]: 1, // Staff A completed
-        [trainingRefs[1].id]: 0, // Staff A in progress
-        [trainingRefs[2].id]: 0, // Staff B in progress
-        [trainingRefs[3].id]: 0, // Staff B in progress
-        [trainingRefs[4].id]: 1  // Staff C completed
-      };
-      
-      for (let i = 0; i < trainingRefs.length; i++) {
-        const trainingRef = doc(db, 'trainings', trainingRefs[i].id);
-        const enrolled = trainingEnrollments[trainingRefs[i].id] || 0;
-        const completed = trainingCompletions[trainingRefs[i].id] || 0;
-        
-        batch.update(trainingRef, {
-          'metrics.enrolled': enrolled,
-          'metrics.completed': completed
-        });
-        operationCount++;
-      }
-      console.log('  ✓ Updated training metrics');
-      */
     } catch (err: any) {
-      console.error('❌ Error creating trainings and progress:', err);
-      throw new Error(`Failed to create trainings and progress: ${err.message}`);
+      console.error('❌ Error creating trainings:', err);
+      throw new Error(`Failed to create trainings: ${err.message}`);
     }
     
     // Create sample programs and requests
@@ -848,7 +732,7 @@ export async function seedDemoData(
         {
           brandId,
           name: "Spring Wellness Sampler",
-          productName: "Calm Well Essentials Pack",
+          productName: "Rescue Remedy Essentials Pack",
           unitsAvailable: 100,
           startDate: new Date(),
           endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -925,28 +809,6 @@ export async function seedDemoData(
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           demoSeed: true
-        },
-        {
-          programId: sampleProgramRefs[0].id,
-          brandId,
-          userId: staffRefs[0].id, // Staff A (second request)
-          retailerId: retailerRefs[0].id,
-          quantity: 15,
-          status: 'shipped',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          programId: sampleProgramRefs[1].id,
-          brandId,
-          userId: staffRefs[1].id, // Staff B (second request)
-          retailerId: retailerRefs[0].id,
-          quantity: 8,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          demoSeed: true
         }
       ];
       
@@ -1020,6 +882,7 @@ export async function seedDemoData(
           requiresVerification: false,
           hasEasterEggs: true,
           badge: "🌟 Open to All",
+          isActive: true,        // ADDED FIX: Fix for Firestore rules requirement
           createdAt: serverTimestamp(),
           demoSeed: true
         },
@@ -1034,6 +897,7 @@ export async function seedDemoData(
           requiresVerification: true,
           hasEasterEggs: false,
           badge: "🔒 Verification Required",
+          isActive: true,        // ADDED FIX: Fix for Firestore rules requirement
           createdAt: serverTimestamp(),
           demoSeed: true
         }
@@ -1048,146 +912,6 @@ export async function seedDemoData(
       }
       results.communities = communities.length;
       console.log(`  ✓ Created ${communities.length} communities`);
-      
-      /* ------------------------------------------------------------------
-       * TEMPORARILY DISABLED – community collections have permissions issues
-       * Enable once Firestore rules are finalized for:
-       *   • community_posts
-       *   • community_comments
-       *   • community_likes
-       * ------------------------------------------------------------------ */
-      /*
-      // Create community posts
-      const communityPosts = [
-        {
-          communityId: 'whats-good',
-          authorId: staffRefs[0].id,
-          authorName: staffData[0].displayName,
-          title: "Just tried the new Calm Well Sleep Formula",
-          content: "Has anyone else tried the new sleep formula? My customers are loving it and I'm seeing repeat purchases already!",
-          likes: 24,
-          comments: 8,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          communityId: 'whats-good',
-          authorId: staffRefs[1].id,
-          authorName: staffData[1].displayName,
-          title: "Upcoming Wellness Workshop Ideas",
-          content: "Our store is planning a series of wellness workshops for the fall. What topics have you found most engaging for customers?",
-          likes: 15,
-          comments: 12,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          communityId: 'supplement-scoop',
-          authorId: staffRefs[2].id,
-          authorName: staffData[2].displayName,
-          title: "Iron Supplement Comparison Chart",
-          content: "I've created a comparison chart of the top-selling iron supplements in our store, including absorption rates and customer feedback. Let me know if you'd like me to share it!",
-          likes: 32,
-          comments: 17,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        }
-      ];
-      
-      const postRefs = [];
-      for (const post of communityPosts) {
-        const postRef = doc(collection(db, 'community_posts'));
-        postRefs.push({ id: postRef.id, title: post.title });
-        batch.set(postRef, post);
-        operationCount++;
-      }
-      results.community_posts = communityPosts.length;
-      console.log(`  ✓ Created ${communityPosts.length} community posts`);
-      
-      // Create community comments
-      const communityComments = [
-        {
-          postId: postRefs[0].id,
-          authorId: staffRefs[2].id,
-          authorName: staffData[2].displayName,
-          content: "Yes! We've had great feedback too. Customers especially like that it doesn't leave them groggy in the morning.",
-          likes: 8,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          postId: postRefs[0].id,
-          authorId: staffRefs[3].id,
-          authorName: staffData[3].displayName,
-          content: "What dosage are you recommending for first-time users? We've been starting with half dose for sensitive customers.",
-          likes: 5,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          postId: postRefs[1].id,
-          authorId: staffRefs[0].id,
-          authorName: staffData[0].displayName,
-          content: "Stress management workshops have been very popular at our location. We also did a 'Supplements 101' session that filled up quickly!",
-          likes: 12,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          postId: postRefs[2].id,
-          authorId: staffRefs[1].id,
-          authorName: staffData[1].displayName,
-          content: "I'd love to see this! We're always looking for better ways to explain absorption differences to customers.",
-          likes: 9,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        }
-      ];
-      
-      for (const comment of communityComments) {
-        const commentRef = doc(collection(db, 'community_comments'));
-        batch.set(commentRef, comment);
-        operationCount++;
-      }
-      results.community_comments = communityComments.length;
-      console.log(`  ✓ Created ${communityComments.length} community comments`);
-      
-      // Create community likes
-      const communityLikes = [
-        {
-          postId: postRefs[0].id,
-          userId: staffRefs[1].id,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          postId: postRefs[0].id,
-          userId: staffRefs[2].id,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          postId: postRefs[1].id,
-          userId: staffRefs[0].id,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          postId: postRefs[2].id,
-          userId: staffRefs[3].id,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        }
-      ];
-      
-      for (const like of communityLikes) {
-        const likeRef = doc(collection(db, 'community_likes'));
-        batch.set(likeRef, like);
-        operationCount++;
-      }
-      results.community_likes = communityLikes.length;
-      console.log(`  ✓ Created ${communityLikes.length} community likes`);
-      */
     } catch (err: any) {
       console.error('❌ Error creating announcements and communities:', err);
       throw new Error(`Failed to create announcements and communities: ${err.message}`);
@@ -1197,7 +921,7 @@ export async function seedDemoData(
     try {
       console.log('📝 Committing final batch...');
       await batch.commit();
-      console.log('✅ All demo data created successfully!');
+      console.log('✅ All comprehensive demo data created successfully!');
     } catch (err: any) {
       console.error('❌ Error committing final batch:', err);
       throw new Error(`Failed to commit final batch: ${err.message}`);
@@ -1206,7 +930,7 @@ export async function seedDemoData(
     // Return counts
     return { counts: results };
   } catch (error: any) {
-    console.error("❌ Error seeding demo data:", error);
+    console.error("❌ Error seeding comprehensive demo data:", error);
     // Provide detailed error information
     const errorDetails = {
       message: error.message || 'Unknown error',
@@ -1242,14 +966,14 @@ export async function resetDemoData(): Promise<void> {
       'retailers',
       'users',
       'trainings',
-      // 'training_progress', // TEMPORARILY DISABLED - permissions issue
+      'training_progress',
       'sample_programs',
       'sample_requests',
       'announcements',
       'communities',
-      // 'community_posts',    // TEMPORARILY DISABLED - permissions issue
-      // 'community_comments', // TEMPORARILY DISABLED - permissions issue
-      // 'community_likes'     // TEMPORARILY DISABLED - permissions issue
+      'community_posts',
+      'community_comments',
+      'community_likes'
     ];
     
     for (const collectionName of collections) {
