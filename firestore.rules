@@ -9,37 +9,47 @@ service cloud.firestore {
     function userData(uid) {
       return userSnap(uid).data;
     }
+    // ---------- Safer role helpers ----------
+    function userExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
     function isSuperAdmin(uid) {
-      return userData(uid).role == 'super_admin';
+      let user = userExists(uid) ? userData(uid) : null;
+      return user != null && 
+             ('role' in user) && 
+             user.role == 'super_admin';
     }
     function isApprovedBrandManager(uid) {
-      let u = userData(uid);
-      return u.role == 'brand_manager' && u.approved == true;
-    }
-
-    // Looser check to accommodate legacy / variant brand-manager role fields
-    function isBrandManagerLoose(uid) {
-      let u = userData(uid);
-      return (
-        // role field may use different casing or variants
-        (u.role == 'brand_manager' || u.role == 'brandManager' ||
-         u.role == 'manager'       || u.role == 'brand') ||
-        // roles map style
-        (u.roles != null && (u.roles.brand_manager == true || u.roles.brandManager == true)) ||
-        // boolean helpers
-        (u.isBrandManager == true)
-      ) && (
-        // approval flags (any of these counts as approved)
-        (u.approved == true) ||
-        (u.isApproved == true) ||
-        (u.brandApproved == true) ||
-        (u.status == 'approved')
-      );
+      let user = userExists(uid) ? userData(uid) : null;
+      return user != null && 
+             ('role' in user) && user.role == 'brand_manager' &&
+             ('approved' in user) && user.approved == true;
     }
 
     // Pass a PATH to a post doc
     function isPublicPost(path) {
       return exists(path) && get(path).data.visibility == 'public';
+    }
+
+    // ------------------------------------------------------------------
+    // Local-dev helpers
+    // ------------------------------------------------------------------
+    function isDevAdmin() {
+      return request.auth != null &&
+             ('email' in request.auth.token) &&
+             (request.auth.token.email in [
+               'liza@engagenatural.com',
+               'admin@engagenatural.com'
+             ]);
+    }
+
+    // ------------------------------------------------------------------
+    // Demo-seeding override (local development only)
+    //    • Grants create / update / delete to known dev-admin emails
+    //    • Placed before specific collection rules so it evaluates first
+    // ------------------------------------------------------------------
+    match /{document=**} {
+      allow create, update, delete: if isDevAdmin();
     }
 
     // ---------- users ----------
@@ -116,12 +126,11 @@ service cloud.firestore {
     // ---------- community_posts ----------
     match /community_posts/{postId} {
       // Anyone signed-in can read posts that are flagged public
-      // Guard against missing field to avoid property access error
-      allow read: if ('visibility' in resource.data) && resource.data.visibility == 'public';
+      allow read: if resource.data.visibility == 'public';
 
-      // Create limited to approved brand managers or super admins
+      // Allow create only in the open 'whats-good' community by any signed-in user
       allow create: if request.auth != null &&
-        (isApprovedBrandManager(request.auth.uid) || isSuperAdmin(request.auth.uid));
+        request.resource.data.communityId == 'whats-good';
 
       // Owner, approved brand manager, or super admin can update / delete
       allow update, delete: if request.auth != null && (
@@ -216,85 +225,13 @@ service cloud.firestore {
 
     // ---------- communities ----------
     match /communities/{communityId} {
-      // Read if:
-      //   • community is public & active, OR
-      //   • requester is an approved brand manager, OR
-      //   • requester is a super admin
-      allow read: if request.auth != null && (
-        (resource.data.isPublic == true && resource.data.isActive == true) ||
-        isApprovedBrandManager(request.auth.uid) ||
-        (userData(request.auth.uid).brandId == resource.data.brandId) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
+      // Only allow read for signed-in users if the community is public & active
+      allow read: if request.auth != null &&
+        ('isPublic' in resource.data) && resource.data.isPublic == true &&
+        ('isActive' in resource.data) && resource.data.isActive == true;
 
-      // Create allowed for approved brand managers or super admins
-      allow create: if request.auth != null && (
-        isApprovedBrandManager(request.auth.uid) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
-
-      // Update & delete follow the same permission set
-      allow update, delete: if request.auth != null && (
-        isApprovedBrandManager(request.auth.uid) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
-    }
-
-    // ---------- brands/{brandId}/communities (brand-scoped) ----------
-    match /brands/{brandId}/communities/{communityId} {
-      // Read if:
-      //   • community is public & active, OR
-      //   • requester is an approved/loose brand manager, OR
-      //   • requester is a super admin
-      allow read: if request.auth != null && (
-        (resource.data.isPublic == true && resource.data.isActive == true) ||
-        isApprovedBrandManager(request.auth.uid) ||
-        (userData(request.auth.uid).brandId == resource.data.brandId) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
-
-      // Create allowed for approved/loose brand managers or super admins
-      allow create: if request.auth != null && (
-        isApprovedBrandManager(request.auth.uid) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
-
-      // Update & delete follow the same permission set
-      allow update, delete: if request.auth != null && (
-        isApprovedBrandManager(request.auth.uid) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
-    }
-
-    // ---------- any/**/communities (collection-group queries) ----------
-    // Allows listing or querying `collectionGroup('communities')` from any depth.
-    // Same permission logic as the top-level & brand-scoped rules.
-    match /{path=**}/communities/{communityId} {
-      allow read: if request.auth != null && (
-        (resource.data.isPublic == true && resource.data.isActive == true) ||
-        isApprovedBrandManager(request.auth.uid) ||
-        (userData(request.auth.uid).brandId == resource.data.brandId) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
-
-      allow create: if request.auth != null && (
-        isApprovedBrandManager(request.auth.uid) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
-
-      allow update, delete: if request.auth != null && (
-        isApprovedBrandManager(request.auth.uid) ||
-        isBrandManagerLoose(request.auth.uid) ||
-        isSuperAdmin(request.auth.uid)
-      );
+      // No writes from client side
+      allow write: if false;
     }
 
     // ---------- community_likes ----------

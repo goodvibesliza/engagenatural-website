@@ -35,23 +35,12 @@ import {
   signOut 
 } from 'firebase/auth';
 
-// Helper function to create URL-friendly slugs
-function slugify(s: string) { 
-  return s.toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-'); 
-}
-
-// Deterministic brand definitions
-const BRANDS = [
-  { id: 'rescue', name: 'Rescue Remedy' },
-  { id: 'bach', name: 'Bach Flower Remedies' },
-  { id: 'spatone', name: 'Spatone' }
-];
-
-// Deterministic retailer definitions
-const RETAILERS = [
-  { id: 'sprouts-winter-park', name: 'Sprouts – Winter Park, FL', chain: 'Sprouts', storeCode: 'SP-WP', city: 'Winter Park', state: 'FL' },
-  { id: 'natural-grocers-denver', name: 'Natural Grocers – Denver, CO', chain: 'Natural Grocers', storeCode: 'NG-DN', city: 'Denver', state: 'CO' }
-];
+// Deterministic brand IDs for consistent references across emulator restarts  
+const DEMO_BRANDS = {
+  rescue: 'rescue-remedy',
+  bach: 'bach-flower-remedies', 
+  spatone: 'spatone-iron'
+};
 
 /**
  * Tests basic Firestore permissions to ensure the user can perform seeding operations
@@ -176,65 +165,59 @@ async function createDemoAuthAccounts(
       console.log(`    ✓ Created auth account with UID: ${cred.user.uid}`);
       await signOut(seedAuth); // Immediately sign the new user out
     } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        // Account exists – sign in to retrieve UID, then sign out
-        console.log(
-          `    ⚠️ Account ${userData.email} already exists – signing in to retrieve UID…`
+      /* ----------------------------------------------------------------
+       * Creation failed – the Auth emulator sometimes returns 400 for
+       * weak-password, recaptcha, or unknown reasons.  Try sign-in next.
+       * -------------------------------------------------------------- */
+      console.warn(
+        `    ⚠️ Create failed for ${userData.email} → attempting sign-in…`,
+        error?.code || error?.message || error
+      );
+
+      try {
+        const existingCred = await signInWithEmailAndPassword(
+          seedAuth,
+          userData.email,
+          userData.password
         );
-        try {
-          const existingCred = await signInWithEmailAndPassword(
-            seedAuth,
-            userData.email,
-            userData.password
+        createdUsers.push({
+          uid: existingCred.user.uid,
+          email: userData.email,
+          displayName: userData.displayName
+        });
+        console.log(
+          `    ✓ Using existing account with UID: ${existingCred.user.uid}`
+        );
+        await signOut(seedAuth);
+      } catch (signInErr: any) {
+        if (signInErr.code === 'auth/invalid-credential') {
+          // Password mismatch: fall back to placeholder UID so seeding continues
+          console.warn(
+            `    ⚠️ Existing account password mismatch for ${userData.email}. Using placeholder UID.`
           );
+          const placeholderUid = `EXISTING_ACCOUNT_${userData.email
+            .replace(/[@.]/g, '_')
+            .toUpperCase()}_${Date.now()}`;
           createdUsers.push({
-            uid: existingCred.user.uid,
+            uid: placeholderUid,
             email: userData.email,
             displayName: userData.displayName
           });
-          console.log(
-            `    ✓ Using existing account with UID: ${existingCred.user.uid}`
+          console.log(`    ✓ Placeholder UID assigned for ${userData.email}`);
+        } else if (signInErr.code === 'auth/user-not-found') {
+          // Neither create nor sign-in succeeded – surface concise error
+          throw new Error(
+            `Create and sign-in failed for ${userData.email}: ${error?.message || 'unknown error'}`
           );
-          await signOut(seedAuth);
-        } catch (signInErr: any) {
-          if (signInErr.code === 'auth/invalid-credential') {
-            // Password mismatch: continue with placeholder UID, instruct user what to do
-            console.warn(
-              `    ⚠️ Account ${userData.email} exists but password doesn't match 'password123'`
-            );
-            console.warn(`    📝 Please either:`);
-            console.warn(`       1. Delete the existing account in Firebase Console`);
-            console.warn(`       2. Change the password to 'password123'`);
-            console.warn(`       3. Use the existing password when logging in`);
-            console.warn(`    🔄 Continuing with placeholder UID for now...`);
-
-            const placeholderUid = `EXISTING_ACCOUNT_${userData.email
-              .replace(/[@.]/g, '_')
-              .toUpperCase()}_${Date.now()}`;
-            createdUsers.push({
-              uid: placeholderUid,
-              email: userData.email,
-              displayName: userData.displayName
-            });
-            console.log(`    ✓ Using placeholder UID for ${userData.email}`);
-          } else {
-            console.error(
-              `    ❌ Failed to sign in to existing account ${userData.email}:`,
-              signInErr
-            );
-            throw new Error(
-              `Account ${userData.email} exists but sign-in failed: ${signInErr.message}`
-            );
-          }
+        } else {
+          console.error(
+            `    ❌ Sign-in fallback failed for ${userData.email}:`,
+            signInErr
+          );
+          throw new Error(
+            `Account flow failed for ${userData.email}: ${signInErr?.message || 'unknown error'}`
+          );
         }
-      } else {
-        console.error(
-          `    ❌ Failed to create account for ${userData.email}:`,
-          error
-        );
-        throw new Error(
-          `Failed to create account for ${userData.email}: ${error.message}`
-        );
       }
     }
   }
@@ -260,7 +243,10 @@ export async function seedDemoData(
   currentUserUid: string, 
   opts?: { brandManagerUid?: string, staffUids?: string[] }
 ): Promise<{ counts: Record<string, number> }> {
-  console.log('🌱 Starting demo data seeding process...');
+  // ------------------------------------------------------------------
+  // DEBUG: Confirm the updated demoSeed.ts file is loaded/executing
+  // ------------------------------------------------------------------
+  console.log('🔥 DEBUGGING: Updated demoSeed.ts file is being used!');
   try {
     // Test permissions before proceeding
     await testFirestorePermissions(currentUserUid);
@@ -271,492 +257,693 @@ export async function seedDemoData(
     console.log('🔐 Creating Firebase Auth accounts for demo users...');
     
     const authAccountsToCreate = [
-      // Brand managers - one per brand
       {
-        email: 'bm.rescue@engagenatural.com',
+        email: 'bm.demo@engagenatural.com',
         password: 'password123',
-        displayName: 'Rescue Manager'
+        displayName: 'Alex Morgan'
       },
-      {
-        email: 'bm.bach@engagenatural.com',
-        password: 'password123',
-        displayName: 'Bach Manager'
-      },
-      {
-        email: 'bm.spatone@engagenatural.com',
-        password: 'password123',
-        displayName: 'Spatone Manager'
-      },
-      // Staff accounts
       {
         email: 'staff.demo@engagenatural.com',
         password: 'password123',
         displayName: 'Sam Wilson'
-      },
-      {
-        email: 'staff2.demo@engagenatural.com',
-        password: 'password123',
-        displayName: 'Jamie Lee'
       }
     ];
     
     const createdAuthAccounts = await createDemoAuthAccounts(authAccountsToCreate);
     
+    // Extract UIDs for use in Firestore documents
+    const brandManagerAuthUid = createdAuthAccounts.find(
+      (user) => user.email === 'bm.demo@engagenatural.com'
+    )?.uid;
+    const staffAuthUid = createdAuthAccounts.find(
+      (user) => user.email === 'staff.demo@engagenatural.com'
+    )?.uid;
+    
+    if (!brandManagerAuthUid || !staffAuthUid) {
+      throw new Error('Failed to create required Firebase Auth accounts');
+    }
+    
     // Initialize batch
     let batch = writeBatch(db);
     let operationCount = 0;
     const results: Record<string, number> = {};
-    
-    // Maps to store user IDs by role and brand
-    const BRAND_MANAGER_UIDS: Record<string, string> = {};
-    const STAFF_UIDS: string[] = [];
-    
-    // Extract UIDs for brand managers
-    for (const brand of BRANDS) {
-      const brandManager = createdAuthAccounts.find(
-        (user) => user.email === `bm.${brand.id}@engagenatural.com`
-      );
-      if (brandManager) {
-        BRAND_MANAGER_UIDS[brand.id] = brandManager.uid;
+    // Will hold the brand ID so it can be reused later  
+    let brandId = DEMO_BRANDS.rescue; // Default to rescue brand for legacy references
+    // References for created users – must be global to this function
+    const brandManagerRefs: { id: string; approved: boolean }[] = [];
+    const staffRefs: { id: string; email: string }[] = [];
+
+    // ------------------------------------------------------------------
+    // Brand manager and staff data arrays - must be global to this function
+    // ------------------------------------------------------------------
+    const brandManagerData = [
+      {
+        email: 'bm.demo@engagenatural.com',
+        displayName: 'Alex Morgan',
+        role: 'brand_manager',
+        approved: true
+      },
+      {
+        email: 'bm.pending@demo.com',
+        displayName: 'Jordan Taylor',
+        role: 'brand_manager',
+        approved: false
       }
-    }
-    
-    // Extract UIDs for staff
-    const staffAccount1 = createdAuthAccounts.find(
-      (user) => user.email === 'staff.demo@engagenatural.com'
-    );
-    const staffAccount2 = createdAuthAccounts.find(
-      (user) => user.email === 'staff2.demo@engagenatural.com'
-    );
-    
-    if (staffAccount1) STAFF_UIDS.push(staffAccount1.uid);
-    if (staffAccount2) STAFF_UIDS.push(staffAccount2.uid);
-    
-    // Use provided UIDs if specified
-    if (opts?.staffUids && opts.staffUids.length > 0) {
-      // Replace the first entries with provided UIDs
-      for (let i = 0; i < Math.min(opts.staffUids.length, 2); i++) {
-        if (i < STAFF_UIDS.length) {
-          STAFF_UIDS[i] = opts.staffUids[i];
-        } else {
-          STAFF_UIDS.push(opts.staffUids[i]);
-        }
+    ];
+
+    const staffData = [
+      { 
+        email: 'staff.demo@engagenatural.com', 
+        displayName: 'Sam Wilson',
+        retailerIndex: 0 // Sprouts
+      },
+      { 
+        email: 'staff.b@demo.com', 
+        displayName: 'Jamie Lee',
+        retailerIndex: 0 // Sprouts
+      },
+      { 
+        email: 'staff.c@demo.com', 
+        displayName: 'Casey Brown',
+        retailerIndex: 1 // Natural Grocers
+      },
+      { 
+        email: 'staff.d@demo.com', 
+        displayName: 'Riley Johnson',
+        retailerIndex: 1 // Natural Grocers
       }
-    }
+    ];
     
     // ------------------------------------------------------------------
-    // Create brands with deterministic IDs
+    // Quick test write to see if **any** collection accepts writes.
+    // If this succeeds but the real 'brands' write fails, we know the
+    // problem is isolated to the 'brands' collection rules.
     // ------------------------------------------------------------------
+    console.log('🧪 Testing write to different collection first...');
     try {
-      console.log('📝 Creating brands...');
-      for (const brand of BRANDS) {
-        await setDoc(doc(db, 'brands', brand.id), {
-          name: brand.name,
-          slug: brand.id,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        }, { merge: true });
-        
-        console.log(`  ✓ Created brand: ${brand.name} (${brand.id})`);
-      }
-      results.brands = BRANDS.length;
+      const testBrandRef = doc(collection(db, 'test_brands'));
+      await setDoc(testBrandRef, {
+        test: true,
+        createdAt: serverTimestamp(),
+        uid: currentUserUid
+      });
+      console.log('  ✅ Successfully wrote to test_brands collection');
+
+      // Clean up the test document
+      await deleteDoc(testBrandRef);
+      console.log('  ✅ Successfully deleted test document');
+    } catch (testErr: any) {
+      console.error('  ❌ Failed to write to test_brands:', testErr.message);
+    }
+
+    try {
+      console.log('📝 Creating brand...');
+      // ------------------------------------------------------------------
+      // Use deterministic brand ID instead of auto-generated ID
+      // ------------------------------------------------------------------
+      const brandRef = doc(db, 'brands', DEMO_BRANDS.rescue);
+
+      const brand = {
+        name: "Calm Well Co",
+        slug: "calm-well-co",
+        ownerUid: currentUserUid,
+        createdAt: serverTimestamp(),
+        demoSeed: true
+      };
+
+      // Use setDoc with merge option for idempotent updates
+      await setDoc(brandRef, brand, { merge: true });
+      results.brands = 1;
+      console.log(`  ✓ Brand created with ID: ${brandId}`);
+      console.log('  ✓ Brand committed successfully (direct write)');
     } catch (err: any) {
-      console.error('❌ Error creating brands:', err);
-      throw new Error(`Failed to create brands: ${err.message}`);
+      console.error('❌ Error creating brand:', err);
+      throw new Error(`Failed to create brand: ${err.message}`);
     }
     
-    // ------------------------------------------------------------------
-    // Create retailers with deterministic IDs
-    // ------------------------------------------------------------------
+    // Create retailers
+    const retailerRefs = [];
     try {
       console.log('📝 Creating retailers...');
-      for (const retailer of RETAILERS) {
-        await setDoc(doc(db, 'retailers', retailer.id), {
-          name: retailer.name,
-          chain: retailer.chain,
-          storeCode: retailer.storeCode,
-          city: retailer.city,
-          state: retailer.state,
+      const retailers = [
+        {
+          chain: "Sprouts",
+          name: "Sprouts – Winter Park",
+          storeCode: "SP-WP",
+          city: "Winter Park",
+          state: "FL",
           createdAt: serverTimestamp(),
           demoSeed: true
-        }, { merge: true });
-        
-        console.log(`  ✓ Created retailer: ${retailer.name} (${retailer.id})`);
+        },
+        {
+          chain: "Natural Grocers",
+          name: "Natural Grocers – Denver",
+          storeCode: "NG-DN",
+          city: "Denver",
+          state: "CO",
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        }
+      ];
+      
+      for (const retailer of retailers) {
+        const retailerRef = doc(collection(db, 'retailers'));
+        retailerRefs.push({ id: retailerRef.id, storeCode: retailer.storeCode });
+        batch.set(retailerRef, retailer);
+        operationCount++;
       }
-      results.retailers = RETAILERS.length;
+      results.retailers = retailers.length;
+      console.log(`  ✓ Created ${retailers.length} retailers`);
+
+      // Commit batch after RETAILERS creation
+      if (operationCount > 0) {
+        console.log('  ⚡ Committing batch after RETAILERS creation...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
     } catch (err: any) {
       console.error('❌ Error creating retailers:', err);
       throw new Error(`Failed to create retailers: ${err.message}`);
     }
     
-    // ------------------------------------------------------------------
-    // Create user documents for brand managers and staff
-    // ------------------------------------------------------------------
+    /* ------------------------------------------------------------------
+     *  Create user documents - either with provided UIDs or placeholders
+     * ------------------------------------------------------------------ */
     try {
       console.log('📝 Creating user documents...');
+      // Add brandId to brandManagerData objects now that we know it
+      brandManagerData.forEach((bm) => Object.assign(bm, { brandId }));
+
+      // Create brand manager document(s)
+      const brandManagerUid = opts?.brandManagerUid || brandManagerAuthUid;
+      const brandManagerDoc = {
+        uid: brandManagerUid,
+        email: brandManagerData[0].email,
+        displayName: brandManagerData[0].displayName,
+        role: 'brand_manager',
+        approved: true,
+        brandId,
+        createdAt: serverTimestamp(),
+        demoSeed: true
+      };
       
-      // Create brand manager documents
-      for (const brand of BRANDS) {
-        const uid = BRAND_MANAGER_UIDS[brand.id];
-        if (!uid) continue;
-        
-        const brandManager = createdAuthAccounts.find(
-          (user) => user.email === `bm.${brand.id}@engagenatural.com`
-        );
-        
-        if (brandManager) {
-          await setDoc(doc(db, 'users', uid), {
-            uid,
-            email: brandManager.email,
-            displayName: brandManager.displayName,
-            role: 'brand_manager',
-            approved: true,
-            brandId: brand.id,
-            createdAt: serverTimestamp(),
-            demoSeed: true
-          }, { merge: true });
-          
-          console.log(`  ✓ Created brand manager: ${brandManager.displayName} for ${brand.name}`);
-        }
-      }
-      results.brand_managers = Object.keys(BRAND_MANAGER_UIDS).length;
-      
+      batch.set(doc(db, 'users', brandManagerUid), brandManagerDoc);
+      brandManagerRefs.push({ id: brandManagerUid, approved: true });
+      operationCount++;
+      console.log(`  ✓ Created brand manager with ID: ${brandManagerUid}`);
+
       // Create staff documents
-      for (let i = 0; i < STAFF_UIDS.length; i++) {
-        const uid = STAFF_UIDS[i];
-        const staffAccount = createdAuthAccounts.find(
-          (user) => user.email === (i === 0 ? 'staff.demo@engagenatural.com' : 'staff2.demo@engagenatural.com')
-        );
+      const staffUids = opts?.staffUids || [];
+      for (let i = 0; i < staffData.length; i++) {
+        const staff = staffData[i];
+        // Use provided UID if available, otherwise create placeholder
+        const uid = (i === 0 && staffAuthUid) ? staffAuthUid : (staffUids[i] || `DEMO_STAFF_${i}_${Date.now()}`);
+        staffRefs.push({ id: uid, email: staff.email });
         
-        if (staffAccount) {
-          // Assign retailer cyclically
-          const retailerIndex = i % RETAILERS.length;
-          const retailer = RETAILERS[retailerIndex];
-          
-          await setDoc(doc(db, 'users', uid), {
-            uid,
-            email: staffAccount.email,
-            displayName: staffAccount.displayName,
-            role: 'staff',
-            verified: true,
-            retailerId: retailer.id,
-            storeCode: retailer.storeCode,
-            createdAt: serverTimestamp(),
-            demoSeed: true
-          }, { merge: true });
-          
-          console.log(`  ✓ Created staff: ${staffAccount.displayName} for ${retailer.name}`);
-        }
+        const retailerRef = retailerRefs[staff.retailerIndex];
+        
+        batch.set(doc(db, 'users', uid), {
+          uid,
+          email: staff.email,
+          displayName: staff.displayName,
+          role: 'staff',
+          verified: true,
+          verificationStatus: (i === 0 ? 'approved' : 'pending'),
+          retailerId: retailerRef.id,
+          storeCode: retailerRef.storeCode,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        });
+        operationCount++;
       }
-      results.staff = STAFF_UIDS.length;
+      results.brand_managers = 1;
+      results.staff = staffRefs.length;
+      console.log(`  ✓ Created ${staffRefs.length} staff users`);
+
+      // Commit batch if getting close to limit
+      if (operationCount > 350) {
+        console.log('  ⚡ Committing batch due to size limit...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
+
+      // Commit batch after USER creation
+      if (operationCount > 0) {
+        console.log('  ⚡ Committing batch after USER creation...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
     } catch (err: any) {
       console.error('❌ Error creating user documents:', err);
       throw new Error(`Failed to create user documents: ${err.message}`);
     }
     
-    // ------------------------------------------------------------------
-    // Create trainings for each brand
-    // ------------------------------------------------------------------
+    // Create trainings
     try {
-      console.log('📝 Creating trainings...');
-      
+      console.log('📝 Creating trainings and progress...');
+      const trainingRefs = [];
       const trainings = [
         {
-          brandId: 'rescue',
-          title: 'Rescue Drops 101',
-          description: 'Learn the science behind Rescue Remedy drops and how to effectively recommend them to customers experiencing stress and anxiety.',
-          durationMins: 25,
-          modules: ["benefits", "usage", "contraindications"],
-          sections: [
-            {
-              id: "benefits",
-              title: "Benefits & Mechanisms",
-              content: "<p>Rescue Remedy drops combine five flower essences to help manage everyday stress. This section covers the key benefits and how they work.</p>"
-            },
-            {
-              id: "usage",
-              title: "Proper Usage & Dosing",
-              content: "<p>Learn the correct dosing protocols and usage instructions to share with customers for optimal results.</p>"
-            },
-            {
-              id: "contraindications",
-              title: "Contraindications & Precautions",
-              content: "<p>Important information about when Rescue Remedy may not be appropriate and what to tell customers about interactions.</p>"
-            }
-          ]
-        },
-        {
-          brandId: 'bach',
-          title: 'Bach Flower Basics',
-          description: 'A comprehensive introduction to Bach flower remedies, their history, and how to match specific remedies to customer emotional states.',
+          brandId,
+          authorUid: brandManagerRefs[0].id,
+          title: "Rescue Sleep: How to Recommend",
+          description: "Learn how to effectively recommend Rescue Sleep products to customers with sleep concerns.",
           durationMins: 30,
-          modules: ["history", "remedy-guide", "customer-matching"],
+          modules: ["Sleep Basics", "Product Information", "Customer Scenarios"],
+          published: true,
+          visibility: 'public',
+          createdAt: serverTimestamp(),
+          metrics: { enrolled: 0, completed: 0 },
           sections: [
             {
-              id: "history",
-              title: "History & Philosophy",
-              content: "<p>Dr. Edward Bach's discovery of flower remedies and the principles behind this gentle approach to emotional balance.</p>"
+              id: "section1",
+              title: "Understanding Sleep Issues",
+              type: "text",
+              content: "<h2>Common Sleep Problems</h2><p>This section covers the most common sleep issues customers face...</p>"
             },
             {
-              id: "remedy-guide",
-              title: "38 Remedies Overview",
-              content: "<p>A systematic breakdown of the 38 Bach flower remedies and their specific emotional indications.</p>"
+              id: "section2",
+              title: "Product Features & Benefits",
+              type: "text",
+              content: "<h2>Key Ingredients</h2><p>Our sleep formula contains scientifically-backed ingredients...</p>"
             },
             {
-              id: "customer-matching",
-              title: "Customer Consultation Guide",
-              content: "<p>Practical techniques for helping customers identify which Bach flower remedies best match their emotional needs.</p>"
+              id: "section3",
+              title: "Customer Interactions",
+              type: "video",
+              videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
             }
-          ]
+          ],
+          demoSeed: true
         },
         {
-          brandId: 'spatone',
-          title: 'Spatone Iron 101',
-          description: 'Everything staff needs to know about Spatone liquid iron supplements, including absorption benefits and customer education strategies.',
-          durationMins: 20,
-          modules: ["iron-basics", "absorption-science", "customer-education"],
+          brandId,
+          authorUid: brandManagerRefs[0].id,
+          title: "Bach Flower Basics for Floor Staff",
+          description: "Essential knowledge about Bach Flower remedies for retail staff.",
+          durationMins: 45,
+          modules: ["History of Bach Flowers", "Core Remedies", "Recommendation Guide"],
+          published: true,
+          visibility: 'public',
+          createdAt: serverTimestamp(),
+          metrics: { enrolled: 0, completed: 0 },
           sections: [
             {
-              id: "iron-basics",
-              title: "Iron Deficiency Basics",
-              content: "<p>Common signs of iron deficiency and why supplementation is important for specific customer groups.</p>"
+              id: "section1",
+              title: "Bach Flower History",
+              type: "text",
+              content: "<h2>Dr. Edward Bach</h2><p>Learn about the founder of Bach flower remedies...</p>"
             },
             {
-              id: "absorption-science",
-              title: "Absorption Science",
-              content: "<p>The science behind Spatone's unique liquid iron formulation and why it offers superior absorption with fewer side effects.</p>"
-            },
-            {
-              id: "customer-education",
-              title: "Customer Education",
-              content: "<p>Effective ways to discuss iron supplementation without alarming customers, focusing on energy and wellness.</p>"
+              id: "section2",
+              title: "38 Flower Remedies",
+              type: "text",
+              content: "<h2>Core Remedies</h2><p>Understanding the key flower essences and their properties...</p>"
             }
-          ]
+          ],
+          demoSeed: true
+        },
+        {
+          brandId,
+          authorUid: brandManagerRefs[0].id,
+          title: "Spatone Iron: Absorption 101",
+          description: "Understand the science behind Spatone's liquid iron and its superior absorption.",
+          durationMins: 20,
+          modules: ["Iron Basics", "Absorption Science", "Customer FAQs"],
+          published: true,
+          visibility: 'public',
+          createdAt: serverTimestamp(),
+          metrics: { enrolled: 0, completed: 0 },
+          sections: [
+            {
+              id: "section1",
+              title: "Iron Deficiency Basics",
+              type: "text",
+              content: "<h2>Signs and Symptoms</h2><p>Understanding iron deficiency and its impact...</p>"
+            },
+            {
+              id: "section2",
+              title: "Absorption Science",
+              type: "text",
+              content: "<h2>Liquid vs. Pill Form</h2><p>Why liquid iron has superior absorption rates...</p>"
+            }
+          ],
+          demoSeed: true
+        },
+        {
+          brandId,
+          authorUid: brandManagerRefs[0].id,
+          title: "Stress & Anxiety Support Products",
+          description: "Comprehensive guide to recommending products for stress and anxiety relief.",
+          durationMins: 35,
+          modules: ["Understanding Stress", "Product Categories", "Personalized Recommendations"],
+          published: true,
+          visibility: 'public',
+          createdAt: serverTimestamp(),
+          metrics: { enrolled: 0, completed: 0 },
+          sections: [
+            {
+              id: "section1",
+              title: "Stress Physiology",
+              type: "text",
+              content: "<h2>Stress Response</h2><p>The body's response to stress and anxiety...</p>"
+            }
+          ],
+          demoSeed: true
+        },
+        {
+          brandId,
+          authorUid: brandManagerRefs[0].id,
+          title: "Immune Support Essentials",
+          description: "Learn about our immune support product line and seasonal recommendations.",
+          durationMins: 25,
+          modules: ["Immune System Basics", "Product Overview", "Seasonal Strategies"],
+          published: true,
+          visibility: 'public',
+          createdAt: serverTimestamp(),
+          metrics: { enrolled: 0, completed: 0 },
+          sections: [
+            {
+              id: "section1",
+              title: "Immune System Overview",
+              type: "text",
+              content: "<h2>Innate vs. Adaptive Immunity</h2><p>Understanding the immune system components...</p>"
+            },
+            {
+              id: "section2",
+              title: "Key Ingredients",
+              type: "text",
+              content: "<h2>Vitamin C, D, and Zinc</h2><p>The science behind key immune supporting nutrients...</p>"
+            },
+            {
+              id: "section3",
+              title: "Elderberry Benefits",
+              type: "text",
+              content: "<h2>Elderberry Research</h2><p>Clinical studies on elderberry for immune support...</p>"
+            },
+            {
+              id: "section4",
+              title: "Seasonal Recommendations",
+              type: "text",
+              content: "<h2>Winter vs Summer</h2><p>Adjusting recommendations based on seasonal needs...</p>"
+            }
+          ],
+          demoSeed: true
         }
       ];
       
       for (const training of trainings) {
-        const brand = BRANDS.find(b => b.id === training.brandId);
-        if (!brand) continue;
-        
-        const trainingId = `${brand.id}-${slugify(training.title)}`;
-        await setDoc(doc(db, 'trainings', trainingId), {
-          ...training,
-          authorUid: BRAND_MANAGER_UIDS[brand.id],
-          published: true,
-          visibility: 'public',
-          metrics: { enrolled: 0, completed: 0 },
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        }, { merge: true });
-        
-        console.log(`  ✓ Created training: ${training.title} for ${brand.name}`);
+        const trainingRef = doc(collection(db, 'trainings'));
+        trainingRefs.push({ id: trainingRef.id, title: training.title });
+        batch.set(trainingRef, training);
+        operationCount++;
       }
       results.trainings = trainings.length;
-    } catch (err: any) {
-      console.error('❌ Error creating trainings:', err);
-      throw new Error(`Failed to create trainings: ${err.message}`);
-    }
-    
-    // ------------------------------------------------------------------
-    // Create communities
-    // ------------------------------------------------------------------
-    try {
-      console.log('📝 Creating communities...');
+      console.log(`  ✓ Created ${trainings.length} trainings`);
       
-      const communities = [
-        {
-          id: 'whats-good',
-          name: "What's Good",
-          description: "Check out What's Good for the latest product drops and industry buzz!",
-          isPublic: true,
-          requiresVerification: false,
-          memberCount: 2500,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        },
-        {
-          id: 'supplement-scoop',
-          name: 'Supplement Scoop',
-          description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
-          isPublic: true,
-          requiresVerification: true,
-          memberCount: 850,
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        }
-      ];
-      
-      for (const community of communities) {
-        await setDoc(doc(db, 'communities', community.id), community, { merge: true });
-        console.log(`  ✓ Created community: ${community.name}`);
+      // Commit batch if getting close to limit
+      if (operationCount > 350) {
+        console.log('  ⚡ Committing batch due to size limit...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
       }
-      results.communities = communities.length;
-    } catch (err: any) {
-      console.error('❌ Error creating communities:', err);
-      throw new Error(`Failed to create communities: ${err.message}`);
-    }
-    
-    // ------------------------------------------------------------------
-    // Create community posts for each brand
-    // ------------------------------------------------------------------
-    try {
-      console.log('📝 Creating community posts...');
-      
-      const posts = [
-        {
-          brandId: 'rescue',
-          title: 'When to recommend Rescue during stressful seasons',
-          content: 'With holiday season approaching, customers are experiencing heightened stress levels. Rescue Remedy can be particularly effective during these periods. I recommend highlighting the fast-acting drops for acute situations and the gummies for ongoing support throughout the day. What strategies have worked in your stores?',
-          communityId: 'whats-good'
-        },
-        {
-          brandId: 'bach',
-          title: 'Pairing Bach remedies with customer goals',
-          content: 'I\'ve found that asking customers about their specific wellness goals helps match them with the right Bach flower remedies. For sleep support, I start with White Chestnut for racing thoughts, while Mimulus works well for known fears. Has anyone developed a quick reference guide for common customer concerns?',
-          communityId: 'whats-good'
-        },
-        {
-          brandId: 'spatone',
-          title: 'How to talk iron without scaring customers',
-          content: 'When discussing iron supplements, I\'ve noticed customers respond better to positive framing around energy and vitality rather than deficiency. Spatone\'s liquid format is particularly appealing when highlighted for its gentle digestion and absorption benefits. What language have you found most effective?',
-          communityId: 'whats-good'
-        }
-      ];
-      
-      for (const post of posts) {
-        const brand = BRANDS.find(b => b.id === post.brandId);
-        if (!brand) continue;
-        
-        const brandManager = createdAuthAccounts.find(
-          (user) => user.email === `bm.${brand.id}@engagenatural.com`
-        );
-        if (!brandManager) continue;
-        
-        const postId = `post-${brand.id}-${slugify(post.title)}`;
-        await setDoc(doc(db, 'community_posts', postId), {
-          brandId: brand.id,
-          communityId: post.communityId,
-          userId: BRAND_MANAGER_UIDS[brand.id],
-          userName: brandManager.displayName,
-          title: post.title,
-          content: post.content,
-          visibility: 'public',
-          likeCount: 0,
-          commentCount: 2,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          demoSeed: true
-        }, { merge: true });
-        
-        console.log(`  ✓ Created post: ${post.title} for ${brand.name}`);
-        
-        // Create comments for this post
-        try {
-          for (let i = 0; i < Math.min(2, STAFF_UIDS.length); i++) {
-            const commentId = `comment-${postId}-${i+1}`;
-            const staffUid = STAFF_UIDS[i];
-            const staffAccount = i === 0 ? 
-              createdAuthAccounts.find(u => u.email === 'staff.demo@engagenatural.com') :
-              createdAuthAccounts.find(u => u.email === 'staff2.demo@engagenatural.com');
-            
-            if (staffAccount) {
-              const commentContent = i === 0 ?
-                `Great insights! I've been using this approach with my customers and seeing positive results.` :
-                `Thanks for sharing. This has been helpful for our team's training on ${brand.name} products.`;
-              
-              await setDoc(doc(db, 'community_comments', commentId), {
-                postId,
-                communityId: post.communityId,
-                userId: staffUid,
-                userName: staffAccount.displayName,
-                content: commentContent,
-                createdAt: serverTimestamp(),
-                demoSeed: true
-              }, { merge: true });
-              
-              console.log(`    ✓ Created comment by ${staffAccount.displayName} on post: ${post.title}`);
-            }
-          }
-        } catch (commentErr) {
-          console.warn(`    ⚠️ Could not create comments for post ${postId} due to permissions, continuing...`);
-        }
+
+      // Commit batch after TRAININGS creation
+      if (operationCount > 0) {
+        console.log('  ⚡ Committing batch after TRAININGS creation...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
       }
-      results.community_posts = posts.length;
-      results.community_comments = posts.length * 2; // Approximate, some may fail due to permissions
+
+      /* ------------------------------------------------------------------
+       *  TEMPORARILY DISABLED – training_progress creation & metrics update
+       *  Permissions require further investigation.  Once Firestore rules
+       *  are finalized, remove this block comment to re-enable seeding of
+       *  training progress documents & metric updates.
+       * ------------------------------------------------------------------
+       *
+       *  NOTE:  The entire block below (from "// Create training progress"
+       *  down to "console.log('  ✓ Updated training metrics');") was the
+       *  original code responsible for:
+       *    • Creating staff × training progress docs
+       *    • Updating the metrics.enrolled / metrics.completed fields
+       *  Commenting it out prevents the batch from writing to the
+       *  training_progress collection while we resolve security-rule issues.
+       *
+       * ------------------------------------------------------------------ */
+      /*
+      // Create training progress
+      const trainingProgressCount = {
+        enrolled: 0,
+        completed: 0
+      };
+      
+      // Staff A: 2 trainings → one completed, one in_progress
+      const staffAProgressCompleted = {
+        id: `${staffRefs[0].id}_${trainingRefs[0].id}`,
+        userId: staffRefs[0].id,
+        trainingId: trainingRefs[0].id,
+        status: 'completed',
+        startedAt: serverTimestamp(),
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        completedSections: ['section1', 'section2', 'section3'], // Example section IDs
+        timeSpentMins: 28,
+        demoSeed: true
+      };
+      
+      const staffAProgressInProgress = {
+        id: `${staffRefs[0].id}_${trainingRefs[1].id}`,
+        userId: staffRefs[0].id,
+        trainingId: trainingRefs[1].id,
+        status: 'in_progress',
+        startedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        completedSections: ['section1'], // Partially completed
+        currentSection: 1,
+        timeSpentMins: 15,
+        demoSeed: true
+      };
+      
+      batch.set(doc(db, 'training_progress', staffAProgressCompleted.id), staffAProgressCompleted);
+      batch.set(doc(db, 'training_progress', staffAProgressInProgress.id), staffAProgressInProgress);
+      trainingProgressCount.enrolled += 2;
+      trainingProgressCount.completed += 1;
+      operationCount += 2;
+      
+      // Staff B: 2 trainings → both in_progress
+      const staffBProgress1 = {
+        id: `${staffRefs[1].id}_${trainingRefs[2].id}`,
+        userId: staffRefs[1].id,
+        trainingId: trainingRefs[2].id,
+        status: 'in_progress',
+        startedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        completedSections: ['section1', 'section2'],
+        currentSection: 2,
+        timeSpentMins: 12,
+        demoSeed: true
+      };
+      
+      const staffBProgress2 = {
+        id: `${staffRefs[1].id}_${trainingRefs[3].id}`,
+        userId: staffRefs[1].id,
+        trainingId: trainingRefs[3].id,
+        status: 'in_progress',
+        startedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        completedSections: [],
+        currentSection: 0,
+        timeSpentMins: 5,
+        demoSeed: true
+      };
+      
+      batch.set(doc(db, 'training_progress', staffBProgress1.id), staffBProgress1);
+      batch.set(doc(db, 'training_progress', staffBProgress2.id), staffBProgress2);
+      trainingProgressCount.enrolled += 2;
+      operationCount += 2;
+      
+      // Staff C: 1 training → completed
+      const staffCProgress = {
+        id: `${staffRefs[2].id}_${trainingRefs[4].id}`,
+        userId: staffRefs[2].id,
+        trainingId: trainingRefs[4].id,
+        status: 'completed',
+        startedAt: serverTimestamp(),
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        completedSections: ['section1', 'section2', 'section3', 'section4'],
+        timeSpentMins: 23,
+        demoSeed: true
+      };
+      
+      batch.set(doc(db, 'training_progress', staffCProgress.id), staffCProgress);
+      trainingProgressCount.enrolled += 1;
+      trainingProgressCount.completed += 1;
+      operationCount += 1;
+      
+      results.training_progress = trainingProgressCount.enrolled;
+      console.log(`  ✓ Created ${trainingProgressCount.enrolled} training progress records (${trainingProgressCount.completed} completed)`);
+      
+      // Commit batch if getting close to limit
+      if (operationCount > 350) {
+        console.log('  ⚡ Committing batch due to size limit...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
+      
+      // Update training metrics based on actual progress data
+      const trainingEnrollments = {
+        [trainingRefs[0].id]: 1, // Staff A completed
+        [trainingRefs[1].id]: 1, // Staff A in progress
+        [trainingRefs[2].id]: 1, // Staff B in progress
+        [trainingRefs[3].id]: 1, // Staff B in progress
+        [trainingRefs[4].id]: 1  // Staff C completed
+      };
+      
+      const trainingCompletions = {
+        [trainingRefs[0].id]: 1, // Staff A completed
+        [trainingRefs[1].id]: 0, // Staff A in progress
+        [trainingRefs[2].id]: 0, // Staff B in progress
+        [trainingRefs[3].id]: 0, // Staff B in progress
+        [trainingRefs[4].id]: 1  // Staff C completed
+      };
+      
+      for (let i = 0; i < trainingRefs.length; i++) {
+        const trainingRef = doc(db, 'trainings', trainingRefs[i].id);
+        const enrolled = trainingEnrollments[trainingRefs[i].id] || 0;
+        const completed = trainingCompletions[trainingRefs[i].id] || 0;
+        
+        batch.update(trainingRef, {
+          'metrics.enrolled': enrolled,
+          'metrics.completed': completed
+        });
+        operationCount++;
+      }
+      console.log('  ✓ Updated training metrics');
+      */
     } catch (err: any) {
-      console.error('❌ Error creating community posts:', err);
-      throw new Error(`Failed to create community posts: ${err.message}`);
+      console.error('❌ Error creating trainings and progress:', err);
+      throw new Error(`Failed to create trainings and progress: ${err.message}`);
     }
     
-    // ------------------------------------------------------------------
-    // Create sample programs
-    // ------------------------------------------------------------------
+    // Create sample programs and requests
     try {
-      console.log('📝 Creating sample programs...');
-      
+      console.log('📝 Creating sample programs and requests...');
+      // Create sample programs
+      const sampleProgramRefs = [];
       const samplePrograms = [
         {
-          id: 'rescue-staff-try-on',
-          brandId: 'rescue',
-          name: 'Rescue Staff Try-On',
-          productName: 'Rescue Remedy Drops',
-          description: 'Experience Rescue Remedy firsthand to better recommend it to customers.',
-          unitsAvailable: 50,
+          brandId,
+          name: "Spring Wellness Sampler",
+          productName: "Calm Well Essentials Pack",
+          unitsAvailable: 100,
           startDate: new Date(),
           endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          createdBy: brandManagerRefs[0].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
         },
         {
-          id: 'spatone-trial-kit',
-          brandId: 'spatone',
-          name: 'Spatone Trial Kit',
-          productName: 'Spatone Liquid Iron',
-          description: 'Try Spatone liquid iron sachets to understand the taste and experience.',
-          unitsAvailable: 75,
+          brandId,
+          name: "Staff Education Program",
+          productName: "Sleep Support Kit",
+          unitsAvailable: 50,
           startDate: new Date(),
-          endDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // 45 days from now
+          endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
+          createdBy: brandManagerRefs[0].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
         }
       ];
       
       for (const program of samplePrograms) {
-        const brand = BRANDS.find(b => b.id === program.brandId);
-        if (!brand) continue;
-        
-        await setDoc(doc(db, 'sample_programs', program.id), {
-          ...program,
-          createdBy: BRAND_MANAGER_UIDS[brand.id],
-          createdAt: serverTimestamp(),
-          demoSeed: true
-        }, { merge: true });
-        
-        console.log(`  ✓ Created sample program: ${program.name} for ${brand.name}`);
+        const programRef = doc(collection(db, 'sample_programs'));
+        sampleProgramRefs.push({ id: programRef.id, name: program.name });
+        batch.set(programRef, program);
+        operationCount++;
       }
       results.sample_programs = samplePrograms.length;
+      console.log(`  ✓ Created ${samplePrograms.length} sample programs`);
       
-      // Create sample requests
+      // Create sample requests using staff user IDs
       const sampleRequests = [
         {
-          id: 'rescue-staff-try-on-request-1',
-          programId: 'rescue-staff-try-on',
-          brandId: 'rescue',
-          userId: STAFF_UIDS[0],
-          retailerId: RETAILERS[0].id,
-          quantity: 3,
-          status: 'approved',
-          notes: 'For staff education session',
+          programId: sampleProgramRefs[0].id,
+          brandId,
+          userId: staffRefs[0].id, // Staff A
+          retailerId: retailerRefs[0].id,
+          quantity: 5,
+          status: 'pending',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           demoSeed: true
         },
         {
-          id: 'spatone-trial-kit-request-1',
-          programId: 'spatone-trial-kit',
-          brandId: 'spatone',
-          userId: STAFF_UIDS[1],
-          retailerId: RETAILERS[1].id,
-          quantity: 5,
+          programId: sampleProgramRefs[0].id,
+          brandId,
+          userId: staffRefs[1].id, // Staff B
+          retailerId: retailerRefs[0].id,
+          quantity: 3,
+          status: 'approved',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          programId: sampleProgramRefs[1].id,
+          brandId,
+          userId: staffRefs[2].id, // Staff C
+          retailerId: retailerRefs[1].id,
+          quantity: 10,
           status: 'shipped',
-          notes: 'For wellness department demo',
+          notes: "Please deliver to store manager",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          programId: sampleProgramRefs[1].id,
+          brandId,
+          userId: staffRefs[3].id, // Staff D
+          retailerId: retailerRefs[1].id,
+          quantity: 2,
+          status: 'denied',
+          notes: "Exceeds store allocation",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          programId: sampleProgramRefs[0].id,
+          brandId,
+          userId: staffRefs[0].id, // Staff A (second request)
+          retailerId: retailerRefs[0].id,
+          quantity: 15,
+          status: 'shipped',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          programId: sampleProgramRefs[1].id,
+          brandId,
+          userId: staffRefs[1].id, // Staff B (second request)
+          retailerId: retailerRefs[0].id,
+          quantity: 8,
+          status: 'pending',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           demoSeed: true
@@ -764,16 +951,259 @@ export async function seedDemoData(
       ];
       
       for (const request of sampleRequests) {
-        await setDoc(doc(db, 'sample_requests', request.id), request, { merge: true });
-        console.log(`  ✓ Created sample request: ${request.id}`);
+        const requestRef = doc(collection(db, 'sample_requests'));
+        batch.set(requestRef, request);
+        operationCount++;
       }
       results.sample_requests = sampleRequests.length;
+      console.log(`  ✓ Created ${sampleRequests.length} sample requests`);
+      
+      // Commit batch if getting close to limit
+      if (operationCount > 350) {
+        console.log('  ⚡ Committing batch due to size limit...');
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+        console.log('  ✓ Batch committed successfully');
+      }
     } catch (err: any) {
       console.error('❌ Error creating sample programs and requests:', err);
       throw new Error(`Failed to create sample programs and requests: ${err.message}`);
     }
     
-    console.log('✅ All demo data created successfully!');
+    // Create announcements and communities
+    try {
+      console.log('📝 Creating announcements and communities...');
+      // Create announcements
+      const announcements = [
+        {
+          brandId,
+          title: "New Product Training Available",
+          message: "We've just released a new training module for our Sleep Support line. Complete it by the end of the month for special recognition!",
+          audience: ['staff'],
+          retailerIds: [retailerRefs[0].id], // Store-specific announcement
+          createdBy: brandManagerRefs[0].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          brandId,
+          title: "Upcoming Seasonal Promotion",
+          message: "Get ready for our spring wellness campaign! New promotional materials will be arriving next week. Please set up displays according to the planogram.",
+          audience: ['staff'],
+          // No retailerIds means this is for all retailers
+          createdBy: brandManagerRefs[0].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        }
+      ];
+      
+      for (const announcement of announcements) {
+        const announcementRef = doc(collection(db, 'announcements'));
+        batch.set(announcementRef, announcement);
+        operationCount++;
+      }
+      results.announcements = announcements.length;
+      console.log(`  ✓ Created ${announcements.length} announcements`);
+      
+      // Create communities
+      const communityRefs = [];
+      const communities = [
+        {
+          id: 'whats-good',
+          createdByRole: 'super_admin',
+          createdBy: currentUserUid,
+          name: "What's Good",
+          description: "Check out What's Good for the latest product drops and industry buzz!",
+          members: 2500,
+          isPublic: true,
+          requiresVerification: false,
+          hasEasterEggs: true,
+          badge: "🌟 Open to All",
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          id: 'supplement-scoop',
+          createdByRole: 'super_admin',
+          createdBy: currentUserUid,
+          name: 'Supplement Scoop',
+          description: "Stop guessing what supplements actually work and start getting insider intel from the pros who sell $10M+ in products every year.",
+          members: 850,
+          isPublic: false,
+          requiresVerification: true,
+          hasEasterEggs: false,
+          badge: "🔒 Verification Required",
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        }
+      ];
+      
+      for (const community of communities) {
+        const communityRef = doc(collection(db, 'communities'), community.id);
+        communityRefs.push({ id: communityRef.id, name: community.name });
+        // Ensure each community includes brandId
+        batch.set(communityRef, { ...community, brandId });
+        operationCount++;
+      }
+      results.communities = communities.length;
+      console.log(`  ✓ Created ${communities.length} communities`);
+      
+      /* ------------------------------------------------------------------
+       * TEMPORARILY DISABLED – community collections have permissions issues
+       * Enable once Firestore rules are finalized for:
+       *   • community_posts
+       *   • community_comments
+       *   • community_likes
+       * ------------------------------------------------------------------ */
+      /*
+      // Create community posts
+      const communityPosts = [
+        {
+          communityId: 'whats-good',
+          authorId: staffRefs[0].id,
+          authorName: staffData[0].displayName,
+          title: "Just tried the new Calm Well Sleep Formula",
+          content: "Has anyone else tried the new sleep formula? My customers are loving it and I'm seeing repeat purchases already!",
+          likes: 24,
+          comments: 8,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          communityId: 'whats-good',
+          authorId: staffRefs[1].id,
+          authorName: staffData[1].displayName,
+          title: "Upcoming Wellness Workshop Ideas",
+          content: "Our store is planning a series of wellness workshops for the fall. What topics have you found most engaging for customers?",
+          likes: 15,
+          comments: 12,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          communityId: 'supplement-scoop',
+          authorId: staffRefs[2].id,
+          authorName: staffData[2].displayName,
+          title: "Iron Supplement Comparison Chart",
+          content: "I've created a comparison chart of the top-selling iron supplements in our store, including absorption rates and customer feedback. Let me know if you'd like me to share it!",
+          likes: 32,
+          comments: 17,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        }
+      ];
+      
+      const postRefs = [];
+      for (const post of communityPosts) {
+        const postRef = doc(collection(db, 'community_posts'));
+        postRefs.push({ id: postRef.id, title: post.title });
+        batch.set(postRef, post);
+        operationCount++;
+      }
+      results.community_posts = communityPosts.length;
+      console.log(`  ✓ Created ${communityPosts.length} community posts`);
+      
+      // Create community comments
+      const communityComments = [
+        {
+          postId: postRefs[0].id,
+          authorId: staffRefs[2].id,
+          authorName: staffData[2].displayName,
+          content: "Yes! We've had great feedback too. Customers especially like that it doesn't leave them groggy in the morning.",
+          likes: 8,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          postId: postRefs[0].id,
+          authorId: staffRefs[3].id,
+          authorName: staffData[3].displayName,
+          content: "What dosage are you recommending for first-time users? We've been starting with half dose for sensitive customers.",
+          likes: 5,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          postId: postRefs[1].id,
+          authorId: staffRefs[0].id,
+          authorName: staffData[0].displayName,
+          content: "Stress management workshops have been very popular at our location. We also did a 'Supplements 101' session that filled up quickly!",
+          likes: 12,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          postId: postRefs[2].id,
+          authorId: staffRefs[1].id,
+          authorName: staffData[1].displayName,
+          content: "I'd love to see this! We're always looking for better ways to explain absorption differences to customers.",
+          likes: 9,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        }
+      ];
+      
+      for (const comment of communityComments) {
+        const commentRef = doc(collection(db, 'community_comments'));
+        batch.set(commentRef, comment);
+        operationCount++;
+      }
+      results.community_comments = communityComments.length;
+      console.log(`  ✓ Created ${communityComments.length} community comments`);
+      
+      // Create community likes
+      const communityLikes = [
+        {
+          postId: postRefs[0].id,
+          userId: staffRefs[1].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          postId: postRefs[0].id,
+          userId: staffRefs[2].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          postId: postRefs[1].id,
+          userId: staffRefs[0].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        },
+        {
+          postId: postRefs[2].id,
+          userId: staffRefs[3].id,
+          createdAt: serverTimestamp(),
+          demoSeed: true
+        }
+      ];
+      
+      for (const like of communityLikes) {
+        const likeRef = doc(collection(db, 'community_likes'));
+        batch.set(likeRef, like);
+        operationCount++;
+      }
+      results.community_likes = communityLikes.length;
+      console.log(`  ✓ Created ${communityLikes.length} community likes`);
+      */
+    } catch (err: any) {
+      console.error('❌ Error creating announcements and communities:', err);
+      throw new Error(`Failed to create announcements and communities: ${err.message}`);
+    }
+    
+    // Final commit
+    try {
+      console.log('📝 Committing final batch...');
+      await batch.commit();
+      console.log('✅ All demo data created successfully!');
+    } catch (err: any) {
+      console.error('❌ Error committing final batch:', err);
+      throw new Error(`Failed to commit final batch: ${err.message}`);
+    }
+    
+    // Return counts
     return { counts: results };
   } catch (error: any) {
     console.error("❌ Error seeding demo data:", error);
@@ -812,14 +1242,14 @@ export async function resetDemoData(): Promise<void> {
       'retailers',
       'users',
       'trainings',
-      'training_progress',
+      // 'training_progress', // TEMPORARILY DISABLED - permissions issue
       'sample_programs',
       'sample_requests',
       'announcements',
       'communities',
-      'community_posts',
-      'community_comments',
-      'community_likes'
+      // 'community_posts',    // TEMPORARILY DISABLED - permissions issue
+      // 'community_comments', // TEMPORARILY DISABLED - permissions issue
+      // 'community_likes'     // TEMPORARILY DISABLED - permissions issue
     ];
     
     for (const collectionName of collections) {

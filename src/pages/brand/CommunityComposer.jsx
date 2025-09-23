@@ -56,8 +56,12 @@ export default function CommunityComposer({ mode = 'create' }) {
         if (docSnap.exists()) {
           const postData = docSnap.data();
           
-          // Check if user is the author
-          if (postData.authorUid !== user.uid) {
+          // Check if user has authorization (author, legacy owner, or super_admin)
+          const unauthorized = postData.authorUid !== user.uid && 
+                               postData.userId !== user.uid && 
+                               user.role !== 'super_admin';
+          
+          if (unauthorized) {
             setUnauthorized(true);
             setLoading(false);
             return;
@@ -217,7 +221,11 @@ export default function CommunityComposer({ mode = 'create' }) {
         }
         
         const postData = postSnap.data();
-        if (postData.authorUid !== user.uid) {
+        const unauthorized = postData.authorUid !== user.uid && 
+                             postData.userId !== user.uid && 
+                             user.role !== 'super_admin';
+        
+        if (unauthorized) {
           setUnauthorized(true);
           setSaving(false);
           return;
