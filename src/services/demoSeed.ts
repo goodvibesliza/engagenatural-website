@@ -93,9 +93,16 @@ async function testFirestorePermissions(uid: string): Promise<boolean> {
 }
 
 /**
- * Creates Firebase Auth accounts for demo users
- * @param users Array of user objects with email, password, and displayName
- * @returns Promise with array of created user records (uid, email, displayName)
+ * Create or verify Firebase Auth accounts for demo users using a secondary "seed" Auth instance.
+ *
+ * Attempts to create each account with the secondary Auth instance (so the primary/super_admin session is preserved).
+ * If creation fails, it attempts to sign in with the provided credentials. On password mismatch it assigns a
+ * deterministic placeholder UID so the overall seed flow can continue. When running on localhost the secondary
+ * Auth instance will be connected to the local emulator if available. The function returns a list of created or
+ * resolved user records and does not change the primary application's signed-in session.
+ *
+ * @param users - Array of user objects each containing `email`, `password`, and `displayName`.
+ * @returns Promise that resolves to an array of user records `{ uid, email, displayName }` for created or verified accounts.
  */
 async function createDemoAuthAccounts(
   users: { email: string; password: string; displayName: string }[]
@@ -234,10 +241,18 @@ async function createDemoAuthAccounts(
 }
 
 /**
- * Seeds the database with demo data for testing and development
- * @param currentUserUid The UID of the current user (super_admin) creating the demo data
- * @param opts Optional parameters for using existing UIDs instead of creating placeholders
- * @returns Promise with counts of created items
+ * Seed Firestore with comprehensive demo data used for local testing and development.
+ *
+ * This creates deterministic demo entities (brand, retailers, users, trainings, sample programs/requests,
+ * announcements, and communities) and writes them in idempotent/batched operations. The function verifies
+ * Firestore write/delete permissions before seeding and uses deterministic IDs for key demo resources.
+ *
+ * @param currentUserUid - UID of the super_admin performing the seed; used as owners/creators on seeded docs.
+ * @param opts - Optional overrides to reuse existing UIDs instead of generating placeholders:
+ *   - brandManagerUid: reuse this UID for the brand manager user document
+ *   - staffUids: array of UIDs to assign to staff users (matched by index)
+ * @returns An object with a `counts` record summarizing how many items of each type were created.
+ * @throws If Firestore (`db`) is not initialized, if permission checks fail, or if any critical write/commit operation fails.
  */
 export async function seedDemoData(
   currentUserUid: string, 
@@ -1000,8 +1015,15 @@ export async function resetDemoData(): Promise<void> {
 }
 
 /**
- * Helper function to delete all demo documents in a collection
- * @param collectionName Name of the collection to delete documents from
+ * Delete all documents in the given collection that were marked as demo seed data.
+ *
+ * Queries the collection for documents where `demoSeed === true` and deletes them using
+ * Firestore batched writes. Deletes are grouped into batches of up to 400 operations and
+ * committed (commits run in parallel via Promise.all). If no demo documents are found the
+ * function returns without performing any writes.
+ *
+ * @param collectionName - The Firestore collection name to scan for `demoSeed` documents.
+ * @throws If querying or committing deletions fails, the original error is rethrown.
  */
 async function deleteCollectionDocs(collectionName: string): Promise<void> {
   const collectionRef = collection(db, collectionName);
