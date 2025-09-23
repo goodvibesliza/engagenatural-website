@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import {
@@ -19,7 +19,6 @@ import { db } from '../../../lib/firebase';
 export default function MyBrandsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const useEmulator = import.meta.env.VITE_USE_EMULATOR === 'true';
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +34,7 @@ export default function MyBrandsPage() {
   const [pendingFollowIds, setPendingFollowIds] = useState(new Set());
   
   // Refs for cleanup
+  const followsUnsubRef = useRef(null);
   const detailsUnsubRefs = useRef({});
 
   // Load initial brands and handle search
@@ -63,47 +63,29 @@ export default function MyBrandsPage() {
             )
           : brandsData;
         
-        // De-duplicate brands by id or name (case-insensitive)
-        const seenKeys = new Set();
-        const dedupedBrands = filteredBrands.filter(brand => {
-          const key = (brand.id || brand.name || '').toLowerCase();
-          if (seenKeys.has(key)) return false;
-          seenKeys.add(key);
-          return true;
-        });
-        
-        // Create inline SVG data URI for logos
-        const inlineLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-size='12'>CWC</text></svg>";
-        
-        // Check if we need to add the example brand
-        const hasExampleBrand = dedupedBrands.some(b => 
-          b.id?.toLowerCase() === 'calm-well-co' || 
-          b.name?.toLowerCase() === 'calm well co'
-        );
-        
+        // Always ensure we have at least the example brand
+        const hasExampleBrand = filteredBrands.some(b => b.id === 'calm-well-co');
         if (!hasExampleBrand) {
-          dedupedBrands.push({
+          filteredBrands.push({
             id: 'calm-well-co',
             name: 'Calm Well Co',
             description: 'Natural wellness and CBD products',
             category: 'Wellness',
-            logo: inlineLogo,
+            logo: 'https://via.placeholder.com/100?text=CWC',
             isExample: true
           });
         }
         
-        setBrands(dedupedBrands);
+        setBrands(filteredBrands);
       } catch (err) {
         console.error('Error loading brands:', err);
         // Fallback to example brand if error
-        const inlineLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-size='12'>CWC</text></svg>";
-        
         setBrands([{
           id: 'calm-well-co',
           name: 'Calm Well Co',
           description: 'Natural wellness and CBD products',
           category: 'Wellness',
-          logo: inlineLogo,
+          logo: 'https://via.placeholder.com/100?text=CWC',
           isExample: true
         }]);
       } finally {
@@ -124,21 +106,22 @@ export default function MyBrandsPage() {
       where('userId', '==', user.uid)
     );
     
-    const loadFollows = async () => {
-      try {
-        const snapshot = await getDocs(followsQuery);
-        const followsData = snapshot.docs.map(d => d.data());
+    followsUnsubRef.current = onSnapshot(
+      followsQuery,
+      (snapshot) => {
+        const followsData = snapshot.docs.map(doc => doc.data());
         setFollows(followsData);
-      } catch (err) {
+      },
+      (err) => {
         console.error('Error loading follows:', err);
         setFollows([]);
       }
-    };
-    
-    loadFollows();
+    );
     
     return () => {
-      // No-op cleanup since we're not using a listener
+      if (followsUnsubRef.current) {
+        followsUnsubRef.current();
+      }
     };
   }, [user]);
   
@@ -177,17 +160,105 @@ export default function MyBrandsPage() {
       const communitiesQuery = query(
         collection(db, 'communities'),
         where('brandId', '==', brandId),
-        // must satisfy security rules: only public & active communities
         where('isPublic', '==', true),
-        where('isActive', '==', true),
         limit(5)
       );
+
+      /* -------------------------------------------
+         Communities (top-level + brand-scoped merge)
+      --------------------------------------------*/
+
+      // Local caches for merge
+      let topCommunities = [];
+      let nestedCommunities = [];
+
+      // Helper to merge, dedupe, sort and update state
+      const mergeAndSet = () => {
+        const map = new Map();
+        [...topCommunities, ...nestedCommunities].forEach((c) => {
+          map.set(c.id, c);
+        });
+        const merged = Array.from(map.values()).sort((a, b) => {
+          const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : a.createdAt || new Date(0);
+          const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : b.createdAt || new Date(0);
+          return bDate - aDate;
+        }).slice(0, 5);
+
+        setFollowingDetails((prev) => ({
+          ...prev,
+          [brandId]: {
+            ...prev[brandId],
+            communities: merged,
+          },
+        }));
+      };
+
+      // Top-level communities listener
+      detailsUnsubRefs.current[brandId].communities = onSnapshot(
+        communitiesQuery,
+        (snapshot) => {
+          topCommunities = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          mergeAndSet();
+        },
+        (err) => {
+          console.error(`Error loading communities for ${brandId}:`, err);
+        }
+      );
+
+      // Brand-scoped communities listener
+      const brandScopedCommunitiesQuery = query(
+        collection(db, 'brands', brandId, 'communities'),
+        limit(5)
+      );
+
+      /* -----------------------------------------------------------
+         Use one-time fetch to avoid rapid subscribe/unsubscribe
+         triggering Firestore internal assertions
+      ----------------------------------------------------------- */
+      detailsUnsubRefs.current[brandId].communitiesScoped = () => {};
+
+      getDocs(brandScopedCommunitiesQuery)
+        .then((snapshot) => {
+          nestedCommunities = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          mergeAndSet();
+        })
+        .catch((err) => {
+          console.error(`Error loading scoped communities for ${brandId}:`, err);
+        });
       
       // Get trainings
       const trainingsQuery = query(
         collection(db, 'trainings'),
         where('brandId', '==', brandId),
+        where('published', '==', true),
         limit(5)
+      );
+      
+      detailsUnsubRefs.current[brandId].trainings = onSnapshot(
+        trainingsQuery,
+        (snapshot) => {
+          const trainingsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          setFollowingDetails(prev => ({
+            ...prev,
+            [brandId]: {
+              ...prev[brandId],
+              trainings: trainingsData
+            }
+          }));
+        },
+        (err) => {
+          console.error(`Error loading trainings for ${brandId}:`, err);
+        }
       );
       
       // Get challenges
@@ -197,127 +268,35 @@ export default function MyBrandsPage() {
         limit(5)
       );
       
-      if (useEmulator) {
-        // Use Promise.all to fetch all data in parallel
-        (async () => {
-          try {
-            const [comSnap, trSnap, chSnap] = await Promise.all([
-              getDocs(communitiesQuery),
-              getDocs(trainingsQuery),
-              getDocs(challengesQuery)
-            ]);
-            
-            const communitiesData = comSnap.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            
-            const trainingsData = trSnap.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            })).filter(t => t.published !== false); // keep if published missing or true
-            
-            const challengesData = chSnap.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            
-            // Update state once with all data
-            setFollowingDetails(prev => ({
-              ...prev,
-              [brandId]: {
-                ...prev[brandId],
-                communities: communitiesData,
-                trainings: trainingsData,
-                challenges: challengesData,
-                loading: false
-              }
-            }));
-          } catch (err) {
-            console.error(`Error loading data for brand ${brandId}:`, err);
-            // Set loading to false even on error
-            setFollowingDetails(prev => ({
-              ...prev,
-              [brandId]: {
-                ...prev[brandId],
-                loading: false
-              }
-            }));
-          }
-        })();
-      } else {
-        detailsUnsubRefs.current[brandId].communities = onSnapshot(
-          communitiesQuery,
-          (snapshot) => {
-            const communitiesData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            
-            setFollowingDetails(prev => ({
-              ...prev,
-              [brandId]: {
-                ...prev[brandId],
-                communities: communitiesData
-              }
-            }));
-          },
-          (err) => {
-            console.error(`Error loading communities for ${brandId}:`, err);
-          }
-        );
-        
-        detailsUnsubRefs.current[brandId].trainings = onSnapshot(
-          trainingsQuery,
-          (snapshot) => {
-            const trainingsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            })).filter(t => t.published !== false); // keep if published missing or true
-            
-            setFollowingDetails(prev => ({
-              ...prev,
-              [brandId]: {
-                ...prev[brandId],
-                trainings: trainingsData
-              }
-            }));
-          },
-          (err) => {
-            console.error(`Error loading trainings for ${brandId}:`, err);
-          }
-        );
-        
-        detailsUnsubRefs.current[brandId].challenges = onSnapshot(
-          challengesQuery,
-          (snapshot) => {
-            const challengesData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            
-            setFollowingDetails(prev => ({
-              ...prev,
-              [brandId]: {
-                ...prev[brandId],
-                challenges: challengesData,
-                loading: false
-              }
-            }));
-          },
-          (err) => {
-            console.error(`Error loading challenges for ${brandId}:`, err);
-            // Still mark as loaded even if there was an error
-            setFollowingDetails(prev => ({
-              ...prev,
-              [brandId]: {
-                ...prev[brandId],
-                loading: false
-              }
-            }));
-          }
-        );
-      }
+      detailsUnsubRefs.current[brandId].challenges = onSnapshot(
+        challengesQuery,
+        (snapshot) => {
+          const challengesData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          setFollowingDetails(prev => ({
+            ...prev,
+            [brandId]: {
+              ...prev[brandId],
+              challenges: challengesData,
+              loading: false
+            }
+          }));
+        },
+        (err) => {
+          console.error(`Error loading challenges for ${brandId}:`, err);
+          // Still mark as loaded even if there was an error
+          setFollowingDetails(prev => ({
+            ...prev,
+            [brandId]: {
+              ...prev[brandId],
+              loading: false
+            }
+          }));
+        }
+      );
     });
     
     return () => {
@@ -330,7 +309,7 @@ export default function MyBrandsPage() {
         });
       });
     };
-  }, [follows, useEmulator]);
+  }, [follows]);
   
   // Follow brand with optimistic updates
   const followBrand = async (brand) => {
@@ -477,8 +456,7 @@ export default function MyBrandsPage() {
                       className="w-12 h-12 object-contain rounded mr-3"
                       onError={(e) => {
                         e.target.onerror = null;
-                        const inlineLogo = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-size='12'>CWC</text></svg>";
-                        e.target.src = inlineLogo;
+                        e.target.src = 'https://via.placeholder.com/48?text=Logo';
                       }}
                     />
                   ) : (

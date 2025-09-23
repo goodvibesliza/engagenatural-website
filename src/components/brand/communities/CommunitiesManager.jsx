@@ -17,6 +17,7 @@ import {
   limit
 } from "firebase/firestore";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 // UI Components
 import {
@@ -93,6 +94,8 @@ export default function CommunitiesManager({ brandId }) {
   const [postsLoading, setPostsLoading] = useState(false);
   const postsUnsubRef = useRef(null);
   const [viewerPostContent, setViewerPostContent] = useState("");
+  // track post deletion
+  const [deletingPostId, setDeletingPostId] = useState(null);
   
   // Add state for tracking user display names
   const [userNames, setUserNames] = useState({});
@@ -100,6 +103,24 @@ export default function CommunitiesManager({ brandId }) {
   // Add state for community metrics
   const [communityMetrics, setCommunityMetrics] = useState({ totalPosts: 0, totalComments: 0, totalLikes: 0 });
   const commentsUnsubRef = useRef(null);
+
+  /* ---------- helpers ---------- */
+  const navigate = useNavigate();
+  const canManagePost = (p) =>
+    isSuperAdmin || p.authorUid === user?.uid || p.userId === user?.uid;
+  const handleEditPost = (id) =>
+    navigate(`/brand/community/${id}/edit`);
+  const handleDeletePost = async (id) => {
+    if (!id) return;
+    try {
+      setDeletingPostId(id);
+      await deleteDoc(doc(db, "community_posts", id));
+    } catch (err) {
+      toast.error("Failed to delete post");
+    } finally {
+      setDeletingPostId(null);
+    }
+  };
 
   // Fetch communities for the brand
   useEffect(() => {
@@ -250,6 +271,7 @@ export default function CommunitiesManager({ brandId }) {
       await addDoc(collection(db, "community_posts"), {
         brandId: activeBrandId,
         communityId: postCommunity.id,
+        authorUid: user?.uid || null,          // NEW: explicit author field
         userId: user?.uid || null,
         userName: user?.name || user?.displayName || user?.email || 'Anonymous',
         content: postContent.trim(),
@@ -399,6 +421,7 @@ export default function CommunitiesManager({ brandId }) {
       await addDoc(collection(db, 'community_posts'), {
         brandId: activeBrandId,
         communityId: selectedCommunity.id,
+        authorUid: user?.uid || null,          // NEW: explicit author field
         userId: user?.uid || null,
         userName: user?.name || user?.displayName || user?.email || 'Anonymous',
         content: viewerPostContent.trim(),
@@ -436,7 +459,8 @@ export default function CommunitiesManager({ brandId }) {
       status: "draft",
       memberCount: 0,
       image: "",
-      brandId: brandId || user?.brandId || ""
+      brandId: brandId || user?.brandId || "",
+      isPublic: true
     });
     setIsEditing(false);
     setDialogOpen(true);
@@ -459,7 +483,8 @@ export default function CommunitiesManager({ brandId }) {
       status: community.status || "draft",
       memberCount: community.memberCount || 0,
       image: community.image || "",
-      brandId: community.brandId || brandId || user?.brandId || ""
+      brandId: community.brandId || brandId || user?.brandId || "",
+      isPublic: community.isPublic ?? true
     });
     setIsEditing(true);
     setDialogOpen(true);
@@ -488,7 +513,8 @@ export default function CommunitiesManager({ brandId }) {
         createdBy: user?.uid || null,
         createdByRole: isSuperAdmin ? "super_admin" : "brand_manager",
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        isPublic: true
       };
       
       await addDoc(collection(db, "communities"), newCommunity);
@@ -516,7 +542,8 @@ export default function CommunitiesManager({ brandId }) {
       
       const updatedData = {
         ...formData,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        isPublic: formData.isPublic ?? true
       };
       
       await updateDoc(communityRef, updatedData);
@@ -768,6 +795,23 @@ export default function CommunitiesManager({ brandId }) {
                         <span className="font-medium">{p.userName || userNames[p.userId] || 'Anonymous'}</span> · {new Date((p.createdAt?.seconds||0)*1000).toLocaleString()}
                       </div>
                       <div className="whitespace-pre-wrap">{p.content}</div>
+                      {canManagePost(p) && (
+                        <div className="mt-2 flex gap-3">
+                          <button
+                            onClick={() => handleEditPost(p.id)}
+                            className="text-blue-600 hover:underline text-xs"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePost(p.id)}
+                            disabled={deletingPostId === p.id}
+                            className="text-red-600 hover:underline text-xs"
+                          >
+                            {deletingPostId === p.id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
