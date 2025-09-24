@@ -149,6 +149,36 @@ export default function PostDetail() {
     };
   }, [postId]);
 
+  // Keep liked marker in sync with auth changes
+  useEffect(() => {
+    let cancelled = false;
+    async function refreshLiked() {
+      if (!postId) return;
+      // On logout, clear liked state immediately
+      if (!user?.uid) {
+        setLiked(false);
+        setLikeIds((prev) => (prev.includes('me') ? prev.filter((v) => v !== 'me') : prev));
+        return;
+      }
+      try {
+        const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
+        const likeDoc = await getDoc(likeRef);
+        if (cancelled) return;
+        setLiked(likeDoc.exists());
+        setLikeIds((prev) => {
+          const hasMe = prev.includes('me');
+          if (likeDoc.exists() && !hasMe) return [...prev, 'me'];
+          if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
+          return prev;
+        });
+      } catch {}
+    }
+    refreshLiked();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, postId]);
+
   const handleLike = async () => {
     if (!post) return;
     setLikeError('');
