@@ -35,9 +35,12 @@ export default function PostDetail() {
 
   const { user } = useAuth();
 
+  // Focus the heading after content is loaded and rendered
   useEffect(() => {
-    if (headingRef.current) headingRef.current.focus();
-  }, []);
+    if (!loading && post && headingRef.current) {
+      headingRef.current.focus();
+    }
+  }, [loading, post]);
 
   // initial load
   useEffect(() => {
