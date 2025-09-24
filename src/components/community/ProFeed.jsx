@@ -4,10 +4,11 @@ import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import ProGate from './ProGate';
 
-const proStubPosts = [
+export const PRO_STUBS = [
   {
     id: 'pro-001',
     brand: 'All',
+    tags: ['strategy','growth'],
     content:
       "Q4 strategic review: 23% growth in organic lines. Plan educational content around ingredient sourcing.",
     author: { name: 'Alexandra Reid', role: 'Product Strategy', verified: true },
@@ -17,6 +18,7 @@ const proStubPosts = [
   {
     id: 'pro-002',
     brand: 'Botanical Co',
+    tags: ['competition','training'],
     content:
       "Competitor analysis complete. Strong digital, weaker in-store. Double down on training + education.",
     author: { name: 'James Wilson', role: 'Market Research', verified: true },
@@ -36,7 +38,14 @@ function readDevOverride() {
   }
 }
 
-export default function ProFeed({ search = '', brand = 'All', onRequestVerify }) {
+export default function ProFeed({
+  query = '',
+  search = '', // backward compat
+  brand = 'All', // backward compat
+  selectedBrands = [],
+  selectedTags = [],
+  onRequestVerify,
+}) {
   const { isVerified, hasRole } = useAuth();
 
   // Real computed value for staff verification
@@ -60,11 +69,14 @@ export default function ProFeed({ search = '', brand = 'All', onRequestVerify })
 
   if (!isVerifiedStaff) return <ProGate onRequestVerify={onRequestVerify} />;
 
-  const q = search.trim().toLowerCase();
-  const filtered = proStubPosts.filter((p) => {
-    const okBrand = brand === 'All' || p.brand === brand;
-    if (!q) return okBrand;
-    return okBrand && (p.content.toLowerCase().includes(q) || p.author.name.toLowerCase().includes(q));
+  const q = (query || search).trim().toLowerCase();
+  const filtered = PRO_STUBS.filter((p) => {
+    const okText = !q || (p.content?.toLowerCase().includes(q) || p.author?.name?.toLowerCase().includes(q));
+    const brandList = selectedBrands.length > 0 ? selectedBrands : (brand && brand !== 'All' ? [brand] : []);
+    const okBrand = brandList.length === 0 || brandList.includes(p.brand || '');
+    const tags = Array.isArray(p.tags) ? p.tags : [];
+    const okTags = selectedTags.length === 0 || tags.some((t) => selectedTags.includes(t));
+    return okText && okBrand && okTags;
   });
 
   return (
