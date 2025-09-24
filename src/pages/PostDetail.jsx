@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
 import { db } from '../lib/firebase';
+import { useAuth } from '../contexts/auth-context';
 import {
   collection,
   doc,
@@ -22,11 +23,13 @@ export default function PostDetail() {
 
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState(null);
-  const [likeCount, setLikeCount] = useState(0);
-  const [commentCount, setCommentCount] = useState(0);
+  const [likeIds, setLikeIds] = useState([]); // derive counts from arrays
   const [liked, setLiked] = useState(false);
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState([]); // [{id,text,createdAt,status?:'pending'|'error'|'ok'}]
   const [newComment, setNewComment] = useState('');
+  const [likeError, setLikeError] = useState('');
+
+  const { user } = useAuth();
 
   useEffect(() => {
     if (headingRef.current) headingRef.current.focus();
@@ -54,8 +57,7 @@ export default function PostDetail() {
           };
           if (!cancelled) {
             setPost(mapped);
-            setLikeCount(0);
-            setCommentCount(0);
+            setLikeIds([]);
             setComments([]);
           }
         } else {
@@ -84,8 +86,9 @@ export default function PostDetail() {
               getCountFromServer(commentsQ),
             ]);
             if (!cancelled) {
-              setLikeCount(likesSnap.data().count || 0);
-              setCommentCount(commentsSnap.data().count || 0);
+              const likeCount = likesSnap.data().count || 0;
+              // Initialize likeIds as placeholders to derive count; ensure 'me' present if likedByMe resolves true later
+              setLikeIds(Array.from({ length: likeCount }, (_, i) => `x${i}`));
             }
 
             const recentQ = query(
@@ -95,8 +98,26 @@ export default function PostDetail() {
             );
             const recentSnap = await getDocs(recentQ);
             if (!cancelled) {
-              setComments(recentSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+              setComments(recentSnap.docs.map((d) => ({ id: d.id, status: 'ok', ...d.data() })));
             }
+
+            // Determine if current user liked this post already
+            try {
+              if (user?.uid) {
+                const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
+                const likeDoc = await getDoc(likeRef);
+                if (!cancelled) {
+                  setLiked(likeDoc.exists());
+                  // Ensure local likeIds includes 'me' token when liked
+                  setLikeIds((prev) => {
+                    const hasMe = prev.includes('me');
+                    if (likeDoc.exists() && !hasMe) return [...prev, 'me'];
+                    if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
+                    return prev;
+                  });
+                }
+              }
+            } catch {}
           } else if (!cancelled) {
             setPost(null);
           }
@@ -115,26 +136,118 @@ export default function PostDetail() {
     };
   }, [postId]);
 
-  const handleLike = () => {
-    // Optimistic toggle (persistence handled in next step)
-    setLiked((prev) => !prev);
-    setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
+  const handleLike = async () => {
+    if (!post) return;
+    setLikeError('');
+    const wasLiked = liked;
+    // Optimistic
+    setLiked(!wasLiked);
+    setLikeIds((prev) => {
+      const hasMe = prev.includes('me');
+      if (wasLiked) {
+        // remove
+        return hasMe ? prev.filter((v) => v !== 'me') : prev.slice(0, Math.max(0, prev.length - 1));
+      } else {
+        // add
+        return hasMe ? prev : [...prev, 'me'];
+      }
+    });
+
+    // Persist via Firestore if available; revert on failure
+    try {
+      if (db && user?.uid) {
+        const likeRef = doc(db, 'post_likes', `${post.id}_${user.uid}`);
+        const likeDoc = await getDoc(likeRef);
+        if (likeDoc.exists()) {
+          // was liked in server; if we are unliking
+          if (wasLiked) {
+            // unlike
+            const { deleteDoc } = await import('firebase/firestore');
+            await deleteDoc(likeRef);
+          } else {
+            // already liked on server but local thought not; ensure consistency (no-op)
+          }
+        } else {
+          // not liked on server; if we are liking
+          if (!wasLiked) {
+            const { setDoc, serverTimestamp } = await import('firebase/firestore');
+            await setDoc(likeRef, { postId: post.id, userId: user.uid, createdAt: serverTimestamp() });
+          } else {
+            // already unliked on server but local thought liked; no-op
+          }
+        }
+      }
+    } catch (e) {
+      // Revert and show error
+      setLiked(wasLiked);
+      setLikeIds((prev) => {
+        const hasMe = prev.includes('me');
+        if (wasLiked) {
+          // revert to liked → ensure 'me'
+          return hasMe ? prev : [...prev, 'me'];
+        } else {
+          // revert to unliked → remove 'me'
+          return hasMe ? prev.filter((v) => v !== 'me') : prev.slice(0, Math.max(0, prev.length - 1));
+        }
+      });
+      setLikeError('Could not update like. Please try again.');
+    }
   };
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     const text = newComment.trim();
     if (!text) return;
-    // Optimistic add (persistence handled in next step)
+    // Optimistic add; replace on success, mark error on failure
     const now = new Date();
     const optimistic = {
       id: `local-${now.getTime()}`,
       text,
       createdAt: now,
       userRole: 'you',
+      status: 'pending',
     };
     setComments((prev) => [...prev, optimistic]);
-    setCommentCount((c) => c + 1);
     setNewComment('');
+    if (!db || !user?.uid) {
+      // no backend available → mark as ok
+      setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'ok' } : c)));
+      return;
+    }
+    try {
+      const { addDoc, serverTimestamp } = await import('firebase/firestore');
+      const ref = await addDoc(collection(db, 'community_comments'), {
+        postId: post.id,
+        communityId: post.communityId || 'whats-good',
+        brandId: post.brandId || null,
+        userId: user.uid,
+        userRole: user.role || 'user',
+        text,
+        createdAt: serverTimestamp(),
+      });
+      setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, id: ref.id, status: 'ok' } : c)));
+    } catch (e) {
+      setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
+    }
+  };
+
+  const retrySendComment = async (cmt) => {
+    if (!cmt || cmt.status !== 'error') return;
+    setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'pending' } : c)));
+    try {
+      const { addDoc, serverTimestamp } = await import('firebase/firestore');
+      const ref = await addDoc(collection(db, 'community_comments'), {
+        postId: post.id,
+        communityId: post.communityId || 'whats-good',
+        brandId: post.brandId || null,
+        userId: user.uid,
+        userRole: user.role || 'user',
+        text: cmt.text,
+        createdAt: serverTimestamp(),
+      });
+      setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, id: ref.id, status: 'ok' } : c)));
+    } catch (e) {
+      setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'error' } : c)));
+    }
   };
 
   if (loading) {
@@ -224,23 +337,26 @@ export default function PostDetail() {
               className={`inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border text-sm transition-colors ${
                 liked ? 'border-rose-500 text-rose-600 bg-rose-50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
-              aria-label={liked ? `Unlike post (${likeCount} likes)` : `Like post (${likeCount} likes)`}
+              aria-label={liked ? `Unlike post (${likeIds.length} likes)` : `Like post (${likeIds.length} likes)`}
             >
               <span className="mr-1" aria-hidden>
                 {liked ? '❤️' : '🤍'}
               </span>
               <span>Like</span>
-              <span className="ml-2 text-gray-500">{likeCount}</span>
+              <span className="ml-2 text-gray-500">{likeIds.length}</span>
             </button>
+            {likeError && (
+              <span className="text-xs text-red-600">{likeError}</span>
+            )}
 
             <a
               href="#comment"
               className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-              aria-label={`Jump to comments (${commentCount} comments)`}
+              aria-label={`Jump to comments (${comments.length} comments)`}
             >
               <span className="mr-1" aria-hidden>💬</span>
               <span>Comment</span>
-              <span className="ml-2 text-gray-500">{commentCount}</span>
+              <span className="ml-2 text-gray-500">{comments.length}</span>
             </a>
           </footer>
         </article>
@@ -263,6 +379,21 @@ export default function PostDetail() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-gray-800">{c.text}</p>
+                  {c.status === 'error' && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-red-600">
+                      <span>Failed to send.</span>
+                      <button
+                        type="button"
+                        onClick={() => retrySendComment(c)}
+                        className="underline text-red-700 hover:text-red-800"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                  {c.status === 'pending' && (
+                    <div className="mt-2 text-xs text-gray-500">Sending…</div>
+                  )}
                 </li>
               ))}
             </ul>
