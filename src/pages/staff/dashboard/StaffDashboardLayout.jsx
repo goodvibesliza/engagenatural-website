@@ -131,16 +131,30 @@ export default function StaffDashboardLayout() {
               <ul className="flex flex-row md:flex-col space-y-0 space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto md:overflow-x-visible">
                 <li>
                   <NavLink
-                    to="/staff/profile"
+                    to="/staff/communities"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive
-                          ? 'bg-brand-primary text-white'
-                          : 'text-gray-700 hover:bg-gray-50'
+                          ? 'bg-sage-green/10 text-deep-moss'
+                          : 'text-warm-gray hover:text-deep-moss hover:bg-oat-beige'
                       }`
                     }
                   >
-                    Profile
+                    Communities
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/community/whats-good"
+                    className={({ isActive }) =>
+                      `block px-4 py-2 rounded-md transition-colors ${
+                        isActive
+                          ? 'bg-sage-green/10 text-deep-moss'
+                          : 'text-warm-gray hover:text-deep-moss hover:bg-oat-beige'
+                      }`
+                    }
+                  >
+                    Community (New)
                   </NavLink>
                 </li>
                 <li>
