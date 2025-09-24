@@ -1,5 +1,8 @@
 // src/components/community/WhatsGoodFeed.jsx
+import { useEffect, useState } from 'react';
 import PostCard from './PostCard';
+import SkeletonPostCard from './SkeletonPostCard';
+import ErrorBanner from './ErrorBanner';
 
 export const WHATS_GOOD_STUBS = [
   {
@@ -36,8 +39,15 @@ export default function WhatsGoodFeed({
   search = '', // backward compat
   brand = 'All', // backward compat
   selectedBrands = [],
-  selectedTags = []
+  selectedTags = [],
+  onStartPost,
 }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setLoading(false), 0); // ensure <150ms skeleton
+    return () => clearTimeout(id);
+  }, []);
   const q = (query || search).trim().toLowerCase();
   const filtered = WHATS_GOOD_STUBS.filter((p) => {
     // Text query against content and author name (and optional title if exists)
@@ -55,14 +65,52 @@ export default function WhatsGoodFeed({
     return okText && okBrand && okTags;
   });
 
+  if (loading) {
+    return (
+      <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="space-y-4">
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+      </div>
+    );
+  }
+
+  // Empty state
   if (filtered.length === 0) {
     return (
-      <div className="text-sm text-warm-gray py-8 text-center">No posts match your filters yet.</div>
+      <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="space-y-3 text-center py-10">
+        {error && (
+          <div className="max-w-md mx-auto">
+            <ErrorBanner message={error} onDismiss={() => setError('')} />
+          </div>
+        )}
+        <div className="text-gray-900 font-medium">Fresh space. No posts yet.</div>
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              if (onStartPost) return onStartPost();
+              try {
+                window.history.pushState({}, '', '/staff/communities');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              } catch {}
+            }}
+            className="mt-2 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md bg-deep-moss text-white text-sm hover:bg-sage-dark"
+          >
+            Start a post
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
     <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="space-y-4">
+      {error && (
+        <div className="max-w-md mx-auto">
+          <ErrorBanner message={error} onDismiss={() => setError('')} />
+        </div>
+      )}
       {filtered.map((post) => (
         <PostCard key={post.id} post={post} />
       ))}

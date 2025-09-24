@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import ProGate from './ProGate';
+import SkeletonPostCard from './SkeletonPostCard';
+import ErrorBanner from './ErrorBanner';
 
 export const PRO_STUBS = [
   {
@@ -69,6 +71,14 @@ export default function ProFeed({
 
   if (!isVerifiedStaff) return <ProGate onRequestVerify={onRequestVerify} />;
 
+  // Simulated loading window to render skeletons within 150ms
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setLoading(false), 0);
+    return () => clearTimeout(id);
+  }, []);
+
   const q = (query || search).trim().toLowerCase();
   const filtered = PRO_STUBS.filter((p) => {
     const okText = !q || (p.content?.toLowerCase().includes(q) || p.author?.name?.toLowerCase().includes(q));
@@ -79,8 +89,36 @@ export default function ProFeed({
     return okText && okBrand && okTags;
   });
 
+  if (loading) {
+    return (
+      <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="space-y-4">
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+      </div>
+    );
+  }
+
+  if (filtered.length === 0) {
+    return (
+      <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="space-y-3 text-center py-10">
+        {error && (
+          <div className="max-w-md mx-auto">
+            <ErrorBanner message={error} onDismiss={() => setError('')} />
+          </div>
+        )}
+        <div className="text-gray-900 font-medium">No pro posts yet. Check back soon.</div>
+      </div>
+    );
+  }
+
   return (
     <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="space-y-4">
+      {error && (
+        <div className="max-w-md mx-auto">
+          <ErrorBanner message={error} onDismiss={() => setError('')} />
+        </div>
+      )}
       {filtered.map((post) => (
         <div key={post.id}>
           {post.isPinned && (
