@@ -1,125 +1,115 @@
 // src/components/community/PostCard.jsx
-import { useState, useMemo } from 'react';
-import { Heart, MessageCircle, Share2, MoreHorizontal } from 'lucide-react';
-import { trackCommunityInteraction } from '../../services/analytics';
+import React from 'react';
 
-const PostCard = ({ post, variant = 'default' }) => {
-  const [liked, setLiked] = useState(false);
-  const [showComments, setShowComments] = useState(false);
+function formatRelativeTime(input) {
+  try {
+    let d = input;
+    if (!d) return '';
+    if (typeof d?.toDate === 'function') d = d.toDate();
+    if (typeof d === 'number') d = new Date(d);
+    if (typeof d === 'string') {
+      const parsed = new Date(d);
+      if (!isNaN(parsed)) d = parsed;
+    }
+    if (!(d instanceof Date)) return String(input || '');
+    const diff = Date.now() - d.getTime();
+    const s = Math.max(1, Math.floor(diff / 1000));
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const days = Math.floor(h / 24);
+    if (days < 7) return `${days}d ago`;
+    return d.toLocaleDateString();
+  } catch {
+    return '';
+  }
+}
 
-  // Derive counts on the client (no stored counters)
-  const likeCount = useMemo(() => {
-    const baseCount = parseInt(post.id?.slice(-1) || '0') || 1;
-    return baseCount * 3 + (liked ? 1 : 0);
-  }, [post.id, liked]);
-
-  const commentCount = useMemo(() => {
-    const baseCount = parseInt(post.id?.slice(-2, -1) || '0') || 0;
-    return baseCount * 2;
-  }, [post.id]);
-
-  const handleLike = () => {
-    setLiked(!liked);
-    trackCommunityInteraction('like', { postId: post.id, liked: !liked });
-  };
-
-  const handleComment = () => {
-    setShowComments(!showComments);
-    trackCommunityInteraction('comment_toggle', { postId: post.id });
-  };
-
-  const handleShare = () => {
-    trackCommunityInteraction('share', { postId: post.id });
-  };
+export default function PostCard({ post, onLike, onComment, onViewTraining }) {
+  const likes = Array.isArray(post?.likeIds) ? post.likeIds.length : 0;
+  const comments = Array.isArray(post?.commentIds) ? post.commentIds.length : 0;
+  const liked = post?.likedByMe === true;
+  const brand = post?.brand || 'General';
+  const title = post?.title || post?.author?.name || (brand ? `${brand} update` : 'Update');
+  const snippet = post?.snippet || post?.content || '';
+  const time = post?.timeAgo || formatRelativeTime(post?.createdAt);
+  const hasTraining = !!post?.trainingId;
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 ${variant === 'compact' ? 'p-3' : 'p-4'} mb-3`}>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <div className={`${variant === 'compact' ? 'w-8 h-8' : 'w-10 h-10'} bg-sage-green rounded-full flex items-center justify-center`}>
-            <span className="text-white font-medium text-sm">
-              {post.author?.name?.charAt(0) || 'U'}
-            </span>
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h3 className={`font-medium text-gray-900 ${variant === 'compact' ? 'text-sm' : 'text-base'}`}>
-                {post.author?.name || 'Anonymous User'}
-              </h3>
-              {post.author?.verified && (
-                <span className="w-2 h-2 bg-sage-green rounded-full"></span>
-              )}
-            </div>
-            <p className={`text-warm-gray ${variant === 'compact' ? 'text-xs' : 'text-sm'}`}>
-              {post.author?.role || 'Team Member'} • {post.timeAgo || '2h ago'}
-            </p>
-          </div>
+    <article
+      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+      aria-label={title}
+    >
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white"
+            aria-label={`Brand ${brand}`}
+          >
+            {brand}
+          </span>
         </div>
-        <button className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
-          <MoreHorizontal size={16} />
+        {time && (
+          <time className="text-xs text-warm-gray" aria-label={`Posted ${time}`}>
+            {time}
+          </time>
+        )}
+      </header>
+
+      <div className="mt-3">
+        <h3 className="text-base font-semibold text-gray-900 leading-snug truncate" title={title}>
+          {title}
+        </h3>
+        {snippet && (
+          <p
+            className="mt-1 text-sm text-gray-700 overflow-hidden"
+            style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}
+          >
+            {snippet}
+          </p>
+        )}
+      </div>
+
+      <footer className="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onLike?.(post)}
+          className={`inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border text-sm transition-colors ${
+            liked ? 'border-rose-500 text-rose-600 bg-rose-50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+          aria-label={liked ? `Unlike post (${likes} likes)` : `Like post (${likes} likes)`}
+        >
+          <span className="mr-1" aria-hidden>
+            {liked ? '❤️' : '🤍'}
+          </span>
+          <span>Like</span>
+          <span className="ml-2 text-gray-500">{likes}</span>
         </button>
-      </div>
-
-      {/* Content */}
-      <div className={`mb-4 ${variant === 'compact' ? 'text-sm' : 'text-base'}`}>
-        {post.content && (
-          <p className="text-gray-900 mb-3 leading-relaxed">{post.content}</p>
-        )}
-        
-        {post.image && (
-          <div className="rounded-md overflow-hidden bg-gray-100">
-            <img 
-              src={post.image} 
-              alt="Post content" 
-              className="w-full h-48 object-cover"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handleLike}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors ${
-              liked 
-                ? 'text-red-600 bg-red-50' 
-                : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
-            }`}
-          >
-            <Heart size={16} className={liked ? 'fill-current' : ''} />
-            <span className="text-sm font-medium">{likeCount}</span>
-          </button>
-          
-          <button
-            onClick={handleComment}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-full text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-          >
-            <MessageCircle size={16} />
-            <span className="text-sm font-medium">{commentCount}</span>
-          </button>
-        </div>
 
         <button
-          onClick={handleShare}
-          className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+          type="button"
+          onClick={() => onComment?.(post)}
+          className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          aria-label={`Comment on post (${comments} comments)`}
         >
-          <Share2 size={16} />
+          <span className="mr-1" aria-hidden>💬</span>
+          <span>Comment</span>
+          <span className="ml-2 text-gray-500">{comments}</span>
         </button>
-      </div>
 
-      {/* Comments (expandable) */}
-      {showComments && (
-        <div className="mt-4 pt-3 border-t border-gray-100">
-          <p className="text-sm text-gray-500 italic">
-            Comments coming soon...
-          </p>
-        </div>
-      )}
-    </div>
+        {hasTraining && (
+          <button
+            type="button"
+            onClick={() => onViewTraining?.(post.trainingId, post)}
+            className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige"
+            aria-label="View related training"
+          >
+            View Training
+          </button>
+        )}
+      </footer>
+    </article>
   );
-};
-
-export default PostCard;
+}
