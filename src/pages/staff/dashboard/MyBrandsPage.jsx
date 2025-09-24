@@ -211,6 +211,7 @@ export default function MyBrandsPage() {
       // Brand-scoped communities listener
       const brandScopedCommunitiesQuery = query(
         collection(db, 'brands', brandId, 'communities'),
+        where('isPublic', '==', true),
         limit(5)
       );
 
