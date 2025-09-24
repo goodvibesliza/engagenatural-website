@@ -61,7 +61,20 @@ export default function Community() {
         {tab === 'whatsGood' ? (
           <WhatsGoodFeed search={search} brand={brand} />
         ) : (
-          <ProFeed search={search} brand={brand} />
+          <ProFeed
+            search={search}
+            brand={brand}
+            onRequestVerify={() => {
+              // Use existing verification flow route if available
+              try {
+                window.history.pushState({}, '', '/staff/verification');
+                // In case some routers rely on full navigation
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              } catch {
+                window.location.assign('/staff/verification');
+              }
+            }}
+          />
         )}
       </main>
     </div>

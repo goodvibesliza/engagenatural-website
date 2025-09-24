@@ -1,6 +1,8 @@
 // src/components/community/ProFeed.jsx
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
+import ProGate from './ProGate';
 
 const proStubPosts = [
   {
@@ -22,25 +24,41 @@ const proStubPosts = [
   },
 ];
 
-function GateView() {
-  return (
-    <div
-      id="panel-pro"
-      role="tabpanel"
-      aria-labelledby="tab-pro"
-      className="space-y-4"
-    >
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
-        <div className="font-medium mb-1">Pro Feed is for verified team members</div>
-        <div className="text-sm">Get verified to unlock strategic updates and insights.</div>
-      </div>
-    </div>
-  );
+function readDevOverride() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const v = localStorage.getItem('DEV_isVerifiedStaff');
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
-export default function ProFeed({ search = '', brand = 'All' }) {
-  const { isVerified } = useAuth();
-  if (!isVerified) return <GateView />;
+export default function ProFeed({ search = '', brand = 'All', onRequestVerify }) {
+  const { isVerified, hasRole } = useAuth();
+
+  // Real computed value for staff verification
+  const realIsVerifiedStaff = (isVerified === true) && (hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']));
+
+  // Dev override that can be toggled without reload via localStorage
+  const [devOverride, setDevOverride] = useState(readDevOverride());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = readDevOverride();
+      setDevOverride((prev) => (prev !== next ? next : prev));
+    }, 800);
+    return () => clearInterval(id);
+  }, []);
+
+  const isVerifiedStaff = useMemo(() => {
+    if (devOverride === true) return true;
+    if (devOverride === false) return false;
+    return realIsVerifiedStaff;
+  }, [devOverride, realIsVerifiedStaff]);
+
+  if (!isVerifiedStaff) return <ProGate onRequestVerify={onRequestVerify} />;
 
   const q = search.trim().toLowerCase();
   const filtered = proStubPosts.filter((p) => {
