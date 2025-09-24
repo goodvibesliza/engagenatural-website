@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import PostCard from './PostCard';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
+import COPY from '../../i18n/community.copy';
 
 export const WHATS_GOOD_STUBS = [
   {
@@ -84,7 +85,7 @@ export default function WhatsGoodFeed({
             <ErrorBanner message={error} onDismiss={() => setError('')} />
           </div>
         )}
-        <div className="text-gray-900 font-medium">Fresh space. No posts yet.</div>
+        <div className="text-gray-900 font-medium">{COPY.empty.whatsGood}</div>
         <div>
           <button
             type="button"

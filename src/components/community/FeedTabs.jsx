@@ -1,5 +1,6 @@
 // src/components/community/FeedTabs.jsx
 import { useCallback } from 'react';
+import COPY from '../../i18n/community.copy';
 
 const TabButton = ({ id, isActive, onSelect, children, controls }) => (
   <button
@@ -42,7 +43,7 @@ export default function FeedTabs({ value = 'whatsGood', onChange }) {
         onSelect={() => onChange?.('whatsGood')}
         controls="panel-whats-good"
       >
-        What's Good
+        {COPY.tabs.whatsGood}
       </TabButton>
       <TabButton
         id="tab-pro"
@@ -50,7 +51,7 @@ export default function FeedTabs({ value = 'whatsGood', onChange }) {
         onSelect={() => onChange?.('pro')}
         controls="panel-pro"
       >
-        Pro Feed
+        {COPY.tabs.pro}
       </TabButton>
     </div>
   );

@@ -1,5 +1,6 @@
 // src/components/community/ProGate.jsx
 import { useEffect, useRef } from 'react';
+import COPY from '../../i18n/community.copy';
 
 export default function ProGate({ onRequestVerify }) {
   const headingRef = useRef(null);
@@ -22,9 +23,9 @@ export default function ProGate({ onRequestVerify }) {
           tabIndex={-1}
           className="text-lg font-heading font-semibold mb-1"
         >
-          Pro Feed is for verified staff.
+          {COPY.gate.title}
         </h2>
-        <p className="text-sm">Verification takes about 2 minutes.</p>
+        <p className="text-sm">{COPY.gate.subcopy}</p>
 
         <div className="mt-4 flex items-center gap-3">
           <button
@@ -32,7 +33,7 @@ export default function ProGate({ onRequestVerify }) {
             onClick={() => onRequestVerify?.()}
             className="px-4 py-2 bg-deep-moss text-white rounded-md text-sm hover:bg-sage-dark"
           >
-            Verify me
+            {COPY.gate.cta}
           </button>
           <button
             type="button"

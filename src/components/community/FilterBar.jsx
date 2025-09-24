@@ -1,5 +1,6 @@
 // src/components/community/FilterBar.jsx
 import { useEffect, useMemo, useRef } from 'react';
+import COPY from '../../i18n/community.copy';
 
 export default function FilterBar({
   query,
@@ -36,14 +37,15 @@ export default function FilterBar({
             type="search"
             value={query}
             onChange={(e) => onChange?.({ query: e.target.value, selectedBrands, selectedTags })}
-            placeholder="Search posts"
-            aria-label="Search posts"
+            placeholder={COPY.searchPlaceholder}
+            aria-label={COPY.searchPlaceholder}
             className="flex-1 px-3 py-3 h-11 min-h-[44px] border border-gray-300 rounded-md text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
           />
         </div>
 
         {brands.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
+            <div className="w-full text-xs font-medium text-gray-700 mb-1">{COPY.brandsLabel}</div>
             {brands.map((b) => {
               const active = selectedBrands.includes(b);
               return (

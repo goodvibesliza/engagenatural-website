@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/auth-context';
 import SkeletonDetail from '../components/community/SkeletonDetail';
 import ErrorBanner from '../components/community/ErrorBanner';
 import { postOpen, postLike as analyticsPostLike, postComment as analyticsPostComment, postOpenTraining } from '../lib/analytics';
+import COPY from '../i18n/community.copy';
 import {
   collection,
   doc,
@@ -200,7 +201,7 @@ export default function PostDetail() {
           return hasMe ? prev.filter((v) => v !== 'me') : prev.slice(0, Math.max(0, prev.length - 1));
         }
       });
-      setLikeError('Could not update like. Please try again.');
+      setLikeError(COPY.errors.generic);
     }
   };
 
@@ -336,7 +337,7 @@ export default function PostDetail() {
                 className="mt-2 inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige"
                 aria-label="View related training"
               >
-                View Training
+                {COPY.buttons.viewTraining}
               </button>
             </section>
           )}
@@ -354,7 +355,7 @@ export default function PostDetail() {
               <span className="mr-1" aria-hidden>
                 {liked ? '❤️' : '🤍'}
               </span>
-              <span>Like</span>
+              <span>{COPY.buttons.like}</span>
               <span className="ml-2 text-gray-500">{likeIds.length}</span>
             </button>
             {likeError && (
@@ -367,7 +368,7 @@ export default function PostDetail() {
               aria-label={`Jump to comments (${comments.length} comments)`}
             >
               <span className="mr-1" aria-hidden>💬</span>
-              <span>Comment</span>
+              <span>{COPY.buttons.comment}</span>
               <span className="ml-2 text-gray-500">{comments.length}</span>
             </a>
           </footer>
@@ -393,7 +394,7 @@ export default function PostDetail() {
                   <p className="mt-1 text-sm text-gray-800">{c.text}</p>
                   {c.status === 'error' && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-red-600">
-                      <span>Failed to send.</span>
+                      <span>{COPY.errors.generic}</span>
               <button
                         type="button"
                         onClick={() => retrySendComment(c)}

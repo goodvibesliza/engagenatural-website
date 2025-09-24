@@ -5,6 +5,7 @@ import PostCard from './PostCard';
 import ProGate from './ProGate';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
+import COPY from '../../i18n/community.copy';
 
 export const PRO_STUBS = [
   {
@@ -107,7 +108,7 @@ export default function ProFeed({
             <ErrorBanner message={error} onDismiss={() => setError('')} />
           </div>
         )}
-        <div className="text-gray-900 font-medium">No pro posts yet. Check back soon.</div>
+        <div className="text-gray-900 font-medium">{COPY.empty.pro}</div>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 // src/components/community/PostCard.jsx
 import React from 'react';
 import { postOpenTraining } from '../../lib/analytics';
+import COPY from '../../i18n/community.copy';
 
 function formatRelativeTime(input) {
   try {
@@ -86,7 +87,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
           <span className="mr-1" aria-hidden>
             {liked ? '❤️' : '🤍'}
           </span>
-          <span>Like</span>
+          <span>{COPY.buttons.like}</span>
           <span className="ml-2 text-gray-500">{likes}</span>
         </button>
 
@@ -97,7 +98,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
           aria-label={`Comment on post (${comments} comments)`}
         >
           <span className="mr-1" aria-hidden>💬</span>
-          <span>Comment</span>
+          <span>{COPY.buttons.comment}</span>
           <span className="ml-2 text-gray-500">{comments}</span>
         </button>
 
@@ -111,7 +112,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
             className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
             aria-label="View related training"
           >
-            View Training
+            {COPY.buttons.viewTraining}
           </button>
         )}
       </footer>
