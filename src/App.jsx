@@ -61,6 +61,10 @@ import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community Feed
 import CommunityFeed from './pages/community/CommunityFeed';
+// Community Components (new)
+import CommunityLayout from './components/community/CommunityLayout';
+import WhatsGoodFeed from './pages/community/WhatsGoodFeed';
+import ProFeed from './pages/community/ProFeed';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -481,7 +485,25 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
-          {/* Community Feed (any authenticated user) */}
+          {/* Community Routes */}
+          {/* Main Community Layout with nested feeds */}
+          <Route
+            path="/community"
+            element={
+              <ProtectedRoute>
+                <CommunityLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Default redirect to What's Good */}
+            <Route index element={<Navigate to="/community/whats-good" replace />} />
+            {/* What's Good Feed - all authenticated users */}
+            <Route path="whats-good" element={<WhatsGoodFeed />} />
+            {/* Pro Feed - verified staff only (guard inside component) */}
+            <Route path="pro" element={<ProFeed />} />
+          </Route>
+
+          {/* Legacy Community Feed (individual post view) */}
           <Route
             path="/community/:id"
             element={
