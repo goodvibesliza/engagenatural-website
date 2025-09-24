@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
 import WhatsGoodFeed, { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
+import { PRO_STUBS } from '../components/community/ProFeed';
 const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
@@ -26,7 +27,7 @@ export default function Community() {
   }, [location.state, navigate]);
 
   const header = useMemo(() => {
-    const posts = tab === 'whatsGood' ? WHATS_GOOD_STUBS : [];
+    const posts = tab === 'whatsGood' ? WHATS_GOOD_STUBS : PRO_STUBS;
     const availableBrands = Array.from(new Set(posts.map((p) => p.brand).filter(Boolean)));
     const availableTags = Array.from(new Set(posts.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
 
