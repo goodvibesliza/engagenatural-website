@@ -182,19 +182,24 @@ export default function PostDetail() {
   const handleLike = async () => {
     if (!post) return;
     setLikeError('');
-    const wasLiked = liked;
-    // Optimistic
-    setLiked(!wasLiked);
-    analyticsPostLike({ postId: post.id, liked: !wasLiked });
+
+    // Derive nextLiked from previous state (race-safe)
+    const intendedNext = !liked; // used only for server intent and error revert
+
+    setLiked((prev) => {
+      const next = !prev;
+      analyticsPostLike({ postId: post.id, liked: next });
+      return next;
+    });
+
+    // Update likeIds using functional state based on the same next semantics
     setLikeIds((prev) => {
       const hasMe = prev.includes('me');
-      if (wasLiked) {
-        // remove
-        return hasMe ? prev.filter((v) => v !== 'me') : prev.slice(0, Math.max(0, prev.length - 1));
-      } else {
-        // add
+      const next = !hasMe; // mirror toggle intent
+      if (next) {
         return hasMe ? prev : [...prev, 'me'];
       }
+      return hasMe ? prev.filter((v) => v !== 'me') : prev.slice(0, Math.max(0, prev.length - 1));
     });
 
     // Persist via Firestore if available; revert on failure
@@ -203,35 +208,31 @@ export default function PostDetail() {
         const likeRef = doc(db, 'post_likes', `${post.id}_${user.uid}`);
         const likeDoc = await getDoc(likeRef);
         if (likeDoc.exists()) {
-          // was liked in server; if we are unliking
-          if (wasLiked) {
-            // unlike
+          // currently liked on server
+          if (!intendedNext) {
             const { deleteDoc } = await import('firebase/firestore');
             await deleteDoc(likeRef);
-          } else {
-            // already liked on server but local thought not; ensure consistency (no-op)
           }
         } else {
-          // not liked on server; if we are liking
-          if (!wasLiked) {
+          // not liked on server
+          if (intendedNext) {
             const { setDoc, serverTimestamp } = await import('firebase/firestore');
             await setDoc(likeRef, { postId: post.id, userId: user.uid, createdAt: serverTimestamp() });
-          } else {
-            // already unliked on server but local thought liked; no-op
           }
         }
       }
     } catch (e) {
       // Revert and show error
-      setLiked(wasLiked);
+      setLiked((prev) => !prev); // undo last toggle
       setLikeIds((prev) => {
         const hasMe = prev.includes('me');
-        if (wasLiked) {
-          // revert to liked → ensure 'me'
-          return hasMe ? prev : [...prev, 'me'];
+        // Revert opposite of intended
+        if (intendedNext) {
+          // we tried to like → ensure removal
+          return hasMe ? prev.filter((v) => v !== 'me') : prev;
         } else {
-          // revert to unliked → remove 'me'
-          return hasMe ? prev.filter((v) => v !== 'me') : prev.slice(0, Math.max(0, prev.length - 1));
+          // we tried to unlike → ensure add
+          return hasMe ? prev : [...prev, 'me'];
         }
       });
       setLikeError(COPY.errors.generic);
