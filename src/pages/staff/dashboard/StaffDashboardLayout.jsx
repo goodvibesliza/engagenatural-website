@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 
+/**
+ * Staff dashboard layout component that renders the header, user avatar menu, responsive sidebar, and main content area for nested routes.
+ *
+ * Displays the current user's name and store information in the header, provides an avatar button that toggles a dropdown with profile links and a sign-out action (navigates the browser to "/?logout=true"), and renders a responsive navigation sidebar with links for staff pages. Nested route content is rendered via React Router's <Outlet />.
+ *
+ * @returns {JSX.Element} The staff dashboard layout element.
+ */
 export default function StaffDashboardLayout() {
   const { user } = useAuth();
   const location = useLocation();

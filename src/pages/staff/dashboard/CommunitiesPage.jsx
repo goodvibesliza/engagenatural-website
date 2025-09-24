@@ -122,6 +122,23 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
   );
 };
 
+/**
+ * Communities page component — displays public communities, a feed of public posts, and a post composer.
+ *
+ * Renders a communities grid and a community feed with paging, per-post like counts, recent comments previews,
+ * inline commenting, and a composer for creating new public posts (permission-controlled). Subscribes to the
+ * public posts collection for live updates, loads counts/previews/like flags on demand, and performs
+ * Firestore writes for creating posts, toggling likes, and adding comments.
+ *
+ * State highlights:
+ * - Manages posts, pagination (load more), like/comment counts and flags, recent comments previews, and per-post
+ *   inline comment inputs/submission state.
+ * - Loads active/public communities and provides a fallback "What's Good" community when none are returned.
+ *
+ * The component reads the current user from authentication context to gate actions (liking, commenting, posting).
+ *
+ * @returns {JSX.Element} The Communities page React element.
+ */
 export default function CommunitiesPage() {
   const { user } = useAuth();
 
@@ -216,19 +233,10 @@ export default function CommunitiesPage() {
   const handleAddComment = async (post) => {
     if (!user?.uid) return;
     const text = (commentInputs[post.id] || '').trim();
-    if (!text) return;
-    // Atomically check-and-add submitting flag for this post
-    let skip = false;
-    setCommentSubmitting((prev) => {
-      if (prev.has(post.id)) {
-        skip = true;
-        return prev;
-      }
-      const next = new Set(prev);
-      next.add(post.id);
-      return next;
-    });
-    if (skip) return;
+    if (!text || commentSubmitting.has(post.id)) return;
+    const submitting = new Set(commentSubmitting);
+    submitting.add(post.id);
+    setCommentSubmitting(submitting);
     try {
       await addDoc(collection(db, 'community_comments'), {
         postId: post.id,
@@ -248,13 +256,9 @@ export default function CommunitiesPage() {
     } catch (err) {
       console.error('Failed to add comment', err);
     } finally {
-      // Atomically remove submitting flag for this post
-      setCommentSubmitting((prev) => {
-        if (!prev.has(post.id)) return prev;
-        const next = new Set(prev);
-        next.delete(post.id);
-        return next;
-      });
+      const s = new Set(commentSubmitting);
+      s.delete(post.id);
+      setCommentSubmitting(s);
     }
   };
 

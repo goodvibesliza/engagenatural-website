@@ -153,7 +153,21 @@ const RootEntry = () => {
   return null;
 };
 
-// Main App Component
+/**
+ * Root application component that sets up authentication context, global UI chrome, feature flags, and the entire client-side route tree.
+ *
+ * Renders AuthProvider and Router with:
+ * - a global UserDropdownMenu and environment badge,
+ * - RootEntry mounted at "/",
+ * - role-guarded admin, brand, and staff areas,
+ * - protected community routes (new nested feeds and legacy post view),
+ * - emulator/debug routes gated by environment or feature flags,
+ * - redirects for unknown routes.
+ *
+ * The component reads VITE_SHOW_DEMO_TOOLS to enable demo/dev routes and sets an internal emulator-initialized flag on mount.
+ *
+ * @returns {JSX.Element} The application root element containing routing and global UI.
+ */
 function App() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
   // Feature flag for demo / dev tools & env check
