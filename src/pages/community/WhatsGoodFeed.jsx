@@ -1,5 +1,6 @@
 // src/pages/community/WhatsGoodFeed.jsx
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { trackPageView, trackUserAction } from '../../services/analytics';
 import PostCard from '../../components/community/PostCard';
@@ -73,11 +74,19 @@ const generateStubPosts = () => {
 
 const WhatsGoodFeed = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
   useEffect(() => {
+    // If navigated from staff feed with a specific post focus, redirect to post thread
+    const focusPostId = location.state?.focusPostId;
+    if (focusPostId) {
+      navigate(`/community/post/${focusPostId}`, { replace: true });
+      return; // skip initial load; thread page will handle
+    }
     trackPageView('community_whats_good_feed');
     loadPosts();
   }, []);
