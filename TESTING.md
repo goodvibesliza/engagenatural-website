@@ -33,4 +33,4 @@ Use data‑testids for targeting elements (tabs, filters, cards, like button, co
 
 Notes:
 - Perform on mobile viewport first; resize to desktop to confirm two‑column grid and sticky filters preserve state.
-- All analytics are no‑op by default; no external services are contacted.
+- Ensure analytics are no‑op in tests: set `VITE_ANALYTICS_ENABLED=false` (default for CI) so hooks short‑circuit and do not call `fetch`.
