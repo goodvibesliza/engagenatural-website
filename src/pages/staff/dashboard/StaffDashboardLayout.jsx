@@ -131,20 +131,6 @@ export default function StaffDashboardLayout() {
               <ul className="flex flex-row md:flex-col space-y-0 space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto md:overflow-x-visible">
                 <li>
                   <NavLink
-                    to="/staff/communities"
-                    className={({ isActive }) =>
-                      `block px-4 py-2 rounded-md transition-colors ${
-                        isActive
-                          ? 'bg-sage-green/10 text-deep-moss'
-                          : 'text-warm-gray hover:text-deep-moss hover:bg-oat-beige'
-                      }`
-                    }
-                  >
-                    Communities
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
                     to="/community"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
@@ -154,7 +140,7 @@ export default function StaffDashboardLayout() {
                       }`
                     }
                   >
-                    Community (New)
+                    Community
                   </NavLink>
                 </li>
                 <li>
@@ -171,20 +157,7 @@ export default function StaffDashboardLayout() {
                     Verification
                   </NavLink>
                 </li>
-                <li>
-                  <NavLink
-                    to="/community"
-                    className={({ isActive }) =>
-                      `block px-4 py-2 rounded-md transition-colors ${
-                        isActive
-                          ? 'bg-brand-primary text-white'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`
-                    }
-                  >
-                    Communities
-                  </NavLink>
-                </li>
+                
                 <li>
                   <NavLink
                     to="/staff/my-brands"
