@@ -1,7 +1,7 @@
 // src/components/community/SkeletonDetail.jsx
 export default function SkeletonDetail() {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 motion-safe:animate-pulse motion-reduce:animate-none">
       <div className="flex items-center justify-between">
         <div className="h-5 w-24 bg-gray-200 rounded" />
         <div className="h-3 w-16 bg-gray-200 rounded" />

@@ -1,10 +1,11 @@
 // src/pages/Community.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
 import WhatsGoodFeed, { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
-import ProFeed, { PRO_STUBS } from '../components/community/ProFeed';
+const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
+import SkeletonPostCard from '../components/community/SkeletonPostCard';
 
 export default function Community() {
   const location = useLocation();
@@ -23,15 +24,9 @@ export default function Community() {
   }, [location.state, navigate]);
 
   const header = useMemo(() => {
-    const posts = tab === 'whatsGood' ? WHATS_GOOD_STUBS : PRO_STUBS;
-    const availableBrands = Array.from(
-      new Set(posts.map((p) => p.brand).filter(Boolean))
-    );
-    const availableTags = Array.from(
-      new Set(
-        posts.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)
-      )
-    );
+    const posts = tab === 'whatsGood' ? WHATS_GOOD_STUBS : [];
+    const availableBrands = Array.from(new Set(posts.map((p) => p.brand).filter(Boolean)));
+    const availableTags = Array.from(new Set(posts.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
 
     return (
       <div className="bg-white border-b border-gray-200">
@@ -68,21 +63,31 @@ export default function Community() {
             selectedTags={selectedTags}
           />
         ) : (
-          <ProFeed
-            query={query}
-            selectedBrands={selectedBrands}
-            selectedTags={selectedTags}
-            onRequestVerify={() => {
-              // Use existing verification flow route if available
-              try {
-                window.history.pushState({}, '', '/staff/verification');
-                // In case some routers rely on full navigation
-                window.dispatchEvent(new PopStateEvent('popstate'));
-              } catch {
-                window.location.assign('/staff/verification');
-              }
-            }}
-          />
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                <SkeletonPostCard />
+                <SkeletonPostCard />
+                <SkeletonPostCard />
+              </div>
+            }
+          >
+            <ProFeed
+              query={query}
+              selectedBrands={selectedBrands}
+              selectedTags={selectedTags}
+              onRequestVerify={() => {
+                // Use existing verification flow route if available
+                try {
+                  window.history.pushState({}, '', '/staff/verification');
+                  // In case some routers rely on full navigation
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } catch {
+                  window.location.assign('/staff/verification');
+                }
+              }}
+            />
+          </Suspense>
         )}
       </main>
     </div>

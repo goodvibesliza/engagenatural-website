@@ -39,7 +39,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
 
   return (
     <article
-      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px]"
       aria-label={title}
     >
       <header className="flex items-start justify-between gap-3">
@@ -76,9 +76,10 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
         <button
           type="button"
           onClick={() => onLike?.(post)}
-          className={`inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border text-sm transition-colors ${
+          className={`inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
             liked ? 'border-rose-500 text-rose-600 bg-rose-50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
           }`}
+          aria-pressed={liked ? 'true' : 'false'}
           aria-label={liked ? `Unlike post (${likes} likes)` : `Like post (${likes} likes)`}
         >
           <span className="mr-1" aria-hidden>
@@ -91,7 +92,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
         <button
           type="button"
           onClick={() => onComment?.(post)}
-          className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
           aria-label={`Comment on post (${comments} comments)`}
         >
           <span className="mr-1" aria-hidden>💬</span>
@@ -103,7 +104,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
           <button
             type="button"
             onClick={() => onViewTraining?.(post.trainingId, post)}
-            className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige"
+            className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
             aria-label="View related training"
           >
             View Training

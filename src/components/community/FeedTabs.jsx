@@ -9,8 +9,8 @@ const TabButton = ({ id, isActive, onSelect, children, controls }) => (
     aria-controls={controls}
     tabIndex={isActive ? 0 : -1}
     onClick={onSelect}
-    className={`flex-1 text-center py-2.5 px-4 rounded-md font-medium text-sm transition-colors ${
-      isActive ? 'bg-white text-deep-moss shadow-sm' : 'text-warm-gray hover:text-deep-moss'
+    className={`flex-1 text-center px-4 h-11 min-h-[44px] rounded-md font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+      isActive ? 'bg-white text-deep-moss shadow-sm ring-deep-moss/30' : 'text-warm-gray hover:text-deep-moss'
     }`}
     type="button"
   >

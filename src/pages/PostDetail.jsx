@@ -336,9 +336,10 @@ export default function PostDetail() {
             <button
               type="button"
               onClick={handleLike}
-              className={`inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border text-sm transition-colors ${
+              className={`inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
                 liked ? 'border-rose-500 text-rose-600 bg-rose-50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
+              aria-pressed={liked ? 'true' : 'false'}
               aria-label={liked ? `Unlike post (${likeIds.length} likes)` : `Like post (${likeIds.length} likes)`}
             >
               <span className="mr-1" aria-hidden>
@@ -353,7 +354,7 @@ export default function PostDetail() {
 
             <a
               href="#comment"
-              className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
               aria-label={`Jump to comments (${comments.length} comments)`}
             >
               <span className="mr-1" aria-hidden>💬</span>
@@ -384,10 +385,10 @@ export default function PostDetail() {
                   {c.status === 'error' && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-red-600">
                       <span>Failed to send.</span>
-                      <button
+              <button
                         type="button"
                         onClick={() => retrySendComment(c)}
-                        className="underline text-red-700 hover:text-red-800"
+                className="mt-2 inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                       >
                         Retry
                       </button>

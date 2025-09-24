@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import './App.css';
 
 // Auth context
@@ -61,7 +61,7 @@ import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community (phone-first IA)
 import Community from './pages/Community';
-import PostDetail from './pages/PostDetail';
+const PostDetail = lazy(() => import('./pages/PostDetail'));
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -509,7 +509,9 @@ function App() {
             path="/community/post/:postId"
             element={
               <ProtectedRoute>
-                <PostDetail />
+                <Suspense fallback={<LoadingSpinner />}>
+                  <PostDetail />
+                </Suspense>
               </ProtectedRoute>
             }
           />
