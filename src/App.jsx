@@ -59,13 +59,9 @@ import RequireVerification from './pages/staff/dashboard/RequireVerification.jsx
 // Emulator Components
 import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
-// Community Feed
-import CommunityFeed from './pages/community/CommunityFeed';
-// Community Components (new)
-import CommunityLayout from './components/community/CommunityLayout';
-import WhatsGoodFeed from './pages/community/WhatsGoodFeed';
-import ProFeed from './pages/community/ProFeed';
-import PostThread from './pages/community/PostThread';
+// Community (phone-first IA)
+import Community from './pages/Community';
+import PostDetail from './pages/PostDetail';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -501,24 +497,22 @@ function App() {
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
           {/* Community Routes */}
-          {/* Main Community Layout with nested feeds */}
           <Route
             path="/community"
             element={
               <ProtectedRoute>
-                <CommunityLayout />
+                <Community />
               </ProtectedRoute>
             }
-          >
-            {/* Default redirect to What's Good */}
-            <Route index element={<Navigate to="whats-good" replace />} />
-            {/* What's Good Feed - all authenticated users */}
-            <Route path="whats-good" element={<WhatsGoodFeed />} />
-            {/* Pro Feed - verified staff only (guard inside component) */}
-            <Route path="pro" element={<ProFeed />} />
-            {/* Single post thread */}
-            <Route path="post/:postId" element={<PostThread />} />
-          </Route>
+          />
+          <Route
+            path="/community/post/:postId"
+            element={
+              <ProtectedRoute>
+                <PostDetail />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Legacy Community Feed route removed */}
 

@@ -145,7 +145,7 @@ export default function StaffDashboardLayout() {
                 </li>
                 <li>
                   <NavLink
-                    to="/community/whats-good"
+                    to="/community"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive

@@ -75,8 +75,7 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
         </div>
 
         <Link
-          to={`/community/${post.communityId || 'whats-good'}`}
-          state={{ focusPostId: post.id }}
+          to={`/community/post/${post.id}`}
           className="text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
         >
           View thread
