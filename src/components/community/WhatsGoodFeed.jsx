@@ -1,5 +1,6 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PostCard from './PostCard';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
@@ -43,6 +44,7 @@ export default function WhatsGoodFeed({
   selectedTags = [],
   onStartPost,
 }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -91,10 +93,7 @@ export default function WhatsGoodFeed({
             type="button"
             onClick={() => {
               if (onStartPost) return onStartPost();
-              try {
-                window.history.pushState({}, '', '/staff/communities');
-                window.dispatchEvent(new PopStateEvent('popstate'));
-              } catch {}
+              navigate('/staff/communities');
             }}
             className="mt-2 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md bg-deep-moss text-white text-sm hover:bg-sage-dark"
           >
