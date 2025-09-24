@@ -216,10 +216,19 @@ export default function CommunitiesPage() {
   const handleAddComment = async (post) => {
     if (!user?.uid) return;
     const text = (commentInputs[post.id] || '').trim();
-    if (!text || commentSubmitting.has(post.id)) return;
-    const submitting = new Set(commentSubmitting);
-    submitting.add(post.id);
-    setCommentSubmitting(submitting);
+    if (!text) return;
+    // Atomically check-and-add submitting flag for this post
+    let skip = false;
+    setCommentSubmitting((prev) => {
+      if (prev.has(post.id)) {
+        skip = true;
+        return prev;
+      }
+      const next = new Set(prev);
+      next.add(post.id);
+      return next;
+    });
+    if (skip) return;
     try {
       await addDoc(collection(db, 'community_comments'), {
         postId: post.id,
@@ -239,9 +248,13 @@ export default function CommunitiesPage() {
     } catch (err) {
       console.error('Failed to add comment', err);
     } finally {
-      const s = new Set(commentSubmitting);
-      s.delete(post.id);
-      setCommentSubmitting(s);
+      // Atomically remove submitting flag for this post
+      setCommentSubmitting((prev) => {
+        if (!prev.has(post.id)) return prev;
+        const next = new Set(prev);
+        next.delete(post.id);
+        return next;
+      });
     }
   };
 
