@@ -26,11 +26,19 @@ export default function Community() {
     }
   }, [location.state, navigate]);
 
-  const header = useMemo(() => {
-    const posts = tab === 'whatsGood' ? WHATS_GOOD_STUBS : PRO_STUBS;
-    const availableBrands = Array.from(new Set(posts.map((p) => p.brand).filter(Boolean)));
-    const availableTags = Array.from(new Set(posts.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
+  // Canonical data source per tab
+  const posts = useMemo(() => (tab === 'whatsGood' ? WHATS_GOOD_STUBS : PRO_STUBS), [tab]);
+  // Single-source available brand/tag lists derived from posts
+  const availableBrands = useMemo(
+    () => Array.from(new Set(posts.map((p) => p.brand).filter(Boolean))),
+    [posts]
+  );
+  const availableTags = useMemo(
+    () => Array.from(new Set(posts.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean))),
+    [posts]
+  );
 
+  const header = useMemo(() => {
     return (
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 pt-3">
@@ -57,7 +65,7 @@ export default function Community() {
         </div>
       </div>
     );
-  }, [tab, query, selectedBrands, selectedTags]);
+  }, [tab, query, selectedBrands, selectedTags, availableBrands, availableTags]);
 
   // Track tab view on mount and whenever the tab changes
   useEffect(() => {
@@ -76,8 +84,8 @@ export default function Community() {
                 query={query}
                 selectedBrands={selectedBrands}
                 selectedTags={selectedTags}
-                availableBrands={[]}
-                availableTags={[]}
+                availableBrands={availableBrands}
+                availableTags={availableTags}
                 onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
                   setQuery(q ?? '');
                   setSelectedBrands(sb ?? []);
