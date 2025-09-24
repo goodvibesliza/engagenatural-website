@@ -11,6 +11,7 @@ export default function FilterBar({
   onChange,
 }) {
   const inputRef = useRef(null);
+  const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
   const brands = useMemo(
     () => Array.from(new Set(availableBrands.filter(Boolean))),
@@ -39,6 +40,7 @@ export default function FilterBar({
             onChange={(e) => onChange?.({ query: e.target.value, selectedBrands, selectedTags })}
             placeholder={COPY.searchPlaceholder}
             aria-label={COPY.searchPlaceholder}
+            data-testid="filter-search"
             className="flex-1 px-3 py-3 h-11 min-h-[44px] border border-gray-300 rounded-md text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
           />
         </div>
@@ -56,6 +58,7 @@ export default function FilterBar({
                   onClick={() =>
                     onChange?.({ query, selectedBrands: toggle(selectedBrands, b), selectedTags })
                   }
+                  data-testid={`brand-chip-${slug(b)}`}
                   className={`px-3 h-11 min-h-[44px] rounded-full text-sm border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
                     active ? 'bg-deep-moss text-white border-deep-moss' : 'bg-white text-deep-moss border-deep-moss/30 hover:border-deep-moss'
                   }`}
@@ -79,6 +82,7 @@ export default function FilterBar({
                   onClick={() =>
                     onChange?.({ query, selectedBrands, selectedTags: toggle(selectedTags, t) })
                   }
+                  data-testid={`tag-chip-${slug(t)}`}
                   className={`px-3 h-11 min-h-[44px] rounded-full text-sm border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
                     active ? 'bg-oat-beige text-deep-moss border-oat-beige' : 'bg-white text-deep-moss border-deep-moss/30 hover:border-deep-moss'
                   }`}

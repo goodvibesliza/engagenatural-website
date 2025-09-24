@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import COPY from '../../i18n/community.copy';
 
-const TabButton = ({ id, isActive, onSelect, children, controls }) => (
+const TabButton = ({ id, isActive, onSelect, children, controls, dataTestId }) => (
   <button
     id={id}
     role="tab"
@@ -10,6 +10,7 @@ const TabButton = ({ id, isActive, onSelect, children, controls }) => (
     aria-controls={controls}
     tabIndex={isActive ? 0 : -1}
     onClick={onSelect}
+    data-testid={dataTestId}
     className={`flex-1 text-center px-4 h-11 min-h-[44px] rounded-md font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
       isActive ? 'bg-white text-deep-moss shadow-sm ring-deep-moss/30' : 'text-warm-gray hover:text-deep-moss'
     }`}
@@ -42,6 +43,7 @@ export default function FeedTabs({ value = 'whatsGood', onChange }) {
         isActive={value === 'whatsGood'}
         onSelect={() => onChange?.('whatsGood')}
         controls="panel-whats-good"
+        dataTestId="tab-whats-good"
       >
         {COPY.tabs.whatsGood}
       </TabButton>
@@ -50,6 +52,7 @@ export default function FeedTabs({ value = 'whatsGood', onChange }) {
         isActive={value === 'pro'}
         onSelect={() => onChange?.('pro')}
         controls="panel-pro"
+        dataTestId="tab-pro"
       >
         {COPY.tabs.pro}
       </TabButton>

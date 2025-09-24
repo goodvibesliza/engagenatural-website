@@ -29,7 +29,7 @@ function formatRelativeTime(input) {
   }
 }
 
-export default function PostCard({ post, onLike, onComment, onViewTraining }) {
+export default function PostCard({ post, onLike, onComment, onViewTraining, dataTestId }) {
   const likes = Array.isArray(post?.likeIds) ? post.likeIds.length : 0;
   const comments = Array.isArray(post?.commentIds) ? post.commentIds.length : 0;
   const liked = post?.likedByMe === true;
@@ -42,6 +42,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
   return (
     <article
       className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px]"
+      data-testid={dataTestId}
       aria-label={title}
     >
       <header className="flex items-start justify-between gap-3">
@@ -83,6 +84,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
           }`}
           aria-pressed={liked ? 'true' : 'false'}
           aria-label={liked ? `Unlike post (${likes} likes)` : `Like post (${likes} likes)`}
+          data-testid="like-button"
         >
           <span className="mr-1" aria-hidden>
             {liked ? '❤️' : '🤍'}
@@ -96,6 +98,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
           onClick={() => onComment?.(post)}
           className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
           aria-label={`Comment on post (${comments} comments)`}
+          data-testid="comment-button"
         >
           <span className="mr-1" aria-hidden>💬</span>
           <span>{COPY.buttons.comment}</span>
@@ -111,6 +114,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
             }}
             className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
             aria-label="View related training"
+            data-testid="view-training-cta"
           >
             {COPY.buttons.viewTraining}
           </button>

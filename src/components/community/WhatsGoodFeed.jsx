@@ -112,8 +112,8 @@ export default function WhatsGoodFeed({
           <ErrorBanner message={error} onDismiss={() => setError('')} />
         </div>
       )}
-      {filtered.map((post) => (
-        <PostCard key={post.id} post={post} />
+      {filtered.map((post, idx) => (
+        <PostCard key={post.id} post={post} dataTestId={idx === 0 ? 'postcard-first' : undefined} />
       ))}
     </div>
   );

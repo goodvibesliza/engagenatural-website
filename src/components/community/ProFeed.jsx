@@ -120,14 +120,14 @@ export default function ProFeed({
           <ErrorBanner message={error} onDismiss={() => setError('')} />
         </div>
       )}
-      {filtered.map((post) => (
+      {filtered.map((post, idx) => (
         <div key={post.id}>
           {post.isPinned && (
             <div className="flex items-center space-x-2 text-xs font-medium text-deep-moss mb-2">
               <span>PINNED</span>
             </div>
           )}
-          <PostCard post={post} />
+          <PostCard post={post} dataTestId={idx === 0 ? 'postcard-first' : undefined} />
         </div>
       ))}
     </div>

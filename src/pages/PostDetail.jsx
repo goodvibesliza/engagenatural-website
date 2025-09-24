@@ -351,6 +351,7 @@ export default function PostDetail() {
               }`}
               aria-pressed={liked ? 'true' : 'false'}
               aria-label={liked ? `Unlike post (${likeIds.length} likes)` : `Like post (${likeIds.length} likes)`}
+              data-testid="like-button"
             >
               <span className="mr-1" aria-hidden>
                 {liked ? '❤️' : '🤍'}
@@ -425,12 +426,14 @@ export default function PostDetail() {
             placeholder="Add a comment…"
             aria-label="Add a comment"
             className="flex-1 px-3 py-3 h-11 min-h-[44px] border border-gray-300 rounded-md text-sm"
+            data-testid="comment-input"
           />
           <button
             type="button"
             onClick={handleAddComment}
             className="px-3 h-11 min-h-[44px] rounded-md bg-deep-moss text-white text-sm hover:bg-sage-dark disabled:opacity-50"
             disabled={!newComment.trim()}
+            data-testid="comment-submit"
           >
             Post
           </button>
