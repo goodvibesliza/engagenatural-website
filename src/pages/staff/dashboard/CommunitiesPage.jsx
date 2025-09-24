@@ -38,7 +38,7 @@ const PostSkeleton = () => (
   </div>
 );
 
-const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingLike, comments }) => {
+const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingLike, comments, commentInput, onChangeComment, onAddComment, submittingComment }) => {
   const formattedDate = post.createdAt?.toDate
     ? new Date(post.createdAt.toDate()).toLocaleString()
     : 'Recently';
@@ -75,7 +75,7 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
         </div>
 
         <Link
-          to={`/community/post/${post.id}`}
+          to={`/community/${post.communityId || 'whats-good'}`}
           className="text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
         >
           View thread
@@ -98,6 +98,26 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
           </div>
         </div>
       )}
+
+      {/* Inline comment input */}
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={commentInput || ''}
+            onChange={(e) => onChangeComment?.(post.id, e.target.value)}
+            placeholder="Add a comment…"
+            className="flex-1 p-2 text-sm border border-gray-300 rounded"
+          />
+          <button
+            onClick={() => onAddComment?.(post)}
+            disabled={submittingComment || !commentInput?.trim()}
+            className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
+          >
+            {submittingComment ? 'Posting…' : 'Comment'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -116,6 +136,8 @@ export default function CommunitiesPage() {
   const [likeCounts, setLikeCounts] = useState({});
   const [commentCounts, setCommentCounts] = useState({});
   const [commentsMap, setCommentsMap] = useState({});
+  const [commentInputs, setCommentInputs] = useState({});
+  const [commentSubmitting, setCommentSubmitting] = useState(new Set());
 
   /* -------------------------------------------------------------------
    * Communities list + post composer state
@@ -190,6 +212,38 @@ export default function CommunitiesPage() {
     }
     setCommentsMap((prev) => ({ ...prev, ...next }));
   }, []);
+
+  const handleAddComment = async (post) => {
+    if (!user?.uid) return;
+    const text = (commentInputs[post.id] || '').trim();
+    if (!text || commentSubmitting.has(post.id)) return;
+    const submitting = new Set(commentSubmitting);
+    submitting.add(post.id);
+    setCommentSubmitting(submitting);
+    try {
+      await addDoc(collection(db, 'community_comments'), {
+        postId: post.id,
+        communityId: post.communityId || 'whats-good',
+        brandId: post.brandId || null,
+        userId: user.uid,
+        userRole: user.role || 'user',
+        text,
+        createdAt: serverTimestamp(),
+      });
+      // optimistic count update
+      setCommentCounts((prev) => ({ ...prev, [post.id]: (prev[post.id] || 0) + 1 }));
+      // clear input
+      setCommentInputs((prev) => ({ ...prev, [post.id]: '' }));
+      // refresh preview for this post
+      await loadCommentsPreviewFor([post.id]);
+    } catch (err) {
+      console.error('Failed to add comment', err);
+    } finally {
+      const s = new Set(commentSubmitting);
+      s.delete(post.id);
+      setCommentSubmitting(s);
+    }
+  };
 
   useEffect(() => {
     const q = query(
@@ -498,6 +552,10 @@ export default function CommunitiesPage() {
                     onToggleLike={toggleLike}
                     pendingLike={pendingLikes.has(post.id)}
                     comments={commentsMap[post.id] || []}
+                    commentInput={commentInputs[post.id] || ''}
+                    onChangeComment={(pid, v) => setCommentInputs((prev) => ({ ...prev, [pid]: v }))}
+                    onAddComment={handleAddComment}
+                    submittingComment={commentSubmitting.has(post.id)}
                   />
                 ))}
               </div>

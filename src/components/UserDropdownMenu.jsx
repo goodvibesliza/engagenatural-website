@@ -93,7 +93,7 @@ export default function UserDropdownMenu() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link to="/staff/communities">
+            <Link to="/community">
               <Users className="mr-2 h-4 w-4" />
               <span>Communities</span>
             </Link>
