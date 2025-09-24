@@ -6,6 +6,7 @@ import WhatsGoodFeed, { WHATS_GOOD_STUBS } from '../components/community/WhatsGo
 const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
+import { communityView, filterApplied } from '../lib/analytics';
 
 export default function Community() {
   const location = useLocation();
@@ -46,11 +47,17 @@ export default function Community() {
             setQuery(q ?? '');
             setSelectedBrands(sb ?? []);
             setSelectedTags(st ?? []);
+            filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
           }}
         />
       </div>
     );
   }, [tab, query, selectedBrands, selectedTags]);
+
+  // Track tab view on mount and whenever the tab changes
+  useEffect(() => {
+    communityView({ feedType: tab });
+  }, [tab]);
 
   return (
     <div className="min-h-screen bg-cool-gray">

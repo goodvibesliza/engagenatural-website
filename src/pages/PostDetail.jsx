@@ -7,6 +7,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/auth-context';
 import SkeletonDetail from '../components/community/SkeletonDetail';
 import ErrorBanner from '../components/community/ErrorBanner';
+import { postOpen, postLike as analyticsPostLike, postComment as analyticsPostComment, postOpenTraining } from '../lib/analytics';
 import {
   collection,
   doc,
@@ -43,7 +44,9 @@ export default function PostDetail() {
     async function load() {
       setLoading(true);
       try {
-        const stub = [...WHATS_GOOD_STUBS, ...PRO_STUBS].find((p) => p.id === postId);
+        const wg = WHATS_GOOD_STUBS.find((p) => p.id === postId);
+        const pr = !wg ? PRO_STUBS.find((p) => p.id === postId) : null;
+        const stub = wg || pr || null;
         if (stub) {
           const mapped = {
             id: stub.id,
@@ -61,6 +64,7 @@ export default function PostDetail() {
             setPost(mapped);
             setLikeIds([]);
             setComments([]);
+            postOpen({ postId: mapped.id, feedType: wg ? 'whatsGood' : 'pro' });
           }
         } else {
           // Firestore lookup
@@ -79,7 +83,10 @@ export default function PostDetail() {
               likeIds: [],
               commentIds: [],
             };
-            if (!cancelled) setPost(mapped);
+            if (!cancelled) {
+              setPost(mapped);
+              postOpen({ postId: mapped.id, feedType: 'unknown' });
+            }
 
             const likesQ = query(collection(db, 'post_likes'), where('postId', '==', postId));
             const commentsQ = query(collection(db, 'community_comments'), where('postId', '==', postId));
@@ -144,6 +151,7 @@ export default function PostDetail() {
     const wasLiked = liked;
     // Optimistic
     setLiked(!wasLiked);
+    analyticsPostLike({ postId: post.id, liked: !wasLiked });
     setLikeIds((prev) => {
       const hasMe = prev.includes('me');
       if (wasLiked) {
@@ -199,6 +207,7 @@ export default function PostDetail() {
   const handleAddComment = async () => {
     const text = newComment.trim();
     if (!text) return;
+    analyticsPostComment({ postId: post.id, length: text.length });
     // Optimistic add; replace on success, mark error on failure
     const now = new Date();
     const optimistic = {
@@ -323,7 +332,7 @@ export default function PostDetail() {
               <h2 className="text-sm font-medium text-gray-900">Related training</h2>
               <button
                 type="button"
-                onClick={() => navigate(`/staff/trainings/${post.trainingId}`)}
+                onClick={() => { postOpenTraining({ postId: post.id, trainingId: post.trainingId }); navigate(`/staff/trainings/${post.trainingId}`); }}
                 className="mt-2 inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige"
                 aria-label="View related training"
               >

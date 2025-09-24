@@ -1,5 +1,6 @@
 // src/components/community/PostCard.jsx
 import React from 'react';
+import { postOpenTraining } from '../../lib/analytics';
 
 function formatRelativeTime(input) {
   try {
@@ -103,7 +104,10 @@ export default function PostCard({ post, onLike, onComment, onViewTraining }) {
         {hasTraining && (
           <button
             type="button"
-            onClick={() => onViewTraining?.(post.trainingId, post)}
+            onClick={() => {
+              try { postOpenTraining({ postId: post.id, trainingId: post.trainingId }); } catch {}
+              onViewTraining?.(post.trainingId, post);
+            }}
             className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
             aria-label="View related training"
           >
