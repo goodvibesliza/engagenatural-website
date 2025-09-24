@@ -41,37 +41,7 @@ function readDevOverride() {
   }
 }
 
-export default function ProFeed({
-  query = '',
-  search = '', // backward compat
-  brand = 'All', // backward compat
-  selectedBrands = [],
-  selectedTags = [],
-  onRequestVerify,
-}) {
-  const { isVerified, hasRole } = useAuth();
-
-  // Real computed value for staff verification
-  const realIsVerifiedStaff = (isVerified === true) && (hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']));
-
-  // Dev override that can be toggled without reload via localStorage
-  const [devOverride, setDevOverride] = useState(readDevOverride());
-  useEffect(() => {
-    const id = setInterval(() => {
-      const next = readDevOverride();
-      setDevOverride((prev) => (prev !== next ? next : prev));
-    }, 800);
-    return () => clearInterval(id);
-  }, []);
-
-  const isVerifiedStaff = useMemo(() => {
-    if (devOverride === true) return true;
-    if (devOverride === false) return false;
-    return realIsVerifiedStaff;
-  }, [devOverride, realIsVerifiedStaff]);
-
-  if (!isVerifiedStaff) return <ProGate onRequestVerify={onRequestVerify} />;
-
+function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands = [], selectedTags = [] }) {
   // Simulated loading window to render skeletons within 150ms
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -131,5 +101,47 @@ export default function ProFeed({
         </div>
       ))}
     </div>
+  );
+}
+
+export default function ProFeed({
+  query = '',
+  search = '', // backward compat
+  brand = 'All', // backward compat
+  selectedBrands = [],
+  selectedTags = [],
+  onRequestVerify,
+}) {
+  const { isVerified, hasRole } = useAuth();
+
+  // Real computed value for staff verification
+  const realIsVerifiedStaff = (isVerified === true) && (hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']));
+
+  // Dev override that can be toggled without reload via localStorage
+  const [devOverride, setDevOverride] = useState(readDevOverride());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = readDevOverride();
+      setDevOverride((prev) => (prev !== next ? next : prev));
+    }, 800);
+    return () => clearInterval(id);
+  }, []);
+
+  const isVerifiedStaff = useMemo(() => {
+    if (devOverride === true) return true;
+    if (devOverride === false) return false;
+    return realIsVerifiedStaff;
+  }, [devOverride, realIsVerifiedStaff]);
+
+  return isVerifiedStaff ? (
+    <ProFeedContent
+      query={query}
+      search={search}
+      brand={brand}
+      selectedBrands={selectedBrands}
+      selectedTags={selectedTags}
+    />
+  ) : (
+    <ProGate onRequestVerify={onRequestVerify} />
   );
 }
