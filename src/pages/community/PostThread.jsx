@@ -16,21 +16,39 @@ import {
 } from 'firebase/firestore';
 
 export default function PostThread() {
-  const { postId } = useParams();
+  // Support both /community/post/:postId and (previously) /community/:id
+  const params = useParams();
+  const effectivePostId = params.postId || params.id;
   const { user } = useAuth();
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const unsubRef = useRef(null);
-
   useEffect(() => {
+    let active = true;
+    let localUnsub = null;
+
     const load = async () => {
+      setLoading(true);
+      setError(null);
+
+      if (!effectivePostId) {
+        if (active) {
+          setPost(null);
+          setComments([]);
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
-        const snap = await getDoc(doc(db, 'community_posts', postId));
+        const snap = await getDoc(doc(db, 'community_posts', String(effectivePostId)));
+        if (!active) return;
+
         if (snap.exists()) {
           const data = { id: snap.id, ...snap.data() };
           setPost(data);
@@ -41,23 +59,36 @@ export default function PostThread() {
             where('postId', '==', snap.id),
             orderBy('createdAt', 'asc')
           );
-          unsubRef.current = onSnapshot(q, (s) => {
-            setComments(s.docs.map((d) => ({ id: d.id, ...d.data() })));
-          });
+          localUnsub = onSnapshot(
+            q,
+            (s) => {
+              if (!active) return;
+              setComments(s.docs.map((d) => ({ id: d.id, ...d.data() })));
+            },
+            (err) => {
+              if (!active) return;
+              setError(err);
+            }
+          );
         } else {
           setPost(null);
         }
+      } catch (e) {
+        if (active) setError(e);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
+
     load();
+
     return () => {
-      if (unsubRef.current) {
-        try { unsubRef.current(); } catch {}
+      active = false;
+      if (typeof localUnsub === 'function') {
+        try { localUnsub(); } catch {}
       }
     };
-  }, [postId]);
+  }, [effectivePostId]);
 
   const backHref = useMemo(() => {
     const cid = post?.communityId || 'whats-good';
@@ -83,6 +114,7 @@ export default function PostThread() {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('Failed to add comment', e);
+      setError(e);
     } finally {
       setSubmitting(false);
     }
@@ -99,8 +131,8 @@ export default function PostThread() {
   if (!post) {
     return (
       <div className="space-y-4">
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded">
-          Post not found
+        <div className={`p-4 rounded border ${error ? 'bg-red-50 border-red-200 text-red-800' : 'bg-yellow-50 border-yellow-200 text-yellow-800'}`}>
+          {error ? 'Something went wrong loading this post.' : 'Post not found'}
         </div>
         <Link to="/community/whats-good" className="text-brand-primary underline">
           Go to Community
