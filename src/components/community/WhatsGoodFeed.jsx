@@ -68,7 +68,7 @@ export default function WhatsGoodFeed({
 
   if (loading) {
     return (
-      <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="space-y-4">
+      <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="community-cards">
         <SkeletonPostCard />
         <SkeletonPostCard />
         <SkeletonPostCard />
@@ -106,7 +106,7 @@ export default function WhatsGoodFeed({
   }
 
   return (
-    <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="space-y-4">
+    <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="community-cards">
       {error && (
         <div className="max-w-md mx-auto">
           <ErrorBanner message={error} onDismiss={() => setError('')} />

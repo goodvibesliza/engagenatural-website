@@ -92,7 +92,7 @@ export default function ProFeed({
 
   if (loading) {
     return (
-      <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="space-y-4">
+      <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="community-cards">
         <SkeletonPostCard />
         <SkeletonPostCard />
         <SkeletonPostCard />
@@ -114,7 +114,7 @@ export default function ProFeed({
   }
 
   return (
-    <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="space-y-4">
+    <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="community-cards">
       {error && (
         <div className="max-w-md mx-auto">
           <ErrorBanner message={error} onDismiss={() => setError('')} />

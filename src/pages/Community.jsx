@@ -7,6 +7,7 @@ const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
 import { communityView, filterApplied } from '../lib/analytics';
+import './community.css';
 
 export default function Community() {
   const location = useLocation();
@@ -31,25 +32,28 @@ export default function Community() {
 
     return (
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-2xl mx-auto px-4 pt-3">
+        <div className="max-w-5xl mx-auto px-4 pt-3">
           <h1 className="text-2xl font-heading font-semibold text-deep-moss mb-3">
             Community
           </h1>
           <FeedTabs value={tab} onChange={(t) => { setTab(t); }} />
         </div>
-        <FilterBar
-          query={query}
-          selectedBrands={selectedBrands}
-          selectedTags={selectedTags}
-          availableBrands={availableBrands}
-          availableTags={availableTags}
-          onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
-            setQuery(q ?? '');
-            setSelectedBrands(sb ?? []);
-            setSelectedTags(st ?? []);
-            filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
-          }}
-        />
+        {/* Inline filters for mobile/tablet; hidden on desktop */}
+        <div className="only-mobile">
+          <FilterBar
+            query={query}
+            selectedBrands={selectedBrands}
+            selectedTags={selectedTags}
+            availableBrands={availableBrands}
+            availableTags={availableTags}
+            onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
+              setQuery(q ?? '');
+              setSelectedBrands(sb ?? []);
+              setSelectedTags(st ?? []);
+              filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
+            }}
+          />
+        </div>
       </div>
     );
   }, [tab, query, selectedBrands, selectedTags]);
@@ -62,40 +66,63 @@ export default function Community() {
   return (
     <div className="min-h-screen bg-cool-gray">
       {header}
-      <main className="max-w-2xl mx-auto px-4 py-6">
-        {tab === 'whatsGood' ? (
-          <WhatsGoodFeed
-            query={query}
-            selectedBrands={selectedBrands}
-            selectedTags={selectedTags}
-          />
-        ) : (
-          <Suspense
-            fallback={
-              <div className="space-y-4">
-                <SkeletonPostCard />
-                <SkeletonPostCard />
-                <SkeletonPostCard />
-              </div>
-            }
-          >
-            <ProFeed
-              query={query}
-              selectedBrands={selectedBrands}
-              selectedTags={selectedTags}
-              onRequestVerify={() => {
-                // Use existing verification flow route if available
-                try {
-                  window.history.pushState({}, '', '/staff/verification');
-                  // In case some routers rely on full navigation
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                } catch {
-                  window.location.assign('/staff/verification');
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        <div className="community-grid">
+          {/* Desktop sidebar filters */}
+          <aside className="only-desktop">
+            <div className="community-sticky">
+              <FilterBar
+                query={query}
+                selectedBrands={selectedBrands}
+                selectedTags={selectedTags}
+                availableBrands={[]}
+                availableTags={[]}
+                onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
+                  setQuery(q ?? '');
+                  setSelectedBrands(sb ?? []);
+                  setSelectedTags(st ?? []);
+                  filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
+                }}
+              />
+            </div>
+          </aside>
+          {/* Feed content */}
+          <section>
+            {tab === 'whatsGood' ? (
+              <WhatsGoodFeed
+                query={query}
+                selectedBrands={selectedBrands}
+                selectedTags={selectedTags}
+              />
+            ) : (
+              <Suspense
+                fallback={
+                  <div className="community-cards">
+                    <SkeletonPostCard />
+                    <SkeletonPostCard />
+                    <SkeletonPostCard />
+                  </div>
                 }
-              }}
-            />
-          </Suspense>
-        )}
+              >
+                <ProFeed
+                  query={query}
+                  selectedBrands={selectedBrands}
+                  selectedTags={selectedTags}
+                  onRequestVerify={() => {
+                    // Use existing verification flow route if available
+                    try {
+                      window.history.pushState({}, '', '/staff/verification');
+                      // In case some routers rely on full navigation
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    } catch {
+                      window.location.assign('/staff/verification');
+                    }
+                  }}
+                />
+              </Suspense>
+            )}
+          </section>
+        </div>
       </main>
     </div>
   );
