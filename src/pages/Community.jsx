@@ -110,14 +110,7 @@ export default function Community() {
                   selectedBrands={selectedBrands}
                   selectedTags={selectedTags}
                   onRequestVerify={() => {
-                    // Use existing verification flow route if available
-                    try {
-                      window.history.pushState({}, '', '/staff/verification');
-                      // In case some routers rely on full navigation
-                      window.dispatchEvent(new PopStateEvent('popstate'));
-                    } catch {
-                      window.location.assign('/staff/verification');
-                    }
+                    navigate('/staff/verification');
                   }}
                 />
               </Suspense>
