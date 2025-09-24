@@ -511,7 +511,7 @@ function App() {
             }
           >
             {/* Default redirect to What's Good */}
-            <Route index element={<Navigate to="/community/whats-good" replace />} />
+            <Route index element={<Navigate to="whats-good" replace />} />
             {/* What's Good Feed - all authenticated users */}
             <Route path="whats-good" element={<WhatsGoodFeed />} />
             {/* Pro Feed - verified staff only (guard inside component) */}
@@ -520,15 +520,7 @@ function App() {
             <Route path="post/:postId" element={<PostThread />} />
           </Route>
 
-          {/* Legacy Community Feed (individual post view) */}
-          <Route
-            path="/community/:id"
-            element={
-              <ProtectedRoute>
-                <CommunityFeed />
-              </ProtectedRoute>
-            }
-          />
+          {/* Legacy Community Feed route removed */}
 
           {/* Catch-all for unknown routes */}
           <Route path="*" element={<Navigate to="/" />} />
