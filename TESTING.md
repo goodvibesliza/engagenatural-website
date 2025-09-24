@@ -5,13 +5,13 @@ This script validates the core Community flows on a phone‑first layout. Captur
 - Mis‑taps
 - Success / Fail
 
-Use data‑testids for targeting elements (tabs, filters, first card, like button, comment composer, training CTA).
+Use data‑testids for targeting elements (tabs, filters, cards, like button, comment composer, training CTA). Select the first card via queryAll/getAll on `[data-testid="postcard"]` instead of relying on a dedicated first‑card id.
 
 ## Tasks
 
 1) Open Community → find and open a post in “What’s Good.”
    - Tap: `[data-testid="tab-whats-good"]`
-   - Scroll if needed, open the first card: `[data-testid="postcard-first"]`
+   - Scroll if needed, open the first card by selecting the first element from queryAll/getAll(`[data-testid="postcard"]`)
 
 2) Like it and add a short comment.
    - Tap like: `[data-testid="like-button"]`

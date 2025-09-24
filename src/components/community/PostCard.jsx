@@ -42,7 +42,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, data
   return (
     <article
       className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px]"
-      data-testid={dataTestId}
+      data-testid={dataTestId || 'postcard'}
       aria-label={title}
     >
       <header className="flex items-start justify-between gap-3">

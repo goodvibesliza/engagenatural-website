@@ -429,10 +429,10 @@ function App() {
 
           {/* Staff Routes - Protected for staff role */}
           {/* Staff Dashboard – new sidebar layout */}
-          {/* bare /staff → redirect to profile */}
+          {/* bare /staff → redirect to community */}
           <Route
             path="/staff"
-            element={<Navigate to="/staff/profile" replace />}
+            element={<Navigate to="/community" replace />}
           />
 
           {/* Nested staff routes under sidebar layout */}
@@ -497,8 +497,9 @@ function App() {
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
           {/* Community Routes */}
+          <Route path="/community" element={<Navigate to="/community/whats-good" replace />} />
           <Route
-            path="/community"
+            path="/community/whats-good"
             element={
               <ProtectedRoute>
                 <Community />
