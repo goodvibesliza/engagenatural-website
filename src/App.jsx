@@ -65,6 +65,7 @@ import CommunityFeed from './pages/community/CommunityFeed';
 import CommunityLayout from './components/community/CommunityLayout';
 import WhatsGoodFeed from './pages/community/WhatsGoodFeed';
 import ProFeed from './pages/community/ProFeed';
+import PostThread from './pages/community/PostThread';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -515,6 +516,8 @@ function App() {
             <Route path="whats-good" element={<WhatsGoodFeed />} />
             {/* Pro Feed - verified staff only (guard inside component) */}
             <Route path="pro" element={<ProFeed />} />
+            {/* Single post thread */}
+            <Route path="post/:postId" element={<PostThread />} />
           </Route>
 
           {/* Legacy Community Feed (individual post view) */}
