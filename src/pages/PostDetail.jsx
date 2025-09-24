@@ -192,14 +192,15 @@ export default function PostDetail() {
       return next;
     });
 
-    // Update likeIds using functional state based on the same next semantics
+    // Update likeIds using intendedNext (single source of truth)
     setLikeIds((prev) => {
       const hasMe = prev.includes('me');
-      const next = !hasMe; // mirror toggle intent
-      if (next) {
+      if (intendedNext) {
+        // ensure presence
         return hasMe ? prev : [...prev, 'me'];
       }
-      return hasMe ? prev.filter((v) => v !== 'me') : prev.slice(0, Math.max(0, prev.length - 1));
+      // ensure removal
+      return hasMe ? prev.filter((v) => v !== 'me') : prev;
     });
 
     // Persist via Firestore if available; revert on failure
