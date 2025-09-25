@@ -51,7 +51,13 @@ export default function WhatsGoodFeed({
   const { user, hasRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [postsWithCounts, setPostsWithCounts] = useState(WHATS_GOOD_STUBS);
+  const [postsWithCounts, setPostsWithCounts] = useState(
+    WHATS_GOOD_STUBS.map(post => ({ 
+      ...post, 
+      likeIds: post.likeIds || [], 
+      commentIds: post.commentIds || [] 
+    }))
+  );
 
   // Check if user is staff (can create posts)
   const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
@@ -101,8 +107,9 @@ export default function WhatsGoodFeed({
         }
       } catch (err) {
         console.warn('Failed to load comment counts:', err);
-        // Keep stub data if Firestore fails
+        // Set error state and keep stub data if Firestore fails
         if (!cancelled) {
+          setError('Failed to load latest interaction data. Showing cached content.');
           setPostsWithCounts(WHATS_GOOD_STUBS.map(p => ({ ...p, commentIds: [], likeIds: [] })));
         }
       } finally {
@@ -235,8 +242,8 @@ export default function WhatsGoodFeed({
             ? { 
                 ...p, 
                 likeIds: p.likedByMe 
-                  ? p.likeIds.filter(id => id !== 'me') // unlike
-                  : [...p.likeIds, 'me'], // like
+                  ? (p.likeIds || []).filter(id => id !== 'me') // unlike
+                  : [...(p.likeIds || []), 'me'], // like
                 likedByMe: !p.likedByMe 
               }
             : p
@@ -270,15 +277,16 @@ export default function WhatsGoodFeed({
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
-      // Revert optimistic update on error
+      // Set error state and revert optimistic update on error
+      setError('Failed to save like. Please try again.');
       setPostsWithCounts(prev => 
         prev.map(p => 
           p.id === post.id 
             ? { 
                 ...p, 
                 likeIds: post.likedByMe 
-                  ? [...p.likeIds, 'me'] // revert unlike
-                  : p.likeIds.filter(id => id !== 'me'), // revert like
+                  ? [...(p.likeIds || []), 'me'] // revert unlike
+                  : (p.likeIds || []).filter(id => id !== 'me'), // revert like
                 likedByMe: post.likedByMe // revert state
               }
             : p
