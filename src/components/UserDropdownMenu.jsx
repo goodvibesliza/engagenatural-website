@@ -25,6 +25,19 @@ import {
   Settings,
 } from 'lucide-react';
 
+/**
+ * User account dropdown triggered by the user's avatar.
+ *
+ * Renders a compact avatar button when no user data is available; when a user is present,
+ * shows a dropdown with the user's name and email, staff navigation links (Profile, Verification,
+ * Communities, My Brands), a Settings link, a conditional "Admin Panel" link when the authenticated
+ * role equals `'super_admin'`, and a Sign Out action.
+ *
+ * The Sign Out action calls the auth `signOut` function and performs a hard redirect to the site
+ * root (`window.location.assign('/')`) on success; sign-out errors are logged to the console.
+ *
+ * @returns {JSX.Element} The user dropdown menu React element.
+ */
 export default function UserDropdownMenu() {
   const { user, role, signOut } = useAuth();
 
@@ -93,7 +106,7 @@ export default function UserDropdownMenu() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link to="/staff/communities">
+            <Link to="/community">
               <Users className="mr-2 h-4 w-4" />
               <span>Communities</span>
             </Link>

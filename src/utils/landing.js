@@ -32,10 +32,10 @@ export default function getLandingRouteFor(user) {
     return user.approved === true ? '/brand' : '/pending';
   }
 
-  // 5. Staff (all staff land on /staff)
+  // 5. Staff (land on profile page first)
   //    Accept any staff-family role aliases
   if (role === 'staff' || role === 'verified_staff' || role === 'retail_staff') {
-    return '/staff';
+    return '/staff/profile';
   }
 
   // 6. Default fallback

@@ -1,0 +1,56 @@
+/* Desktop-responsive layout for Community */
+
+/* Cards grid: single column by default; two columns ≥ 992px */
+.community-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 992px) {
+  .community-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Two-column page layout ≥ 992px: sidebar + content */
+.community-grid {
+  display: block;
+}
+@media (min-width: 992px) {
+  .community-grid {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+}
+
+/* Sticky sidebar offset from top */
+.community-sticky {
+  position: static;
+}
+@media (min-width: 992px) {
+  .community-sticky {
+    position: sticky;
+    top: 80px;
+  }
+}
+
+/* Visibility helpers */
+.only-mobile {
+  display: block;
+}
+@media (min-width: 992px) {
+  .only-mobile {
+    display: none;
+  }
+}
+
+.only-desktop {
+  display: none;
+}
+@media (min-width: 992px) {
+  .only-desktop {
+    display: block;
+  }
+}

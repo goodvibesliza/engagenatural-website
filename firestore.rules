@@ -228,7 +228,7 @@ service cloud.firestore {
       //   • requester is an approved brand manager, OR
       //   • requester is a super admin
       allow read: if request.auth != null && (
-        (resource.data.isPublic == true && resource.data.isActive == true) ||
+        (resource.data.isPublic == true && (!('isActive' in resource.data) || resource.data.isActive == true)) ||
         isApprovedBrandManager(request.auth.uid) ||
         (userData(request.auth.uid).brandId == resource.data.brandId) ||
         isBrandManagerLoose(request.auth.uid) ||
@@ -257,7 +257,7 @@ service cloud.firestore {
       //   • requester is an approved/loose brand manager, OR
       //   • requester is a super admin
       allow read: if request.auth != null && (
-        (resource.data.isPublic == true && resource.data.isActive == true) ||
+        (resource.data.isPublic == true && (!('isActive' in resource.data) || resource.data.isActive == true)) ||
         isApprovedBrandManager(request.auth.uid) ||
         (userData(request.auth.uid).brandId == resource.data.brandId) ||
         isBrandManagerLoose(request.auth.uid) ||
@@ -284,7 +284,7 @@ service cloud.firestore {
     // Same permission logic as the top-level & brand-scoped rules.
     match /{path=**}/communities/{communityId} {
       allow read: if request.auth != null && (
-        (resource.data.isPublic == true && resource.data.isActive == true) ||
+        (resource.data.isPublic == true && (!('isActive' in resource.data) || resource.data.isActive == true)) ||
         isApprovedBrandManager(request.auth.uid) ||
         (userData(request.auth.uid).brandId == resource.data.brandId) ||
         isBrandManagerLoose(request.auth.uid) ||

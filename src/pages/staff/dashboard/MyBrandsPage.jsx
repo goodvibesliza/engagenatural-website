@@ -71,7 +71,7 @@ export default function MyBrandsPage() {
             name: 'Calm Well Co',
             description: 'Natural wellness and CBD products',
             category: 'Wellness',
-            logo: 'https://via.placeholder.com/100?text=CWC',
+            logo: 'https://placehold.co/100x100/e5e5e5/666666?text=CWC',
             isExample: true
           });
         }
@@ -85,7 +85,7 @@ export default function MyBrandsPage() {
           name: 'Calm Well Co',
           description: 'Natural wellness and CBD products',
           category: 'Wellness',
-          logo: 'https://via.placeholder.com/100?text=CWC',
+          logo: 'https://placehold.co/100x100/e5e5e5/666666?text=CWC',
           isExample: true
         }]);
       } finally {
@@ -211,6 +211,7 @@ export default function MyBrandsPage() {
       // Brand-scoped communities listener
       const brandScopedCommunitiesQuery = query(
         collection(db, 'brands', brandId, 'communities'),
+        where('isPublic', '==', true),
         limit(5)
       );
 
@@ -456,7 +457,7 @@ export default function MyBrandsPage() {
                       className="w-12 h-12 object-contain rounded mr-3"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/48?text=Logo';
+                        e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
                       }}
                     />
                   ) : (

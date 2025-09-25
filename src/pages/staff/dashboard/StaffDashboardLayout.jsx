@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 
+/**
+ * Staff dashboard layout component that renders the header, user avatar menu, responsive sidebar, and main content area for nested routes.
+ *
+ * Displays the current user's name and store information in the header, provides an avatar button that toggles a dropdown with profile links and a sign-out action (navigates the browser to "/?logout=true"), and renders a responsive navigation sidebar with links for staff pages. Nested route content is rendered via React Router's <Outlet />.
+ *
+ * @returns {JSX.Element} The staff dashboard layout element.
+ */
 export default function StaffDashboardLayout() {
   const { user } = useAuth();
   const location = useLocation();
@@ -124,16 +131,16 @@ export default function StaffDashboardLayout() {
               <ul className="flex flex-row md:flex-col space-y-0 space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto md:overflow-x-visible">
                 <li>
                   <NavLink
-                    to="/staff/profile"
+                    to="/staff/community"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive
-                          ? 'bg-brand-primary text-white'
-                          : 'text-gray-700 hover:bg-gray-50'
+                          ? 'bg-sage-green/10 text-deep-moss'
+                          : 'text-warm-gray hover:text-deep-moss hover:bg-oat-beige'
                       }`
                     }
                   >
-                    Profile
+                    Community
                   </NavLink>
                 </li>
                 <li>
@@ -150,20 +157,7 @@ export default function StaffDashboardLayout() {
                     Verification
                   </NavLink>
                 </li>
-                <li>
-                  <NavLink
-                    to="/staff/communities"
-                    className={({ isActive }) =>
-                      `block px-4 py-2 rounded-md transition-colors ${
-                        isActive
-                          ? 'bg-brand-primary text-white'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`
-                    }
-                  >
-                    Communities
-                  </NavLink>
-                </li>
+                
                 <li>
                   <NavLink
                     to="/staff/my-brands"

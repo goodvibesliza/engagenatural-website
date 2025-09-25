@@ -12,6 +12,17 @@ export const useBrandAnalytics = (brandId) => {
 
   useEffect(() => {
     const fetchAnalytics = async () => {
+      const analyticsEnabled = import.meta?.env?.VITE_ANALYTICS_ENABLED === 'true';
+      const isTest = import.meta?.env?.MODE === 'test';
+      // Short‑circuit during tests or when disabled via flag
+      if (!analyticsEnabled || isTest) {
+        setAnalytics((prev) => ({
+          ...prev,
+          loading: false,
+          error: null,
+        }));
+        return;
+      }
       try {
         // Replace with your actual API call
         const response = await fetch(`/api/brands/${brandId}/analytics`);
