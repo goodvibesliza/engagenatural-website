@@ -5,6 +5,7 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { CheckCircle, ArrowRight, Users, MessageSquare, Trophy, BookOpen, Brain, BarChart3, Star, Award, Clock, CheckCircle2, LogIn, Calendar, Building2, UserCheck, Zap, Shield, Heart, Gamepad2 } from 'lucide-react'
 import LoginWidget from './LoginWidget'
+import { Logo } from './brand/Logo'
 
 // Import assets
 import salesImpactGraph from '../assets/sales_impact_graph.png'
@@ -62,10 +63,13 @@ export default function PublicWebsite() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
+      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-default z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="text-2xl font-bold text-brand-primary font-heading">EngageNatural</div>
+            <div className="flex items-center space-x-3">
+              <Logo variant="auto" size="md" />
+              <span className="text-2xl font-bold text-black font-heading">CultureTest</span>
+            </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
                 Contact
