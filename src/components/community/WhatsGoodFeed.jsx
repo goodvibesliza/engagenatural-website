@@ -312,7 +312,7 @@ export default function WhatsGoodFeed({
 
   const handleComment = (post) => {
     console.log('Comment on post:', post.id);
-    navigate(`/staff/community/post/${post.id}`);
+    navigate(`/community/post/${post.id}`);
   };
 
   const handleViewTraining = (trainingId, post) => {
