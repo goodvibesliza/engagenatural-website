@@ -23,7 +23,7 @@ export default function Community() {
   useEffect(() => {
     const focusPostId = location.state?.focusPostId;
     if (focusPostId) {
-      navigate(`/community/post/${focusPostId}`, { replace: true });
+      navigate(`/staff/community/post/${focusPostId}`, { replace: true });
     }
   }, [location.state, navigate]);
 
@@ -43,12 +43,9 @@ export default function Community() {
     return (
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 pt-3">
-          <div className="flex justify-between items-center mb-3">
-            <h1 className="text-2xl font-heading font-semibold text-deep-moss">
-              Community
-            </h1>
-            <UserDropdownMenu />
-          </div>
+          <h1 className="text-2xl font-heading font-semibold text-deep-moss mb-3">
+            Community
+          </h1>
           <FeedTabs value={tab} onChange={(t) => { setTab(t); }} />
         </div>
         {/* Inline filters for mobile/tablet; hidden on desktop */}

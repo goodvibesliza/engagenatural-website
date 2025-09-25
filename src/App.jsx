@@ -62,6 +62,7 @@ import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community (phone-first IA)
 import Community from './pages/Community';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
+import CommunityPostRedirect from './components/CommunityPostRedirect';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -469,6 +470,16 @@ function App() {
                 </RequireVerification>
               }
             />
+            {/* Community routes under staff layout */}
+            <Route path="community" element={<Community />} />
+            <Route
+              path="community/post/:postId"
+              element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <PostDetail />
+                </Suspense>
+              }
+            />
           </Route>
 
           {/* Staff Training Detail */}
@@ -496,26 +507,10 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
-          {/* Community Routes */}
-          <Route path="/community" element={<Navigate to="/community/whats-good" replace />} />
-          <Route
-            path="/community/whats-good"
-            element={
-              <ProtectedRoute>
-                <Community />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/community/post/:postId"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <PostDetail />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
+          {/* Community Routes - Legacy redirects */}
+          <Route path="/community" element={<Navigate to="/staff/community" replace />} />
+          <Route path="/community/whats-good" element={<Navigate to="/staff/community" replace />} />
+          <Route path="/community/post/:postId" element={<CommunityPostRedirect />} />
 
           {/* Legacy Community Feed route removed */}
 

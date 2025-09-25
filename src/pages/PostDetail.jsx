@@ -314,7 +314,7 @@ export default function PostDetail() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         <button
-          onClick={() => navigate('/community')}
+          onClick={() => navigate('/staff/community')}
           className="text-sm text-gray-600 hover:text-gray-800"
         >
           ← Back to community
