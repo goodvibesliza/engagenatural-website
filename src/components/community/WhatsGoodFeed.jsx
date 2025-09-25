@@ -1,7 +1,7 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { collection, query, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
@@ -126,8 +126,12 @@ export default function WhatsGoodFeed({
   }, []);
 
   const refreshCommentCount = async (postId) => {
+    console.log('refreshCommentCount called for postId:', postId);
     try {
-      if (!db) return;
+      if (!db) {
+        console.warn('No Firestore database available');
+        return;
+      }
       
       const commentsQuery = query(
         collection(db, 'community_comments'),
@@ -136,15 +140,19 @@ export default function WhatsGoodFeed({
       const commentsSnap = await getCountFromServer(commentsQuery);
       const commentCount = commentsSnap.data().count || 0;
       
-      setPostsWithCounts(prev => 
-        prev.map(post => 
+      console.log(`Found ${commentCount} comments for post ${postId}`);
+      
+      setPostsWithCounts(prev => {
+        const updated = prev.map(post => 
           post.id === postId 
             ? { ...post, commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`) }
             : post
-        )
-      );
+        );
+        console.log('Updated postsWithCounts:', updated.find(p => p.id === postId));
+        return updated;
+      });
     } catch (err) {
-      console.warn('Failed to refresh comment count:', err);
+      console.error('Failed to refresh comment count for post', postId, ':', err);
     }
   };
 
@@ -211,9 +219,95 @@ export default function WhatsGoodFeed({
     );
   }
 
-  const handleLike = (post) => {
+  const handleLike = async (post) => {
     console.log('Like post:', post.id);
-    // TODO: Implement optimistic like functionality with Firestore
+    
+    if (!user) {
+      console.warn('No user logged in');
+      return;
+    }
+
+    try {
+      // Optimistically update the UI first
+      setPostsWithCounts(prev => 
+        prev.map(p => 
+          p.id === post.id 
+            ? { 
+                ...p, 
+                likeIds: p.likedByMe 
+                  ? p.likeIds.filter(id => id !== 'me') // unlike
+                  : [...p.likeIds, 'me'], // like
+                likedByMe: !p.likedByMe 
+              }
+            : p
+        )
+      );
+
+      // Update Firestore
+      if (db) {
+        const likeId = `${post.id}_${user.uid}`;
+        const likeRef = doc(db, 'post_likes', likeId);
+        const likeDoc = await getDoc(likeRef);
+        
+        if (likeDoc.exists()) {
+          // Unlike
+          const { deleteDoc } = await import('firebase/firestore');
+          await deleteDoc(likeRef);
+          console.log('Unliked post:', post.id);
+        } else {
+          // Like
+          const { setDoc, serverTimestamp } = await import('firebase/firestore');
+          await setDoc(likeRef, {
+            postId: post.id,
+            userId: user.uid,
+            createdAt: serverTimestamp()
+          });
+          console.log('Liked post:', post.id);
+        }
+        
+        // Refresh the count after a short delay
+        setTimeout(() => refreshLikeCount(post.id), 500);
+      }
+    } catch (err) {
+      console.error('Failed to toggle like:', err);
+      // Revert optimistic update on error
+      setPostsWithCounts(prev => 
+        prev.map(p => 
+          p.id === post.id 
+            ? { 
+                ...p, 
+                likeIds: post.likedByMe 
+                  ? [...p.likeIds, 'me'] // revert unlike
+                  : p.likeIds.filter(id => id !== 'me'), // revert like
+                likedByMe: post.likedByMe // revert state
+              }
+            : p
+        )
+      );
+    }
+  };
+
+  const refreshLikeCount = async (postId) => {
+    try {
+      if (!db) return;
+      
+      const likesQuery = query(
+        collection(db, 'post_likes'),
+        where('postId', '==', postId)
+      );
+      const likesSnap = await getCountFromServer(likesQuery);
+      const likeCount = likesSnap.data().count || 0;
+      
+      setPostsWithCounts(prev => 
+        prev.map(post => 
+          post.id === postId 
+            ? { ...post, likeIds: Array.from({ length: likeCount }, (_, i) => `like-${i}`) }
+            : post
+        )
+      );
+    } catch (err) {
+      console.error('Failed to refresh like count:', err);
+    }
   };
 
   const handleComment = (post) => {

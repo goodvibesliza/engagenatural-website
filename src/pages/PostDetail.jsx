@@ -273,10 +273,15 @@ export default function PostDetail() {
       });
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, id: ref.id, status: 'ok' } : c)));
       
-      // Refresh comment count in community feed
-      if (typeof window.refreshWhatsGoodComments === 'function') {
-        window.refreshWhatsGoodComments(post.id);
-      }
+      // Refresh comment count in community feed with delay for Firestore consistency
+      setTimeout(() => {
+        if (typeof window.refreshWhatsGoodComments === 'function') {
+          console.log('Refreshing comment count for post:', post.id);
+          window.refreshWhatsGoodComments(post.id);
+        } else {
+          console.warn('window.refreshWhatsGoodComments not available');
+        }
+      }, 1000); // 1 second delay to allow Firestore to propagate
     } catch (e) {
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
     }
