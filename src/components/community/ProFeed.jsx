@@ -96,6 +96,11 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
     navigate(`/staff/community/post/${post.id}`);
   };
 
+  const handleCardClick = (post) => {
+    console.log('Pro card clicked for post:', post.id);
+    navigate(`/staff/community/post/${post.id}`);
+  };
+
   const handleViewTraining = (trainingId, post) => {
     console.log('View training:', trainingId, 'from pro post:', post.id);
     navigate(`/staff/trainings/${trainingId}`);
@@ -120,6 +125,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
             dataTestId={idx === 0 ? 'postcard-first' : undefined}
             onLike={handleLike}
             onComment={handleComment}
+            onCardClick={handleCardClick}
             onViewTraining={handleViewTraining}
           />
         </div>

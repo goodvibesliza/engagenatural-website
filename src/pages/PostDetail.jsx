@@ -48,11 +48,16 @@ export default function PostDetail() {
     async function load() {
       setLoading(true);
       try {
+        let mappedPost = null;
+        let feedType = 'unknown';
+        
+        // Try to find in stub data first
         const wg = WHATS_GOOD_STUBS.find((p) => p.id === postId);
         const pr = !wg ? PRO_STUBS.find((p) => p.id === postId) : null;
         const stub = wg || pr || null;
+        
         if (stub) {
-          const mapped = {
+          mappedPost = {
             id: stub.id,
             brand: stub.brand || 'General',
             title: stub.title || 'Update',
@@ -64,19 +69,14 @@ export default function PostDetail() {
             likeIds: [],
             commentIds: [],
           };
-          if (!cancelled) {
-            setPost(mapped);
-            setLikeIds([]);
-            setComments([]);
-            postOpen({ postId: mapped.id, feedType: wg ? 'whatsGood' : 'pro' });
-          }
+          feedType = wg ? 'whatsGood' : 'pro';
         } else {
-          // Firestore lookup
+          // Try Firestore lookup
           const ref = doc(db, 'community_posts', postId);
           const snap = await getDoc(ref);
           if (snap.exists()) {
             const data = snap.data();
-            const mapped = {
+            mappedPost = {
               id: snap.id,
               brand: data.brand || data.communityName || 'General',
               title: data.title || 'Update',
@@ -87,17 +87,30 @@ export default function PostDetail() {
               likeIds: [],
               commentIds: [],
             };
-            if (!cancelled) {
-              setPost(mapped);
-              postOpen({ postId: mapped.id, feedType: 'unknown' });
-            }
+            feedType = 'unknown';
+          }
+        }
 
+        // Set the post if we found it (either stub or Firestore)
+        if (mappedPost && !cancelled) {
+          setPost(mappedPost);
+          postOpen({ postId: mappedPost.id, feedType });
+        } else if (!cancelled) {
+          setPost(null);
+          setLoading(false);
+          return; // Exit early if no post found
+        }
+
+        // ALWAYS load likes and comments from Firestore (for both stub and real posts)
+        if (db && !cancelled) {
+          try {
             const likesQ = query(collection(db, 'post_likes'), where('postId', '==', postId));
             const commentsQ = query(collection(db, 'community_comments'), where('postId', '==', postId));
             const [likesSnap, commentsSnap] = await Promise.all([
               getCountFromServer(likesQ),
               getCountFromServer(commentsQ),
             ]);
+            
             if (!cancelled) {
               const likeCount = likesSnap.data().count || 0;
               // Initialize likeIds as placeholders to derive count; ensure 'me' present if likedByMe resolves true later
@@ -130,9 +143,17 @@ export default function PostDetail() {
                   });
                 }
               }
-            } catch {}
-          } else if (!cancelled) {
-            setPost(null);
+            } catch (err) {
+              console.warn('Failed to check if user liked post:', err);
+            }
+          } catch (err) {
+            console.warn('Failed to load comments/likes from Firestore:', err);
+            // Initialize empty arrays if Firestore fails
+            if (!cancelled) {
+              setLikeIds([]);
+              setComments([]);
+              setLiked(false);
+            }
           }
         }
       } catch (e) {

@@ -315,6 +315,11 @@ export default function WhatsGoodFeed({
     navigate(`/community/post/${post.id}`);
   };
 
+  const handleCardClick = (post) => {
+    console.log('Card clicked for post:', post.id);
+    navigate(`/staff/community/post/${post.id}`);
+  };
+
   const handleViewTraining = (trainingId, post) => {
     console.log('View training:', trainingId, 'from post:', post.id);
     navigate(`/staff/trainings/${trainingId}`);
@@ -334,6 +339,7 @@ export default function WhatsGoodFeed({
           dataTestId={idx === 0 ? 'postcard-first' : undefined}
           onLike={handleLike}
           onComment={handleComment}
+          onCardClick={handleCardClick}
           onViewTraining={handleViewTraining}
         />
       ))}

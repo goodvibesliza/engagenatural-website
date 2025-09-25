@@ -29,7 +29,7 @@ function formatRelativeTime(input) {
   }
 }
 
-export default function PostCard({ post, onLike, onComment, onViewTraining, dataTestId }) {
+export default function PostCard({ post, onLike, onComment, onViewTraining, onCardClick, dataTestId }) {
   const likes = Array.isArray(post?.likeIds) ? post.likeIds.length : 0;
   const comments = Array.isArray(post?.commentIds) ? post.commentIds.length : 0;
   const liked = post?.likedByMe === true;
@@ -39,11 +39,18 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, data
   const time = post?.timeAgo || formatRelativeTime(post?.createdAt);
   const hasTraining = !!post?.trainingId;
 
+  const handleCardClick = (e) => {
+    // Don't navigate if clicking on a button
+    if (e.target.closest('button')) return;
+    onCardClick?.(post);
+  };
+
   return (
     <article
-      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px]"
+      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px] cursor-pointer hover:shadow-md transition-shadow"
       data-testid={dataTestId || 'postcard'}
       aria-label={title}
+      onClick={handleCardClick}
     >
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
