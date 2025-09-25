@@ -46,6 +46,11 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   // Simulated loading window to render skeletons within 150ms
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [posts, setPosts] = useState(PRO_STUBS.map(post => ({ 
+    ...post, 
+    likeIds: post.likeIds || [], 
+    likedByMe: false 
+  })));
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -54,7 +59,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   }, []);
 
   const q = (query || search).trim().toLowerCase();
-  const filtered = PRO_STUBS.filter((p) => {
+  const filtered = posts.filter((p) => {
     const okText = !q || (p.content?.toLowerCase().includes(q) || p.author?.name?.toLowerCase().includes(q));
     const brandList = selectedBrands.length > 0 ? selectedBrands : (brand && brand !== 'All' ? [brand] : []);
     const okBrand = brandList.length === 0 || brandList.includes(p.brand || '');
@@ -88,7 +93,23 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
 
   const handleLike = (post) => {
     console.log('Like pro post:', post.id);
-    // TODO: Implement optimistic like functionality with Firestore
+    
+    // Optimistically update the UI
+    setPosts(prev => 
+      prev.map(p => 
+        p.id === post.id 
+          ? { 
+              ...p, 
+              likeIds: p.likedByMe 
+                ? (p.likeIds || []).filter(id => id !== 'me') // unlike
+                : [...(p.likeIds || []), 'me'], // like
+              likedByMe: !p.likedByMe 
+            }
+          : p
+      )
+    );
+    
+    // TODO: Persist to Firestore later
   };
 
   const handleComment = (post) => {

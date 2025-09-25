@@ -325,7 +325,7 @@ export default function WhatsGoodFeed({
 
   const handleCardClick = (post) => {
     console.log('Card clicked for post:', post.id);
-    navigate(`/staff/community/post/${post.id}`);
+    navigate(`/community/post/${post.id}`);
   };
 
   const handleViewTraining = (trainingId, post) => {

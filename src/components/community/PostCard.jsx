@@ -45,12 +45,30 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
     onCardClick?.(post);
   };
 
+  const handleKeyDown = (e) => {
+    // Only handle Enter and Space keys
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    
+    // Don't navigate if focusing on a button
+    if (e.target.closest('button')) return;
+    
+    // Prevent default space key scrolling
+    if (e.key === ' ') {
+      e.preventDefault();
+    }
+    
+    onCardClick?.(post);
+  };
+
   return (
     <article
-      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px] cursor-pointer hover:shadow-md transition-shadow"
+      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px] cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-deep-moss focus:ring-offset-2"
       data-testid={dataTestId || 'postcard'}
       aria-label={title}
+      role="button"
+      tabIndex={0}
       onClick={handleCardClick}
+      onKeyDown={handleKeyDown}
     >
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
