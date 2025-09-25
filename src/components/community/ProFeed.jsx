@@ -1,5 +1,6 @@
 // src/components/community/ProFeed.jsx
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import ProGate from './ProGate';
@@ -45,6 +46,8 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   // Simulated loading window to render skeletons within 150ms
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
+  
   useEffect(() => {
     const id = setTimeout(() => setLoading(false), 0);
     return () => clearTimeout(id);
@@ -83,6 +86,21 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
     );
   }
 
+  const handleLike = (post) => {
+    console.log('Like pro post:', post.id);
+    // TODO: Implement optimistic like functionality with Firestore
+  };
+
+  const handleComment = (post) => {
+    console.log('Comment on pro post:', post.id);
+    navigate(`/community/post/${post.id}`);
+  };
+
+  const handleViewTraining = (trainingId, post) => {
+    console.log('View training:', trainingId, 'from pro post:', post.id);
+    navigate(`/staff/trainings/${trainingId}`);
+  };
+
   return (
     <div id="panel-pro" role="tabpanel" aria-labelledby="tab-pro" className="community-cards">
       {error && (
@@ -97,7 +115,13 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
               <span>PINNED</span>
             </div>
           )}
-          <PostCard post={post} dataTestId={idx === 0 ? 'postcard-first' : undefined} />
+          <PostCard 
+            post={post} 
+            dataTestId={idx === 0 ? 'postcard-first' : undefined}
+            onLike={handleLike}
+            onComment={handleComment}
+            onViewTraining={handleViewTraining}
+          />
         </div>
       ))}
     </div>

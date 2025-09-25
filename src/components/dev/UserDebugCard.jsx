@@ -5,6 +5,11 @@ import { useAuth } from "../../contexts/auth-context";
  * Only renders in development mode
  */
 export default function UserDebugCard() {
+  // SECURITY: Never show debug info in production regardless of VITE_SHOW_USER_DEBUG
+  if (import.meta.env.PROD) {
+    return null;
+  }
+  
   // Render if DEV mode OR VITE_SHOW_USER_DEBUG environment variable is 'true'
   if (!import.meta.env.DEV && import.meta.env.VITE_SHOW_USER_DEBUG !== 'true') {
     return null;

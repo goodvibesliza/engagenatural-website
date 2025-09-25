@@ -104,6 +104,21 @@ export default function WhatsGoodFeed({
     );
   }
 
+  const handleLike = (post) => {
+    console.log('Like post:', post.id);
+    // TODO: Implement optimistic like functionality with Firestore
+  };
+
+  const handleComment = (post) => {
+    console.log('Comment on post:', post.id);
+    navigate(`/community/post/${post.id}`);
+  };
+
+  const handleViewTraining = (trainingId, post) => {
+    console.log('View training:', trainingId, 'from post:', post.id);
+    navigate(`/staff/trainings/${trainingId}`);
+  };
+
   return (
     <div id="panel-whats-good" role="tabpanel" aria-labelledby="tab-whats-good" className="community-cards">
       {error && (
@@ -112,7 +127,14 @@ export default function WhatsGoodFeed({
         </div>
       )}
       {filtered.map((post, idx) => (
-        <PostCard key={post.id} post={post} dataTestId={idx === 0 ? 'postcard-first' : undefined} />
+        <PostCard 
+          key={post.id} 
+          post={post} 
+          dataTestId={idx === 0 ? 'postcard-first' : undefined}
+          onLike={handleLike}
+          onComment={handleComment}
+          onViewTraining={handleViewTraining}
+        />
       ))}
     </div>
   );

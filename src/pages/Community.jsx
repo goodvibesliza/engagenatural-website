@@ -7,6 +7,7 @@ import { PRO_STUBS } from '../components/community/ProFeed';
 const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
+import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied } from '../lib/analytics';
 import './community.css';
 
@@ -42,9 +43,12 @@ export default function Community() {
     return (
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 pt-3">
-          <h1 className="text-2xl font-heading font-semibold text-deep-moss mb-3">
-            Community
-          </h1>
+          <div className="flex justify-between items-center mb-3">
+            <h1 className="text-2xl font-heading font-semibold text-deep-moss">
+              Community
+            </h1>
+            <UserDropdownMenu />
+          </div>
           <FeedTabs value={tab} onChange={(t) => { setTab(t); }} />
         </div>
         {/* Inline filters for mobile/tablet; hidden on desktop */}

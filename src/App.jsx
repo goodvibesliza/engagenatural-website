@@ -429,10 +429,10 @@ function App() {
 
           {/* Staff Routes - Protected for staff role */}
           {/* Staff Dashboard – new sidebar layout */}
-          {/* bare /staff → redirect to community */}
+          {/* bare /staff → redirect to profile */}
           <Route
             path="/staff"
-            element={<Navigate to="/community" replace />}
+            element={<Navigate to="/staff/profile" replace />}
           />
 
           {/* Nested staff routes under sidebar layout */}
