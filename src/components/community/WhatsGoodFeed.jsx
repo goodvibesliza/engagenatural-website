@@ -1,7 +1,7 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
+import { collection, query as firestoreQuery, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
@@ -67,11 +67,11 @@ export default function WhatsGoodFeed({
             try {
               if (!db) return { ...post, commentIds: [], likeIds: [] };
               
-              const commentsQuery = query(
+              const commentsQuery = firestoreQuery(
                 collection(db, 'community_comments'),
                 where('postId', '==', post.id)
               );
-              const likesQuery = query(
+              const likesQuery = firestoreQuery(
                 collection(db, 'post_likes'),
                 where('postId', '==', post.id)
               );
@@ -133,7 +133,7 @@ export default function WhatsGoodFeed({
         return;
       }
       
-      const commentsQuery = query(
+      const commentsQuery = firestoreQuery(
         collection(db, 'community_comments'),
         where('postId', '==', postId)
       );
@@ -291,7 +291,7 @@ export default function WhatsGoodFeed({
     try {
       if (!db) return;
       
-      const likesQuery = query(
+      const likesQuery = firestoreQuery(
         collection(db, 'post_likes'),
         where('postId', '==', postId)
       );

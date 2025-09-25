@@ -312,37 +312,6 @@ service cloud.firestore {
       allow update: if false; // likes are immutable
     }
 
-    // ---------- community_comments ----------
-    match /community_comments/{commentId} {
-      // Anyone authenticated can read comments
-      allow read: if request.auth != null;
-      
-      // Only authenticated users can create comments (with their own userId)
-      allow create: if request.auth != null && 
-        request.resource.data.userId == request.auth.uid;
-      
-      // Users can update/delete their own comments
-      allow update, delete: if request.auth != null && 
-        resource.data.userId == request.auth.uid;
-    }
-
-    // ---------- post_likes ----------  
-    match /post_likes/{likeId} {
-      // Anyone authenticated can read likes (for counting)
-      allow read: if request.auth != null;
-      
-      // Only authenticated users can create likes (with their own userId)
-      allow create: if request.auth != null && 
-        request.resource.data.userId == request.auth.uid;
-      
-      // Users can only delete their own likes (no updates - likes are immutable)
-      allow delete: if request.auth != null && 
-        resource.data.userId == request.auth.uid;
-      
-      // Likes are immutable - no updates allowed
-      allow update: if false;
-    }
-
     // ---------- brand_follows (user follows brands) ----------
     match /brand_follows/{docId} {
       // Create limited to the owner
