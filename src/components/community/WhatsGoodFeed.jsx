@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
@@ -47,9 +48,13 @@ export default function WhatsGoodFeed({
   onStartPost,
 }) {
   const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [postsWithCounts, setPostsWithCounts] = useState(WHATS_GOOD_STUBS);
+
+  // Check if user is staff (can create posts)
+  const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
 
   // Load real comment counts from Firestore on mount
   useEffect(() => {
@@ -119,6 +124,38 @@ export default function WhatsGoodFeed({
     const id = setTimeout(() => setLoading(false), 2000); // max 2s loading
     return () => clearTimeout(id);
   }, []);
+
+  const refreshCommentCount = async (postId) => {
+    try {
+      if (!db) return;
+      
+      const commentsQuery = query(
+        collection(db, 'community_comments'),
+        where('postId', '==', postId)
+      );
+      const commentsSnap = await getCountFromServer(commentsQuery);
+      const commentCount = commentsSnap.data().count || 0;
+      
+      setPostsWithCounts(prev => 
+        prev.map(post => 
+          post.id === postId 
+            ? { ...post, commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`) }
+            : post
+        )
+      );
+    } catch (err) {
+      console.warn('Failed to refresh comment count:', err);
+    }
+  };
+
+  // Expose refresh function globally for PostDetail to call (before early returns)
+  useEffect(() => {
+    window.refreshWhatsGoodComments = refreshCommentCount;
+    return () => {
+      delete window.refreshWhatsGoodComments;
+    };
+  }, []);
+
   const q = (query || search).trim().toLowerCase();
   const filtered = postsWithCounts.filter((p) => {
     // Text query against content and author name (and optional title if exists)
@@ -156,18 +193,20 @@ export default function WhatsGoodFeed({
           </div>
         )}
         <div className="text-gray-900 font-medium">{COPY.empty.whatsGood}</div>
-        <div>
-          <button
-            type="button"
-            onClick={() => {
-              if (onStartPost) return onStartPost();
-              navigate('/staff/communities');
-            }}
-            className="mt-2 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md bg-deep-moss text-white text-sm hover:bg-sage-dark"
-          >
-            Start a post
-          </button>
-        </div>
+        {isStaff && (
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                if (onStartPost) return onStartPost();
+                navigate('/staff/communities');
+              }}
+              className="mt-2 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md bg-deep-moss text-white text-sm hover:bg-sage-dark"
+            >
+              Start a post
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -181,37 +220,6 @@ export default function WhatsGoodFeed({
     console.log('Comment on post:', post.id);
     navigate(`/staff/community/post/${post.id}`);
   };
-
-  const refreshCommentCount = async (postId) => {
-    try {
-      if (!db) return;
-      
-      const commentsQuery = query(
-        collection(db, 'community_comments'),
-        where('postId', '==', postId)
-      );
-      const commentsSnap = await getCountFromServer(commentsQuery);
-      const commentCount = commentsSnap.data().count || 0;
-      
-      setPostsWithCounts(prev => 
-        prev.map(post => 
-          post.id === postId 
-            ? { ...post, commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`) }
-            : post
-        )
-      );
-    } catch (err) {
-      console.warn('Failed to refresh comment count:', err);
-    }
-  };
-
-  // Expose refresh function globally for PostDetail to call
-  useEffect(() => {
-    window.refreshWhatsGoodComments = refreshCommentCount;
-    return () => {
-      delete window.refreshWhatsGoodComments;
-    };
-  }, []);
 
   const handleViewTraining = (trainingId, post) => {
     console.log('View training:', trainingId, 'from post:', post.id);
