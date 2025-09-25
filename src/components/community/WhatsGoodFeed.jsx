@@ -1,6 +1,8 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import PostCard from './PostCard';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
@@ -47,12 +49,78 @@ export default function WhatsGoodFeed({
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [postsWithCounts, setPostsWithCounts] = useState(WHATS_GOOD_STUBS);
+
+  // Load real comment counts from Firestore on mount
   useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 0); // ensure <150ms skeleton
+    let cancelled = false;
+    
+    const loadCommentCounts = async () => {
+      try {
+        const enrichedPosts = await Promise.all(
+          WHATS_GOOD_STUBS.map(async (post) => {
+            try {
+              if (!db) return { ...post, commentIds: [], likeIds: [] };
+              
+              const commentsQuery = query(
+                collection(db, 'community_comments'),
+                where('postId', '==', post.id)
+              );
+              const likesQuery = query(
+                collection(db, 'post_likes'),
+                where('postId', '==', post.id)
+              );
+              
+              const [commentsSnap, likesSnap] = await Promise.all([
+                getCountFromServer(commentsQuery),
+                getCountFromServer(likesQuery)
+              ]);
+              
+              const commentCount = commentsSnap.data().count || 0;
+              const likeCount = likesSnap.data().count || 0;
+              
+              return {
+                ...post,
+                commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`),
+                likeIds: Array.from({ length: likeCount }, (_, i) => `like-${i}`),
+              };
+            } catch (err) {
+              console.warn(`Failed to load counts for post ${post.id}:`, err);
+              return { ...post, commentIds: [], likeIds: [] };
+            }
+          })
+        );
+        
+        if (!cancelled) {
+          setPostsWithCounts(enrichedPosts);
+        }
+      } catch (err) {
+        console.warn('Failed to load comment counts:', err);
+        // Keep stub data if Firestore fails
+        if (!cancelled) {
+          setPostsWithCounts(WHATS_GOOD_STUBS.map(p => ({ ...p, commentIds: [], likeIds: [] })));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadCommentCounts();
+    
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fallback loading timer for network issues
+  useEffect(() => {
+    const id = setTimeout(() => setLoading(false), 2000); // max 2s loading
     return () => clearTimeout(id);
   }, []);
   const q = (query || search).trim().toLowerCase();
-  const filtered = WHATS_GOOD_STUBS.filter((p) => {
+  const filtered = postsWithCounts.filter((p) => {
     // Text query against content and author name (and optional title if exists)
     const okText = !q || (p.content?.toLowerCase().includes(q) || p.author?.name?.toLowerCase().includes(q));
 
@@ -113,6 +181,37 @@ export default function WhatsGoodFeed({
     console.log('Comment on post:', post.id);
     navigate(`/staff/community/post/${post.id}`);
   };
+
+  const refreshCommentCount = async (postId) => {
+    try {
+      if (!db) return;
+      
+      const commentsQuery = query(
+        collection(db, 'community_comments'),
+        where('postId', '==', postId)
+      );
+      const commentsSnap = await getCountFromServer(commentsQuery);
+      const commentCount = commentsSnap.data().count || 0;
+      
+      setPostsWithCounts(prev => 
+        prev.map(post => 
+          post.id === postId 
+            ? { ...post, commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`) }
+            : post
+        )
+      );
+    } catch (err) {
+      console.warn('Failed to refresh comment count:', err);
+    }
+  };
+
+  // Expose refresh function globally for PostDetail to call
+  useEffect(() => {
+    window.refreshWhatsGoodComments = refreshCommentCount;
+    return () => {
+      delete window.refreshWhatsGoodComments;
+    };
+  }, []);
 
   const handleViewTraining = (trainingId, post) => {
     console.log('View training:', trainingId, 'from post:', post.id);

@@ -131,7 +131,7 @@ export default function StaffDashboardLayout() {
               <ul className="flex flex-row md:flex-col space-y-0 space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto md:overflow-x-visible">
                 <li>
                   <NavLink
-                    to="/community"
+                    to="/staff/community"
                     className={({ isActive }) =>
                       `block px-4 py-2 rounded-md transition-colors ${
                         isActive

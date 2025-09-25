@@ -272,6 +272,11 @@ export default function PostDetail() {
         createdAt: serverTimestamp(),
       });
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, id: ref.id, status: 'ok' } : c)));
+      
+      // Refresh comment count in community feed
+      if (typeof window.refreshWhatsGoodComments === 'function') {
+        window.refreshWhatsGoodComments(post.id);
+      }
     } catch (e) {
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
     }

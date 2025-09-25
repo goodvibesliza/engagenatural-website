@@ -448,6 +448,7 @@ function App() {
             }
           >
             <Route index element={<Navigate to="/staff/profile" replace />} />
+            <Route path="dashboard" element={<Navigate to="/staff/profile" replace />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="verification" element={<VerificationPage />} />
             <Route
