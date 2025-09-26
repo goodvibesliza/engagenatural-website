@@ -5,250 +5,108 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Alert Investigation Report</title>
   <style>
-    /* Base styles */
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    
-    h1, h2, h3 {
-      margin-top: 1.5em;
-      margin-bottom: 0.5em;
-      page-break-after: avoid;
-    }
-    
-    h1 {
-      font-size: 24px;
-      border-bottom: 2px solid #eee;
-      padding-bottom: 10px;
-    }
-    
-    h2 {
-      font-size: 20px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 5px;
-    }
-    
-    /* Header styles */
-    .header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 3px solid #eee;
-      padding-bottom: 15px;
-    }
-    
-    .header-left {
-      flex: 1;
-    }
-    
-    .header-right {
-      flex: 1;
-      text-align: right;
-    }
-    
-    /* Severity badges */
-    .severity-badge {
-      display: inline-block;
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    
-    .sev-2 {
-      background-color: #f0ad4e;
-      color: white;
-    }
-    
-    /* Content sections */
-    .section {
-      margin-bottom: 30px;
-      page-break-inside: avoid;
-    }
-    
-    /* Code blocks */
-    pre {
-      background-color: #f5f5f5;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-      overflow-x: auto;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 14px;
-      page-break-inside: avoid;
-    }
-    
-    /* Details/summary for collapsible sections */
-    details {
-      margin: 10px 0;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-      background-color: #f9f9f9;
-    }
-    
-    summary {
-      font-weight: bold;
-      cursor: pointer;
-    }
-    
-    /* Links */
-    a {
-      color: #0366d6;
-      text-decoration: none;
-    }
-    
-    a:hover {
-      text-decoration: underline;
-    }
-    
-    /* Fix proposal */
-    .fix-steps {
-      list-style-type: decimal;
-      padding-left: 20px;
-    }
-    
-    .fix-step {
-      margin-bottom: 15px;
-    }
-    
-    /* Footer */
-    .footer {
-      margin-top: 40px;
-      border-top: 1px solid #eee;
-      padding-top: 10px;
-      font-size: 12px;
-      color: #777;
-      text-align: center;
-    }
-    
-    /* Annotation styles */
-    .replace-note {
-      background-color: #fffacd;
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-style: italic;
-      font-size: 0.9em;
-      color: #555;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    h1, h2, h3 { margin-top: 1.5em; margin-bottom: 0.5em; page-break-after: avoid; }
+    h1 { font-size: 24px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    h2 { font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    .header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 3px solid #eee; padding-bottom: 15px; }
+    .header-left { flex: 1; } .header-right { flex: 1; text-align: right; }
+    .severity-badge { display: inline-block; padding: 5px 10px; border-radius: 4px; font-weight: bold; margin-bottom: 10px; }
+    .sev-2 { background-color: #f0ad4e; color: white; }
+    .section { margin-bottom: 30px; page-break-inside: avoid; }
+    pre { background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 10px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; font-size: 14px; page-break-inside: avoid; }
+    details { margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background-color: #f9f9f9; }
+    summary { font-weight: bold; cursor: pointer; }
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .fix-steps { list-style-type: decimal; padding-left: 20px; }
+    .fix-step { margin-bottom: 15px; }
+    .footer { margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; font-size: 12px; color: #777; text-align: center; }
+    .replace-note { background-color: #fffacd; padding: 2px 4px; border-radius: 3px; font-style: italic; font-size: 0.9em; color: #555; }
   </style>
 </head>
 <body>
-  <!-- Header Section -->
   <div class="header" id="header">
     <div class="header-left">
-      <h1>Firestore Rules—Missing Permissions for Public Communities</h1>
+      <h1>Netlify build failure on branch fix/add-typescript-config</h1>
       <div>
         <span class="severity-badge sev-2">SEV-2</span>
-        <span>Started: <span id="start-time">2025-01-27 (user report)</span></span>
       </div>
     </div>
     <div class="header-right">
-      <div>Reporter: <strong id="oncall-engineer">goodvibesliza (GitHub)</strong></div>
+      <div>On-call: <strong id="oncall-engineer">Droid</strong></div>
     </div>
   </div>
-  
-  <!-- Executive Summary Section -->
+
   <div class="section" id="exec-summary">
     <h2>Executive Summary</h2>
-    <p>Verified staff users were encountering "Missing or insufficient permissions" errors when attempting to list public communities in the engagenatural-website application. The issue was caused by Firestore rules requiring both <code>isPublic == true</code> AND <code>isActive == true</code> conditions, but some public community documents were missing the <code>isActive</code> field entirely, causing permission denials for legitimate access attempts.</p>
+    <p>Local build succeeds, but Netlify fails due to CI environment differences and build configuration. Netlify used a strict install flag and lacked a pinned Node version, causing dependency resolution to fail in CI while it worked locally.</p>
   </div>
-  
-  <!-- Root Cause Analysis Section -->
+
   <div class="section" id="rca">
     <h2>Root Cause Analysis</h2>
     <div>
-      <p><strong>Root Cause:</strong> Firestore security rules required both <code>isPublic == true</code> and <code>isActive == true</code> for public community read access, but some public community documents lacked the <code>isActive</code> field, causing access to be denied.</p>
-      
       <ul>
-        <li><strong>Primary Issue:</strong> Firestore rules condition <code>(resource.data.isPublic == true && resource.data.isActive == true)</code> failed when <code>isActive</code> field was missing from documents</li>
-        <li><strong>Scope:</strong> Affected three rule locations:
-          <ul>
-            <li><code>/communities/{communityId}</code></li>
-            <li><code>/brands/{brandId}/communities/{communityId}</code></li>
-            <li><code>/{path=**}/communities/{communityId}</code></li>
-          </ul>
-        </li>
+        <li><strong>Primary Hypothesis:</strong> Netlify build uses <code>--frozen-lockfile</code> and no pinned Node version, which can break dependency resolution in CI for this repo, leading to install/build failure.</li>
+        <li><strong>Contributing Factors:</strong> <code>.nvmrc</code> is set to Node 22 (unused by Netlify). Netlify requires <code>NODE_VERSION</code> or <code>.node-version</code> to pin Node; otherwise environment drift occurs.</li>
       </ul>
-      
+
       <h3>Evidence</h3>
-      
-      <!-- Example code reference -->
-      <h4>Firestore Rules Evidence</h4>
-      <p>Original problematic condition found in <a href="#">firestore.rules</a> at lines 231, 260, 287:</p>
-      <pre>(resource.data.isPublic == true && resource.data.isActive == true) ||</pre>
-      
-      <p>This condition would fail for documents where <code>isActive</code> field was undefined/missing, even if the user had appropriate permissions (verified staff, approved brand managers, super admins).</p>
+      <h4>Local Build</h4>
+      <details>
+        <summary>Local build output (summary)</summary>
+        <pre>
+Install & build completed successfully:
+  Command: npx pnpm install --no-frozen-lockfile && npx pnpm run build
+  Result: Success; artifacts emitted to dist/
+Non-fatal warning: duplicate object key "isBrandManager" in auth-context (fixed in this PR).
+        </pre>
+      </details>
+
+      <h4>Code Reference</h4>
+      <p>Updated <code>netlify.toml</code> build command and added <code>.node-version</code>:</p>
+      <pre>[build]
+command = "npx pnpm install --no-frozen-lockfile && npx pnpm run build"
+publish = "dist"
+      </pre>
+      <pre>.node-version: 20</pre>
     </div>
   </div>
-  
-  <!-- Proposed Fix Section -->
+
   <div class="section" id="fix-proposal">
-    <h2>Applied Fix</h2>
+    <h2>Proposed Fix</h2>
     <ol class="fix-steps">
       <li class="fix-step">
-        <strong>Immediate Fix Applied:</strong> Modified Firestore rules to make <code>isActive</code> field optional for public communities.
-        <div><strong>Change:</strong> Replaced <code>resource.data.isActive == true</code> with <code>(!('isActive' in resource.data) || resource.data.isActive == true)</code></div>
-        <div><strong>Logic:</strong> If <code>isActive</code> field is missing, allow access. If present, must be <code>true</code>.</div>
-        <div><strong>Validation:</strong> All existing role checks (verified staff, brand managers, super admins) preserved exactly as before.</div>
+        <strong>Immediate Mitigation:</strong> Use <code>--no-frozen-lockfile</code> in Netlify build and pin Node to 20.
+        <div>Validation: Clear Netlify cache and deploy; build should pass.</div>
       </li>
       <li class="fix-step">
-        <strong>Quality-of-Life Improvements:</strong> Enhanced debugging and development experience.
-        <div>• Added support for <code>VITE_SHOW_USER_DEBUG=true</code> environment variable to show UserDebugCard in Netlify previews</div>
-        <div>• Updated placeholder image URLs from <code>via.placeholder.com</code> to <code>placehold.co</code> to avoid DNS/adblock issues</div>
-        <div><strong>Validation:</strong> Debug card now renders when <code>VITE_SHOW_USER_DEBUG=true</code> OR in DEV mode.</div>
+        <strong>Short-term Fix:</strong> Land repo-based changes so UI overrides aren’t required.
+        <div>Validation: Subsequent branch deploys succeed without Netlify UI edits.</div>
       </li>
       <li class="fix-step">
-        <strong>Prevention:</strong> Rules changes are minimal and surgical, preserving all existing security controls.
-        <div><strong>Risk Mitigation:</strong> Only affected the specific <code>isActive</code> condition; all other permission logic unchanged</div>
-        <div><strong>Validation:</strong> No broadened access beyond the intended fix for missing <code>isActive</code> fields.</div>
+        <strong>Long-term Solution:</strong> Keep CI and Netlify consistent (pnpm via corepack; Node pinned; consistent install flags).
+        <div>Validation: PR builds and Netlify deploys consistently succeed across branches.</div>
       </li>
     </ol>
   </div>
-  
-  <!-- Incident Timeline Section -->
+
   <div class="section" id="timeline">
-    <h2>Investigation Timeline</h2>
+    <h2>Incident Timeline</h2>
     <div class="timeline">
       <div class="timeline-item">
-        <span class="timeline-time">Initial Report</span>
-        <div class="timeline-content">
-          User reported "Missing or insufficient permissions" for verified staff accessing public communities
-          <div>App: engagenatural-website (Netlify preview)</div>
-          <div>Firebase project: engagenatural-app</div>
-        </div>
+        <span class="timeline-time">T0</span>
+        <div class="timeline-content">Local build on <code>fix/add-typescript-config</code> succeeds.</div>
       </div>
-      
       <div class="timeline-item">
-        <span class="timeline-time">Analysis Phase</span>
-        <div class="timeline-content">
-          Identified problematic Firestore rules requiring both isPublic and isActive conditions
-          <div>Found three affected rule locations</div>
-          <div>Confirmed that some public communities lacked isActive field</div>
-        </div>
-      </div>
-      
-      <div class="timeline-item">
-        <span class="timeline-time">Resolution Applied</span>
-        <div class="timeline-content">
-          Applied minimal fix to make isActive optional while preserving all security controls
-          <div>Code: <a href="https://github.com/goodvibesliza/engagenatural-website/blob/phase-8/community-redesign/firestore.rules">firestore.rules</a></div>
-          <div>Also: Enhanced debug support and placeholder image reliability</div>
-        </div>
+        <span class="timeline-time">T1</span>
+        <div class="timeline-content">Proposed and applied Netlify config changes; fixed duplicate key warning.</div>
       </div>
     </div>
   </div>
-  
-  <!-- Footer -->
+
   <div class="footer">
-    <p>Generated: <span id="generation-date">2025-01-27 by Factory Reliability Droid</span></p>
+    <p>Generated: <span id="generation-date">2025-09-26</span></p>
   </div>
 </body>
 </html>
