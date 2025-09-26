@@ -1,54 +1,54 @@
-# EngageNatural.com
+# EngageNatural.com – Droid Orientation
 
-This is what I think is an overview of My Project. please review it and make sure it matches my current code layout.  Update as needed.  this is a starting document for future droids.  thank you for your help.
+This document keeps incoming agents aligned with the current structure and expectations of the EngageNatural web app. Update it whenever folder layout, tooling, or workflow conventions change.
 
 ## Core Commands
 
-• Type-check and lint: `pnpm check`
-• Auto-fix style: `pnpm check:fix`
-• Run full test suite: `pnpm test --run --no-color`
-• Run a single test file: `pnpm test --run <path>.test.ts`
-• Start dev servers (frontend + backend): `pnpm dev`
-• Build for production: `pnpm build` then `pnpm preview`
+- **Start dev server:** `pnpm dev`
+- **Lint & format check:** `pnpm lint`
+- **Production build:** `pnpm build`
+- **Preview built output:** `pnpm preview`
+- **Firebase emulator suite (local fixtures):** `pnpm emu`
 
-All other scripts wrap these six tasks.
+> _There are currently no repository-level unit test scripts. When you add tests, document the exact commands here._
 
-## Project Layout
+## Project Layout (Monorepo Root)
 
-├─ client/ → React + Vite frontend
-├─ server/ → Express backend
+The app is a single Vite + React SPA rooted at `src/`.
 
-• Frontend code lives **only** in `client/`
-• Backend code lives **only** in `server/`
-• Shared, environment-agnostic helpers belong in `src/`
+- `src/App.jsx` – top-level router, feature-flag handling, and role-based route protection via `RoleGuard` and `AuthProvider`.
+- `src/components/` – shared UI, shadcn-derived primitives in `ui/`, domain widgets under folders such as `admin/`, `brand/`, `community/`.
+- `src/pages/` – route-level views grouped by area (`admin/`, `brand/`, `staff/`, `community/`, etc.).
+- `src/lib/` – Firebase bootstrap (`firebase.js`), utilities, analytics helpers.
+- `src/services/` – API-style helpers (uploads, analytics, seeding).
+- `src/hooks/` – reusable React hooks (auth, permissions, responsive state).
+- `src/utils/` – role gating, landing-route helpers, emulator tooling.
+- `src/theme/` – Tailwind v4 theme overrides and brand colour CSS.
+- `src/brand/palette.ts` – TypeScript colour tokens aligned with the Tailwind palette for TS-aware consumers.
+
+Static assets live under `src/assets/`. There is no `client/` or `server/` split; all backend integrations occur via Firebase services.
 
 ## Development Patterns & Constraints
 
-Coding style
-• TypeScript strict mode, single quotes, trailing commas, no semicolons.
-• 100-char line limit, tabs for indent (2-space YAML/JSON/MD).
-• Use interfaces for public APIs; avoid `@ts-ignore`.
-• Tests first when fixing logic bugs.
-• Visual diff loop for UI tweaks.
-• Never introduce new runtime deps without explanation in PR description.
+- Framework: React 19 + Vite 6, Tailwind CSS v4, shadcn/ui component patterns.
+- Auth & data: Firebase (Auth, Firestore, Storage, Functions). Local development can swap to emulators via `VITE_USE_EMULATOR`.
+- TypeScript adoption is in progress – many files are `.jsx`, but shared modules should expose typings (`.d.ts` or `.ts`). Prefer adding types when touching a file.
+- Maintain strict import casing (`Button.tsx`, not `button.tsx`) to stay Linux-friendly.
+- Match existing ESLint/Tailwind conventions (no semicolons, `cn()` helper for class composition, avoid inline styles when utilities exist).
+- Before introducing new runtime dependencies, confirm necessity and document the rationale in the PR.
 
 ## Git Workflow Essentials
 
-1. Branch from `main` with a descriptive name: `feature/<slug>` or `bugfix/<slug>`.
-2. Run `pnpm check` locally **before** committing.
-3. Force pushes **allowed only** on your feature branch using
-   `git push --force-with-lease`. Never force-push `main`.
-4. Keep commits atomic; prefer checkpoints (`feat: …`, `test: …`).
+1. Branch from `main` using `feature/<slug>` or `fix/<slug>` naming.
+2. Run `pnpm lint` and `pnpm build` locally before committing or opening a PR.
+3. Force-push only your feature branches with `--force-with-lease`; never force-push `main`.
+4. Keep commits focused (one concern per commit) and write descriptive messages (`feat:`, `fix:`, `chore:` etc.).
 
-## Evidence Required for Every PR
+## PR Readiness Checklist
 
-A pull request is reviewable when it includes:
-
-- All tests green (`pnpm test`)
-- Lint & type check pass (`pnpm check`)
-- Diff confined to agreed paths (see section 2)
-- **Proof artifact**
-  • Bug fix → failing test added first, now passes
-  • Feature → new tests or visual snapshot demonstrating behavior
-- One-paragraph commit / PR description covering intent & root cause
-- No drop in coverage, no unexplained runtime deps
+- ✅ Linting passes (`pnpm lint`).
+- ✅ Build succeeds (`pnpm build`).
+- ✅ Changes scoped to documented directories (add new sections in this doc if structure evolves).
+- ✅ Include proof of behaviour (screenshots, emulator steps, or data seed references) for UI-facing work.
+- ✅ Summarise intent, approach, and testing in the PR description.
+- ✅ Guard against casing pitfalls or Firebase config regressions when adding new modules.
