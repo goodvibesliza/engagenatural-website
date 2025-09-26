@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRoleAccess } from '../../../hooks/use-role-access'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card'
-import { Button } from '../../ui/button'
+import { Button } from '../../ui/Button'
 import { Input } from '../../ui/input'
 import { Badge } from '../../ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '../../ui/avatar'

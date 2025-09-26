@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, getAuth } f
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db, app } from '../lib/firebase'
 import getLandingRouteFor from '../utils/landing'
-import { Button } from './ui/button'
+import { Button } from './ui/Button'
 import { Input } from './ui/input'
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from './ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'

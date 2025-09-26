@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button } from './ui/button'
+import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/card'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'

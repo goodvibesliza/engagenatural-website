@@ -10,7 +10,7 @@ import { format, subDays, subMonths, parseISO, isAfter } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Button } from '../../components/ui/button';
+import { Button } from '../../components/ui/Button';
 import { Separator } from '../../components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Progress } from '../../components/ui/progress';
