@@ -26,9 +26,6 @@ export default defineConfig({
     },
     minify: 'esbuild',
     rollupOptions: {
-      external: [
-        '@fontsource/ibm-plex-mono/400.css',
-      ],
       onwarn(warning, warn) {
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
           return; // Suppress use strict warnings
