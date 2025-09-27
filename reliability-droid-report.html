@@ -40,15 +40,15 @@
 
   <div class="section" id="exec-summary">
     <h2>Executive Summary</h2>
-    <p>Local build succeeds, but Netlify fails due to CI environment differences and build configuration. Netlify used a strict install flag and lacked a pinned Node version, causing dependency resolution to fail in CI while it worked locally.</p>
+    <p>Local build succeeds, but Netlify failed due to CI environment drift and install flags. Netlify wasn’t pinned to Node 20 and used a frozen install against cached modules. We aligned Node to 20 across toolchain files and switched to a clean pnpm install.</p>
   </div>
 
   <div class="section" id="rca">
     <h2>Root Cause Analysis</h2>
     <div>
       <ul>
-        <li><strong>Primary Hypothesis:</strong> Netlify build uses <code>--frozen-lockfile</code> and no pinned Node version, which can break dependency resolution in CI for this repo, leading to install/build failure.</li>
-        <li><strong>Contributing Factors:</strong> <code>.nvmrc</code> is set to Node 22 (unused by Netlify). Netlify requires <code>NODE_VERSION</code> or <code>.node-version</code> to pin Node; otherwise environment drift occurs.</li>
+        <li><strong>Primary Hypothesis:</strong> Netlify used <code>--frozen-lockfile</code> with no explicit Node pin, causing install failures with cached deps.</li>
+        <li><strong>Contributing Factors:</strong> <code>.nvmrc</code> targeted Node 22 while <code>.node-version</code> was 20; Netlify lacked <code>NODE_VERSION=20</code>, leading to drift.</li>
       </ul>
 
       <h3>Evidence</h3>
@@ -57,19 +57,25 @@
         <summary>Local build output (summary)</summary>
         <pre>
 Install & build completed successfully:
-  Command: npx pnpm install --no-frozen-lockfile && npx pnpm run build
+  Command: pnpm install --no-frozen-lockfile && pnpm run build
   Result: Success; artifacts emitted to dist/
-Non-fatal warning: duplicate object key "isBrandManager" in auth-context (fixed in this PR).
         </pre>
       </details>
 
       <h4>Code Reference</h4>
-      <p>Updated <code>netlify.toml</code> build command and added <code>.node-version</code>:</p>
+      <p>Updated configuration:</p>
       <pre>[build]
 command = "npx pnpm install --no-frozen-lockfile && npx pnpm run build"
 publish = "dist"
+
+[build.environment]
+NODE_VERSION = "20"
       </pre>
-      <pre>.node-version: 20</pre>
+      <pre>.nvmrc: 20
+.node-version: 20
+package.json engines.node: 20.x
+src/main.jsx → import '@/lib/firebase'
+      </pre>
     </div>
   </div>
 
@@ -100,13 +106,13 @@ publish = "dist"
       </div>
       <div class="timeline-item">
         <span class="timeline-time">T1</span>
-        <div class="timeline-content">Proposed and applied Netlify config changes; fixed duplicate key warning.</div>
+        <div class="timeline-content">Applied Node 20 alignment (.nvmrc, engines), pinned Netlify NODE_VERSION=20, and changed install to no-frozen-lockfile.</div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>Generated: <span id="generation-date">2025-09-26</span></p>
+    <p>Generated: <span id="generation-date">2025-09-27</span></p>
   </div>
 </body>
 </html>

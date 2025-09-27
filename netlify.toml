@@ -1,8 +1,9 @@
-﻿[build]
+[build]
   command = "npx pnpm install --no-frozen-lockfile && npx pnpm run build"
   publish = "dist"
 
 [build.environment]
+  NODE_VERSION = "20"
   # Default fallback if context not matched
   VITE_USE_EMULATOR = "false"
   VITE_SHOW_DEBUG = "false"
