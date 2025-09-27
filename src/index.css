@@ -3,6 +3,7 @@
 
 /* Import brand colors (must come after Tailwind base to override defaults) */
 @import "./theme/brand-colors.css";
+@import "./styles/globals.css";
 
 /* Utility classes */
 .visually-hidden {
