@@ -1,35 +1,6 @@
-[build]
-  command = "npx pnpm install --no-frozen-lockfile && npx pnpm run build"
+﻿[build]
+  command = "corepack enable && corepack prepare pnpm@9 --activate && pnpm install --frozen-lockfile && pnpm build"
   publish = "dist"
 
 [build.environment]
-  # Default fallback if context not matched
-  VITE_USE_EMULATOR = "false"
-  VITE_SHOW_DEBUG = "false"
-  VITE_NETLIFY_CONTEXT = "production" # used by EnvBadge
-
-[context.deploy-preview.environment]
-  VITE_USE_EMULATOR = "false"
-  VITE_SHOW_DEBUG = "false"
-  VITE_NETLIFY_CONTEXT = "deploy-preview"
-
-[context.branch-deploy.environment]
-   VITE_USE_EMULATOR = "false"
-   VITE_SHOW_DEBUG = "false"
-   VITE_NETLIFY_CONTEXT = "branch-deploy"
-
-
-[context.production.environment]
-  VITE_USE_EMULATOR = "false"
-  VITE_SHOW_DEBUG = "false"
-  VITE_NETLIFY_CONTEXT = "production"
-
-# -------------------------------------------------------------------
-# SPA Redirect – send all paths to index.html so client-side routing
-# can resolve (e.g. /admin, /brand, deep links, etc.)
-# -------------------------------------------------------------------
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  NODE_VERSION = "20"
