@@ -18,7 +18,7 @@ import {
   uploadBytesResumable,
   getDownloadURL 
 } from 'firebase/storage';
-import { db, storage } from '../../lib/firebase';
+import { db, storage } from '@/lib/firebase';
 // Helper to log and surface missing-index URLs
 import { getDocsWithIndexHint } from '../../lib/firestoreIndexHelper';
 

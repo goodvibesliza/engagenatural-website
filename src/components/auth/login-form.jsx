@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '../../lib/firebase'
+import { auth } from '@/lib/firebase'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'

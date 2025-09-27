@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../contexts/auth-context";
-import { db } from "../../../lib/firebase";
+import { db } from '@/lib/firebase';
 import {
   collection,
   query,

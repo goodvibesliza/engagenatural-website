@@ -11,7 +11,7 @@ import {
   doc,
   deleteDoc
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 
 export default function CommunityList() {
   const { user } = useAuth();

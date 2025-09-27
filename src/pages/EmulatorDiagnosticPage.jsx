@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/badge';
 import { Alert, AlertDescription } from '../components/ui/alert';
-import { isLocalhost } from '../lib/firebase';
+import { isLocalhost } from '@/lib/firebase';
 
 // Icons
 import { 

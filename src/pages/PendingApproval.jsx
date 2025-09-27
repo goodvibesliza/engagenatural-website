@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth } from '@/lib/firebase';
 import { Button } from '../components/ui/Button';
 import { LogOut } from 'lucide-react';
 

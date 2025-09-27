@@ -1,7 +1,7 @@
 // src/pages/brand/BrandROICalculatorPage.jsx
 import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, getDocs, doc, deleteDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import BrandManagerLayout from '../../components/brand/BrandManagerLayout';
 import { Line, Bar } from 'react-chartjs-2';

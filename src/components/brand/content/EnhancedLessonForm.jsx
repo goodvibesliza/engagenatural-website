@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../../../lib/firebase";
+import { db } from '@/lib/firebase';
 import {
   collection,
   doc,
@@ -16,7 +16,7 @@ import { Card, CardContent } from "../../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { Loader2, Save, Plus } from "lucide-react";
 import FileUploader from "./FileUploader";
-import { storage } from "../../../lib/firebase";
+import { storage } from '@/lib/firebase';
 
 /**
  * Enhanced form component for creating and editing lessons

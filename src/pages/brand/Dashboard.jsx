@@ -69,7 +69,7 @@ import {
   getCountFromServer,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase.js';
+import { db } from '@/lib/firebase';
 
 // UI Components
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';

@@ -43,7 +43,7 @@ const DemoData = () => {
         serverTimestamp,
         deleteDoc,
       } = await import('firebase/firestore');
-      const { db } = await import('../../lib/firebase');
+      const { db } = await import('@/lib/firebase');
 
       // Test 1 – read current user doc
       console.log('  • Test 1: reading current user document');

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
-import { db } from '../lib/firebase';
+import { db } from '@/lib/firebase';
 import { useAuth } from '../contexts/auth-context';
 import SkeletonDetail from '../components/community/SkeletonDetail';
 import ErrorBanner from '../components/community/ErrorBanner';

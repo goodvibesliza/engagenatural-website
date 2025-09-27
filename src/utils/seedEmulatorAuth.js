@@ -1,7 +1,7 @@
 // src/utils/seedEmulatorAuth.js
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { setDoc, doc } from 'firebase/firestore';
-import { auth, db, isLocalhost } from '../lib/firebase';
+import { auth, db, isLocalhost } from '@/lib/firebase';
 
 export async function seedEmulatorAuth() {
   if (!isLocalhost) {

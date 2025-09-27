@@ -1,7 +1,7 @@
 // src/pages/brand/BrandAnalyticsPage.jsx
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, getDocs, orderBy, limit, startAfter, Timestamp } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { format, subDays, subMonths, parseISO, isAfter } from 'date-fns';

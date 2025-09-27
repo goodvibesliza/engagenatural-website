@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { auth, db } from '../lib/firebase'
+import { auth, db } from '@/lib/firebase'
 import { doc, getDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 
 // Font styles matching the updated App.css

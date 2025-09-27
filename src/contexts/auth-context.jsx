@@ -1,6 +1,6 @@
 // src/contexts/auth-context.jsx
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { app, auth, db, isLocalhost } from "../lib/firebase";
+import { app, auth, db, isLocalhost } from '@/lib/firebase';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,

@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from './contexts/auth-context';
 // Role Guard and Landing Route Helper
 import RoleGuard from './utils/roleGuard';
 import getLandingRouteFor from './utils/landing';
-import { isLocalhost } from './lib/firebase';
+import { isLocalhost } from '@/lib/firebase';
 
 // Page Components
 import Login from './pages/auth/Login';

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { collection, query, getDocs, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { useRoleAccess } from '../../../hooks/use-role-access';
 import UserForm from './user-form';
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { app } from '../lib/firebase';
+import { app } from '@/lib/firebase';
 
 const EnvCheckPublic = () => {
   // Get environment variables
