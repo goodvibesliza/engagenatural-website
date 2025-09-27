@@ -136,9 +136,8 @@
   }
   
   /* FIXED Typography - Headlines thicker, subheadings Inter */
-  .font-heading {
+.font-heading {
     font-family: 'Playfair Display', serif;
-    color: #000000 !important;
     font-weight: 900 !important; /* Increased from 700 to 900 for thicker headlines */
     letter-spacing: -0.02em !important;
     line-height: 1.2 !important;
@@ -149,27 +148,24 @@
   }
   
   /* Main headlines - Extra thick and readable */
-  h1, .text-4xl, .text-3xl {
+h1, .text-4xl, .text-3xl {
     font-family: 'Playfair Display', serif;
-    color: #000000 !important;
     font-weight: 900 !important; /* Extra thick for main headlines */
     letter-spacing: -0.015em !important;
     line-height: 1.1 !important;
   }
   
   /* Section headings - Still Playfair but slightly less thick */
-  h2, .text-2xl, .text-xl {
+h2, .text-2xl, .text-xl {
     font-family: 'Playfair Display', serif;
-    color: #000000 !important;
     font-weight: 800 !important; /* Thick but not as thick as h1 */
     letter-spacing: -0.02em !important;
     line-height: 1.2 !important;
   }
   
   /* FIXED: Subsection titles - Back to Inter font */
-  h3, h4, h5, h6, .text-lg {
+h3, h4, h5, h6, .text-lg {
     font-family: 'Inter', sans-serif !important; /* Changed back to Inter */
-    color: #000000 !important;
     font-weight: 700 !important; /* Bold Inter for subheadings */
     letter-spacing: -0.005em !important; /* Slight tightening for Inter */
     line-height: 1.3 !important;
@@ -188,15 +184,7 @@
   }
   
   /* Override any colored headings to maintain readability */
-  .text-brand-primary.font-heading,
-  .text-brand-secondary.font-heading,
-  .text-blue-600.font-heading,
-  .text-purple-600.font-heading,
-  h1.text-brand-primary,
-  h2.text-brand-primary,
-  h3.text-brand-primary {
-    color: #000000 !important;
-  }
+/* Allow utility classes (e.g. text-brand-primary) to control color on headings */
   
   /* Brand colors - only for non-heading elements */
   .text-brand-primary:not(.font-heading):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
