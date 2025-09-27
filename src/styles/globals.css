@@ -21,5 +21,6 @@
 
 /* Enforce a minimum size for display titles (18px min) */
 .brand-title {
-  font-size: clamp(1.125rem, 1rem + 1.2vw, 3rem);
+  /* Min ~30px, fluid, Max ~60px to preserve display scale */
+  font-size: clamp(1.875rem, 1rem + 2.5vw, 3.75rem);
 }
