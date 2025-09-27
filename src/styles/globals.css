@@ -1,0 +1,25 @@
+/* Global brand typography helpers */
+
+/* Display stack utility. Uses CSS var for runtime overrides if needed. */
+.font-display {
+  font-family: var(--font-display, "Code"), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Kicker: small uppercase preheader */
+.kicker {
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: .75rem; /* 12px */
+  opacity: .9;
+}
+
+/* Compact headline rhythm */
+.headline-compact {
+  line-height: 1.18;
+  letter-spacing: .2px;
+}
+
+/* Enforce a minimum size for display titles (18px min) */
+.brand-title {
+  font-size: clamp(1.125rem, 1rem + 1.2vw, 3rem);
+}
