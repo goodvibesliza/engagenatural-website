@@ -44,10 +44,10 @@ export default {
         "brand-accent": "#F5F1EB", // oat-beige
       },
       fontFamily: {
-        sans: ['Geist', 'Geist Fallback', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        serif: ['Libre Baskerville', 'Georgia', 'serif'],
-        heading: ['Libre Baskerville', 'Georgia', 'serif'],
-        body: ['Geist', 'Geist Fallback', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
+        serif: ['Playfair Display', 'serif'],
+        heading: ['Playfair Display', 'serif'],
+        body: ['Inter', 'sans-serif'],
       },
       borderRadius: {
         DEFAULT: '0.625rem',

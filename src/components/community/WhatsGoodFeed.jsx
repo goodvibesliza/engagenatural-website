@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query as firestoreQuery, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import SkeletonPostCard from './SkeletonPostCard';

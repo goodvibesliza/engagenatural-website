@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Badge } from '../../ui/badge';
-import { Button } from '../../ui/button';
+import { Button } from '../../ui/Button';
 import { Progress } from '../../ui/progress';
 import { 
   Users, 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { db, auth } from '../../lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
 const DevTools = () => {

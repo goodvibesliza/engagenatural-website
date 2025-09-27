@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
-import { db } from '../../../lib/firebase';
+import { db } from '@/lib/firebase';
 import {
   collection,
   query,

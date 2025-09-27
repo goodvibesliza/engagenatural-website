@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { Button } from './ui/button'
+import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/card'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { CheckCircle, ArrowRight, Users, MessageSquare, Trophy, BookOpen, Brain, BarChart3, Star, Award, Clock, CheckCircle2, LogIn, Calendar, Building2, UserCheck, Zap, Shield, Heart, Gamepad2 } from 'lucide-react'
 import LoginWidget from './LoginWidget'
-import { Logo } from './brand/Logo'
 
 // Import assets
 import salesImpactGraph from '../assets/sales_impact_graph.png'
@@ -63,12 +62,11 @@ export default function PublicWebsite() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-default z-50">
+      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <Logo variant="auto" size="md" />
-              <span className="text-2xl font-bold text-black font-heading">CultureTest</span>
+            <div className="flex items-center">
+              <img src="/logo.svg" alt="EngageNatural" className="h-8 w-auto" />
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -353,7 +351,9 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="text-2xl font-bold mb-4 font-heading">EngageNatural</div>
+              <div className="mb-4">
+                <img src="/logo-invert.svg" alt="EngageNatural" className="h-8 w-auto" />
+              </div>
               <p className="text-gray-300 font-body">
                 Empowering retail teams through gamified engagement and community building.
               </p>

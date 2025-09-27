@@ -1,7 +1,7 @@
 // src/pages/brand/BrandAnalyticsPage.jsx
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, getDocs, orderBy, limit, startAfter, Timestamp } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { format, subDays, subMonths, parseISO, isAfter } from 'date-fns';
@@ -10,7 +10,7 @@ import { format, subDays, subMonths, parseISO, isAfter } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Button } from '../../components/ui/button';
+import { Button } from '../../components/ui/Button';
 import { Separator } from '../../components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Progress } from '../../components/ui/progress';

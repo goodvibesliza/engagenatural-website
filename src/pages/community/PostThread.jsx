@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 import {
   doc,
   getDoc,

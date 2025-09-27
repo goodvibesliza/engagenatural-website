@@ -1,5 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage, auth } from '../lib/firebase';
+import { storage, auth } from '@/lib/firebase';
 
 /**
  * Uploads a profile image to Firebase Storage

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { 
   collection, 
   doc, 

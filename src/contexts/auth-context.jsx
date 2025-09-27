@@ -1,6 +1,6 @@
 // src/contexts/auth-context.jsx
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { app, auth, db, isLocalhost } from "../lib/firebase";
+import { app, auth, db, isLocalhost } from '@/lib/firebase';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -364,7 +364,6 @@ export function AuthProvider({ children }) {
       brandId,
       // compatibility / community helpers
       PERMISSIONS,
-      isBrandManager: isBrandManager,         // keep existing boolean
       isBrandManagerFn,                       // function form
       canAccessContent,                       // TEMP stub
       userProfile,                            // minimal profile

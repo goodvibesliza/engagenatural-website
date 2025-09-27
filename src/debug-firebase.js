@@ -1,7 +1,7 @@
 // src/debug-firebase.js
 // Firebase Debug Utility - Tests Firebase initialization and connection
 
-import { auth, db, storage } from './lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import { getApp, getApps } from 'firebase/app';
 import { onAuthStateChanged, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { getDocs, collection, limit, query } from 'firebase/firestore';

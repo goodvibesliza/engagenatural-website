@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../contexts/auth-context";
-import { db } from "../../../lib/firebase";
+import { db } from '@/lib/firebase';
 import {
   collection,
   query,
@@ -28,7 +28,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../../ui/card";
-import { Button } from "../../ui/button";
+import { Button } from "../../ui/Button";
 import { Input } from "../../ui/input";
 import { Textarea } from "../../ui/textarea";
 import { Label } from "../../ui/label";

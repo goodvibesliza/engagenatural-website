@@ -1,5 +1,5 @@
 // src/utils/emulatorAuthHelper.js
-import { auth, db, isLocalhost } from '../lib/firebase';
+import { auth, db, isLocalhost } from '@/lib/firebase';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,

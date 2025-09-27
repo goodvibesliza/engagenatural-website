@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import './App.css';
 
 // Auth context
@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from './contexts/auth-context';
 // Role Guard and Landing Route Helper
 import RoleGuard from './utils/roleGuard';
 import getLandingRouteFor from './utils/landing';
-import { isLocalhost } from './lib/firebase';
+import { isLocalhost } from '@/lib/firebase';
 
 // Page Components
 import Login from './pages/auth/Login';
@@ -59,8 +59,10 @@ import RequireVerification from './pages/staff/dashboard/RequireVerification.jsx
 // Emulator Components
 import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
-// Community Feed
-import CommunityFeed from './pages/community/CommunityFeed';
+// Community (phone-first IA)
+import Community from './pages/Community';
+const PostDetail = lazy(() => import('./pages/PostDetail'));
+import CommunityPostRedirect from './components/CommunityPostRedirect';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -149,7 +151,21 @@ const RootEntry = () => {
   return null;
 };
 
-// Main App Component
+/**
+ * Root application component that sets up authentication context, global UI chrome, feature flags, and the entire client-side route tree.
+ *
+ * Renders AuthProvider and Router with:
+ * - a global UserDropdownMenu and environment badge,
+ * - RootEntry mounted at "/",
+ * - role-guarded admin, brand, and staff areas,
+ * - protected community routes (new nested feeds and legacy post view),
+ * - emulator/debug routes gated by environment or feature flags,
+ * - redirects for unknown routes.
+ *
+ * The component reads VITE_SHOW_DEMO_TOOLS to enable demo/dev routes and sets an internal emulator-initialized flag on mount.
+ *
+ * @returns {JSX.Element} The application root element containing routing and global UI.
+ */
 function App() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
   // Feature flag for demo / dev tools & env check
@@ -432,6 +448,7 @@ function App() {
             }
           >
             <Route index element={<Navigate to="/staff/profile" replace />} />
+            <Route path="dashboard" element={<Navigate to="/staff/profile" replace />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="verification" element={<VerificationPage />} />
             <Route
@@ -452,6 +469,16 @@ function App() {
                 <RequireVerification>
                   <LearningPage />
                 </RequireVerification>
+              }
+            />
+            {/* Community routes under staff layout */}
+            <Route path="community" element={<Community />} />
+            <Route
+              path="community/post/:postId"
+              element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <PostDetail />
+                </Suspense>
               }
             />
           </Route>
@@ -481,15 +508,12 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
-          {/* Community Feed (any authenticated user) */}
-          <Route
-            path="/community/:id"
-            element={
-              <ProtectedRoute>
-                <CommunityFeed />
-              </ProtectedRoute>
-            }
-          />
+          {/* Community Routes - Legacy redirects */}
+          <Route path="/community" element={<Navigate to="/staff/community" replace />} />
+          <Route path="/community/whats-good" element={<Navigate to="/staff/community" replace />} />
+          <Route path="/community/post/:postId" element={<CommunityPostRedirect />} />
+
+          {/* Legacy Community Feed route removed */}
 
           {/* Catch-all for unknown routes */}
           <Route path="*" element={<Navigate to="/" />} />

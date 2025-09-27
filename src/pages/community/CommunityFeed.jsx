@@ -20,7 +20,7 @@ import {
   documentId,
   getDocs
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 
 export default function CommunityFeed() {
   const { id: communityId } = useParams();

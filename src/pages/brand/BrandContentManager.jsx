@@ -17,7 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import { Button } from '../../components/ui/Button';
 import { Separator } from '../../components/ui/separator';
 
 // Brand-specific content manager

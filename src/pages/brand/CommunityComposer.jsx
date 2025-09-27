@@ -16,7 +16,7 @@ import {
   uploadBytes,
   getDownloadURL
 } from 'firebase/storage';
-import { db, storage } from '../../lib/firebase';
+import { db, storage } from '@/lib/firebase';
 
 /**
  * Community post create/edit form component.

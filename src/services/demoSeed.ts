@@ -1,6 +1,6 @@
 // src/services/demoSeed.ts
-import { db } from '../lib/firebase.js';
-import { auth } from '../lib/firebase.js';
+import { db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 // Additional imports to create an isolated Firebase Auth instance
 import {
   initializeApp,
@@ -14,7 +14,7 @@ import {
   Auth,
 } from 'firebase/auth';
 // Re-use the primary app's options for the secondary instance
-import { app as primaryApp } from '../lib/firebase.js';
+import { app as primaryApp } from '@/lib/firebase';
 import { 
   collection, 
   doc, 

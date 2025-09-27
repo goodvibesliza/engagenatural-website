@@ -3,18 +3,20 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "emu": "firebase emulators:start",
-    "emu:ui": "powershell -NoProfile -Command Start-Process http://127.0.0.1:4000"
+    "emu:ui": "powershell -NoProfile -Command Start-Process http://127.0.0.1:4000",
+    "normalize:firebase": "node scripts/normalize-firebase-imports.mjs --write"
   },
   "dependencies": {
-    "@fontsource-variable/geist": "^5.1.0",
     "@fontsource/inter": "^5.2.6",
-    "@fontsource/libre-baskerville": "^5.1.0",
     "@fontsource/playfair-display": "^5.2.6",
     "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-accordion": "^1.2.10",
@@ -53,6 +55,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^11.9.1",
     "framer-motion": "^12.15.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.510.0",
@@ -81,12 +84,18 @@
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
-    "firebase": "^11.9.1",
     "globals": "^16.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.7",
     "tw-animate-css": "^1.2.9",
-    "typescript": "^5.9.2",
     "vite": "^6.3.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@tailwindcss/oxide",
+      "esbuild",
+      "protobufjs"
+    ]
   }
 }

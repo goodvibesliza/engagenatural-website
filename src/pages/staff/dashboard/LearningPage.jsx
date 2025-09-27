@@ -14,7 +14,7 @@ import {
   getDocs,
   getDoc
 } from 'firebase/firestore';
-import { db } from '../../../lib/firebase';
+import { db } from '@/lib/firebase';
 
 // Training card component for reuse across sections
 const TrainingCard = ({
