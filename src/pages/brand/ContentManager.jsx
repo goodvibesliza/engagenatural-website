@@ -30,7 +30,7 @@ import FileUploader from '../../components/brand/content/FileUploader';
 // Import UI components
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { 

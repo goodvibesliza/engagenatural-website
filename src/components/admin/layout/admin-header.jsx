@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Menu, Bell, Search, User, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../../../contexts/auth-context'
 import { useLogout } from '../../../hooks/useLogout'
-import { Button } from '../../ui/button'
+import { Button } from '../../ui/Button'
 import {
   DropdownMenu,
   DropdownMenuContent,

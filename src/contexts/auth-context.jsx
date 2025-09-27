@@ -364,7 +364,6 @@ export function AuthProvider({ children }) {
       brandId,
       // compatibility / community helpers
       PERMISSIONS,
-      isBrandManager: isBrandManager,         // keep existing boolean
       isBrandManagerFn,                       // function form
       canAccessContent,                       // TEMP stub
       userProfile,                            // minimal profile

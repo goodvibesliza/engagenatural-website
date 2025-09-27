@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // Production-only Firebase instance
 import { storage } from '../../../lib/firebase';
-import { Button } from '../../ui/button';
+import { Button } from '../../ui/Button';
 import { Progress } from '../../ui/progress';
 import { Alert, AlertDescription } from '../../ui/alert';
 import { Card, CardContent } from '../../ui/card';

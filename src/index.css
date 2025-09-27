@@ -4,49 +4,6 @@
 /* Import brand colors (must come after Tailwind base to override defaults) */
 @import "./theme/brand-colors.css";
 
-/* ======================================
-   CultureTest Brand CSS Variables
-   ====================================== */
-
-:root {
-  --bg-page: #FFFFFF;
-  --bg-elevated: #ECECEC;
-  --text: #000000;
-  --text-inverse: #FFFFFF;
-  --muted: #5C5754;
-  --border: #5C5754;
-  --accent-green: #9CAF88;
-}
-
-/* ======================================
-   CultureTest Global Base Styles
-   ====================================== */
-
-body { 
-  background: var(--bg-page); 
-  color: var(--text); 
-  font-family: var(--font-body, Geist, ui-sans-serif, system-ui); 
-}
-
-a { 
-  color: var(--text); 
-  text-underline-offset: 4px; 
-}
-
-a:hover { 
-  text-decoration: underline; 
-  text-decoration-thickness: 2px; 
-  text-decoration-color: var(--accent-green); 
-}
-
-.border-default { 
-  border-color: var(--border); 
-}
-
-.bg-elevated { 
-  background: var(--bg-elevated); 
-}
-
 /* Utility classes */
 .visually-hidden {
   position: absolute;

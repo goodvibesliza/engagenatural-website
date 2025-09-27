@@ -5,7 +5,7 @@ import { useRoleAccess } from '../../../hooks/use-role-access';
 import UserForm from './user-form';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
+import { Button } from '../../ui/Button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import {

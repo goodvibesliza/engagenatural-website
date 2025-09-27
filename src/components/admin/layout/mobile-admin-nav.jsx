@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useRoleAccess } from '../../../hooks/use-role-access'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../ui/sheet'
-import { Button } from '../../ui/button'
+import { Button } from '../../ui/Button'
 import { cn } from '../../../lib/utils'
 
 const navigation = [

@@ -13,7 +13,7 @@ import {
   DropdownMenuGroup,
 } from './ui/dropdown-menu';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
-import { Button } from './ui/button';
+import { Button } from './ui/Button';
 
 // Import icons from lucide-react
 import {

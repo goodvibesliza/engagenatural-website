@@ -1,5 +1,5 @@
 [build]
-  command = "npx pnpm install --frozen-lockfile && npx pnpm run build"
+  command = "npx pnpm install --no-frozen-lockfile && npx pnpm run build"
   publish = "dist"
 
 [build.environment]
