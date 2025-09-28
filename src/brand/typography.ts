@@ -8,7 +8,8 @@ import React from 'react'
 
 // Fallback mono font for display usage
 // Note: This import is safe even if the actual "Code" font files are missing.
-import '@fontsource/ibm-plex-mono/400.css'
+// NOTE: Fallback font CSS is imported globally from src/index.css to avoid
+// bundler resolution issues in some CI environments.
 
 export const BODY_STACK = 'Geist, "Geist Fallback", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
 export const HEADING_STACK = '"Libre Baskerville", Georgia, serif'
