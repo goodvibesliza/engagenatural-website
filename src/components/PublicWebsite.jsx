@@ -68,7 +68,7 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.png" alt="EngageNatural" className="h-24 w-auto" />
+              <img src="/logo.png" alt="EngageNatural" className="h-48 w-auto" />
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -101,13 +101,13 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1
-              className="font-heading text-5xl md:text-7xl font-medium md:font-semibold leading-[1.1] tracking-tight text-primary mb-6 max-w-[18ch] mx-auto"
+              className="font-heading text-3xl md:text-4xl font-medium md:font-semibold leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
               <span className="block">Not just training.</span>
               <span className="block">A movement you’re part of.</span>
             </h1>
-            <p className="text-lg md:text-2xl text-muted font-body max-w-3xl mx-auto mb-10">
+            <p className="text-base md:text-lg text-muted font-body max-w-3xl mx-auto mb-8">
               Micro-lessons and community support that give staff confidence and brands measurable results.
             </p>
             <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
@@ -378,7 +378,7 @@ export default function PublicWebsite() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="mb-4">
-                <img src="/logo-invert.png" alt="EngageNatural" className="h-24 w-auto" />
+                <img src="/logo-invert.png" alt="EngageNatural" className="h-48 w-auto" />
               </div>
               <p className="text-black font-body">
                 Empowering retail teams through gamified engagement and community building.
