@@ -8,15 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@fontsource-variable/geist':
+        specifier: ^5.1.0
+        version: 5.2.8
       '@fontsource/ibm-plex-mono':
         specifier: ^5.2.7
         version: 5.2.7
-      '@fontsource/inter':
+      '@fontsource/libre-baskerville':
         specifier: ^5.2.6
-        version: 5.2.6
-      '@fontsource/playfair-display':
-        specifier: ^5.2.6
-        version: 5.2.6
+        version: 5.2.8
       '@hookform/resolvers':
         specifier: ^5.0.1
         version: 5.1.1(react-hook-form@7.60.0(react@19.1.0))
@@ -746,14 +746,14 @@ packages:
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
 
+  '@fontsource-variable/geist@5.2.8':
+    resolution: {integrity: sha512-cJ6m9e+8MQ5dCYJsLylfZrgBh6KkG4bOLckB35Tr9J/EqdkEM6QllH5PxqP1dhTvFup+HtMRPuz9xOjxXJggxw==}
+
   '@fontsource/ibm-plex-mono@5.2.7':
     resolution: {integrity: sha512-MKAb8qV+CaiMQn2B0dIi1OV3565NYzp3WN5b4oT6LTkk+F0jR6j0ZN+5BKJiIhffDC3rtBULsYZE65+0018z9w==}
 
-  '@fontsource/inter@5.2.6':
-    resolution: {integrity: sha512-CZs9S1CrjD0jPwsNy9W6j0BhsmRSQrgwlTNkgQXTsAeDRM42LBRLo3eo9gCzfH4GvV7zpyf78Ozfl773826csw==}
-
-  '@fontsource/playfair-display@5.2.6':
-    resolution: {integrity: sha512-hWfFm2j+Dlg+UwabNJu5vi45otmLSG64hUzNFJ8pIDBgqWBviEPpVaDIZWHm2RYyIxhg9YXTPsZWdpvsu7fkqQ==}
+  '@fontsource/libre-baskerville@5.2.8':
+    resolution: {integrity: sha512-jE+bedLb020OK2KDBZWJ2Wos4maagvnMcTwsxRjpMNxANW4GiD8lZF8Yezc8e+GDGG9UfJzJPbWfYun55JIWoA==}
 
   '@grpc/grpc-js@1.9.15':
     resolution: {integrity: sha512-nqE7Hc0AzI+euzUwDAy0aY5hCp10r734gMGRdU+qOPX0XSceI2ULrcXB5U2xSc5VkWwalCj4M7GzCAygZl2KoQ==}
@@ -3457,11 +3457,11 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
+  '@fontsource-variable/geist@5.2.8': {}
+
   '@fontsource/ibm-plex-mono@5.2.7': {}
 
-  '@fontsource/inter@5.2.6': {}
-
-  '@fontsource/playfair-display@5.2.6': {}
+  '@fontsource/libre-baskerville@5.2.8': {}
 
   '@grpc/grpc-js@1.9.15':
     dependencies:
