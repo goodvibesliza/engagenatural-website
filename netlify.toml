@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  PNPM_FLAGS = "--no-frozen-lockfile"
   # Default fallback if context not matched
   VITE_USE_EMULATOR = "false"
   VITE_SHOW_DEBUG = "false"
