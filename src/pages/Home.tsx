@@ -8,8 +8,8 @@ const PetalWash: React.FC = () => (
     className="pointer-events-none absolute inset-0 -z-10"
     style={{
       background:
-        'radial-gradient(60rem 30rem at 20% 10%, rgba(242,212,202,0.45) 0%, rgba(242,212,202,0.0) 55%),' +
-        'radial-gradient(40rem 20rem at 80% 0%, rgba(246,227,220,0.55) 0%, rgba(246,227,220,0.0) 50%)',
+        'radial-gradient(60rem 30rem at 20% 10%, rgba(245,243,243,0.6) 0%, rgba(245,243,243,0.0) 60%),' +
+        'radial-gradient(40rem 20rem at 80% 0%, rgba(245,243,243,0.5) 0%, rgba(245,243,243,0.0) 55%)',
     }}
   />
 )

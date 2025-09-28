@@ -68,7 +68,7 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.png" alt="EngageNatural" className="h-8 w-auto" />
+              <img src="/logo.png" alt="EngageNatural" className="h-12 w-auto" />
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -352,7 +352,7 @@ export default function PublicWebsite() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="mb-4">
-                <img src="/logo-invert.png" alt="EngageNatural" className="h-8 w-auto" />
+                <img src="/logo-invert.png" alt="EngageNatural" className="h-12 w-auto" />
               </div>
               <p className="text-gray-300 font-body">
                 Empowering retail teams through gamified engagement and community building.
