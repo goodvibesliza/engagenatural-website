@@ -9,14 +9,8 @@ import BrandTitle from '@/components/typography/BrandTitle'
 import Kicker from '@/components/typography/Kicker'
 
 // Import assets
-import salesImpactGraph from '../assets/sales_impact_graph.png'
-import roiGrowthGraph from '../assets/roi_growth_graph.png'
-import userEngagementGraph from '../assets/user_engagement_graph.png'
 import lizaHeadshot from '../assets/Lizaonbeachheadshot.jpg'
 import communityHero from '../assets/communityof5.jpg'
-import handsWithHeart from '../assets/handswithheartpaint.jpg'
-import diverseGroup from '../assets/grouppicdiverse.jpg'
-import handPile from '../assets/handpile.jpg'
 
 export default function PublicWebsite() {
   const [formData, setFormData] = useState({
@@ -52,7 +46,7 @@ export default function PublicWebsite() {
       } else {
         alert('Oops! There was a problem submitting your form')
       }
-    }).catch(error => {
+    }).catch(() => {
       alert('Oops! There was a problem submitting your form')
     })
   }
@@ -245,37 +239,47 @@ export default function PublicWebsite() {
 
       {/* Impact Metrics - Removed from public site */}
 
-      {/* About Section */}
-      <section className="py-20 bg-white">
+      {/* Meet the Founder – redesigned to match CultureTest experts style */}
+      <section className="py-20 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl font-bold text-brand-primary mb-6 font-heading">
-                Meet the Founder
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            {/* Left: Headline, subhead, CTA */}
+            <div className="order-1">
+              <h2 className="font-heading text-white text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+                Use the educational blueprint of an industry expert
               </h2>
-              <p className="text-lg text-gray-600 mb-6 font-body">
-                Hi, I'm Liza! After 30+ years in the natural products industry, I've seen firsthand how retail staff are the MOST IMPORTANT yet MOST OVERLOOKED part of the entire ecosystem.
+              <p className="font-body text-white/80 text-base sm:text-lg md:text-xl leading-relaxed mb-8">
+                EngageNatural was built with insights from decades in natural products education, retail training, and community building.
               </p>
-              <p className="text-lg text-gray-600 mb-8 font-body">
-                EngageNatural exists because YOU deserve better than generic training platforms that don't understand our industry. This is more than an app - it's a movement to recognize, reward, and elevate the retail professionals who make natural products successful.
-              </p>
-              <div className="flex space-x-4">
-                <Button variant="outline" size="sm" className="border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white">
-                  <Users className="w-4 h-4 mr-2" />
-                  LinkedIn
-                </Button>
-                <Button variant="outline" size="sm" className="border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Email
-                </Button>
-              </div>
+              <Button
+                type="button"
+                onClick={scrollToContact}
+                className="bg-white text-black hover:bg-neutral-200 transition-colors px-6 py-3 rounded-md font-body border border-white"
+              >
+                Get early access
+              </Button>
             </div>
-            <div className="relative">
-              <img 
-                src={lizaHeadshot} 
-                alt="Liza - Founder of EngageNatural" 
-                className="rounded-2xl shadow-2xl max-w-xs mx-auto transform scale-x-[-1]"
-              />
+
+            {/* Right: Founder card */}
+            <div className="order-2">
+              <Card className="bg-neutral-900/60 border-neutral-800 text-white rounded-2xl shadow-md overflow-hidden max-w-md mx-auto">
+                <CardContent className="p-0">
+                  <div className="aspect-[4/5] w-full overflow-hidden bg-neutral-900">
+                    <img
+                      src={lizaHeadshot}
+                      alt="Portrait of Liza Boone, Founder of EngageNatural"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <div className="flex flex-col">
+                      <span className="font-heading text-white text-xl">Liza Boone</span>
+                      <span className="font-body text-white/70 text-sm">Founder @ EngageNatural</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
