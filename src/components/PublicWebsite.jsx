@@ -100,10 +100,14 @@ export default function PublicWebsite() {
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="font-heading text-5xl md:text-6xl font-extrabold leading-tight text-primary mb-4">
-              Not just training. A movement you’re part of.
+            <h1
+              className="font-heading text-5xl md:text-7xl font-medium md:font-semibold leading-[1.1] tracking-tight text-primary mb-6 max-w-[18ch] mx-auto"
+              style={{ textWrap: 'balance' }}
+            >
+              <span className="block">Not just training.</span>
+              <span className="block">A movement you’re part of.</span>
             </h1>
-            <p className="text-lg md:text-xl text-muted font-body max-w-3xl mx-auto mb-8">
+            <p className="text-lg md:text-2xl text-muted font-body max-w-3xl mx-auto mb-10">
               Micro-lessons and community support that give staff confidence and brands measurable results.
             </p>
             <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
