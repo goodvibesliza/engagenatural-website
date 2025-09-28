@@ -3,6 +3,9 @@
 
 /* Import brand colors (must come after Tailwind base to override defaults) */
 @import "./theme/brand-colors.css";
+@import "./styles/globals.css";
+/* Fallback font via CDN (avoids CI module resolution issues) */
+@import "./styles/ibm-plex-mono.css";
 
 /* Utility classes */
 .visually-hidden {

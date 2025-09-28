@@ -6,6 +6,18 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Override base families with brand stacks (keep existing keys)
+        sans: [
+          'Geist', 'Geist Fallback', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'
+        ],
+        serif: [
+          'Libre Baskerville', 'Georgia', 'serif'
+        ],
+        display: [
+          'Code', 'IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'
+        ],
+      },
       colors: {
         // EngageNatural Brand Colors
         "black": "#000000",
@@ -42,12 +54,6 @@ export default {
         "brand-primary": "#9CAF88", // sage-green
         "brand-secondary": "#4A5D3A", // deep-moss
         "brand-accent": "#F5F1EB", // oat-beige
-      },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        serif: ['Playfair Display', 'serif'],
-        heading: ['Playfair Display', 'serif'],
-        body: ['Inter', 'sans-serif'],
       },
       borderRadius: {
         DEFAULT: '0.625rem',

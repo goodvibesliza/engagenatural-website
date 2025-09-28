@@ -5,6 +5,8 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { CheckCircle, ArrowRight, Users, MessageSquare, Trophy, BookOpen, Brain, BarChart3, Star, Award, Clock, CheckCircle2, LogIn, Calendar, Building2, UserCheck, Zap, Shield, Heart, Gamepad2 } from 'lucide-react'
 import LoginWidget from './LoginWidget'
+import BrandTitle from '@/components/typography/BrandTitle'
+import Kicker from '@/components/typography/Kicker'
 
 // Import assets
 import salesImpactGraph from '../assets/sales_impact_graph.png'
@@ -88,12 +90,10 @@ export default function PublicWebsite() {
       <section className="pt-20 pb-16 bg-gradient-to-br from-green-50 to-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-bold text-brand-primary mb-6 font-heading">
+            <BrandTitle as="h1" className="text-5xl md:text-6xl font-bold text-brand-primary mb-6">
               Engage<span className="text-brand-secondary">Natural</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-4 max-w-3xl mx-auto font-body">
-              Learn. Connect. Grow. Naturally
-            </p>
+            </BrandTitle>
+            <Kicker as="div" className="mb-2">Learn. Connect. Grow. Naturally</Kicker>
             <p className="text-lg text-brand-secondary font-semibold mb-8 max-w-3xl mx-auto font-body">
               More Than Training… It's a Movement
             </p>

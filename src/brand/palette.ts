@@ -1,61 +1,21 @@
-/**
- * Shared EngageNatural brand palette used across UI components.
- * Duplicates the colour tokens defined in Tailwind/theme CSS so
- * TypeScript imports like "../../brand/palette" resolve correctly.
- */
+// Petal-pink palette sampled from screenshot
+export const BG_PAGE_LIGHT = "#FFFFFF";   // base page
+export const BG_TINT       = "#F6E3DC";   // petal wash for sections/cards
+export const BG_ELEVATED   = "#FFFDFB";   // near-white for panels (optional)
 
-export const brandPalette = {
-	neutrals: {
-		black: '#000000',
-		white: '#FFFFFF',
-	},
-	primary: {
-		base: '#9CAF88',
-		foreground: '#000000',
-	},
-	secondary: {
-		base: '#4A5D3A',
-		foreground: '#FFFFFF',
-	},
-	accent: {
-		base: '#B8C7A6',
-		foreground: '#4A5D3A',
-	},
-	muted: {
-		base: '#F5F1EB',
-		foreground: '#6B6B6B',
-	},
-} as const;
+export const TEXT_PRIMARY  = "#0E0E0E";
+export const TEXT_INVERSE  = "#FFFFFF";
+export const MUTED         = "#5C5754";
 
-export type BrandPalette = typeof brandPalette;
+export const ACCENT_PINK   = "#F2D4CA";   // primary accent (petal)
+export const ACCENT_PINK_LIGHT = "#F3DAD1";
+export const ACCENT_PINK_DARK  = "#CDB4AB";
 
-export type BrandPaletteKey =
-	| 'neutrals.black'
-	| 'neutrals.white'
-	| 'primary.base'
-	| 'primary.foreground'
-	| 'secondary.base'
-	| 'secondary.foreground'
-	| 'accent.base'
-	| 'accent.foreground'
-	| 'muted.base'
-	| 'muted.foreground';
+export const BORDER        = "#E8C9C2";   // soft pink border
 
-const paletteLookup: Record<BrandPaletteKey, string> = {
-	'neutrals.black': brandPalette.neutrals.black,
-	'neutrals.white': brandPalette.neutrals.white,
-	'primary.base': brandPalette.primary.base,
-	'primary.foreground': brandPalette.primary.foreground,
-	'secondary.base': brandPalette.secondary.base,
-	'secondary.foreground': brandPalette.secondary.foreground,
-	'accent.base': brandPalette.accent.base,
-	'accent.foreground': brandPalette.accent.foreground,
-	'muted.base': brandPalette.muted.base,
-	'muted.foreground': brandPalette.muted.foreground,
+// Buttons (keep high contrast; add a pink variant for emphasis)
+export const BUTTON = {
+  primary:   { bg: "#0E0E0E", fg: "#FFFFFF", hover: "#1A1A1A", border: "#0E0E0E" },
+  secondary: { bg: "transparent", fg: "#0E0E0E", border: "#0E0E0E", hover: "#0E0E0E", hoverFg: "#FFFFFF" },
+  pink:      { bg: ACCENT_PINK, fg: "#0E0E0E", hover: ACCENT_PINK_DARK, border: ACCENT_PINK }
 };
-
-export function getBrandColor(token: BrandPaletteKey): string {
-	return paletteLookup[token];
-}
-
-export default brandPalette;
