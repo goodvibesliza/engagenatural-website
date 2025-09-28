@@ -68,7 +68,7 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.svg" alt="EngageNatural" className="h-8 w-auto" />
+              <img src="/logo.png" alt="EngageNatural" className="h-8 w-auto" />
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -79,7 +79,7 @@ export default function PublicWebsite() {
               <LoginWidget 
                 buttonText="Login" 
                 buttonVariant="default" 
-                className="bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-2 rounded-lg transition-colors flex items-center font-body"
+                className="bg-black hover:bg-[#1A1A1A] text-white px-6 py-2 rounded-lg transition-colors flex items-center font-body border border-black"
               />
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function PublicWebsite() {
                 <LoginWidget 
                   buttonText="Join the Community" 
                   buttonVariant="default" 
-                  className="bg-brand-secondary hover:bg-brand-secondary/90 text-white px-8 py-3 text-lg font-body"
+                  className="bg-black hover:bg-[#1A1A1A] text-white border border-black px-8 py-3 text-lg font-body"
                 />
               </div>
               <div className="relative">
@@ -352,7 +352,7 @@ export default function PublicWebsite() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="mb-4">
-                <img src="/logo-invert.svg" alt="EngageNatural" className="h-8 w-auto" />
+                <img src="/logo-invert.png" alt="EngageNatural" className="h-8 w-auto" />
               </div>
               <p className="text-gray-300 font-body">
                 Empowering retail teams through gamified engagement and community building.
