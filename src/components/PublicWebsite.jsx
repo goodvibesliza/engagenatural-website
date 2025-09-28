@@ -68,7 +68,7 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.svg" alt="EngageNatural" className="h-8 w-auto" />
+              <img src="/logo.png" alt="EngageNatural" className="h-48 w-auto" />
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -79,7 +79,7 @@ export default function PublicWebsite() {
               <LoginWidget 
                 buttonText="Login" 
                 buttonVariant="default" 
-                className="bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-2 rounded-lg transition-colors flex items-center font-body"
+                className="bg-black hover:bg-[#1A1A1A] text-white px-6 py-2 rounded-lg transition-colors flex items-center font-body border border-black"
               />
             </div>
           </div>
@@ -87,16 +87,42 @@ export default function PublicWebsite() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-20 pb-16 bg-gradient-to-br from-green-50 to-blue-50">
+      <section className="relative pt-20 pb-16 bg-white">
+        {/* Soft petal radial wash using #f5f3f3 over white */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background:
+              'radial-gradient(60rem 30rem at 20% 10%, rgba(245,243,243,0.6) 0%, rgba(245,243,243,0.0) 60%),' +
+              'radial-gradient(40rem 20rem at 80% 0%, rgba(245,243,243,0.5) 0%, rgba(245,243,243,0.0) 55%)',
+          }}
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <BrandTitle as="h1" className="text-5xl md:text-6xl font-bold text-brand-primary mb-6">
-              Engage<span className="text-brand-secondary">Natural</span>
-            </BrandTitle>
-            <Kicker as="div" className="mb-2">Learn. Connect. Grow. Naturally</Kicker>
-            <p className="text-lg text-brand-secondary font-semibold mb-8 max-w-3xl mx-auto font-body">
-              More Than Training… It's a Movement
+            <h1
+              className="font-heading text-3xl md:text-4xl font-medium md:font-semibold leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
+              style={{ textWrap: 'balance' }}
+            >
+              <span className="block">Not just training.</span>
+              <span className="block">A movement you’re part of.</span>
+            </h1>
+            <p className="text-base md:text-lg text-muted font-body max-w-3xl mx-auto mb-8">
+              Micro-lessons and community support that give staff confidence and brands measurable results.
             </p>
+            <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+              <LoginWidget 
+                buttonText="Join the Community" 
+                buttonVariant="default" 
+                className="bg-black hover:bg-[#1A1A1A] text-white border border-black px-8 py-3 text-lg font-body"
+              />
+              <Button
+                variant="outline"
+                className="border-black text-black hover:bg-[var(--color-petal-pink)] hover:text-[var(--color-black)] px-8 py-3 text-lg"
+              >
+                For Brands
+              </Button>
+            </div>
 
             <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
               <div className="text-left">
@@ -130,7 +156,7 @@ export default function PublicWebsite() {
                 <LoginWidget 
                   buttonText="Join the Community" 
                   buttonVariant="default" 
-                  className="bg-brand-secondary hover:bg-brand-secondary/90 text-white px-8 py-3 text-lg font-body"
+                  className="bg-black hover:bg-[#1A1A1A] text-white border border-black px-8 py-3 text-lg font-body"
                 />
               </div>
               <div className="relative">
@@ -347,20 +373,20 @@ export default function PublicWebsite() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-brand-primary text-white py-12">
+      <footer className="bg-[#f5f3f3] text-black py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="mb-4">
-                <img src="/logo-invert.svg" alt="EngageNatural" className="h-8 w-auto" />
+                <img src="/logo-invert.png" alt="EngageNatural" className="h-48 w-auto" />
               </div>
-              <p className="text-gray-300 font-body">
+              <p className="text-black font-body">
                 Empowering retail teams through gamified engagement and community building.
               </p>
             </div>
             <div>
               <h3 className="font-semibold mb-4 font-heading">For Retail Staff</h3>
-              <ul className="space-y-2 text-gray-300 font-body">
+              <ul className="space-y-2 text-black font-body">
                 <li>Gamified Learning</li>
                 <li>Community Connection</li>
                 <li>Career Growth</li>
@@ -369,7 +395,7 @@ export default function PublicWebsite() {
             </div>
             <div>
               <h3 className="font-semibold mb-4 font-heading">Platform</h3>
-              <ul className="space-y-2 text-gray-300 font-body">
+              <ul className="space-y-2 text-black font-body">
                 <li>Challenges</li>
                 <li>Community</li>
                 <li>Learning</li>
@@ -378,7 +404,7 @@ export default function PublicWebsite() {
             </div>
             <div>
               <h3 className="font-semibold mb-4 font-heading">Connect</h3>
-              <ul className="space-y-2 text-gray-300 font-body">
+              <ul className="space-y-2 text-black font-body">
                 <li>Contact Us</li>
                 <li>LinkedIn</li>
                 <li>Support</li>
@@ -386,7 +412,7 @@ export default function PublicWebsite() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-600 mt-8 pt-8 text-center text-gray-300">
+          <div className="border-t border-gray-300 mt-8 pt-8 text-center text-black">
             <p className="font-body">&copy; 2024 EngageNatural. All rights reserved.</p>
           </div>
         </div>
