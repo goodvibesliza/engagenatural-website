@@ -14,6 +14,15 @@ const sizeClasses: Record<Size, string> = {
   lg: 'text-[24px] leading-tight',
 }
 
+/**
+ * Render the brand wordmark that links to the site homepage.
+ *
+ * The `size` prop selects a typographic size variant ('sm' | 'md' | 'lg'); `className` is appended to the wrapper element's class list.
+ *
+ * @param size - The size variant for the wordmark; defaults to `'md'`
+ * @param className - Additional CSS classes to apply to the outer wrapper
+ * @returns The wordmark JSX element linking to `/`
+ */
 export default function LogoWordmark({ size = 'md', className }: LogoWordmarkProps): JSX.Element {
   const sizeClass = sizeClasses[size]
 

@@ -13,6 +13,13 @@ import LogoWordmark from './brand/LogoWordmark'
 import lizaHeadshot from '../assets/Lizaonbeachheadshot.jpg'
 import communityHero from '../assets/communityof5.jpg'
 
+/**
+ * Renders the public marketing website for EngageNatural, including hero, features, founder, contact form, and footer.
+ *
+ * The component manages contact form state, submits form data to a Formspree endpoint (showing success/error alerts and resetting the form on success), and exposes a scroll-to-contact action used by several CTAs.
+ *
+ * @returns {JSX.Element} The rendered public website UI.
+ */
 export default function PublicWebsite() {
   const [formData, setFormData] = useState({
     name: '',
