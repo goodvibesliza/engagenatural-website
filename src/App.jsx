@@ -63,6 +63,7 @@ import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 import Community from './pages/Community';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 import CommunityPostRedirect from './components/CommunityPostRedirect';
+import PostCompose from './pages/PostCompose.jsx';
 
 // Dev-only debug card (renders nothing in production)
 import UserDebugCard from './components/dev/UserDebugCard';
@@ -473,6 +474,7 @@ function App() {
             />
             {/* Community routes under staff layout */}
             <Route path="community" element={<Community />} />
+            <Route path="community/post/new" element={<PostCompose />} />
             <Route
               path="community/post/:postId"
               element={

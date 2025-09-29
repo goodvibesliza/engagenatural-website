@@ -1,6 +1,6 @@
 // src/pages/PostDetail.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
 import { db } from '@/lib/firebase';
@@ -23,6 +23,7 @@ import {
 export default function PostDetail() {
   const { postId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const headingRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -42,8 +43,28 @@ export default function PostDetail() {
     }
   }, [loading, post]);
 
-  // initial load
+  // Support draft previews passed via navigation state (no backend write yet)
   useEffect(() => {
+    const draft = location.state?.draft;
+    if (draft) {
+      setPost({
+        id: draft.id,
+        brand: draft.brand || draft.communityName || 'General',
+        title: draft.title || 'Update',
+        snippet: draft.body || draft.content || '',
+        content: draft.body || draft.content || '',
+        createdAt: new Date(),
+        likeIds: [],
+        commentIds: [],
+      });
+      setLoading(false);
+    }
+  }, [location.state]);
+
+  // initial load (stubs / firestore)
+  useEffect(() => {
+    // If we already set a draft post, skip network load
+    if (location.state?.draft) return;
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -168,7 +189,7 @@ export default function PostDetail() {
     return () => {
       cancelled = true;
     };
-  }, [postId]);
+  }, [postId, location.state]);
 
   // Keep liked marker in sync with auth changes
   useEffect(() => {
@@ -371,6 +392,11 @@ export default function PostDetail() {
         </button>
 
         <article className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
+          {location.state?.draft && (
+            <div className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Draft preview — this post is not yet saved to the community database.
+            </div>
+          )}
           <header className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
@@ -497,7 +523,11 @@ export default function PostDetail() {
           <button
             type="button"
             onClick={handleAddComment}
-            className="px-3 h-11 min-h-[44px] rounded-md bg-deep-moss text-white text-sm hover:bg-sage-dark disabled:opacity-50"
+            className={`px-4 h-11 min-h-[44px] rounded-md text-sm transition-colors border ${
+              newComment.trim()
+                ? 'bg-brand-primary text-primary border-brand-primary hover:opacity-90'
+                : 'bg-gray-200 text-white border-gray-300 cursor-not-allowed'
+            }`}
             disabled={!newComment.trim()}
             data-testid="comment-submit"
           >
