@@ -239,10 +239,10 @@ const PostForm = ({
                 type="button"
                 onClick={createPost}
                 disabled={!canSubmit()}
-                className={`px-4 py-2 rounded-lg text-white text-sm ${
+                className={`px-4 py-2 rounded-lg text-sm ${
                   canSubmit()
-                    ? 'bg-brand-primary hover:bg-brand-primary/90'
-                    : 'bg-gray-400 cursor-not-allowed'
+                    ? 'bg-brand-primary hover:bg-brand-primary text-primary'
+                    : 'bg-gray-400 cursor-not-allowed text-white'
                 } transition`}
               >
                 {loading ? (
