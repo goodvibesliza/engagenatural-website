@@ -94,15 +94,15 @@ export default function PublicWebsite() {
       <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-[0.82rem] md:text-sm tracking-[0.18em] uppercase text-neutral-500/90 mb-2" aria-label="Section descriptor">
+            <p className="font-body text-[0.94rem] md:text-[1.05rem] tracking-[0.18em] uppercase text-black mb-1" aria-label="Section descriptor">
               COMMUNITY & TRAINING FOR NATURAL PRODUCTS
             </p>
             <h1
               className="font-heading text-3xl md:text-4xl font-medium md:font-semibold leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
-              <span className="block">More than training, it's a movement.</span>
-              <span className="block">We are in this together.</span>
+              <span className="block">More than training.</span>
+              <span className="block">Together, we’re a movement.</span>
             </h1>
             <p className="text-base md:text-lg text-muted font-body max-w-3xl mx-auto mb-8">
               Genuine connection and micro-lessons that<br />
