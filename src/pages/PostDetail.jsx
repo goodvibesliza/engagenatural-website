@@ -497,7 +497,11 @@ export default function PostDetail() {
           <button
             type="button"
             onClick={handleAddComment}
-            className="px-3 h-11 min-h-[44px] rounded-md bg-deep-moss text-white text-sm hover:bg-sage-dark disabled:opacity-50"
+            className={`px-4 h-11 min-h-[44px] rounded-md text-sm transition-colors border ${
+              newComment.trim()
+                ? 'bg-brand-primary text-primary border-brand-primary hover:opacity-90'
+                : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
+            }`}
             disabled={!newComment.trim()}
             data-testid="comment-submit"
           >
