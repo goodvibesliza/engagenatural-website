@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80" width="160" height="80" role="img" aria-labelledby="titleC">
+  <title id="titleC">Placeholder C</title>
+  <rect x="1" y="1" width="158" height="78" rx="12" fill="#F0F0F0" stroke="#E0E0E0"/>
+  <text x="80" y="50" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="40" font-weight="600" text-anchor="middle" fill="#2A2A2A">C</text>
+  <desc>Rounded rectangle with centered letter C</desc>
+</svg>
