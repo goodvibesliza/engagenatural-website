@@ -149,6 +149,7 @@ export default function CommunitiesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const lastDocRef = useRef(null);
+  const composerRef = useRef(null);
 
   const [likedPosts, setLikedPosts] = useState(new Set());
   const [pendingLikes, setPendingLikes] = useState(new Set());
@@ -457,6 +458,10 @@ export default function CommunitiesPage() {
     const params = new URLSearchParams(location.search);
     params.set('compose', '1');
     navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    // bring composer into view after state update
+    setTimeout(() => {
+      try { composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
+    }, 0);
   };
   const closeComposer = () => {
     setComposerCommunityId(null);
@@ -574,7 +579,16 @@ export default function CommunitiesPage() {
 
         {/* ---------------- Community Feed Box ---------------- */}
         <div className="mt-6">
-          <h2 className="text-xl font-semibold text-gray-900">Community Feed</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Community Feed</h2>
+            <button
+              type="button"
+              onClick={openComposer}
+              className="inline-flex items-center px-3 py-1.5 rounded border border-brand-primary bg-brand-primary text-primary hover:opacity-90"
+            >
+              New Post
+            </button>
+          </div>
           {initialLoading ? (
             <div className="flex flex-col py-4">
               <PostSkeleton />
@@ -623,6 +637,7 @@ export default function CommunitiesPage() {
         {/* ---------------- Post Composer ---------------- */}
         {showComposer && (
           <form
+            ref={composerRef}
             onSubmit={handleCreatePost}
             className="mt-6 bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
           >
