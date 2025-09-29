@@ -50,6 +50,15 @@ export default function Community() {
         </div>
         {/* Inline filters for mobile/tablet; hidden on desktop */}
         <div className="only-mobile">
+          <div className="px-4 pt-3">
+            <button
+              type="button"
+              onClick={() => navigate('/staff/communities?compose=1')}
+              className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
+            >
+              New Post
+            </button>
+          </div>
           <FilterBar
             query={query}
             selectedBrands={selectedBrands}
@@ -81,6 +90,13 @@ export default function Community() {
           {/* Desktop sidebar filters */}
           <aside className="only-desktop">
             <div className="community-sticky">
+              <button
+                type="button"
+                onClick={() => navigate('/staff/communities?compose=1')}
+                className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
+              >
+                New Post
+              </button>
               <FilterBar
                 query={query}
                 selectedBrands={selectedBrands}
