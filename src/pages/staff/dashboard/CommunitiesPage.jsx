@@ -468,8 +468,6 @@ export default function CommunitiesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <div>
-      <div>
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Communities</h1>

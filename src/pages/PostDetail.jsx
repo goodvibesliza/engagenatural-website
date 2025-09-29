@@ -500,7 +500,7 @@ export default function PostDetail() {
             className={`px-4 h-11 min-h-[44px] rounded-md text-sm transition-colors border ${
               newComment.trim()
                 ? 'bg-brand-primary text-primary border-brand-primary hover:opacity-90'
-                : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
+                : 'bg-gray-200 text-white border-gray-300 cursor-not-allowed'
             }`}
             disabled={!newComment.trim()}
             data-testid="comment-submit"
