@@ -174,7 +174,7 @@ export default function PublicWebsite() {
             <h2 className="text-4xl font-bold text-brand-primary mb-4 font-heading">
               Why Choose EngageNatural?
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto font-body">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto font-body" style={{ fontFamily: 'var(--font-body)' }}>
               Stop wasting time on generic platforms that don't understand natural products.
               Start growing your expertise, community, and career with the only app built for YOU.
             </p>
@@ -275,7 +275,7 @@ export default function PublicWebsite() {
             <h2 className="text-4xl font-bold text-brand-primary mb-4 font-heading">
               Get In Touch
             </h2>
-            <p className="text-xl text-gray-600 font-body">
+            <p className="text-xl text-gray-600 font-body" style={{ fontFamily: 'var(--font-body)' }}>
               Ready to transform your retail experience? Let's start the conversation.
             </p>
           </div>
@@ -349,7 +349,7 @@ export default function PublicWebsite() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white py-3 font-body"
+                  className="w-full bg-black hover:bg-[#1A1A1A] border border-black text-white py-3 font-body"
                 >
                   Send Message
                 </Button>
