@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import { db } from '@/lib/firebase';
 import {
@@ -141,6 +141,8 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
  */
 export default function CommunitiesPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [posts, setPosts] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -432,6 +434,12 @@ export default function CommunitiesPage() {
         }
 
         setCommunities(items);
+        // If URL param asks to compose, open the composer for what's-good by default
+        const params = new URLSearchParams(location.search);
+        const compose = params.get('compose');
+        if (compose && (compose === '1' || compose === 'whats-good')) {
+          setComposerCommunityId('whats-good');
+        }
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('Error loading communities', err);
@@ -442,6 +450,20 @@ export default function CommunitiesPage() {
     };
     loadCommunities();
   }, []);
+
+  // Helper to open composer via button and normalize URL (no hard refresh)
+  const openComposer = () => {
+    setComposerCommunityId('whats-good');
+    const params = new URLSearchParams(location.search);
+    params.set('compose', '1');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  };
+  const closeComposer = () => {
+    setComposerCommunityId(null);
+    const params = new URLSearchParams(location.search);
+    params.delete('compose');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  };
 
   return (
     <div className="space-y-8">
@@ -502,11 +524,7 @@ export default function CommunitiesPage() {
                     </div>
                     {c.id === 'whats-good' ? (
                       <button
-                        onClick={() =>
-                          setComposerCommunityId((prev) =>
-                            prev === 'whats-good' ? null : 'whats-good'
-                          )
-                        }
+                        onClick={() => (composerCommunityId === 'whats-good' ? closeComposer() : openComposer())}
                         className="ml-3 text-sm px-3 py-1 bg-brand-primary text-white rounded hover:bg-brand-primary/90"
                       >
                         {composerCommunityId === 'whats-good' ? 'Close' : 'Open'}
@@ -617,7 +635,14 @@ export default function CommunitiesPage() {
               rows="4"
               className="w-full mb-3 p-2 border border-gray-300 rounded"
             />
-            <div className="flex justify-end">
+            <div className="flex justify-between">
+              <button
+                type="button"
+                onClick={closeComposer}
+                className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={creating || !newTitle.trim() || !newBody.trim()}
