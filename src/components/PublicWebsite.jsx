@@ -94,11 +94,11 @@ export default function PublicWebsite() {
       <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="font-body pt-2 md:pt-3 text-[0.85rem] md:text-[0.95rem] tracking-[0.14em] uppercase text-black mb-1" aria-label="Section descriptor">
+            <p className="font-body pt-3 md:pt-4 text-[0.8rem] md:text-[0.9rem] tracking-[0.14em] uppercase text-black mb-6" aria-label="Section descriptor">
               COMMUNITY & TRAINING FOR NATURAL PRODUCTS
             </p>
             <h1
-              className="font-heading text-[2.25rem] md:text-[2.6rem] font-normal md:font-medium leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
+              className="font-heading text-[2.5rem] md:text-[2.9rem] font-light md:font-normal leading-[1.15] tracking-tight text-primary mb-6 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
               <span className="block">More than training.</span>
