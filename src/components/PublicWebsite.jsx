@@ -94,6 +94,9 @@ export default function PublicWebsite() {
       <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
+            <p className="text-[0.82rem] md:text-sm tracking-[0.18em] uppercase text-neutral-500/90 mb-2" aria-label="Section descriptor">
+              COMMUNITY & TRAINING FOR NATURAL PRODUCTS
+            </p>
             <h1
               className="font-heading text-3xl md:text-4xl font-medium md:font-semibold leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
@@ -105,10 +108,6 @@ export default function PublicWebsite() {
               Genuine connection and micro-lessons that<br />
               give you the confidence and support you need.
             </p>
-            <section aria-label="Trusted by natural product brands" className="container-lg" style={{marginTop: '2.5rem', marginBottom: '2.5rem'}}>
-              <h2 className="sr-only">Trusted by natural product brands</h2>
-              <LogoCloud logos={BRAND_LOGOS} />
-            </section>
             <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <LoginWidget 
                 buttonText="Join the Community" 
@@ -122,6 +121,10 @@ export default function PublicWebsite() {
                 For Brands
               </Button>
             </div>
+            <section aria-label="Trusted by natural product brands" className="container-lg" style={{marginTop: '2.5rem', marginBottom: '2.5rem'}}>
+              <h2 className="sr-only">Trusted by natural product brands</h2>
+              <LogoCloud logos={BRAND_LOGOS} />
+            </section>
 
             <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
               <div className="text-left">
