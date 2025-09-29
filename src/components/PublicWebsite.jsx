@@ -7,6 +7,7 @@ import { CheckCircle, ArrowRight, Users, MessageSquare, Trophy, BookOpen, Brain,
 import LoginWidget from './LoginWidget'
 import BrandTitle from '@/components/typography/BrandTitle'
 import Kicker from '@/components/typography/Kicker'
+import LogoWordmark from './brand/LogoWordmark'
 
 // Import assets
 import lizaHeadshot from '../assets/Lizaonbeachheadshot.jpg'
@@ -62,7 +63,7 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.png" alt="EngageNatural" className="h-48 w-auto" />
+              <LogoWordmark size="md" />
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
