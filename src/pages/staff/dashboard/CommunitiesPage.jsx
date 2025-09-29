@@ -469,11 +469,20 @@ export default function CommunitiesPage() {
     <div className="space-y-8">
       <div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Communities</h1>
-          <p className="text-gray-600 mt-1">Public community posts</p>
+      <div>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Communities</h1>
+            <p className="text-gray-600 mt-1">Public community posts</p>
+          </div>
+          <button
+            type="button"
+            onClick={openComposer}
+            className="inline-flex items-center px-4 py-2 rounded border border-brand-primary bg-brand-primary text-primary hover:opacity-90"
+          >
+            New Post
+          </button>
         </div>
-
-        {/* ---------------- Communities Grid ---------------- */}
         <div className="mt-2">
           <h2 className="text-xl font-semibold text-gray-900">Communities</h2>
           {loadingCommunities ? (
