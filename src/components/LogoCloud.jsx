@@ -49,11 +49,8 @@ export default function LogoCloud({ logos }) {
   const showSkeletons = hasProvided && logos.length === 0
 
   return (
-    <section aria-labelledby="logo-cloud-heading" className="bg-white">
+    <section className="bg-[#f5f3f3]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <h2 id="logo-cloud-heading" className="text-center text-sm uppercase tracking-wide text-gray-500 font-body mb-6">
-          Brands we work with
-        </h2>
 
         {showSkeletons ? (
           <div>
