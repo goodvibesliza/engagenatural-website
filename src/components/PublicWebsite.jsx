@@ -59,7 +59,7 @@ export default function PublicWebsite() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
+      <nav className="fixed top-0 w-full bg-[#f5f3f3] backdrop-blur-sm border-b border-gray-200 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -82,28 +82,19 @@ export default function PublicWebsite() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-16 bg-white">
-        {/* Soft petal radial wash using #f5f3f3 over white */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            background:
-              'radial-gradient(60rem 30rem at 20% 10%, rgba(245,243,243,0.6) 0%, rgba(245,243,243,0.0) 60%),' +
-              'radial-gradient(40rem 20rem at 80% 0%, rgba(245,243,243,0.5) 0%, rgba(245,243,243,0.0) 55%)',
-          }}
-        />
+      <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1
               className="font-heading text-3xl md:text-4xl font-medium md:font-semibold leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
-              <span className="block">Not just training.</span>
-              <span className="block">A movement you’re part of.</span>
+              <span className="block">More than training, it's a movement.</span>
+              <span className="block">We are in this together.</span>
             </h1>
             <p className="text-base md:text-lg text-muted font-body max-w-3xl mx-auto mb-8">
-              Micro-lessons and community support that give staff confidence and brands measurable results.
+              Genuine connection and micro-lessons that<br />
+              give you the confidence and support you need.
             </p>
             <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <LoginWidget 
@@ -241,9 +232,9 @@ export default function PublicWebsite() {
       {/* Impact Metrics - Removed from public site */}
 
       {/* Meet the Founder – redesigned to match CultureTest experts style */}
-      <section className="py-10 bg-black">
+      <section className="py-6 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-6 md:gap-8 items-center">
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6 items-center">
             {/* Left: Headline, subhead, CTA */}
             <div className="order-1">
               <h2 className="font-heading text-white text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight mb-3">
@@ -263,7 +254,7 @@ export default function PublicWebsite() {
 
             {/* Right: Founder card */}
             <div className="order-2">
-              <Card className="bg-neutral-900/60 border-neutral-800 text-white rounded-2xl shadow-md overflow-hidden max-w-sm mx-auto">
+              <Card className="bg-neutral-900/60 border-neutral-800 text-white rounded-2xl shadow-md overflow-hidden max-w-[14rem] mx-auto">
                 <CardContent className="p-0">
                   <div className="aspect-[4/5] w-full overflow-hidden bg-neutral-900">
                     <img
