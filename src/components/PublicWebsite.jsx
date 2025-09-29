@@ -94,21 +94,20 @@ export default function PublicWebsite() {
       <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
+            <p className="font-body pt-3 md:pt-4 text-[0.8rem] md:text-[0.9rem] tracking-[0.14em] uppercase text-black mb-6" aria-label="Section descriptor">
+              COMMUNITY & TRAINING FOR NATURAL PRODUCTS
+            </p>
             <h1
-              className="font-heading text-3xl md:text-4xl font-medium md:font-semibold leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
+              className="font-heading text-[2.5rem] md:text-[2.9rem] font-light md:font-normal leading-[1.15] tracking-tight text-primary mb-6 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
-              <span className="block">More than training, it's a movement.</span>
-              <span className="block">We are in this together.</span>
+              <span className="block">More than training.</span>
+              <span className="block">Together, we’re a movement.</span>
             </h1>
             <p className="text-base md:text-lg text-muted font-body max-w-3xl mx-auto mb-8">
               Genuine connection and micro-lessons that<br />
               give you the confidence and support you need.
             </p>
-            <section aria-label="Trusted by natural product brands" className="container-lg" style={{marginTop: '2.5rem', marginBottom: '2.5rem'}}>
-              <h2 className="sr-only">Trusted by natural product brands</h2>
-              <LogoCloud logos={BRAND_LOGOS} />
-            </section>
             <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <LoginWidget 
                 buttonText="Join the Community" 
@@ -122,6 +121,10 @@ export default function PublicWebsite() {
                 For Brands
               </Button>
             </div>
+            <section aria-label="Trusted by natural product brands" className="container-lg" style={{marginTop: '2.5rem', marginBottom: '2.5rem'}}>
+              <h2 className="sr-only">Trusted by natural product brands</h2>
+              <LogoCloud logos={BRAND_LOGOS} />
+            </section>
 
             <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
               <div className="text-left">
