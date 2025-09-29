@@ -240,21 +240,21 @@ export default function PublicWebsite() {
       {/* Impact Metrics - Removed from public site */}
 
       {/* Meet the Founder – redesigned to match CultureTest experts style */}
-      <section className="py-20 bg-black">
+      <section className="py-10 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8 items-center">
             {/* Left: Headline, subhead, CTA */}
             <div className="order-1">
-              <h2 className="font-heading text-white text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+              <h2 className="font-heading text-white text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight mb-3">
                 Use the educational blueprint of an industry expert
               </h2>
-              <p className="font-body text-white/80 text-base sm:text-lg md:text-xl leading-relaxed mb-8">
+              <p className="font-body text-white/80 text-sm sm:text-base md:text-lg leading-relaxed mb-5">
                 EngageNatural was built with insights from decades in natural products education, retail training, and community building.
               </p>
               <Button
                 type="button"
                 onClick={scrollToContact}
-                className="bg-white text-black hover:bg-neutral-200 transition-colors px-6 py-3 rounded-md font-body border border-white"
+                className="bg-white text-black hover:bg-neutral-200 transition-colors px-4 py-2 rounded-md font-body border border-white text-sm"
               >
                 Get early access
               </Button>
@@ -262,7 +262,7 @@ export default function PublicWebsite() {
 
             {/* Right: Founder card */}
             <div className="order-2">
-              <Card className="bg-neutral-900/60 border-neutral-800 text-white rounded-2xl shadow-md overflow-hidden max-w-md mx-auto">
+              <Card className="bg-neutral-900/60 border-neutral-800 text-white rounded-2xl shadow-md overflow-hidden max-w-sm mx-auto">
                 <CardContent className="p-0">
                   <div className="aspect-[4/5] w-full overflow-hidden bg-neutral-900">
                     <img
@@ -274,8 +274,8 @@ export default function PublicWebsite() {
                   </div>
                   <div className="p-5">
                     <div className="flex flex-col">
-                      <span className="font-heading text-white text-xl">Liza Boone</span>
-                      <span className="font-body text-white/70 text-sm">Founder @ EngageNatural</span>
+                      <span className="font-heading text-white text-lg">Liza Boone</span>
+                      <span className="font-body text-white/70 text-xs">Founder @ EngageNatural</span>
                     </div>
                   </div>
                 </CardContent>
