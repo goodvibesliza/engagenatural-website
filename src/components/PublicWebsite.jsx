@@ -158,23 +158,7 @@ export default function PublicWebsite() {
       </section>
 {/* Download App Section */}
 <div className="mt-8 text-center">
-  <p className="text-gray-600 mb-4">Get the mobile app for the full experience</p>
-  <div className="flex justify-center space-x-4">
-    <button className="bg-black text-white px-6 py-3 rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors">
-      <span>📱</span>
-      <div className="text-left">
-        <div className="text-xs">Download on the</div>
-        <div className="text-sm font-semibold">App Store</div>
-      </div>
-    </button>
-    <button className="bg-black text-white px-6 py-3 rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors">
-      <span>🤖</span>
-      <div className="text-left">
-        <div className="text-xs">Get it on</div>
-        <div className="text-sm font-semibold">Google Play</div>
-      </div>
-    </button>
-  </div>
+  <p className="text-gray-600 font-body">Mobile apps — coming soon</p>
 </div>
       {/* Features Section */}
       <section className="py-20 bg-white">
@@ -374,7 +358,7 @@ export default function PublicWebsite() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="mb-4">
-                <img src="/logo-invert.png" alt="EngageNatural" className="h-48 w-auto" />
+                <LogoWordmark size="md" />
               </div>
               <p className="text-black font-body">
                 Empowering retail teams through gamified engagement and community building.
