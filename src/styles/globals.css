@@ -1,5 +1,16 @@
 /* Global brand typography helpers */
 
+/* Base font + tokens (do not alter heading styles here) */
+:root {
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  --accent-pink: var(--color-petal-pink, #F2D4CA);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+
 /* Display stack utility. Uses CSS var for runtime overrides if needed. */
 .font-display {
   font-family: var(--font-display, "Code"), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -23,4 +34,23 @@
 .brand-title {
   /* Min ~30px, fluid, Max ~60px to preserve display scale */
   font-size: clamp(1.875rem, 1rem + 2.5vw, 3.75rem);
+}
+
+/* Wordmark + link helpers for the brand logo */
+.brand-wordmark {
+  font-family: "Geist", ui-sans-serif, system-ui;
+  letter-spacing: .1px;
+}
+
+a.brand-home:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--accent-pink, #F2D4CA);
+}
+
+a.brand-home:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-pink, #F2D4CA) 50%, transparent);
+  border-radius: 6px;
 }

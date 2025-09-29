@@ -7,17 +7,19 @@ import { CheckCircle, ArrowRight, Users, MessageSquare, Trophy, BookOpen, Brain,
 import LoginWidget from './LoginWidget'
 import BrandTitle from '@/components/typography/BrandTitle'
 import Kicker from '@/components/typography/Kicker'
+import LogoWordmark from './brand/LogoWordmark'
 
 // Import assets
-import salesImpactGraph from '../assets/sales_impact_graph.png'
-import roiGrowthGraph from '../assets/roi_growth_graph.png'
-import userEngagementGraph from '../assets/user_engagement_graph.png'
 import lizaHeadshot from '../assets/Lizaonbeachheadshot.jpg'
 import communityHero from '../assets/communityof5.jpg'
-import handsWithHeart from '../assets/handswithheartpaint.jpg'
-import diverseGroup from '../assets/grouppicdiverse.jpg'
-import handPile from '../assets/handpile.jpg'
 
+/**
+ * Renders the public marketing website for EngageNatural, including hero, features, founder, contact form, and footer.
+ *
+ * The component manages contact form state, submits form data to a Formspree endpoint (showing success/error alerts and resetting the form on success), and exposes a scroll-to-contact action used by several CTAs.
+ *
+ * @returns {JSX.Element} The rendered public website UI.
+ */
 export default function PublicWebsite() {
   const [formData, setFormData] = useState({
     name: '',
@@ -52,7 +54,7 @@ export default function PublicWebsite() {
       } else {
         alert('Oops! There was a problem submitting your form')
       }
-    }).catch(error => {
+    }).catch(() => {
       alert('Oops! There was a problem submitting your form')
     })
   }
@@ -64,11 +66,11 @@ export default function PublicWebsite() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
+      <nav className="fixed top-0 w-full bg-[#f5f3f3] backdrop-blur-sm border-b border-gray-200 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.png" alt="EngageNatural" className="h-48 w-auto" />
+              <LogoWordmark size="md" />
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -87,28 +89,19 @@ export default function PublicWebsite() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-16 bg-white">
-        {/* Soft petal radial wash using #f5f3f3 over white */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            background:
-              'radial-gradient(60rem 30rem at 20% 10%, rgba(245,243,243,0.6) 0%, rgba(245,243,243,0.0) 60%),' +
-              'radial-gradient(40rem 20rem at 80% 0%, rgba(245,243,243,0.5) 0%, rgba(245,243,243,0.0) 55%)',
-          }}
-        />
+      <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1
               className="font-heading text-3xl md:text-4xl font-medium md:font-semibold leading-[1.15] tracking-tight text-primary mb-5 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
-              <span className="block">Not just training.</span>
-              <span className="block">A movement you’re part of.</span>
+              <span className="block">More than training, it's a movement.</span>
+              <span className="block">We are in this together.</span>
             </h1>
             <p className="text-base md:text-lg text-muted font-body max-w-3xl mx-auto mb-8">
-              Micro-lessons and community support that give staff confidence and brands measurable results.
+              Genuine connection and micro-lessons that<br />
+              give you the confidence and support you need.
             </p>
             <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <LoginWidget 
@@ -172,23 +165,7 @@ export default function PublicWebsite() {
       </section>
 {/* Download App Section */}
 <div className="mt-8 text-center">
-  <p className="text-gray-600 mb-4">Get the mobile app for the full experience</p>
-  <div className="flex justify-center space-x-4">
-    <button className="bg-black text-white px-6 py-3 rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors">
-      <span>📱</span>
-      <div className="text-left">
-        <div className="text-xs">Download on the</div>
-        <div className="text-sm font-semibold">App Store</div>
-      </div>
-    </button>
-    <button className="bg-black text-white px-6 py-3 rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors">
-      <span>🤖</span>
-      <div className="text-left">
-        <div className="text-xs">Get it on</div>
-        <div className="text-sm font-semibold">Google Play</div>
-      </div>
-    </button>
-  </div>
+  <p className="text-gray-600 font-body">Mobile apps — coming soon</p>
 </div>
       {/* Features Section */}
       <section className="py-20 bg-white">
@@ -197,7 +174,7 @@ export default function PublicWebsite() {
             <h2 className="text-4xl font-bold text-brand-primary mb-4 font-heading">
               Why Choose EngageNatural?
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto font-body">
+            <p className="text-base md:text-lg text-black max-w-3xl mx-auto font-body font-normal" style={{ fontFamily: 'var(--font-body)' }}>
               Stop wasting time on generic platforms that don't understand natural products.
               Start growing your expertise, community, and career with the only app built for YOU.
             </p>
@@ -245,37 +222,47 @@ export default function PublicWebsite() {
 
       {/* Impact Metrics - Removed from public site */}
 
-      {/* About Section */}
-      <section className="py-20 bg-white">
+      {/* Meet the Founder – redesigned to match CultureTest experts style */}
+      <section className="py-6 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl font-bold text-brand-primary mb-6 font-heading">
-                Meet the Founder
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6 items-center">
+            {/* Left: Headline, subhead, CTA */}
+            <div className="order-1">
+              <h2 className="font-heading text-white text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight mb-3">
+                Use the educational blueprint of an industry expert
               </h2>
-              <p className="text-lg text-gray-600 mb-6 font-body">
-                Hi, I'm Liza! After 30+ years in the natural products industry, I've seen firsthand how retail staff are the MOST IMPORTANT yet MOST OVERLOOKED part of the entire ecosystem.
+              <p className="font-body text-white/80 text-sm sm:text-base md:text-lg leading-relaxed mb-5">
+                EngageNatural was built with insights from decades in natural products education, retail training, and community building.
               </p>
-              <p className="text-lg text-gray-600 mb-8 font-body">
-                EngageNatural exists because YOU deserve better than generic training platforms that don't understand our industry. This is more than an app - it's a movement to recognize, reward, and elevate the retail professionals who make natural products successful.
-              </p>
-              <div className="flex space-x-4">
-                <Button variant="outline" size="sm" className="border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white">
-                  <Users className="w-4 h-4 mr-2" />
-                  LinkedIn
-                </Button>
-                <Button variant="outline" size="sm" className="border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Email
-                </Button>
-              </div>
+              <Button
+                type="button"
+                onClick={scrollToContact}
+                className="bg-white text-black hover:bg-neutral-200 transition-colors px-4 py-2 rounded-md font-body border border-white text-sm"
+              >
+                Get early access
+              </Button>
             </div>
-            <div className="relative">
-              <img 
-                src={lizaHeadshot} 
-                alt="Liza - Founder of EngageNatural" 
-                className="rounded-2xl shadow-2xl max-w-xs mx-auto transform scale-x-[-1]"
-              />
+
+            {/* Right: Founder card */}
+            <div className="order-2">
+              <Card className="bg-neutral-900/60 border-neutral-800 text-white rounded-2xl shadow-md overflow-hidden max-w-[14rem] mx-auto">
+                <CardContent className="p-0">
+                  <div className="aspect-[4/5] w-full overflow-hidden bg-neutral-900">
+                    <img
+                      src={lizaHeadshot}
+                      alt="Portrait of Liza Boone, Founder of EngageNatural"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <div className="flex flex-col">
+                      <span className="font-heading text-white text-lg">Liza Boone</span>
+                      <span className="font-body text-white/70 text-xs">Founder @ EngageNatural</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -288,7 +275,7 @@ export default function PublicWebsite() {
             <h2 className="text-4xl font-bold text-brand-primary mb-4 font-heading">
               Get In Touch
             </h2>
-            <p className="text-xl text-gray-600 font-body">
+            <p className="text-base md:text-lg text-black font-body font-normal" style={{ fontFamily: 'var(--font-body)' }}>
               Ready to transform your retail experience? Let's start the conversation.
             </p>
           </div>
@@ -362,7 +349,7 @@ export default function PublicWebsite() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white py-3 font-body"
+                  className="w-full bg-black hover:bg-[#1A1A1A] border border-black text-white py-3 font-body"
                 >
                   Send Message
                 </Button>
@@ -378,7 +365,7 @@ export default function PublicWebsite() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="mb-4">
-                <img src="/logo-invert.png" alt="EngageNatural" className="h-48 w-auto" />
+                <LogoWordmark size="md" />
               </div>
               <p className="text-black font-body">
                 Empowering retail teams through gamified engagement and community building.
