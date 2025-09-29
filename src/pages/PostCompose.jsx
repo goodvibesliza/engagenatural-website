@@ -27,6 +27,17 @@ export default function PostCompose() {
     setSubmitting(true);
     setError('');
     try {
+      // If database is unavailable (e.g., deploy preview without env), fall back to draft preview
+      if (!db || !user?.uid) {
+        const draft = {
+          id: `draft-${Date.now()}`,
+          title: title.trim(),
+          body: body.trim(),
+          communityName: "What's Good",
+        };
+        navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
+        return;
+      }
       // Create public post in universal "what's-good" community
       const ref = await addDoc(collection(db, 'community_posts'), {
         title: title.trim(),
@@ -40,7 +51,15 @@ export default function PostCompose() {
       });
       navigate(`/staff/community/post/${ref.id}`);
     } catch (e) {
-      setError('Failed to create post. Please try again.');
+      // On failure, still allow users to preview their content as a draft
+      const draft = {
+        id: `draft-${Date.now()}`,
+        title: title.trim(),
+        body: body.trim(),
+        communityName: "What's Good",
+        error: e?.message || 'unknown',
+      };
+      navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
     } finally {
       setSubmitting(false);
     }
