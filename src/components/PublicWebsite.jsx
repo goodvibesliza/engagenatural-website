@@ -8,6 +8,8 @@ import LoginWidget from './LoginWidget'
 import BrandTitle from '@/components/typography/BrandTitle'
 import Kicker from '@/components/typography/Kicker'
 import LogoWordmark from './brand/LogoWordmark'
+import LogoCloud from '@/components/LogoCloud'
+import { BRAND_LOGOS } from '@/data/brandLogos'
 
 // Import assets
 import lizaHeadshot from '../assets/Lizaonbeachheadshot.jpg'
@@ -103,6 +105,10 @@ export default function PublicWebsite() {
               Genuine connection and micro-lessons that<br />
               give you the confidence and support you need.
             </p>
+            <section aria-label="Trusted by natural product brands" className="container-lg" style={{marginTop: '2.5rem', marginBottom: '2.5rem'}}>
+              <h2 className="sr-only">Trusted by natural product brands</h2>
+              <LogoCloud logos={BRAND_LOGOS} />
+            </section>
             <div className="mt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <LoginWidget 
                 buttonText="Join the Community" 
