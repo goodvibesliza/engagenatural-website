@@ -17,7 +17,7 @@ function LogoImage({ item }) {
       src={item.src}
       alt={item.alt}
       loading="lazy"
-      className="max-h-20 w-auto object-contain filter grayscale opacity-80 transition duration-200 hover:grayscale-0 hover:opacity-100 focus:grayscale-0 focus:opacity-100"
+      className="max-h-20 w-auto object-contain filter grayscale opacity-80 transition duration-200 motion-reduce:transition-none group-hover:grayscale-0 group-hover:opacity-100 group-focus-visible:grayscale-0 group-focus-visible:opacity-100"
     />
   )
 
@@ -27,7 +27,7 @@ function LogoImage({ item }) {
         href={item.href}
         target="_blank"
         rel="noopener"
-        className="inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black rounded"
+        className="group inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black rounded"
       >
         {img}
       </a>
@@ -35,7 +35,7 @@ function LogoImage({ item }) {
   }
 
   return (
-    <div className="inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black rounded">
+    <div className="group inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black rounded">
       {img}
     </div>
   )
