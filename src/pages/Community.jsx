@@ -53,7 +53,7 @@ export default function Community() {
           <div className="px-4 pt-3">
             <button
               type="button"
-              onClick={() => navigate('/staff/communities?compose=1')}
+              onClick={() => navigate('/staff/community/post/new')}
               className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
             >
               New Post
@@ -92,7 +92,7 @@ export default function Community() {
             <div className="community-sticky">
               <button
                 type="button"
-                onClick={() => navigate('/staff/communities?compose=1')}
+                onClick={() => navigate('/staff/community/post/new')}
                 className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
               >
                 New Post
@@ -119,6 +119,7 @@ export default function Community() {
                 query={query}
                 selectedBrands={selectedBrands}
                 selectedTags={selectedTags}
+                onStartPost={() => navigate('/staff/community/post/new')}
               />
             ) : (
               <Suspense
