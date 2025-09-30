@@ -146,9 +146,30 @@ service cloud.firestore {
         )
       );
 
-      // Owner, approved brand manager, loose brand manager, or super admin can update / delete
-      allow update, delete: if request.auth != null && (
-        (resource.data.userId == request.auth.uid) ||
+      // Updates:
+      // - Super admin / brand managers: allowed
+      // - Owner: allowed, BUT if the owner is a verified staff member, they cannot
+      //   change communityId, visibility, or userId (prevents post-move/private toggles)
+      allow update: if request.auth != null && (
+        isSuperAdmin(request.auth.uid) ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        (
+          resource.data.userId == request.auth.uid && (
+            !isVerifiedStaff(request.auth.uid) || (
+              request.resource.data.communityId == resource.data.communityId &&
+              request.resource.data.visibility == resource.data.visibility &&
+              resource.data.communityId == 'whats-good' &&
+              resource.data.visibility == 'public' &&
+              request.resource.data.userId == resource.data.userId
+            )
+          )
+        )
+      );
+
+      // Deletes: owner or elevated roles.
+      allow delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
