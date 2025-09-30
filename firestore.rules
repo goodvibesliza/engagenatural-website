@@ -159,8 +159,6 @@ service cloud.firestore {
             !isVerifiedStaff(request.auth.uid) || (
               request.resource.data.communityId == resource.data.communityId &&
               request.resource.data.visibility == resource.data.visibility &&
-              resource.data.communityId == 'whats-good' &&
-              resource.data.visibility == 'public' &&
               request.resource.data.userId == resource.data.userId
             )
           )
