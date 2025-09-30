@@ -124,19 +124,11 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
 };
 
 /**
- * Communities page component — displays public communities, a feed of public posts, and a post composer.
+ * Render the Communities page with a communities list, a paginated public post feed, and a post composer.
  *
- * Renders a communities grid and a community feed with paging, per-post like counts, recent comments previews,
- * inline commenting, and a composer for creating new public posts (permission-controlled). Subscribes to the
- * public posts collection for live updates, loads counts/previews/like flags on demand, and performs
- * Firestore writes for creating posts, toggling likes, and adding comments.
- *
- * State highlights:
- * - Manages posts, pagination (load more), like/comment counts and flags, recent comments previews, and per-post
- *   inline comment inputs/submission state.
- * - Loads active/public communities and provides a fallback "What's Good" community when none are returned.
- *
- * The component reads the current user from authentication context to gate actions (liking, commenting, posting).
+ * Provides a community grid and a feed of public posts with per-post like/comment counts, recent comment previews,
+ * inline commenting, like toggling, and a permission-controlled composer that applies content moderation before create.
+ * Actions that modify state are gated by the current authenticated user; the feed updates in real time.
  *
  * @returns {JSX.Element} The Communities page React element.
  */
