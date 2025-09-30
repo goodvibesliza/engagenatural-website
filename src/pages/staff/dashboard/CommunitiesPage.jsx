@@ -447,30 +447,7 @@ export default function CommunitiesPage() {
         });
       }
 
-      const moderation = await filterPostContent({ content: newBody.trim() });
-      const moderatedBody = moderation?.content ?? newBody.trim();
-      const needsReview = !!moderation?.needsReview;
-      const isBlocked = !!moderation?.isBlocked;
-      const moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
-
-      const cid = composerCommunityId || 'whats-good';
-      const cname = communitiesById[cid]?.name || "What's Good";
-
-      await addDoc(collection(db, 'community_posts'), {
-        title: newTitle.trim(),
-        body: moderatedBody,
-        visibility: 'public',
-        createdAt: serverTimestamp(),
-        userId: user?.uid || null,
-        authorRole: user?.role || 'user',
-        communityId: cid,
-        communityName: cname,
-        needsReview,
-        isBlocked,
-        moderationFlags,
-        moderation: moderation?.moderation || null,
-      });
-main
+      
       setNewTitle('');
       setNewBody('');
     } catch (err) {
