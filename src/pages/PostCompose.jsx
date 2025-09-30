@@ -104,11 +104,14 @@ export default function PostCompose() {
 
       // If database is unavailable (e.g., deploy preview without env), fall back to draft preview
       if (!db || !user?.uid) {
+        const cid = selectedCommunityId || 'whats-good';
+        const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
         const draft = {
           id: `draft-${Date.now()}`,
           title: title.trim(),
           body: moderatedBody,
-          communityName: "What's Good",
+          communityId: cid,
+          communityName: cname,
         };
         navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
         return;
@@ -141,11 +144,14 @@ export default function PostCompose() {
           // leave moderatedBody as raw fallback
         }
       }
+      const cid = selectedCommunityId || 'whats-good';
+      const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
       const draft = {
         id: `draft-${Date.now()}`,
         title: title.trim(),
         body: moderatedBody,
-        communityName: "What's Good",
+        communityId: cid,
+        communityName: cname,
         error: e?.message || 'unknown',
       };
       navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
