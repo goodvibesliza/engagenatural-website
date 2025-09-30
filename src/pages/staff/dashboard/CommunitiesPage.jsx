@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import { db } from '@/lib/firebase';
@@ -172,6 +172,13 @@ export default function CommunitiesPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [communitiesError, setCommunitiesError] = useState(false);
+
+  // Map communities by id for quick label lookup
+  const communitiesById = useMemo(() => {
+    const map = {};
+    for (const c of communities) map[c.id] = c;
+    return map;
+  }, [communities]);
 
   const canCreate =
     user?.role === 'super_admin' || user?.role === 'brand_manager';
@@ -379,6 +386,9 @@ export default function CommunitiesPage() {
       const isBlocked = !!moderation?.isBlocked;
       const moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
 
+      const cid = composerCommunityId || 'whats-good';
+      const cname = communitiesById[cid]?.name || "What's Good";
+
       await addDoc(collection(db, 'community_posts'), {
         title: newTitle.trim(),
         body: moderatedBody,
@@ -386,8 +396,8 @@ export default function CommunitiesPage() {
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
         authorRole: user?.role || 'user',
-        communityId: composerCommunityId || 'whats-good',
-        communityName: composerCommunityId || 'whats-good',
+        communityId: cid,
+        communityName: cname,
         needsReview,
         isBlocked,
         moderationFlags,
