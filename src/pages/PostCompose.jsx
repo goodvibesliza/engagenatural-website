@@ -116,7 +116,7 @@ export default function PostCompose() {
         navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
         return;
       }
-      // Create public post in universal "what's-good" community
+      // Create a public post in the selected community (fallback to 'whats-good' when none is selected)
       const cid = selectedCommunityId || 'whats-good';
       const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
       const ref = await addDoc(collection(db, 'community_posts'), {
@@ -175,7 +175,7 @@ export default function PostCompose() {
           <header className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
-                What's Good
+                {(communities.find((c) => c.id === (selectedCommunityId || 'whats-good'))?.name) || "What's Good"}
               </span>
             </div>
           </header>
