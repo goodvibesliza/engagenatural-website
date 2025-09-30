@@ -373,18 +373,39 @@ export default function CommunitiesPage() {
     setCreating(true);
     setCreateError('');
     try {
-      // Run moderation first
-      const moderation = await filterPostContent({ content: newBody.trim() });
-      const moderatedBody = moderation?.content ?? newBody.trim();
-      const needsReview = !!moderation?.needsReview;
-      const isBlocked = !!moderation?.isBlocked;
-      const moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+      // Run moderation first; treat failures as moderation failures
+      let moderatedBody = newBody.trim();
+      let needsReview = false;
+      let isBlocked = false;
+      let moderationFlags = [];
+      let moderationObj = null;
+      try {
+        const moderation = await filterPostContent({ content: moderatedBody });
+        moderatedBody = moderation?.content ?? moderatedBody;
+        needsReview = !!moderation?.needsReview;
+        isBlocked = !!moderation?.isBlocked;
+        moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+        moderationObj = moderation?.moderation || null;
+      } catch (modErr) {
+        // On moderation failure, prevent publish
+        needsReview = true;
+        isBlocked = true;
+        moderationFlags = ['moderation_failed'];
+        moderationObj = null;
+      }
 
       const cid = composerCommunityId || 'whats-good';
       const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
 
-      // Gate publishing: only public when not blocked and not needing review
-      const shouldPublishPublicly = !isBlocked && !needsReview && !!user?.uid;
+      // If moderation stripped content to empty, treat as failed moderation (draft only)
+      const hasContent = (moderatedBody && moderatedBody.trim().length > 0);
+      if (!hasContent) {
+        needsReview = true;
+        isBlocked = true;
+      }
+
+      // Gate publishing: only public when not blocked, not needing review, user present, and has content
+      const shouldPublishPublicly = !isBlocked && !needsReview && !!user?.uid && hasContent;
 
       if (shouldPublishPublicly) {
         await addDoc(collection(db, 'community_posts'), {
@@ -399,7 +420,7 @@ export default function CommunitiesPage() {
           needsReview,
           isBlocked,
           moderationFlags,
-          moderation: moderation?.moderation || null,
+          moderation: moderationObj,
         });
       } else {
         // Retry-safe draft fallback scoped to user; never expose blocked content
@@ -419,7 +440,7 @@ export default function CommunitiesPage() {
           needsReview,
           isBlocked,
           moderationFlags,
-          moderation: moderation?.moderation || null,
+          moderation: moderationObj,
         });
       }
       setNewTitle('');
