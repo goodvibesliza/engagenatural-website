@@ -1,7 +1,7 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query as firestoreQuery, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
@@ -51,84 +51,85 @@ export default function WhatsGoodFeed({
   const { user, hasRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [postsWithCounts, setPostsWithCounts] = useState(
-    WHATS_GOOD_STUBS.map(post => ({ 
-      ...post, 
-      likeIds: post.likeIds || [], 
-      commentIds: post.commentIds || [] 
-    }))
-  );
+  const [postsWithCounts, setPostsWithCounts] = useState([]);
 
   // Check if user is staff (can create posts)
   const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
 
-  // Load real comment counts from Firestore on mount
+  // Subscribe to Firestore for live "What's Good" public posts and enrich counts
   useEffect(() => {
+    let unsub = () => {};
     let cancelled = false;
-    
-    const loadCommentCounts = async () => {
-      try {
-        const enrichedPosts = await Promise.all(
-          WHATS_GOOD_STUBS.map(async (post) => {
+    try {
+      if (!db) throw new Error('No Firestore instance');
+      const q = firestoreQuery(
+        collection(db, 'community_posts'),
+        where('visibility', '==', 'public'),
+        where('communityId', '==', 'whats-good'),
+        orderBy('createdAt', 'desc')
+      );
+      unsub = onSnapshot(q, async (snap) => {
+        const base = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            brand: data?.communityName || 'What\'s Good',
+            title: data?.title || 'Untitled',
+            snippet: (data?.body || '').slice(0, 200),
+            createdAt: data?.createdAt,
+          };
+        });
+
+        // Load counts per post
+        const enriched = await Promise.all(
+          base.map(async (post) => {
             try {
-              if (!db) return { ...post, commentIds: [], likeIds: [] };
-              
-              const commentsQuery = firestoreQuery(
+              const commentsQ = firestoreQuery(
                 collection(db, 'community_comments'),
                 where('postId', '==', post.id)
               );
-              const likesQuery = firestoreQuery(
+              const likesQ = firestoreQuery(
                 collection(db, 'post_likes'),
                 where('postId', '==', post.id)
               );
-              
               const [commentsSnap, likesSnap] = await Promise.all([
-                getCountFromServer(commentsQuery),
-                getCountFromServer(likesQuery)
+                getCountFromServer(commentsQ),
+                getCountFromServer(likesQ)
               ]);
-              
               const commentCount = commentsSnap.data().count || 0;
               const likeCount = likesSnap.data().count || 0;
-              
               return {
                 ...post,
                 commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`),
                 likeIds: Array.from({ length: likeCount }, (_, i) => `like-${i}`),
               };
             } catch (err) {
-              console.warn(`Failed to load counts for post ${post.id}:`, err);
+              console.warn('Failed loading counts for', post.id, err);
               return { ...post, commentIds: [], likeIds: [] };
             }
           })
         );
-        
-        if (!cancelled) {
-          setPostsWithCounts(enrichedPosts);
-        }
-      } catch (err) {
-        console.warn('Failed to load comment counts:', err);
-        // Set error state and keep stub data if Firestore fails
-        if (!cancelled) {
-          setError('Failed to load latest interaction data. Showing cached content.');
-          setPostsWithCounts(WHATS_GOOD_STUBS.map(p => ({ ...p, commentIds: [], likeIds: [] })));
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
 
-    loadCommentCounts();
-    
+        if (!cancelled) setPostsWithCounts(enriched);
+        if (!cancelled) setLoading(false);
+      });
+    } catch (err) {
+      console.warn('WhatsGoodFeed subscription failed:', err);
+      setError('Failed to load live posts. Showing cached content.');
+      // Fallback to stubs
+      const fallback = WHATS_GOOD_STUBS.map((p) => ({ ...p, commentIds: [], likeIds: [] }));
+      setPostsWithCounts(fallback);
+      setLoading(false);
+    }
     return () => {
       cancelled = true;
+      try { unsub(); } catch {}
     };
   }, []);
 
   // Fallback loading timer for network issues
   useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 2000); // max 2s loading
+    const id = setTimeout(() => setLoading(false), 5000); // max 5s loading
     return () => clearTimeout(id);
   }, []);
 
