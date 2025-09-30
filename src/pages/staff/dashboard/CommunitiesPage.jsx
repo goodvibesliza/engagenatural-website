@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import { db } from '@/lib/firebase';
+import { filterPostContent } from '../../../ContentModeration';
 import {
   collection,
   query,
@@ -372,15 +373,25 @@ export default function CommunitiesPage() {
     setCreating(true);
     setCreateError('');
     try {
+      const moderation = await filterPostContent({ content: newBody.trim() });
+      const moderatedBody = moderation?.content ?? newBody.trim();
+      const needsReview = !!moderation?.needsReview;
+      const isBlocked = !!moderation?.isBlocked;
+      const moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+
       await addDoc(collection(db, 'community_posts'), {
         title: newTitle.trim(),
-        body: newBody.trim(),
+        body: moderatedBody,
         visibility: 'public',
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
         authorRole: user?.role || 'user',
         communityId: composerCommunityId || 'whats-good',
-        communityName: composerCommunityId || 'whats-good'
+        communityName: composerCommunityId || 'whats-good',
+        needsReview,
+        isBlocked,
+        moderationFlags,
+        moderation: moderation?.moderation || null,
       });
       setNewTitle('');
       setNewBody('');
