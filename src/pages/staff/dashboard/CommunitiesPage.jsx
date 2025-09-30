@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import { db } from '@/lib/firebase';
+import { filterPostContent } from '../../../ContentModeration';
 import {
   collection,
   query,
@@ -372,16 +373,55 @@ export default function CommunitiesPage() {
     setCreating(true);
     setCreateError('');
     try {
-      await addDoc(collection(db, 'community_posts'), {
-        title: newTitle.trim(),
-        body: newBody.trim(),
-        visibility: 'public',
-        createdAt: serverTimestamp(),
-        userId: user?.uid || null,
-        authorRole: user?.role || 'user',
-        communityId: composerCommunityId || 'whats-good',
-        communityName: composerCommunityId || 'whats-good'
-      });
+      // Run moderation first
+      const moderation = await filterPostContent({ content: newBody.trim() });
+      const moderatedBody = moderation?.content ?? newBody.trim();
+      const needsReview = !!moderation?.needsReview;
+      const isBlocked = !!moderation?.isBlocked;
+      const moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+
+      const cid = composerCommunityId || 'whats-good';
+      const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
+
+      // Gate publishing: only public when not blocked and not needing review
+      const shouldPublishPublicly = !isBlocked && !needsReview && !!user?.uid;
+
+      if (shouldPublishPublicly) {
+        await addDoc(collection(db, 'community_posts'), {
+          title: newTitle.trim(),
+          body: moderatedBody,
+          visibility: 'public',
+          createdAt: serverTimestamp(),
+          userId: user?.uid || null,
+          authorRole: user?.role || 'user',
+          communityId: cid,
+          communityName: cname,
+          needsReview,
+          isBlocked,
+          moderationFlags,
+          moderation: moderation?.moderation || null,
+        });
+      } else {
+        // Retry-safe draft fallback scoped to user; never expose blocked content
+        if (!user?.uid) {
+          setCreateError('Please sign in to save a draft.');
+          return;
+        }
+        await addDoc(collection(db, 'users', user.uid, 'drafts'), {
+          title: newTitle.trim(),
+          body: moderatedBody,
+          visibility: 'draft',
+          createdAt: serverTimestamp(),
+          userId: user.uid,
+          authorRole: user?.role || 'user',
+          communityId: cid,
+          communityName: cname,
+          needsReview,
+          isBlocked,
+          moderationFlags,
+          moderation: moderation?.moderation || null,
+        });
+      }
       setNewTitle('');
       setNewBody('');
     } catch (err) {
