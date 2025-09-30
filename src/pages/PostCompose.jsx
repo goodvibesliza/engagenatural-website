@@ -6,6 +6,11 @@ import { db } from '@/lib/firebase';
 import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
 
+/**
+ * Render a post composition UI for the "What's Good" community that moderates content and saves posts or drafts.
+ *
+ * @returns {JSX.Element} The compose form UI which validates input, moderates content on submit, and navigates to the created post or a draft preview.
+ */
 export default function PostCompose() {
   const navigate = useNavigate();
   const { user } = useAuth();
