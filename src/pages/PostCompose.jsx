@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
 
 export default function PostCompose() {
@@ -26,36 +27,63 @@ export default function PostCompose() {
     if (!canSubmit) return;
     setSubmitting(true);
     setError('');
+    const rawBody = body.trim();
+    let moderatedBody = rawBody;
+    let needsReview = false;
+    let isBlocked = false;
+    let moderationFlags = [];
+    let moderationMeta = null;
     try {
+      // Moderate content (DSHEA/inappropriate/spam) before saving
+      const moderation = await filterPostContent({ content: rawBody });
+      moderatedBody = moderation?.content ?? rawBody;
+      needsReview = !!moderation?.needsReview;
+      isBlocked = !!moderation?.isBlocked;
+      moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+      moderationMeta = moderation?.moderation || null;
+
       // If database is unavailable (e.g., deploy preview without env), fall back to draft preview
       if (!db || !user?.uid) {
         const draft = {
           id: `draft-${Date.now()}`,
           title: title.trim(),
-          body: body.trim(),
+          body: moderatedBody,
           communityName: "What's Good",
         };
         navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
         return;
       }
+
       // Create public post in universal "what's-good" community
       const ref = await addDoc(collection(db, 'community_posts'), {
         title: title.trim(),
-        body: body.trim(),
+        body: moderatedBody,
         visibility: 'public',
         communityId: 'whats-good',
         communityName: "What's Good",
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
         authorRole: user?.role || 'staff',
+        needsReview,
+        isBlocked,
+        moderationFlags,
+        moderation: moderationMeta,
       });
       navigate(`/staff/community/post/${ref.id}`);
     } catch (e) {
       // On failure, still allow users to preview their content as a draft
+      if (moderatedBody === rawBody) {
+        try {
+          const moderation = await filterPostContent({ content: rawBody });
+          moderatedBody = moderation?.content ?? rawBody;
+        } catch {
+          // leave moderatedBody as raw fallback
+        }
+      }
       const draft = {
         id: `draft-${Date.now()}`,
         title: title.trim(),
-        body: body.trim(),
+        body: moderatedBody,
         communityName: "What's Good",
         error: e?.message || 'unknown',
       };
