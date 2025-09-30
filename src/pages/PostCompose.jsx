@@ -87,6 +87,21 @@ export default function PostCompose() {
       moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
       moderationMeta = moderation?.moderation || null;
 
+      if (isBlocked) {
+        setError('This post was blocked by moderation. Please revise and try again.');
+        const cid = selectedCommunityId || 'whats-good';
+        const cname = (communities.find(c => c.id === cid)?.name) || "What's Good";
+        const draft = {
+          id: `draft-${Date.now()}`,
+          title: title.trim(),
+          body: moderatedBody,
+          communityId: cid,
+          communityName: cname,
+        };
+        navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
+        return;
+      }
+
       // If database is unavailable (e.g., deploy preview without env), fall back to draft preview
       if (!db || !user?.uid) {
         const draft = {
