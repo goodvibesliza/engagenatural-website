@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import { db } from '@/lib/firebase';
@@ -124,19 +124,14 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
 };
 
 /**
- * Communities page component — displays public communities, a feed of public posts, and a post composer.
+ * Render the Communities page, showing public communities, a paginated live feed of public posts, per-post
+ * like/comment counts and previews, inline commenting, and a permission-controlled post composer with
+ * integrated content moderation.
  *
- * Renders a communities grid and a community feed with paging, per-post like counts, recent comments previews,
- * inline commenting, and a composer for creating new public posts (permission-controlled). Subscribes to the
- * public posts collection for live updates, loads counts/previews/like flags on demand, and performs
- * Firestore writes for creating posts, toggling likes, and adding comments.
- *
- * State highlights:
- * - Manages posts, pagination (load more), like/comment counts and flags, recent comments previews, and per-post
- *   inline comment inputs/submission state.
- * - Loads active/public communities and provides a fallback "What's Good" community when none are returned.
- *
- * The component reads the current user from authentication context to gate actions (liking, commenting, posting).
+ * The component subscribes to public posts for real-time updates, loads counts/previews/like flags on demand,
+ * and performs Firestore writes for creating posts, toggling likes, and adding comments. It reads the current
+ * user from authentication context to gate actions and provides a fallback "What's Good" community when none
+ * are returned from the backend.
  *
  * @returns {JSX.Element} The Communities page React element.
  */
@@ -172,6 +167,13 @@ export default function CommunitiesPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [communitiesError, setCommunitiesError] = useState(false);
+
+  // Map communities by id for quick label lookup
+  const communitiesById = useMemo(() => {
+    const map = {};
+    for (const c of communities) map[c.id] = c;
+    return map;
+  }, [communities]);
 
   const canCreate =
     user?.role === 'super_admin' || user?.role === 'brand_manager';
@@ -373,6 +375,7 @@ export default function CommunitiesPage() {
     setCreating(true);
     setCreateError('');
     try {
+
       // Run moderation first; treat failures as moderation failures
       let moderatedBody = newBody.trim();
       let needsReview = false;
@@ -443,6 +446,31 @@ export default function CommunitiesPage() {
           moderation: moderationObj,
         });
       }
+
+      const moderation = await filterPostContent({ content: newBody.trim() });
+      const moderatedBody = moderation?.content ?? newBody.trim();
+      const needsReview = !!moderation?.needsReview;
+      const isBlocked = !!moderation?.isBlocked;
+      const moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+
+      const cid = composerCommunityId || 'whats-good';
+      const cname = communitiesById[cid]?.name || "What's Good";
+
+      await addDoc(collection(db, 'community_posts'), {
+        title: newTitle.trim(),
+        body: moderatedBody,
+        visibility: 'public',
+        createdAt: serverTimestamp(),
+        userId: user?.uid || null,
+        authorRole: user?.role || 'user',
+        communityId: cid,
+        communityName: cname,
+        needsReview,
+        isBlocked,
+        moderationFlags,
+        moderation: moderation?.moderation || null,
+      });
+main
       setNewTitle('');
       setNewBody('');
     } catch (err) {
