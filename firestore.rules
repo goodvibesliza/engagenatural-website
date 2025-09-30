@@ -38,6 +38,11 @@ service cloud.firestore {
         (u.status == 'approved')
       );
     }
+    // Null-safe brand ownership helper
+    function belongsToBrand(uid, brandId) {
+      let u = userData(uid);
+      return u != null && ('brandId' in u) && u.brandId == brandId;
+    }
     // Verified staff (can post to 'whats-good' only)
     function isVerifiedStaff(uid) {
       let u = userData(uid);
@@ -58,7 +63,12 @@ service cloud.firestore {
     // Allow full access to user documents to unblock seeding/migration.
     // Tighten these rules once permissions are fully resolved.
     match /users/{uid} {
-      allow read, write: if true; // TEMPORARY A������,������?o unrestricted for debugging
+      // Owner-only access to the user document (no public/unrestricted access)
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Allow per-user subcollections (e.g., drafts) for the owner
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
     // ---------- brands (reference data for brand-owned content) ----------
@@ -132,8 +142,7 @@ service cloud.firestore {
 
       // Create allowed for approved brand managers, loose brand managers, or super admins
       // Posts can be created in ANY community (not restricted to 'whats-good' only)
-      // Additionally, allow VERIFIED staff to create ONLY in the public 'whats-good' community
-      // and only for their own userId.
+      // Additionally, allow VERIFIED staff to create public posts in ANY community (owner-only)
       allow create: if request.auth != null && (
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
@@ -141,7 +150,6 @@ service cloud.firestore {
         (
           isVerifiedStaff(request.auth.uid) &&
           request.resource.data.visibility == 'public' &&
-          request.resource.data.communityId == 'whats-good' &&
           request.resource.data.userId == request.auth.uid
         )
       );
@@ -266,7 +274,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         (resource.data.isPublic == true && (!('isActive' in resource.data) || resource.data.isActive == true)) ||
         isApprovedBrandManager(request.auth.uid) ||
-        (userData(request.auth.uid).brandId == resource.data.brandId) ||
+        belongsToBrand(request.auth.uid, resource.data.brandId) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
       );
@@ -295,7 +303,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         (resource.data.isPublic == true && (!('isActive' in resource.data) || resource.data.isActive == true)) ||
         isApprovedBrandManager(request.auth.uid) ||
-        (userData(request.auth.uid).brandId == resource.data.brandId) ||
+        belongsToBrand(request.auth.uid, resource.data.brandId) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
       );
@@ -322,7 +330,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         (resource.data.isPublic == true && (!('isActive' in resource.data) || resource.data.isActive == true)) ||
         isApprovedBrandManager(request.auth.uid) ||
-        (userData(request.auth.uid).brandId == resource.data.brandId) ||
+        belongsToBrand(request.auth.uid, resource.data.brandId) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
       );

@@ -375,29 +375,79 @@ export default function CommunitiesPage() {
     setCreating(true);
     setCreateError('');
     try {
-      const moderation = await filterPostContent({ content: newBody.trim() });
-      const moderatedBody = moderation?.content ?? newBody.trim();
-      const needsReview = !!moderation?.needsReview;
-      const isBlocked = !!moderation?.isBlocked;
-      const moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+
+      // Run moderation first; treat failures as moderation failures
+      let moderatedBody = newBody.trim();
+      let needsReview = false;
+      let isBlocked = false;
+      let moderationFlags = [];
+      let moderationObj = null;
+      try {
+        const moderation = await filterPostContent({ content: moderatedBody });
+        moderatedBody = moderation?.content ?? moderatedBody;
+        needsReview = !!moderation?.needsReview;
+        isBlocked = !!moderation?.isBlocked;
+        moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
+        moderationObj = moderation?.moderation || null;
+      } catch (modErr) {
+        // On moderation failure, prevent publish
+        needsReview = true;
+        isBlocked = true;
+        moderationFlags = ['moderation_failed'];
+        moderationObj = null;
+      }
 
       const cid = composerCommunityId || 'whats-good';
-      const cname = communitiesById[cid]?.name || "What's Good";
+      const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
 
-      await addDoc(collection(db, 'community_posts'), {
-        title: newTitle.trim(),
-        body: moderatedBody,
-        visibility: 'public',
-        createdAt: serverTimestamp(),
-        userId: user?.uid || null,
-        authorRole: user?.role || 'user',
-        communityId: cid,
-        communityName: cname,
-        needsReview,
-        isBlocked,
-        moderationFlags,
-        moderation: moderation?.moderation || null,
-      });
+      // If moderation stripped content to empty, treat as failed moderation (draft only)
+      const hasContent = (moderatedBody && moderatedBody.trim().length > 0);
+      if (!hasContent) {
+        needsReview = true;
+        isBlocked = true;
+      }
+
+      // Gate publishing: only public when not blocked, not needing review, user present, and has content
+      const shouldPublishPublicly = !isBlocked && !needsReview && !!user?.uid && hasContent;
+
+      if (shouldPublishPublicly) {
+        await addDoc(collection(db, 'community_posts'), {
+          title: newTitle.trim(),
+          body: moderatedBody,
+          visibility: 'public',
+          createdAt: serverTimestamp(),
+          userId: user?.uid || null,
+          authorRole: user?.role || 'user',
+          communityId: cid,
+          communityName: cname,
+          needsReview,
+          isBlocked,
+          moderationFlags,
+          moderation: moderationObj,
+        });
+      } else {
+        // Retry-safe draft fallback scoped to user; never expose blocked content
+        if (!user?.uid) {
+          setCreateError('Please sign in to save a draft.');
+          return;
+        }
+        await addDoc(collection(db, 'users', user.uid, 'drafts'), {
+          title: newTitle.trim(),
+          body: moderatedBody,
+          visibility: 'draft',
+          createdAt: serverTimestamp(),
+          userId: user.uid,
+          authorRole: user?.role || 'user',
+          communityId: cid,
+          communityName: cname,
+          needsReview,
+          isBlocked,
+          moderationFlags,
+          moderation: moderationObj,
+        });
+      }
+
+      
       setNewTitle('');
       setNewBody('');
     } catch (err) {
