@@ -1,7 +1,7 @@
 // src/pages/PostCompose.jsx
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/auth-context';
  */
 export default function PostCompose() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
   const headingRef = useRef(null);
@@ -24,10 +25,45 @@ export default function PostCompose() {
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [communities, setCommunities] = useState([]);
+  const [selectedCommunityId, setSelectedCommunityId] = useState('whats-good');
 
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
+
+  // Load active/public communities and set initial selection from URL (?communityId=...)
+  useEffect(() => {
+    const loadCommunities = async () => {
+      try {
+        const q = query(
+          collection(db, 'communities'),
+          where('isActive', '==', true),
+          where('isPublic', '==', true)
+        );
+        const snap = await getDocs(q);
+        let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        if (!items || items.length === 0) {
+          items = [{ id: 'whats-good', name: "What's Good" }];
+        }
+        // ensure what's-good first
+        items.sort((a, b) => (a.id === 'whats-good' ? -1 : b.id === 'whats-good' ? 1 : (a.name || '').localeCompare(b.name || '')));
+        setCommunities(items);
+
+        const params = new URLSearchParams(location.search);
+        const cid = params.get('communityId');
+        if (cid && items.some((c) => c.id === cid)) {
+          setSelectedCommunityId(cid);
+        } else {
+          setSelectedCommunityId('whats-good');
+        }
+      } catch (err) {
+        setCommunities([{ id: 'whats-good', name: "What's Good" }]);
+        setSelectedCommunityId('whats-good');
+      }
+    };
+    loadCommunities();
+  }, [location.search]);
 
   const canSubmit = title.trim().length > 0 && body.trim().length > 0 && !submitting;
 
@@ -63,12 +99,14 @@ export default function PostCompose() {
         return;
       }
       // Create public post in universal "what's-good" community
+      const cid = selectedCommunityId || 'whats-good';
+      const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
       const ref = await addDoc(collection(db, 'community_posts'), {
         title: title.trim(),
         body: moderatedBody,
         visibility: 'public',
-        communityId: 'whats-good',
-        communityName: "What's Good",
+        communityId: cid,
+        communityName: cname,
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
         authorRole: user?.role || 'staff',
@@ -124,6 +162,18 @@ export default function PostCompose() {
           {error && (
             <div className="mt-3 text-sm text-red-600" role="alert">{error}</div>
           )}
+
+          <label htmlFor="post-community" className="text-sm text-gray-700 mt-3 block">Community</label>
+          <select
+            id="post-community"
+            value={selectedCommunityId}
+            onChange={(e) => setSelectedCommunityId(e.target.value)}
+            className="mt-1 w-full px-3 py-2 h-11 min-h-[44px] border border-gray-300 rounded-md text-base bg-white"
+          >
+            {communities.map((c) => (
+              <option key={c.id} value={c.id}>{c.name || c.id}</option>
+            ))}
+          </select>
 
           <label htmlFor="post-title" className="sr-only">Title</label>
           <input
