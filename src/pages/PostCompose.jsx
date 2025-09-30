@@ -6,6 +6,15 @@ import { db } from '@/lib/firebase';
 import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
 
+/**
+ * Render the post composition screen for creating a post in the "What's Good" community.
+ *
+ * The component focuses the title input on mount, accepts title and body input, and handles submit
+ * by moderating the body, then creating a public community post or navigating to a draft preview
+ * when the database or user ID is unavailable or an error occurs.
+ *
+ * @returns {JSX.Element} The post compose UI.
+ */
 export default function PostCompose() {
   const navigate = useNavigate();
   const { user } = useAuth();
