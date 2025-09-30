@@ -132,8 +132,7 @@ service cloud.firestore {
 
       // Create allowed for approved brand managers, loose brand managers, or super admins
       // Posts can be created in ANY community (not restricted to 'whats-good' only)
-      // Additionally, allow VERIFIED staff to create ONLY in the public 'whats-good' community
-      // and only for their own userId.
+      // Additionally, allow VERIFIED staff to create public posts in ANY community (owner-only)
       allow create: if request.auth != null && (
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
@@ -141,7 +140,6 @@ service cloud.firestore {
         (
           isVerifiedStaff(request.auth.uid) &&
           request.resource.data.visibility == 'public' &&
-          request.resource.data.communityId == 'whats-good' &&
           request.resource.data.userId == request.auth.uid
         )
       );
