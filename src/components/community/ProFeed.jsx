@@ -202,6 +202,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   }
 
   const handleLike = async (post) => {
+    // Capture previous state for rollback
+    const prevLikedByMe = !!post?.likedByMe;
+    const prevLikeCount = Number.isFinite(post?.likeCount) ? post.likeCount : 0;
     try {
       // Guard first
       if (!db || !currentUser?.uid) {
@@ -231,7 +234,11 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
       setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, likeCount } : p)));
     } catch (err) {
       console.error('Failed to toggle like:', err);
-      // Optional: setError('Failed to save like. Please try again.');
+      setError('Failed to save like. Please try again.');
+      // Roll back optimistic update only for this post
+      setPosts(prev => prev.map(p => (
+        p.id === post.id ? { ...p, likedByMe: prevLikedByMe, likeCount: prevLikeCount } : p
+      )));
     }
   };
 
