@@ -1,6 +1,8 @@
 // src/components/community/ProFeed.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import ProGate from './ProGate';
@@ -42,20 +44,96 @@ function readDevOverride() {
   }
 }
 
-function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands = [], selectedTags = [] }) {
-  // Simulated loading window to render skeletons within 150ms
+function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands = [], selectedTags = [], onFiltersChange, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [posts, setPosts] = useState(PRO_STUBS.map(post => ({ 
-    ...post, 
-    likeIds: post.likeIds || [], 
-    likedByMe: false 
-  })));
+  const [posts, setPosts] = useState([]);
   const navigate = useNavigate();
-  
+
+  // Subscribe to Firestore for live "Pro Feed" public posts
   useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 0);
-    return () => clearTimeout(id);
+    let unsub = () => {};
+    try {
+      if (!db) throw new Error('No Firestore');
+      const q = firestoreQuery(
+        collection(db, 'community_posts'),
+        where('visibility', '==', 'public'),
+        where('communityId', '==', 'pro-feed'),
+        orderBy('createdAt', 'desc')
+      );
+      unsub = onSnapshot(q, async (snap) => {
+        const base = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            brand: data?.communityName || 'Pro Feed',
+            title: data?.title || 'Untitled',
+            snippet: (data?.body || '').slice(0, 200),
+            content: data?.body || '',
+            tags: Array.isArray(data?.tags) ? data.tags : [],
+            authorName: data?.authorName || '',
+            createdAt: data?.createdAt,
+          };
+        });
+
+        // Emit filters (brands/tags)
+        try {
+          const brandSet = new Set();
+          const tagCounts = new Map();
+          for (const p of base) {
+            if (p.brand) brandSet.add(p.brand);
+            if (Array.isArray(p.tags)) {
+              for (const t of p.tags) {
+                const key = String(t || '').trim();
+                if (!key) continue;
+                tagCounts.set(key, (tagCounts.get(key) || 0) + 1);
+              }
+            }
+          }
+          const brands = Array.from(brandSet);
+          const tags = Array.from(tagCounts.entries()).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+          onFiltersChange?.({ brands, tags });
+        } catch {}
+
+        // Numeric counts; fallback to 0 if queries fail
+        const enriched = await Promise.all(base.map(async (post) => {
+          try {
+            const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
+            const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
+            const [commentsSnap, likesSnap] = await Promise.all([
+              getCountFromServer(commentsQ),
+              getCountFromServer(likesQ)
+            ]);
+            return {
+              ...post,
+              commentCount: commentsSnap.data().count || 0,
+              likeCount: likesSnap.data().count || 0,
+            };
+          } catch {
+            return { ...post, commentCount: 0, likeCount: 0 };
+          }
+        }));
+
+        setPosts(enriched);
+        setLoading(false);
+      });
+    } catch (e) {
+      setError('Failed to load Pro Feed.');
+      setPosts(PRO_STUBS.map(p => ({
+        id: p.id,
+        brand: p.brand || 'Pro Feed',
+        title: p.title || 'Untitled',
+        snippet: (p.content || '').slice(0, 200),
+        content: p.content || '',
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        authorName: p.author?.name || '',
+        likeCount: 0,
+        commentCount: 0,
+        createdAt: null,
+      })));
+      setLoading(false);
+    }
+    return () => { try { unsub(); } catch {} };
   }, []);
 
   const q = (query || search).trim().toLowerCase();
@@ -91,25 +169,28 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
     );
   }
 
-  const handleLike = (post) => {
-    console.log('Like pro post:', post.id);
-    
-    // Optimistically update the UI
-    setPosts(prev => 
-      prev.map(p => 
-        p.id === post.id 
-          ? { 
-              ...p, 
-              likeIds: p.likedByMe 
-                ? (p.likeIds || []).filter(id => id !== 'me') // unlike
-                : [...(p.likeIds || []), 'me'], // like
-              likedByMe: !p.likedByMe 
-            }
+  const handleLike = async (post) => {
+    try {
+      // Optimistic UI toggle
+      setPosts(prev => prev.map(p => (
+        p.id === post.id
+          ? { ...p, likeCount: (Number.isFinite(p.likeCount) ? p.likeCount : 0) + (p.likedByMe ? -1 : 1), likedByMe: !p.likedByMe }
           : p
-      )
-    );
-    
-    // TODO: Persist to Firestore later
+      )));
+      if (!db || !currentUser?.uid) return;
+      const likeRef = doc(db, 'post_likes', `${post.id}_${currentUser.uid}`);
+      const existing = await getDoc(likeRef);
+      if (existing.exists()) {
+        await deleteDoc(likeRef);
+      } else {
+        await setDoc(likeRef, { postId: post.id, userId: currentUser.uid, createdAt: serverTimestamp() });
+      }
+      // Refresh like count after write
+      const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
+      const likesSnap = await getCountFromServer(likesQ);
+      const likeCount = likesSnap.data().count || 0;
+      setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, likeCount } : p)));
+    } catch {}
   };
 
   const handleComment = (post) => {
@@ -164,7 +245,7 @@ export default function ProFeed({
   onRequestVerify,
   onFiltersChange,
 }) {
-  const { isVerified, hasRole } = useAuth();
+  const { isVerified, hasRole, user } = useAuth();
 
   // Real computed value for staff verification
   const realIsVerifiedStaff = (isVerified === true) && (hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']));
@@ -201,6 +282,8 @@ export default function ProFeed({
       brand={brand}
       selectedBrands={selectedBrands}
       selectedTags={selectedTags}
+      onFiltersChange={onFiltersChange}
+      currentUser={user}
     />
   ) : (
     <ProGate onRequestVerify={onRequestVerify} />
