@@ -1,24 +1,22 @@
 // src/pages/PostCompose.jsx
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
 
 /**
- * Render the post composition screen for creating a post in the "What's Good" community.
+ * Post composition UI for creating a community post.
  *
- * The component focuses the title input on mount, accepts title and body input, and handles submit
- * by moderating the body, then creating a public community post or navigating to a draft preview
- * when the database or user ID is unavailable or an error occurs.
- *
+ * Renders a form to choose a target community, enter a title and body, and submit a post or navigate
+ * to a draft preview when submission cannot be completed.
  * @returns {JSX.Element} The post compose UI.
  */
 export default function PostCompose() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
 
   const headingRef = useRef(null);
   const [title, setTitle] = useState('');
@@ -28,26 +26,81 @@ export default function PostCompose() {
   const [communities, setCommunities] = useState([]);
   const [selectedCommunityId, setSelectedCommunityId] = useState('whats-good');
 
+  // Extract hashtags from title/body into normalized array
+  const extractTags = (t = '', b = '') => {
+    const text = `${t}\n${b}`;
+    const matches = text.match(/(^|\s)#([a-zA-Z0-9_\-]{2,50})/g) || [];
+    const set = new Set(matches.map(m => m.replace(/^[^#]*#/, '').toLowerCase()));
+    return Array.from(set);
+  };
+
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
 
-  // Load active/public communities and set initial selection from URL (?communityId=...)
+  // Load available communities and set initial selection from URL (?communityId=...)
   useEffect(() => {
     const loadCommunities = async () => {
       try {
-        const q = query(
+        // 1) Public, active communities
+        const pubQ = query(
           collection(db, 'communities'),
           where('isActive', '==', true),
           where('isPublic', '==', true)
         );
-        const snap = await getDocs(q);
-        let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        if (!items || items.length === 0) {
-          items = [{ id: 'whats-good', name: "What's Good" }];
+        const pubSnap = await getDocs(pubQ);
+        const pubItems = pubSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        let items = [...pubItems];
+
+        // 2) Brand communities (active) if user belongs to a brand
+        try {
+          if (user?.uid) {
+            const userRef = doc(db, 'users', user.uid);
+            const profile = await getDoc(userRef);
+            const u = profile.exists() ? (profile.data() || {}) : {};
+            const uBrandId = u.brandId || u.brand?.id;
+            if (uBrandId) {
+              const brandQ = query(
+                collection(db, 'communities'),
+                where('isActive', '==', true),
+                where('brandId', '==', uBrandId)
+              );
+              const brandSnap = await getDocs(brandQ);
+              const brandItems = brandSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+              for (const c of brandItems) {
+                if (!items.some((x) => x.id === c.id)) items.push(c);
+              }
+            }
+          }
+        } catch {}
+
+        // 3) Always include What's Good
+        if (!items.some((c) => c.id === 'whats-good')) {
+          items.push({ id: 'whats-good', name: "What's Good", isActive: true, isPublic: true });
         }
-        // ensure what's-good first
-        items.sort((a, b) => (a.id === 'whats-good' ? -1 : b.id === 'whats-good' ? 1 : (a.name || '').localeCompare(b.name || '')));
+
+        // 4) Include Pro Feed for verified staff even if private/missing
+        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        if (isVerifiedStaff && !items.some((c) => c.id === 'pro-feed')) {
+          try {
+            const proRef = doc(db, 'communities', 'pro-feed');
+            const proDoc = await getDoc(proRef);
+            items.push(proDoc.exists() ? { id: 'pro-feed', ...proDoc.data() } : { id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
+          } catch {
+            items.push({ id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
+          }
+        }
+
+        // Sort: What's Good first, then Pro Feed, then alpha
+        items.sort((a, b) => {
+          if (a.id === 'whats-good') return -1;
+          if (b.id === 'whats-good') return 1;
+          if (a.id === 'pro-feed') return -1;
+          if (b.id === 'pro-feed') return 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+
         setCommunities(items);
 
         const params = new URLSearchParams(location.search);
@@ -58,12 +111,18 @@ export default function PostCompose() {
           setSelectedCommunityId('whats-good');
         }
       } catch (err) {
-        setCommunities([{ id: 'whats-good', name: "What's Good" }]);
-        setSelectedCommunityId('whats-good');
+        // Fallback: ensure both What's Good and Pro Feed appear for verified staff
+        const fallback = [{ id: 'whats-good', name: "What's Good" }];
+        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        if (isVerifiedStaff) fallback.push({ id: 'pro-feed', name: 'Pro Feed' });
+        setCommunities(fallback);
+        const params = new URLSearchParams(location.search);
+        const cid = params.get('communityId');
+        setSelectedCommunityId(cid === 'pro-feed' ? 'pro-feed' : 'whats-good');
       }
     };
     loadCommunities();
-  }, [location.search]);
+  }, [location.search, user?.role, hasRole]);
 
   const canSubmit = title.trim().length > 0 && body.trim().length > 0 && !submitting;
 
@@ -119,6 +178,18 @@ export default function PostCompose() {
       // Create a public post in the selected community (fallback to 'whats-good' when none is selected)
       const cid = selectedCommunityId || 'whats-good';
       const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
+      // Load user profile for brand metadata
+      let brandId; let brandName;
+      try {
+        if (db && user?.uid) {
+          const userRef = doc(db, 'users', user.uid);
+          const profile = await getDoc(userRef);
+          const u = profile.exists() ? (profile.data() || {}) : {};
+          brandId = u.brandId || u.brand?.id;
+          brandName = u.brandName || u.brand?.name;
+        }
+      } catch {}
+      const tags = extractTags(title, moderatedBody);
       const ref = await addDoc(collection(db, 'community_posts'), {
         title: title.trim(),
         body: moderatedBody,
@@ -127,7 +198,12 @@ export default function PostCompose() {
         communityName: cname,
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
+        authorName: user?.displayName || user?.email || 'Staff',
+        authorPhotoURL: user?.photoURL || null,
         authorRole: user?.role || 'staff',
+        ...(brandId ? { brandId } : {}),
+        ...(brandName ? { brandName } : {}),
+        ...(tags.length ? { tags } : {}),
         needsReview,
         isBlocked,
         moderationFlags,
@@ -173,11 +249,7 @@ export default function PostCompose() {
 
         <form onSubmit={handleSubmit} className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
           <header className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
-                {(communities.find((c) => c.id === (selectedCommunityId || 'whats-good'))?.name) || "What's Good"}
-              </span>
-            </div>
+            <h1 className="text-lg font-semibold text-gray-900">New Post</h1>
           </header>
 
           {error && (

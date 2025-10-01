@@ -1,6 +1,8 @@
 // src/components/community/ProFeed.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import ProGate from './ProGate';
@@ -30,6 +32,11 @@ export const PRO_STUBS = [
   },
 ];
 
+/**
+ * Read the developer override flag for "verified staff" from localStorage.
+ *
+ * @returns {boolean|null} `true` if localStorage key `DEV_isVerifiedStaff` is the string `'true'`, `false` if it's the string `'false'`, or `null` if the key is missing, has any other value, running outside a browser, or an error occurs.
+ */
 function readDevOverride() {
   if (typeof window === 'undefined') return null;
   try {
@@ -42,21 +49,124 @@ function readDevOverride() {
   }
 }
 
-function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands = [], selectedTags = [] }) {
-  // Simulated loading window to render skeletons within 150ms
+/**
+ * Render the Pro Feed panel: subscribes to live public pro-feed posts, enriches them with like/comment counts and per-user like status, emits available brand/tag filters, and displays posts with loading and empty states.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} [props.query] - Text query to filter posts (overridden by `search` when provided).
+ * @param {string} [props.search] - Alternate text search input to filter posts.
+ * @param {string} [props.brand] - Active brand filter; 'All' disables brand filtering.
+ * @param {string[]} [props.selectedBrands] - Explicit list of brands to filter by.
+ * @param {string[]} [props.selectedTags] - Explicit list of tags to filter by.
+ * @param {(filters: {brands: string[], tags: string[]}) => void} [props.onFiltersChange] - Callback invoked with available brands and tags derived from loaded posts.
+ * @param {Object} [props.currentUser] - Current authenticated user object; when present, used to determine per-post `likedByMe` and to persist likes.
+ * @returns {JSX.Element} A panel containing the Pro Feed posts, or loading/empty UI when appropriate.
+ */
+function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands = [], selectedTags = [], onFiltersChange, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [posts, setPosts] = useState(PRO_STUBS.map(post => ({ 
-    ...post, 
-    likeIds: post.likeIds || [], 
-    likedByMe: false 
-  })));
+  const [posts, setPosts] = useState([]);
   const navigate = useNavigate();
-  
+
+  // Subscribe to Firestore for live "Pro Feed" public posts
   useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 0);
-    return () => clearTimeout(id);
-  }, []);
+    let unsub = () => {};
+    try {
+      if (!db) throw new Error('No Firestore');
+      const q = firestoreQuery(
+        collection(db, 'community_posts'),
+        where('visibility', '==', 'public'),
+        where('communityId', '==', 'pro-feed'),
+        orderBy('createdAt', 'desc')
+      );
+      unsub = onSnapshot(q, async (snap) => {
+        const base = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            brand: data?.brandName || 'Pro Feed',
+            title: data?.title || 'Untitled',
+            snippet: (data?.body || '').slice(0, 200),
+            content: data?.body || '',
+            tags: Array.isArray(data?.tags) ? data.tags : [],
+            authorName: data?.authorName || '',
+            authorPhotoURL: data?.authorPhotoURL || '',
+            createdAt: data?.createdAt,
+          };
+        });
+
+        // Attach per-post likedByMe for current user
+        const withLikeStatus = currentUser?.uid
+          ? await Promise.all(base.map(async (post) => {
+              try {
+                const likeRef = doc(db, 'post_likes', `${post.id}_${currentUser.uid}`);
+                const likeDoc = await getDoc(likeRef);
+                return { ...post, likedByMe: likeDoc.exists() };
+              } catch {
+                return { ...post, likedByMe: false };
+              }
+            }))
+          : base.map((post) => ({ ...post, likedByMe: false }));
+
+        // Emit filters (brands/tags)
+        try {
+          const brandSet = new Set();
+          const tagCounts = new Map();
+          for (const p of base) {
+            if (p.brand) brandSet.add(p.brand);
+            if (Array.isArray(p.tags)) {
+              for (const t of p.tags) {
+                const key = String(t || '').trim();
+                if (!key) continue;
+                tagCounts.set(key, (tagCounts.get(key) || 0) + 1);
+              }
+            }
+          }
+          const brands = Array.from(brandSet);
+          const tags = Array.from(tagCounts.entries()).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+          onFiltersChange?.({ brands, tags });
+        } catch {}
+
+        // Numeric counts; fallback to 0 if queries fail
+        const enriched = await Promise.all(withLikeStatus.map(async (post) => {
+          try {
+            const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
+            const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
+            const [commentsSnap, likesSnap] = await Promise.all([
+              getCountFromServer(commentsQ),
+              getCountFromServer(likesQ)
+            ]);
+            return {
+              ...post,
+              commentCount: commentsSnap.data().count || 0,
+              likeCount: likesSnap.data().count || 0,
+            };
+          } catch {
+            return { ...post, commentCount: 0, likeCount: 0 };
+          }
+        }));
+
+        setPosts(enriched);
+        setLoading(false);
+      });
+    } catch (e) {
+      setError('Failed to load Pro Feed.');
+      setPosts(PRO_STUBS.map(p => ({
+        id: p.id,
+        brand: p.brand || 'Pro Feed',
+        title: p.title || 'Untitled',
+        snippet: (p.content || '').slice(0, 200),
+        content: p.content || '',
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        authorName: p.author?.name || '',
+        likeCount: 0,
+        commentCount: 0,
+        createdAt: null,
+      })));
+      setLoading(false);
+    }
+    return () => { try { unsub(); } catch {} };
+  }, [currentUser?.uid, db]);
 
   const q = (query || search).trim().toLowerCase();
   const filtered = posts.filter((p) => {
@@ -91,25 +201,45 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
     );
   }
 
-  const handleLike = (post) => {
-    console.log('Like pro post:', post.id);
-    
-    // Optimistically update the UI
-    setPosts(prev => 
-      prev.map(p => 
-        p.id === post.id 
-          ? { 
-              ...p, 
-              likeIds: p.likedByMe 
-                ? (p.likeIds || []).filter(id => id !== 'me') // unlike
-                : [...(p.likeIds || []), 'me'], // like
-              likedByMe: !p.likedByMe 
-            }
+  const handleLike = async (post) => {
+    // Capture previous state for rollback
+    const prevLikedByMe = !!post?.likedByMe;
+    const prevLikeCount = Number.isFinite(post?.likeCount) ? post.likeCount : 0;
+    try {
+      // Guard first
+      if (!db || !currentUser?.uid) {
+        console.warn('Cannot like: missing user or database');
+        return;
+      }
+      // Optimistic UI toggle
+      setPosts(prev => prev.map(p => (
+        p.id === post.id
+          ? { ...p, likeCount: (Number.isFinite(p.likeCount) ? p.likeCount : 0) + (p.likedByMe ? -1 : 1), likedByMe: !p.likedByMe }
           : p
-      )
-    );
-    
-    // TODO: Persist to Firestore later
+      )));
+
+      // Persist like/unlike
+      const likeRef = doc(db, 'post_likes', `${post.id}_${currentUser.uid}`);
+      const existing = await getDoc(likeRef);
+      if (existing.exists()) {
+        await deleteDoc(likeRef);
+      } else {
+        await setDoc(likeRef, { postId: post.id, userId: currentUser.uid, createdAt: serverTimestamp() });
+      }
+
+      // Refresh like count after write
+      const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
+      const likesSnap = await getCountFromServer(likesQ);
+      const likeCount = likesSnap.data().count || 0;
+      setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, likeCount } : p)));
+    } catch (err) {
+      console.error('Failed to toggle like:', err);
+      setError('Failed to save like. Please try again.');
+      // Roll back optimistic update only for this post
+      setPosts(prev => prev.map(p => (
+        p.id === post.id ? { ...p, likedByMe: prevLikedByMe, likeCount: prevLikeCount } : p
+      )));
+    }
   };
 
   const handleComment = (post) => {
@@ -155,6 +285,22 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   );
 }
 
+/**
+ * Render the professional feed UI, choosing between the staff-only ProFeedContent and the public ProGate.
+ *
+ * Uses authentication state and an optional developer localStorage override to determine staff access. When mounted (or when props change),
+ * it emits available filter options derived from PRO_STUBS via `onFiltersChange`.
+ *
+ * @param {object} props - Component props.
+ * @param {string} [props.query] - Primary text filter for the feed.
+ * @param {string} [props.search] - Backward-compatible alias for `query`.
+ * @param {string} [props.brand] - Backward-compatible active brand filter; defaults to 'All'.
+ * @param {string[]} [props.selectedBrands] - Selected brand filters.
+ * @param {string[]} [props.selectedTags] - Selected tag filters.
+ * @param {() => void} [props.onRequestVerify] - Callback invoked when a non-staff user requests verification.
+ * @param {(filters: {brands: string[], tags: string[]}) => void} [props.onFiltersChange] - Receives available filter options (brands and tags) derived from stub data on mount/prop change.
+ * @returns {JSX.Element} The rendered feed UI: ProFeedContent for verified staff, otherwise ProGate.
+ */
 export default function ProFeed({
   query = '',
   search = '', // backward compat
@@ -162,8 +308,9 @@ export default function ProFeed({
   selectedBrands = [],
   selectedTags = [],
   onRequestVerify,
+  onFiltersChange,
 }) {
-  const { isVerified, hasRole } = useAuth();
+  const { isVerified, hasRole, user } = useAuth();
 
   // Real computed value for staff verification
   const realIsVerifiedStaff = (isVerified === true) && (hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']));
@@ -184,6 +331,15 @@ export default function ProFeed({
     return realIsVerifiedStaff;
   }, [devOverride, realIsVerifiedStaff]);
 
+  // Emit available filters from stubs when mounted/when props change
+  useEffect(() => {
+    try {
+      const brands = Array.from(new Set(PRO_STUBS.map((p) => p.brand).filter(Boolean)));
+      const tags = Array.from(new Set(PRO_STUBS.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
+      onFiltersChange?.({ brands, tags });
+    } catch {}
+  }, [onFiltersChange]);
+
   return isVerifiedStaff ? (
     <ProFeedContent
       query={query}
@@ -191,6 +347,8 @@ export default function ProFeed({
       brand={brand}
       selectedBrands={selectedBrands}
       selectedTags={selectedTags}
+      onFiltersChange={onFiltersChange}
+      currentUser={user}
     />
   ) : (
     <ProGate onRequestVerify={onRequestVerify} />

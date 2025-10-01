@@ -104,6 +104,9 @@ export default function PostDetail() {
               snippet: data.body || '',
               content: data.body || '',
               createdAt: data.createdAt || null,
+              authorName: data.authorName || '',
+              authorPhotoURL: data.authorPhotoURL || '',
+              userId: data.userId || null,
               trainingId: data.trainingId || null,
               likeIds: [],
               commentIds: [],
@@ -282,6 +285,48 @@ export default function PostDetail() {
     }
   };
 
+  const handleDeletePost = async () => {
+    try {
+      if (!post || !user?.uid || post.userId !== user.uid) return;
+      if (!window.confirm('Delete this post and its likes/comments? This cannot be undone.')) return;
+      const { writeBatch, collection: coll, query: q2, where: w2, getDocs: gd2, doc: d2, deleteDoc: del2 } = await import('firebase/firestore');
+      const batch = writeBatch(db);
+      // delete likes
+      const likesQ = q2(coll(db, 'post_likes'), w2('postId', '==', post.id));
+      const likesSnap = await gd2(likesQ);
+      likesSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+      // delete comments
+      const cmtsQ = q2(coll(db, 'community_comments'), w2('postId', '==', post.id));
+      const cmtsSnap = await gd2(cmtsQ);
+      cmtsSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+      // delete post
+      batch.delete(d2(db, 'community_posts', post.id));
+      await batch.commit();
+      navigate('/staff/community');
+    } catch (e) {
+      console.error('Failed to delete post', e);
+      try { window.alert('Failed to delete post. Please try again.'); } catch {}
+    }
+  };
+
+  const handleDeleteComment = async (cmt) => {
+    try {
+      if (!cmt?.id || !user?.uid || cmt.userId !== user.uid) return;
+      if (!window.confirm('Delete this comment?')) return;
+      const { doc: d2, deleteDoc: del2 } = await import('firebase/firestore');
+      await del2(d2(db, 'community_comments', cmt.id));
+      setComments((prev) => prev.filter((c) => c.id !== cmt.id));
+      setTimeout(() => {
+        if (typeof window.refreshWhatsGoodComments === 'function') {
+          window.refreshWhatsGoodComments(post.id);
+        }
+      }, 500);
+    } catch (e) {
+      console.error('Failed to delete comment', e);
+      try { window.alert('Failed to delete comment. Please try again.'); } catch {}
+    }
+  };
+
   const handleAddComment = async () => {
     const text = newComment.trim();
     if (!text) return;
@@ -310,6 +355,8 @@ export default function PostDetail() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
+        authorName: user.displayName || user.email || 'User',
+        authorPhotoURL: user.photoURL || null,
         text,
         createdAt: serverTimestamp(),
       });
@@ -340,6 +387,8 @@ export default function PostDetail() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
+        authorName: user.displayName || user.email || 'User',
+        authorPhotoURL: user.photoURL || null,
         text: cmt.text,
         createdAt: serverTimestamp(),
       });
@@ -398,10 +447,22 @@ export default function PostDetail() {
             </div>
           )}
           <header className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
                 {post.brand || 'General'}
               </span>
+              {(post.authorName || post.authorPhotoURL) && (
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  {post.authorPhotoURL ? (
+                    <img src={post.authorPhotoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
+                      {(post.authorName || 'U').slice(0,1).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="truncate max-w-[160px]" title={post.authorName}>{post.authorName}</span>
+                </div>
+              )}
             </div>
             {timeText && (
               <time className="text-xs text-warm-gray">{timeText}</time>
@@ -464,6 +525,15 @@ export default function PostDetail() {
               <span>{COPY.buttons.comment}</span>
               <span className="ml-2 text-gray-500">{comments.length}</span>
             </a>
+            {!!user?.uid && post.userId === user.uid && !location.state?.draft && (
+              <button
+                type="button"
+                onClick={handleDeletePost}
+                className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-rose-500 text-sm text-rose-600 hover:bg-rose-50"
+              >
+                Delete
+              </button>
+            )}
           </footer>
         </article>
 
@@ -477,7 +547,18 @@ export default function PostDetail() {
               {comments.map((c) => (
                 <li key={c.id} className="bg-white rounded-lg border border-gray-200 p-3">
                   <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{c.userRole || 'user'}</span>
+                    <div className="flex items-center gap-2">
+                      {c.authorPhotoURL ? (
+                        <img src={c.authorPhotoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
+                          {(c.authorName || 'U').slice(0,1).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-gray-700">{c.authorName || 'User'}</span>
+                      <span className="text-gray-400">•</span>
+                      <span>{c.userRole || 'user'}</span>
+                    </div>
                     <span>
                       {typeof c.createdAt?.toDate === 'function'
                         ? c.createdAt.toDate().toLocaleString()
@@ -494,6 +575,17 @@ export default function PostDetail() {
                 className="mt-2 inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                       >
                         Retry
+                      </button>
+                    </div>
+                  )}
+                  {!!user?.uid && c.userId === user.uid && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteComment(c)}
+                        className="inline-flex items-center justify-center px-2 h-8 rounded-md border border-rose-500 text-xs text-rose-600 hover:bg-rose-50"
+                      >
+                        Delete comment
                       </button>
                     </div>
                   )}

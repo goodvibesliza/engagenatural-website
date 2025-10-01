@@ -64,6 +64,9 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
     onCardClick?.(post);
   };
 
+  const authorName = post?.authorName || post?.author?.name || '';
+  const authorPhotoURL = post?.authorPhotoURL || post?.author?.photoURL || '';
+
   return (
     <article
       className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm min-h-[140px] cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-deep-moss focus:ring-offset-2"
@@ -75,13 +78,25 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
       onKeyDown={handleKeyDown}
     >
       <header className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span
             className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white"
             aria-label={`Brand ${brand}`}
           >
             {brand}
           </span>
+          {(authorName || authorPhotoURL) && (
+            <div className="flex items-center gap-2 text-xs text-gray-600" aria-label={`Posted by ${authorName || 'user'}`}>
+              {authorPhotoURL ? (
+                <img src={authorPhotoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
+                  {(authorName || 'U').slice(0,1).toUpperCase()}
+                </div>
+              )}
+              <span className="truncate max-w-[140px]" title={authorName}>{authorName}</span>
+            </div>
+          )}
         </div>
         {time && (
           <time className="text-xs text-warm-gray" aria-label={`Posted ${time}`}>

@@ -1,8 +1,8 @@
 // src/pages/Community.jsx
-import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
-import WhatsGoodFeed, { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
+import WhatsGoodFeed from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
 const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
@@ -11,6 +11,16 @@ import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied } from '../lib/analytics';
 import './community.css';
 
+/**
+ * Render the Community page with two feed tabs ("Whats Good" and "Pro"), filters, navigation, and lazy-loaded Pro content.
+ *
+ * Renders a header with the tab selector and mobile controls, a desktop sticky sidebar containing a New Post button and FilterBar,
+ * and either the WhatsGoodFeed or a lazily loaded ProFeed based on the active tab. Synchronizes available filter options from child feeds,
+ * initializes Pro filters from PRO_STUBS when the Pro tab is active, supports deep links to a specific post via location.state.focusPostId,
+ * and records feed view analytics when the active tab changes.
+ *
+ * @returns {JSX.Element} The Community page component.
+ */
 export default function Community() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -18,6 +28,14 @@ export default function Community() {
   const [query, setQuery] = useState('');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [availableBrands, setAvailableBrands] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
+
+  // Stable handler to receive filters (brands/tags) from child feeds
+  const handleFiltersChange = useCallback(({ brands, tags } = {}) => {
+    setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
+    setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
+  }, []);
 
   // Deep-link support: if navigated with { state: { focusPostId } }, redirect to detail
   useEffect(() => {
@@ -27,17 +45,15 @@ export default function Community() {
     }
   }, [location.state, navigate]);
 
-  // Canonical data source per tab
-  const posts = useMemo(() => (tab === 'whatsGood' ? WHATS_GOOD_STUBS : PRO_STUBS), [tab]);
-  // Single-source available brand/tag lists derived from posts
-  const availableBrands = useMemo(
-    () => Array.from(new Set(posts.map((p) => p.brand).filter(Boolean))),
-    [posts]
-  );
-  const availableTags = useMemo(
-    () => Array.from(new Set(posts.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean))),
-    [posts]
-  );
+  // Update available filters when tab changes (Pro uses stubs for now)
+  useEffect(() => {
+    if (tab === 'pro') {
+      const brands = Array.from(new Set(PRO_STUBS.map((p) => p.brand).filter(Boolean)));
+      const tags = Array.from(new Set(PRO_STUBS.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
+      setAvailableBrands(brands);
+      setAvailableTags(tags);
+    }
+  }, [tab]);
 
   const header = useMemo(() => {
     return (
@@ -120,6 +136,7 @@ export default function Community() {
                 selectedBrands={selectedBrands}
                 selectedTags={selectedTags}
                 onStartPost={() => navigate('/staff/community/post/new')}
+                onFiltersChange={handleFiltersChange}
               />
             ) : (
               <Suspense
@@ -138,6 +155,7 @@ export default function Community() {
                   onRequestVerify={() => {
                     navigate('/staff/verification');
                   }}
+                  onFiltersChange={handleFiltersChange}
                 />
               </Suspense>
             )}

@@ -39,6 +39,23 @@ export const WHATS_GOOD_STUBS = [
   },
 ];
 
+/**
+ * Render the "What's Good" community feed with live posts, counts, filtering, and interaction handlers.
+ *
+ * Renders a list of public "What's Good" posts sourced from Firestore, enriches each post with comment and like counts,
+ * applies text/brand/tag filters, provides optimistic like toggling, and exposes handlers for commenting and navigation.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} [props.query] - Primary text search input (trimmed and lowercased); kept for backward compatibility with `search`.
+ * @param {string} [props.search] - Backward-compatible alias for `query`.
+ * @param {string} [props.brand] - Backward-compatible single-brand filter; ignored when `selectedBrands` is non-empty or equals "All".
+ * @param {string[]} [props.selectedBrands] - Array of selected brand names to filter posts; if empty, `brand` may be used.
+ * @param {string[]} [props.selectedTags] - Array of selected tag strings to filter posts; post is included if it has any of these tags.
+ * @param {Function} [props.onStartPost] - Callback invoked when a staff user requests to start a new post (e.g., clicking "Start a post").
+ * @param {Function} [props.onFiltersChange] - Optional callback called when available filter options are derived; receives an object `{ brands: string[], tags: string[] }`.
+ *
+ * @returns {JSX.Element} The feed UI for the "What's Good" community panel.
+ */
 export default function WhatsGoodFeed({
   query = '',
   search = '', // backward compat
@@ -46,6 +63,7 @@ export default function WhatsGoodFeed({
   selectedBrands = [],
   selectedTags = [],
   onStartPost,
+  onFiltersChange,
 }) {
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
@@ -73,15 +91,39 @@ export default function WhatsGoodFeed({
           const data = d.data();
           return {
             id: d.id,
-            brand: data?.communityName || 'What\'s Good',
+            brand: data?.brandName || data?.communityName || 'What\'s Good',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
+            authorPhotoURL: data?.authorPhotoURL || '',
             createdAt: data?.createdAt,
           };
         });
+
+        // Emit available brands/tags (trending = tags sorted by frequency)
+        try {
+          const brandSet = new Set();
+          const tagCounts = new Map();
+          for (const p of base) {
+            if (p.brand) brandSet.add(p.brand);
+            if (Array.isArray(p.tags)) {
+              for (const t of p.tags) {
+                const key = String(t || '').trim();
+                if (!key) continue;
+                tagCounts.set(key, (tagCounts.get(key) || 0) + 1);
+              }
+            }
+          }
+          const brands = Array.from(brandSet);
+          const tags = Array.from(tagCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([k]) => k);
+          onFiltersChange?.({ brands, tags });
+        } catch (err) {
+          console.error('WhatsGoodFeed: failed to emit filters from live posts', { baseCount: Array.isArray(base) ? base.length : 0 }, err);
+        }
 
         // Load counts per post (numeric fields) — fallback to 0 if query fails
         const enriched = await Promise.all(
@@ -126,6 +168,13 @@ export default function WhatsGoodFeed({
         likeCount: 0,
       }));
       setPostsWithCounts(fallback);
+      try {
+        const brands = Array.from(new Set(fallback.map((p) => p.brand).filter(Boolean)));
+        const tags = Array.from(new Set(fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
+        onFiltersChange?.({ brands, tags });
+      } catch (e) {
+        console.error('WhatsGoodFeed: failed to compute fallback filters', { fallbackCount: Array.isArray(fallback) ? fallback.length : 0 }, e);
+      }
       setLoading(false);
     }
     return () => {
@@ -280,17 +329,15 @@ export default function WhatsGoodFeed({
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
-      // Set error state and revert optimistic update on error
       setError('Failed to save like. Please try again.');
+      // Revert optimistic update to original state (boolean + numeric count)
       setPostsWithCounts(prev => 
         prev.map(p => 
           p.id === post.id 
             ? { 
                 ...p, 
-                likeIds: post.likedByMe 
-                  ? [...(p.likeIds || []), 'me'] // revert unlike
-                  : (p.likeIds || []).filter(id => id !== 'me'), // revert like
-                likedByMe: post.likedByMe // revert state
+                likedByMe: post.likedByMe,
+                likeCount: Number.isFinite(post.likeCount) ? post.likeCount : 0,
               }
             : p
         )
