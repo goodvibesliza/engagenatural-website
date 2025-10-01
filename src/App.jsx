@@ -255,6 +255,16 @@ function App() {
               </RoleGuard>
             } 
           />
+          <Route 
+            path="/admin/activity" 
+            element={
+              <RoleGuard allowedRoles={['super_admin']}>
+                <AdminLayout>
+                  <ActivityPage />
+                </AdminLayout>
+              </RoleGuard>
+            } 
+          />
           {/* Brand Community View (staff-style UI for brand managers) */}
           <Route 
             path="/brand/community/:communityId"
