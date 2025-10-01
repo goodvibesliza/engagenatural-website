@@ -53,15 +53,29 @@ export default function PostCompose() {
         // If verified staff, include Pro Feed even if not public
         const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
         if (isVerifiedStaff) {
+          let ensured = false;
           try {
             const proRef = doc(db, 'communities', 'pro-feed');
             const proDoc = await getDoc(proRef);
+            const exists = items.some((c) => c.id === 'pro-feed');
             if (proDoc.exists()) {
               const data = { id: 'pro-feed', ...proDoc.data() };
-              const exists = items.some((c) => c.id === 'pro-feed');
               if (!exists) items.push(data);
+              ensured = true;
+            } else if (!exists) {
+              items.push({ id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
+              ensured = true;
             }
-          } catch {}
+          } catch {
+            const exists = items.some((c) => c.id === 'pro-feed');
+            if (!exists) {
+              items.push({ id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
+              ensured = true;
+            }
+          }
+          if (ensured) {
+            // no-op; kept for readability
+          }
         }
         if (!items || items.length === 0) {
           items = [{ id: 'whats-good', name: "What's Good" }];
