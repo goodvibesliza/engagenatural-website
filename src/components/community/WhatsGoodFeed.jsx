@@ -325,17 +325,15 @@ export default function WhatsGoodFeed({
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
-      // Set error state and revert optimistic update on error
       setError('Failed to save like. Please try again.');
+      // Revert optimistic update to original state (boolean + numeric count)
       setPostsWithCounts(prev => 
         prev.map(p => 
           p.id === post.id 
             ? { 
                 ...p, 
-                likeIds: post.likedByMe 
-                  ? [...(p.likeIds || []), 'me'] // revert unlike
-                  : (p.likeIds || []).filter(id => id !== 'me'), // revert like
-                likedByMe: post.likedByMe // revert state
+                likedByMe: post.likedByMe,
+                likeCount: Number.isFinite(post.likeCount) ? post.likeCount : 0,
               }
             : p
         )
