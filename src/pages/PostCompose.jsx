@@ -38,50 +38,69 @@ export default function PostCompose() {
     headingRef.current?.focus();
   }, []);
 
-  // Load active/public communities and set initial selection from URL (?communityId=...)
+  // Load available communities and set initial selection from URL (?communityId=...)
   useEffect(() => {
     const loadCommunities = async () => {
       try {
-        const q = query(
+        // 1) Public, active communities
+        const pubQ = query(
           collection(db, 'communities'),
           where('isActive', '==', true),
           where('isPublic', '==', true)
         );
-        const snap = await getDocs(q);
-        let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const pubSnap = await getDocs(pubQ);
+        const pubItems = pubSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        // If verified staff, include Pro Feed even if not public
+        let items = [...pubItems];
+
+        // 2) Brand communities (active) if user belongs to a brand
+        try {
+          if (user?.uid) {
+            const userRef = doc(db, 'users', user.uid);
+            const profile = await getDoc(userRef);
+            const u = profile.exists() ? (profile.data() || {}) : {};
+            const uBrandId = u.brandId || u.brand?.id;
+            if (uBrandId) {
+              const brandQ = query(
+                collection(db, 'communities'),
+                where('isActive', '==', true),
+                where('brandId', '==', uBrandId)
+              );
+              const brandSnap = await getDocs(brandQ);
+              const brandItems = brandSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+              for (const c of brandItems) {
+                if (!items.some((x) => x.id === c.id)) items.push(c);
+              }
+            }
+          }
+        } catch {}
+
+        // 3) Always include What's Good
+        if (!items.some((c) => c.id === 'whats-good')) {
+          items.push({ id: 'whats-good', name: "What's Good", isActive: true, isPublic: true });
+        }
+
+        // 4) Include Pro Feed for verified staff even if private/missing
         const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
-        if (isVerifiedStaff) {
-          let ensured = false;
+        if (isVerifiedStaff && !items.some((c) => c.id === 'pro-feed')) {
           try {
             const proRef = doc(db, 'communities', 'pro-feed');
             const proDoc = await getDoc(proRef);
-            const exists = items.some((c) => c.id === 'pro-feed');
-            if (proDoc.exists()) {
-              const data = { id: 'pro-feed', ...proDoc.data() };
-              if (!exists) items.push(data);
-              ensured = true;
-            } else if (!exists) {
-              items.push({ id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
-              ensured = true;
-            }
+            items.push(proDoc.exists() ? { id: 'pro-feed', ...proDoc.data() } : { id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
           } catch {
-            const exists = items.some((c) => c.id === 'pro-feed');
-            if (!exists) {
-              items.push({ id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
-              ensured = true;
-            }
-          }
-          if (ensured) {
-            // no-op; kept for readability
+            items.push({ id: 'pro-feed', name: 'Pro Feed', isActive: true, isPublic: false });
           }
         }
-        if (!items || items.length === 0) {
-          items = [{ id: 'whats-good', name: "What's Good" }];
-        }
-        // ensure what's-good first
-        items.sort((a, b) => (a.id === 'whats-good' ? -1 : b.id === 'whats-good' ? 1 : (a.name || '').localeCompare(b.name || '')));
+
+        // Sort: What's Good first, then Pro Feed, then alpha
+        items.sort((a, b) => {
+          if (a.id === 'whats-good') return -1;
+          if (b.id === 'whats-good') return 1;
+          if (a.id === 'pro-feed') return -1;
+          if (b.id === 'pro-feed') return 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+
         setCommunities(items);
 
         const params = new URLSearchParams(location.search);
@@ -92,8 +111,14 @@ export default function PostCompose() {
           setSelectedCommunityId('whats-good');
         }
       } catch (err) {
-        setCommunities([{ id: 'whats-good', name: "What's Good" }]);
-        setSelectedCommunityId('whats-good');
+        // Fallback: ensure both What's Good and Pro Feed appear for verified staff
+        const fallback = [{ id: 'whats-good', name: "What's Good" }];
+        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        if (isVerifiedStaff) fallback.push({ id: 'pro-feed', name: 'Pro Feed' });
+        setCommunities(fallback);
+        const params = new URLSearchParams(location.search);
+        const cid = params.get('communityId');
+        setSelectedCommunityId(cid === 'pro-feed' ? 'pro-feed' : 'whats-good');
       }
     };
     loadCommunities();
@@ -224,11 +249,7 @@ export default function PostCompose() {
 
         <form onSubmit={handleSubmit} className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
           <header className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
-                {(communities.find((c) => c.id === (selectedCommunityId || 'whats-good'))?.name) || "What's Good"}
-              </span>
-            </div>
+            <h1 className="text-lg font-semibold text-gray-900">New Post</h1>
           </header>
 
           {error && (
