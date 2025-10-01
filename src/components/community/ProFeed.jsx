@@ -129,7 +129,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
           const brands = Array.from(brandSet);
           const tags = Array.from(tagCounts.entries()).sort((a, b) => b[1] - a[1]).map(([k]) => k);
           onFiltersChange?.({ brands, tags });
-        } catch {}
+        } catch (err) {
+          console.error('ProFeed: failed to emit filters from live posts', { userId: currentUser?.uid, count: Array.isArray(visible) ? visible.length : 0 }, err);
+        }
 
         // Numeric counts; fallback to 0 if queries fail
         const enriched = await Promise.all(withLikeStatus.filter(p => !p.isBlocked && !p.needsReview).map(async (post) => {

@@ -190,9 +190,10 @@ export default function PostCompose() {
         return;
       }
       // Create a public post in the selected community (fallback to 'whats-good' when none is selected)
-      // Normalize community id: prefer kebab-case (e.g., 'whats-good')
-      const cid = (selectedCommunityId || 'whats-good').replaceAll('_', '-');
-      const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
+      // Normalize for storage, but use raw id for lookups
+      const rawCid = selectedCommunityId || 'whats-good';
+      const cid = rawCid.replaceAll('_', '-');
+      const cname = (communities.find((c) => c.id === rawCid)?.name) || "What's Good";
       // Load user profile for brand metadata
       let brandId; let brandName;
       try {
@@ -235,8 +236,9 @@ export default function PostCompose() {
           // leave moderatedBody as raw fallback
         }
       }
-      const cid = (selectedCommunityId || 'whats-good').replaceAll('_', '-');
-      const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
+      const rawCid = selectedCommunityId || 'whats-good';
+      const cid = rawCid.replaceAll('_', '-');
+      const cname = (communities.find((c) => c.id === rawCid)?.name) || "What's Good";
       const draft = {
         id: `draft-${Date.now()}`,
         title: title.trim(),

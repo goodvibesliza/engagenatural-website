@@ -127,10 +127,12 @@ export const moderateHealthContent = (content) => {
       details: `Contains health claims: ${foundClaims.join(', ')}`,
       severity: 'high'
     })
-    // Force review for health-claim content to ensure DSHEA compliance
-    result.isAppropriate = false
-    result.suggestedAction = 'review'
-    result.moderatedContent = content + ' [Health claims under review]'
+    // For DSHEA compliance, require at least review — but never downgrade a block
+    if (result.suggestedAction !== 'block') {
+      result.isAppropriate = false
+      result.suggestedAction = 'review'
+      result.moderatedContent = content + ' [Health claims under review]'
+    }
   }
 
   return result
