@@ -72,6 +72,7 @@ export default function FilterBar({
 
         {tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
+            <div className="w-full text-xs font-medium text-gray-700 mb-1">Trending</div>
             {tags.map((t) => {
               const active = selectedTags.includes(t);
               return (

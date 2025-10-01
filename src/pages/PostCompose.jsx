@@ -1,7 +1,7 @@
 // src/pages/PostCompose.jsx
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
@@ -43,6 +43,20 @@ export default function PostCompose() {
         );
         const snap = await getDocs(q);
         let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // If verified staff, include Pro Feed even if not public
+        const isVerifiedStaff = ['verified_staff', 'brand_manager', 'super_admin'].includes(user?.role);
+        if (isVerifiedStaff) {
+          try {
+            const proRef = doc(db, 'communities', 'pro-feed');
+            const proDoc = await getDoc(proRef);
+            if (proDoc.exists()) {
+              const data = { id: 'pro-feed', ...proDoc.data() };
+              const exists = items.some((c) => c.id === 'pro-feed');
+              if (!exists) items.push(data);
+            }
+          } catch {}
+        }
         if (!items || items.length === 0) {
           items = [{ id: 'whats-good', name: "What's Good" }];
         }
@@ -63,7 +77,7 @@ export default function PostCompose() {
       }
     };
     loadCommunities();
-  }, [location.search]);
+  }, [location.search, user?.role]);
 
   const canSubmit = title.trim().length > 0 && body.trim().length > 0 && !submitting;
 

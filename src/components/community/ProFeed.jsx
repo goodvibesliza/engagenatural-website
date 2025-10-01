@@ -162,6 +162,7 @@ export default function ProFeed({
   selectedBrands = [],
   selectedTags = [],
   onRequestVerify,
+  onFiltersChange,
 }) {
   const { isVerified, hasRole } = useAuth();
 
@@ -183,6 +184,15 @@ export default function ProFeed({
     if (devOverride === false) return false;
     return realIsVerifiedStaff;
   }, [devOverride, realIsVerifiedStaff]);
+
+  // Emit available filters from stubs when mounted/when props change
+  useEffect(() => {
+    try {
+      const brands = Array.from(new Set(PRO_STUBS.map((p) => p.brand).filter(Boolean)));
+      const tags = Array.from(new Set(PRO_STUBS.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
+      onFiltersChange?.({ brands, tags });
+    } catch {}
+  }, [onFiltersChange]);
 
   return isVerifiedStaff ? (
     <ProFeedContent

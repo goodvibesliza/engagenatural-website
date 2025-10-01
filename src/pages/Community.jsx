@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
-import WhatsGoodFeed, { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
+import WhatsGoodFeed from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
 const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
@@ -18,6 +18,8 @@ export default function Community() {
   const [query, setQuery] = useState('');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [availableBrands, setAvailableBrands] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
 
   // Deep-link support: if navigated with { state: { focusPostId } }, redirect to detail
   useEffect(() => {
@@ -27,17 +29,15 @@ export default function Community() {
     }
   }, [location.state, navigate]);
 
-  // Canonical data source per tab
-  const posts = useMemo(() => (tab === 'whatsGood' ? WHATS_GOOD_STUBS : PRO_STUBS), [tab]);
-  // Single-source available brand/tag lists derived from posts
-  const availableBrands = useMemo(
-    () => Array.from(new Set(posts.map((p) => p.brand).filter(Boolean))),
-    [posts]
-  );
-  const availableTags = useMemo(
-    () => Array.from(new Set(posts.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean))),
-    [posts]
-  );
+  // Update available filters when tab changes (Pro uses stubs for now)
+  useEffect(() => {
+    if (tab === 'pro') {
+      const brands = Array.from(new Set(PRO_STUBS.map((p) => p.brand).filter(Boolean)));
+      const tags = Array.from(new Set(PRO_STUBS.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
+      setAvailableBrands(brands);
+      setAvailableTags(tags);
+    }
+  }, [tab]);
 
   const header = useMemo(() => {
     return (
@@ -120,6 +120,10 @@ export default function Community() {
                 selectedBrands={selectedBrands}
                 selectedTags={selectedTags}
                 onStartPost={() => navigate('/staff/community/post/new')}
+                onFiltersChange={({ brands, tags }) => {
+                  setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
+                  setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
+                }}
               />
             ) : (
               <Suspense
@@ -137,6 +141,10 @@ export default function Community() {
                   selectedTags={selectedTags}
                   onRequestVerify={() => {
                     navigate('/staff/verification');
+                  }}
+                  onFiltersChange={({ brands, tags }) => {
+                    setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
+                    setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
                   }}
                 />
               </Suspense>

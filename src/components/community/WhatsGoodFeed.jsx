@@ -46,6 +46,7 @@ export default function WhatsGoodFeed({
   selectedBrands = [],
   selectedTags = [],
   onStartPost,
+  onFiltersChange,
 }) {
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
@@ -82,6 +83,27 @@ export default function WhatsGoodFeed({
             createdAt: data?.createdAt,
           };
         });
+
+        // Emit available brands/tags (trending = tags sorted by frequency)
+        try {
+          const brandSet = new Set();
+          const tagCounts = new Map();
+          for (const p of base) {
+            if (p.brand) brandSet.add(p.brand);
+            if (Array.isArray(p.tags)) {
+              for (const t of p.tags) {
+                const key = String(t || '').trim();
+                if (!key) continue;
+                tagCounts.set(key, (tagCounts.get(key) || 0) + 1);
+              }
+            }
+          }
+          const brands = Array.from(brandSet);
+          const tags = Array.from(tagCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([k]) => k);
+          onFiltersChange?.({ brands, tags });
+        } catch {}
 
         // Load counts per post (numeric fields) — fallback to 0 if query fails
         const enriched = await Promise.all(
@@ -126,6 +148,11 @@ export default function WhatsGoodFeed({
         likeCount: 0,
       }));
       setPostsWithCounts(fallback);
+      try {
+        const brands = Array.from(new Set(fallback.map((p) => p.brand).filter(Boolean)));
+        const tags = Array.from(new Set(fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
+        onFiltersChange?.({ brands, tags });
+      } catch {}
       setLoading(false);
     }
     return () => {
