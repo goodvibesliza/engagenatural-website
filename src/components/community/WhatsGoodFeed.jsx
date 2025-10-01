@@ -97,6 +97,7 @@ export default function WhatsGoodFeed({
             content: data?.body || '',
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
+            authorPhotoURL: data?.authorPhotoURL || '',
             createdAt: data?.createdAt,
           };
         });

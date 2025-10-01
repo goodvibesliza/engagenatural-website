@@ -160,6 +160,7 @@ export default function PostCompose() {
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
         authorName: user?.displayName || user?.email || 'Staff',
+        authorPhotoURL: user?.photoURL || null,
         authorRole: user?.role || 'staff',
         ...(brandId ? { brandId } : {}),
         ...(brandName ? { brandName } : {}),

@@ -104,6 +104,8 @@ export default function PostDetail() {
               snippet: data.body || '',
               content: data.body || '',
               createdAt: data.createdAt || null,
+              authorName: data.authorName || '',
+              authorPhotoURL: data.authorPhotoURL || '',
               trainingId: data.trainingId || null,
               likeIds: [],
               commentIds: [],
@@ -310,6 +312,8 @@ export default function PostDetail() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
+        authorName: user.displayName || user.email || 'User',
+        authorPhotoURL: user.photoURL || null,
         text,
         createdAt: serverTimestamp(),
       });
@@ -340,6 +344,8 @@ export default function PostDetail() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
+        authorName: user.displayName || user.email || 'User',
+        authorPhotoURL: user.photoURL || null,
         text: cmt.text,
         createdAt: serverTimestamp(),
       });
@@ -398,10 +404,22 @@ export default function PostDetail() {
             </div>
           )}
           <header className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
                 {post.brand || 'General'}
               </span>
+              {(post.authorName || post.authorPhotoURL) && (
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  {post.authorPhotoURL ? (
+                    <img src={post.authorPhotoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
+                      {(post.authorName || 'U').slice(0,1).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="truncate max-w-[160px]" title={post.authorName}>{post.authorName}</span>
+                </div>
+              )}
             </div>
             {timeText && (
               <time className="text-xs text-warm-gray">{timeText}</time>
@@ -477,7 +495,18 @@ export default function PostDetail() {
               {comments.map((c) => (
                 <li key={c.id} className="bg-white rounded-lg border border-gray-200 p-3">
                   <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{c.userRole || 'user'}</span>
+                    <div className="flex items-center gap-2">
+                      {c.authorPhotoURL ? (
+                        <img src={c.authorPhotoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
+                          {(c.authorName || 'U').slice(0,1).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-gray-700">{c.authorName || 'User'}</span>
+                      <span className="text-gray-400">•</span>
+                      <span>{c.userRole || 'user'}</span>
+                    </div>
                     <span>
                       {typeof c.createdAt?.toDate === 'function'
                         ? c.createdAt.toDate().toLocaleString()

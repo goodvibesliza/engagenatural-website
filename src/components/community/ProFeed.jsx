@@ -90,6 +90,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
             content: data?.body || '',
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
+            authorPhotoURL: data?.authorPhotoURL || '',
             createdAt: data?.createdAt,
           };
         });
