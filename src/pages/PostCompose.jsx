@@ -26,6 +26,14 @@ export default function PostCompose() {
   const [communities, setCommunities] = useState([]);
   const [selectedCommunityId, setSelectedCommunityId] = useState('whats-good');
 
+  // Extract hashtags from title/body into normalized array
+  const extractTags = (t = '', b = '') => {
+    const text = `${t}\n${b}`;
+    const matches = text.match(/(^|\s)#([a-zA-Z0-9_\-]{2,50})/g) || [];
+    const set = new Set(matches.map(m => m.replace(/^[^#]*#/, '').toLowerCase()));
+    return Array.from(set);
+  };
+
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
@@ -131,6 +139,18 @@ export default function PostCompose() {
       // Create a public post in the selected community (fallback to 'whats-good' when none is selected)
       const cid = selectedCommunityId || 'whats-good';
       const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
+      // Load user profile for brand metadata
+      let brandId; let brandName;
+      try {
+        if (db && user?.uid) {
+          const userRef = doc(db, 'users', user.uid);
+          const profile = await getDoc(userRef);
+          const u = profile.exists() ? (profile.data() || {}) : {};
+          brandId = u.brandId || u.brand?.id;
+          brandName = u.brandName || u.brand?.name;
+        }
+      } catch {}
+      const tags = extractTags(title, moderatedBody);
       const ref = await addDoc(collection(db, 'community_posts'), {
         title: title.trim(),
         body: moderatedBody,
@@ -139,7 +159,11 @@ export default function PostCompose() {
         communityName: cname,
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
+        authorName: user?.displayName || user?.email || 'Staff',
         authorRole: user?.role || 'staff',
+        ...(brandId ? { brandId } : {}),
+        ...(brandName ? { brandName } : {}),
+        ...(tags.length ? { tags } : {}),
         needsReview,
         isBlocked,
         moderationFlags,

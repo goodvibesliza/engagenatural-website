@@ -91,7 +91,7 @@ export default function WhatsGoodFeed({
           const data = d.data();
           return {
             id: d.id,
-            brand: data?.communityName || 'What\'s Good',
+            brand: data?.brandName || data?.communityName || 'What\'s Good',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',

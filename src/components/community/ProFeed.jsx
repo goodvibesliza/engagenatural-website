@@ -84,7 +84,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
           const data = d.data();
           return {
             id: d.id,
-            brand: data?.communityName || 'Pro Feed',
+            brand: data?.brandName || 'Pro Feed',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
