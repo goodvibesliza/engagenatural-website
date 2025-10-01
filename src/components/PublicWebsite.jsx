@@ -73,6 +73,7 @@ export default function PublicWebsite() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <LogoWordmark size="md" />
+              <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -376,12 +377,14 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="mb-4">
+              <div className="mb-4 flex items-center">
                 <LogoWordmark size="md" />
+                <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
               </div>
               <p className="text-black font-body">
                 Empowering retail teams through gamified engagement and community building.
               </p>
+              <p className="text-black font-body mt-1">Beta v0.16.16</p>
             </div>
             <div>
               <h3 className="font-semibold mb-4 font-heading">For Retail Staff</h3>
