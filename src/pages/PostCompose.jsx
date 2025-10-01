@@ -18,7 +18,7 @@ import { useAuth } from '../contexts/auth-context';
 export default function PostCompose() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
 
   const headingRef = useRef(null);
   const [title, setTitle] = useState('');
@@ -45,7 +45,7 @@ export default function PostCompose() {
         let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
         // If verified staff, include Pro Feed even if not public
-        const isVerifiedStaff = ['verified_staff', 'brand_manager', 'super_admin'].includes(user?.role);
+        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
         if (isVerifiedStaff) {
           try {
             const proRef = doc(db, 'communities', 'pro-feed');
@@ -77,7 +77,7 @@ export default function PostCompose() {
       }
     };
     loadCommunities();
-  }, [location.search, user?.role]);
+  }, [location.search, user?.role, hasRole]);
 
   const canSubmit = title.trim().length > 0 && body.trim().length > 0 && !submitting;
 

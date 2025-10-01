@@ -1,5 +1,5 @@
 // src/pages/Community.jsx
-import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
 import WhatsGoodFeed from '../components/community/WhatsGoodFeed';
@@ -20,6 +20,12 @@ export default function Community() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [availableBrands, setAvailableBrands] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
+
+  // Stable handler to receive filters (brands/tags) from child feeds
+  const handleFiltersChange = useCallback(({ brands, tags } = {}) => {
+    setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
+    setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
+  }, []);
 
   // Deep-link support: if navigated with { state: { focusPostId } }, redirect to detail
   useEffect(() => {
@@ -120,10 +126,7 @@ export default function Community() {
                 selectedBrands={selectedBrands}
                 selectedTags={selectedTags}
                 onStartPost={() => navigate('/staff/community/post/new')}
-                onFiltersChange={({ brands, tags }) => {
-                  setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
-                  setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
-                }}
+                onFiltersChange={handleFiltersChange}
               />
             ) : (
               <Suspense
@@ -142,10 +145,7 @@ export default function Community() {
                   onRequestVerify={() => {
                     navigate('/staff/verification');
                   }}
-                  onFiltersChange={({ brands, tags }) => {
-                    setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
-                    setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
-                  }}
+                  onFiltersChange={handleFiltersChange}
                 />
               </Suspense>
             )}
