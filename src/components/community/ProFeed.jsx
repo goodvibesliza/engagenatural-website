@@ -76,6 +76,19 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
           };
         });
 
+        // Attach per-post likedByMe for current user
+        const withLikeStatus = currentUser?.uid
+          ? await Promise.all(base.map(async (post) => {
+              try {
+                const likeRef = doc(db, 'post_likes', `${post.id}_${currentUser.uid}`);
+                const likeDoc = await getDoc(likeRef);
+                return { ...post, likedByMe: likeDoc.exists() };
+              } catch {
+                return { ...post, likedByMe: false };
+              }
+            }))
+          : base.map((post) => ({ ...post, likedByMe: false }));
+
         // Emit filters (brands/tags)
         try {
           const brandSet = new Set();
@@ -96,7 +109,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         } catch {}
 
         // Numeric counts; fallback to 0 if queries fail
-        const enriched = await Promise.all(base.map(async (post) => {
+        const enriched = await Promise.all(withLikeStatus.map(async (post) => {
           try {
             const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
             const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
@@ -171,13 +184,19 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
 
   const handleLike = async (post) => {
     try {
+      // Guard first
+      if (!db || !currentUser?.uid) {
+        console.warn('Cannot like: missing user or database');
+        return;
+      }
       // Optimistic UI toggle
       setPosts(prev => prev.map(p => (
         p.id === post.id
           ? { ...p, likeCount: (Number.isFinite(p.likeCount) ? p.likeCount : 0) + (p.likedByMe ? -1 : 1), likedByMe: !p.likedByMe }
           : p
       )));
-      if (!db || !currentUser?.uid) return;
+
+      // Persist like/unlike
       const likeRef = doc(db, 'post_likes', `${post.id}_${currentUser.uid}`);
       const existing = await getDoc(likeRef);
       if (existing.exists()) {
@@ -185,12 +204,16 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
       } else {
         await setDoc(likeRef, { postId: post.id, userId: currentUser.uid, createdAt: serverTimestamp() });
       }
+
       // Refresh like count after write
       const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
       const likesSnap = await getCountFromServer(likesQ);
       const likeCount = likesSnap.data().count || 0;
       setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, likeCount } : p)));
-    } catch {}
+    } catch (err) {
+      console.error('Failed to toggle like:', err);
+      // Optional: setError('Failed to save like. Please try again.');
+    }
   };
 
   const handleComment = (post) => {
