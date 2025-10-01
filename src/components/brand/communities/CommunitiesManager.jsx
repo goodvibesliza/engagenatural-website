@@ -749,7 +749,7 @@ export default function CommunitiesManager({ brandId }) {
                 <CardDescription>Live updates</CardDescription>
               </div>
               <div className="space-x-2">
-                <Button variant="outline" size="sm" onClick={() => window.open(`/community/${selectedCommunity.id}`, '_blank')}>Open</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(`/brand/community/${selectedCommunity.id}`)}>Open</Button>
                 <Button size="sm" onClick={() => openPostDialog(selectedCommunity)}>Post</Button>
               </div>
             </div>

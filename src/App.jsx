@@ -61,6 +61,7 @@ import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community (phone-first IA)
 import Community from './pages/Community';
+import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 import CommunityPostRedirect from './components/CommunityPostRedirect';
 import PostCompose from './pages/PostCompose.jsx';
@@ -262,16 +263,16 @@ function App() {
               </RoleGuard>
             } 
           />
+          {/* Brand Community View (staff-style UI for brand managers) */}
           <Route 
-            path="/admin/activity" 
+            path="/brand/community/:communityId"
             element={
-              <RoleGuard allowedRoles={['super_admin']}>
-                <AdminLayout>
-                  <ActivityPage />
-                </AdminLayout>
+              <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
+                <EnhancedCommunityPage />
               </RoleGuard>
-            } 
+            }
           />
+          
           <Route 
             path="/admin/settings" 
             element={
