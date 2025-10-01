@@ -30,8 +30,12 @@ function formatRelativeTime(input) {
 }
 
 export default function PostCard({ post, onLike, onComment, onViewTraining, onCardClick, dataTestId }) {
-  const likes = Array.isArray(post?.likeIds) ? post.likeIds.length : 0;
-  const comments = Array.isArray(post?.commentIds) ? post.commentIds.length : 0;
+  const likes = Number.isFinite(post?.likeCount)
+    ? post.likeCount
+    : (Array.isArray(post?.likeIds) ? post.likeIds.length : 0);
+  const comments = Number.isFinite(post?.commentCount)
+    ? post.commentCount
+    : (Array.isArray(post?.commentIds) ? post.commentIds.length : 0);
   const liked = post?.likedByMe === true;
   const brand = post?.brand || 'General';
   const title = post?.title || post?.author?.name || (brand ? `${brand} update` : 'Update');
