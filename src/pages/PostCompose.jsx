@@ -160,6 +160,20 @@ export default function PostCompose() {
         navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
         return;
       }
+      if (needsReview) {
+        setError('This post needs review and was not published. Please revise and try again.');
+        const cid = selectedCommunityId || 'whats-good';
+        const cname = (communities.find(c => c.id === cid)?.name) || "What's Good";
+        const draft = {
+          id: `draft-${Date.now()}`,
+          title: title.trim(),
+          body: moderatedBody,
+          communityId: cid,
+          communityName: cname,
+        };
+        navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
+        return;
+      }
 
       // If database is unavailable (e.g., deploy preview without env), fall back to draft preview
       if (!db || !user?.uid) {
@@ -176,7 +190,8 @@ export default function PostCompose() {
         return;
       }
       // Create a public post in the selected community (fallback to 'whats-good' when none is selected)
-      const cid = selectedCommunityId || 'whats-good';
+      // Normalize community id: prefer kebab-case (e.g., 'whats-good')
+      const cid = (selectedCommunityId || 'whats-good').replaceAll('_', '-');
       const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
       // Load user profile for brand metadata
       let brandId; let brandName;
@@ -220,7 +235,7 @@ export default function PostCompose() {
           // leave moderatedBody as raw fallback
         }
       }
-      const cid = selectedCommunityId || 'whats-good';
+      const cid = (selectedCommunityId || 'whats-good').replaceAll('_', '-');
       const cname = (communities.find((c) => c.id === cid)?.name) || "What's Good";
       const draft = {
         id: `draft-${Date.now()}`,

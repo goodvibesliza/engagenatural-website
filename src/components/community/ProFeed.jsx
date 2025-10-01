@@ -92,8 +92,11 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
             authorName: data?.authorName || '',
             authorPhotoURL: data?.authorPhotoURL || '',
             createdAt: data?.createdAt,
+            isBlocked: data?.isBlocked === true,
+            needsReview: data?.needsReview === true,
           };
         });
+        const visible = base.filter(p => !p.isBlocked && !p.needsReview);
 
         // Attach per-post likedByMe for current user
         const withLikeStatus = currentUser?.uid
@@ -112,12 +115,13 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         try {
           const brandSet = new Set();
           const tagCounts = new Map();
-          for (const p of base) {
+          const bannedTagRe = /^(sex|nsfw|xxx)$/i;
+          for (const p of visible) {
             if (p.brand) brandSet.add(p.brand);
             if (Array.isArray(p.tags)) {
               for (const t of p.tags) {
                 const key = String(t || '').trim();
-                if (!key) continue;
+                if (!key || bannedTagRe.test(key)) continue;
                 tagCounts.set(key, (tagCounts.get(key) || 0) + 1);
               }
             }
@@ -128,7 +132,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         } catch {}
 
         // Numeric counts; fallback to 0 if queries fail
-        const enriched = await Promise.all(withLikeStatus.map(async (post) => {
+        const enriched = await Promise.all(withLikeStatus.filter(p => !p.isBlocked && !p.needsReview).map(async (post) => {
           try {
             const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
             const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
