@@ -57,6 +57,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 // Icons
 import { Plus, Edit, Trash2, Users, Tag, RefreshCw, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
+/**
+ * Render an admin interface for managing a brand's communities, topics, posts, and a live viewer feed.
+ *
+ * The component derives the active brand context from the optional `brandId` prop or the authenticated user's brand,
+ * and provides listing, creation, editing, deletion, posting, and real-time post/comment subscriptions with metrics.
+ *
+ * @param {{ brandId?: string }} props
+ * @param {string} [props.brandId] - Optional brand identifier to scope communities; when omitted the current user's brand is used.
+ * @returns {JSX.Element} The CommunitiesManager React component UI.
+ */
 export default function CommunitiesManager({ brandId }) {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
