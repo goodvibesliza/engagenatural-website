@@ -10,6 +10,7 @@ import ShareModal from './components/ShareModal.jsx';
 import CommunitySearch from './components/CommunitySearch.jsx';
 import PostForm from './components/PostForm.jsx';
 import ProfileModal from './components/ProfileModal.jsx';
+import { postCategories } from './utils/CommunityUtils.js';
 
 // Placeholder data
 const mockCommunities = {
@@ -67,6 +68,20 @@ const EnhancedCommunityPage = () => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [viewedUser, setViewedUser] = useState(null);
+  // Local state to support CommunitySearch props when used in brand view
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeSort, setActiveSort] = useState('newest');
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    dateRange: 'all',
+    hasMedia: false,
+    verifiedOnly: false,
+    expertContent: false,
+    minLikes: 0,
+    minComments: 0,
+  });
+  const getCategoryInfo = (id) =>
+    postCategories.find((c) => c.id === id) || { id, name: 'All', icon: '' };
   
   // Load community data based on ID
   useEffect(() => {
@@ -145,7 +160,19 @@ const EnhancedCommunityPage = () => {
       
       <div className="container mx-auto p-4">
         {/* Search bar and new post form */}
-        <CommunitySearch onSearch={handleSearch} />
+        <CommunitySearch
+          onSearch={handleSearch}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          activeSort={activeSort}
+          setActiveSort={setActiveSort}
+          showAdvancedSearch={showAdvancedSearch}
+          setShowAdvancedSearch={setShowAdvancedSearch}
+          advancedFilters={advancedFilters}
+          setAdvancedFilters={setAdvancedFilters}
+          categories={postCategories.map((c) => c.id)}
+          getCategoryInfo={getCategoryInfo}
+        />
         <PostForm onSubmit={handleCreatePost} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Main content */}

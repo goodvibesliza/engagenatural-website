@@ -334,6 +334,7 @@ export default function CommunitiesManager({ brandId }) {
         collection(db, 'community_posts'),
         where('brandId', '==', activeBrandId),
         where('communityId', '==', community.id),
+        where('visibility', '==', 'public'),
         orderBy('createdAt', 'desc'),
         limit(50)
       );
@@ -378,7 +379,8 @@ export default function CommunitiesManager({ brandId }) {
       const fallback = query(
         collection(db, 'community_posts'),
         where('brandId', '==', activeBrandId),
-        where('communityId', '==', community.id)
+        where('communityId', '==', community.id),
+        where('visibility', '==', 'public')
       );
       
       postsUnsubRef.current = onSnapshot(
