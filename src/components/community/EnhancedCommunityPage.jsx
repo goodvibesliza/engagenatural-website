@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 // Import simplified components
 import CommunityHeader from './components/CommunityHeader.jsx';
 import CommunityGuidelines from './components/CommunityGuidelines.jsx';
-import PostList from './components/PoslList.jsx';
+import PostList from './components/PostList.jsx';
 import VerificationPrompt from './components/VerificationPrompt.jsx';
 import ShareModal from './components/ShareModal.jsx';
 import CommunitySearch from './components/CommunitySearch.jsx';
