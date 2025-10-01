@@ -130,7 +130,7 @@
   /* FIXED Typography - Headlines thicker, subheadings Inter */
 .font-heading {
     font-family: 'Libre Baskerville', Georgia, serif;
-    font-weight: 800 !important;
+    font-weight: 700 !important; /* lightened from 800 */
     letter-spacing: -0.01em !important;
     line-height: 1.2 !important;
 }
@@ -140,7 +140,7 @@
   /* Main headlines - Extra thick and readable */
 h1, .text-4xl, .text-3xl {
     font-family: 'Libre Baskerville', Georgia, serif;
-    font-weight: 800 !important;
+    font-weight: 700 !important; /* lightened from 800 */
     letter-spacing: -0.01em !important;
     line-height: 1.15 !important;
 }
@@ -148,7 +148,7 @@ h1, .text-4xl, .text-3xl {
   /* Section headings - Still Playfair but slightly less thick */
 h2, .text-2xl, .text-xl {
     font-family: 'Libre Baskerville', Georgia, serif;
-    font-weight: 700 !important;
+    font-weight: 600 !important; /* lightened from 700 */
     letter-spacing: -0.01em !important;
     line-height: 1.2 !important;
 }
@@ -156,7 +156,7 @@ h2, .text-2xl, .text-xl {
   /* FIXED: Subsection titles - Back to Inter font */
 h3, h4, h5, h6, .text-lg {
     font-family: 'Libre Baskerville', Georgia, serif !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important; /* lightened from 600 */
     letter-spacing: -0.005em !important;
     line-height: 1.25 !important;
 }
@@ -187,7 +187,7 @@ h3, h4, h5, h6, .text-lg {
   .rich-text-preview h1 {
     font-family: 'Libre Baskerville', Georgia, serif;
     font-size: 1.75rem;
-    font-weight: 800 !important;
+    font-weight: 700 !important; /* lightened from 800 */
     margin-top: 1rem;
     margin-bottom: 0.5rem;
     color: #000000 !important;
@@ -197,7 +197,7 @@ h3, h4, h5, h6, .text-lg {
   .rich-text-preview h2 {
     font-family: 'Libre Baskerville', Georgia, serif;
     font-size: 1.5rem;
-    font-weight: 700 !important;
+    font-weight: 600 !important; /* lightened from 700 */
     margin-top: 1rem;
     margin-bottom: 0.5rem;
     color: #000000 !important;
@@ -207,7 +207,7 @@ h3, h4, h5, h6, .text-lg {
   .rich-text-preview h3 {
     font-family: 'Libre Baskerville', Georgia, serif;
     font-size: 1.25rem;
-    font-weight: 600 !important;
+    font-weight: 500 !important; /* lightened from 600 */
     margin-top: 1rem;
     margin-bottom: 0.5rem;
     color: #000000 !important;
