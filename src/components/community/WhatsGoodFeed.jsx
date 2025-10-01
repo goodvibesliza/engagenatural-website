@@ -115,8 +115,16 @@ export default function WhatsGoodFeed({
     } catch (err) {
       console.warn('WhatsGoodFeed subscription failed:', err);
       setError('Failed to load live posts. Showing cached content.');
-      // Fallback to stubs
-      const fallback = WHATS_GOOD_STUBS.map((p) => ({ ...p, commentIds: [], likeIds: [] }));
+      // Fallback to stubs (keep same shape as live posts)
+      const fallback = WHATS_GOOD_STUBS.map((p) => ({
+        ...p,
+        title: p.title || 'Untitled',
+        snippet: (p.content || '').slice(0, 200),
+        content: p.content || '',
+        authorName: p.author?.name || '',
+        commentCount: 0,
+        likeCount: 0,
+      }));
       setPostsWithCounts(fallback);
       setLoading(false);
     }
@@ -149,15 +157,9 @@ export default function WhatsGoodFeed({
       
       console.log(`Found ${commentCount} comments for post ${postId}`);
       
-      setPostsWithCounts(prev => {
-        const updated = prev.map(post => 
-          post.id === postId 
-            ? { ...post, commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`) }
-            : post
-        );
-        console.log('Updated postsWithCounts:', updated.find(p => p.id === postId));
-        return updated;
-      });
+      setPostsWithCounts(prev => prev.map(post => (
+        post.id === postId ? { ...post, commentCount } : post
+      )));
     } catch (err) {
       console.error('Failed to refresh comment count for post', postId, ':', err);
     }
@@ -241,19 +243,15 @@ export default function WhatsGoodFeed({
 
     try {
       // Optimistically update the UI first
-      setPostsWithCounts(prev => 
-        prev.map(p => 
-          p.id === post.id 
-            ? { 
-                ...p, 
-                likeIds: p.likedByMe 
-                  ? (p.likeIds || []).filter(id => id !== 'me') // unlike
-                  : [...(p.likeIds || []), 'me'], // like
-                likedByMe: !p.likedByMe 
-              }
-            : p
-        )
-      );
+      setPostsWithCounts(prev => prev.map(p => (
+        p.id === post.id
+          ? {
+              ...p,
+              likeCount: (Number.isFinite(p.likeCount) ? p.likeCount : 0) + (p.likedByMe ? -1 : 1),
+              likedByMe: !p.likedByMe,
+            }
+          : p
+      )));
 
       // Update Firestore
       if (db) {
@@ -311,13 +309,9 @@ export default function WhatsGoodFeed({
       const likesSnap = await getCountFromServer(likesQuery);
       const likeCount = likesSnap.data().count || 0;
       
-      setPostsWithCounts(prev => 
-        prev.map(post => 
-          post.id === postId 
-            ? { ...post, likeIds: Array.from({ length: likeCount }, (_, i) => `like-${i}`) }
-            : post
-        )
-      );
+      setPostsWithCounts(prev => prev.map(post => (
+        post.id === postId ? { ...post, likeCount } : post
+      )));
     } catch (err) {
       console.error('Failed to refresh like count:', err);
     }
