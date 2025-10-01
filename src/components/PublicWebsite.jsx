@@ -101,7 +101,7 @@ export default function PublicWebsite() {
               COMMUNITY & TRAINING FOR NATURAL PRODUCTS
             </span>
             <h1
-              className="font-heading text-[2.5rem] md:text-[2.9rem] font-light md:font-normal leading-[1.15] tracking-tight text-primary mb-6 max-w-[24ch] mx-auto"
+              className="text-neutral-900 text-[2.75rem] md:text-[3.25rem] font-medium leading-[3.25rem] md:leading-[3.75rem] font-serif tracking-[-0.104rem] mb-6 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
               <span className="block">More than training.</span>
@@ -131,7 +131,7 @@ export default function PublicWebsite() {
 
             <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
               <div className="text-left">
-                <h2 className="text-3xl font-bold text-brand-primary mb-6 font-heading">
+                <h2 className="text-neutral-900 text-3xl font-medium font-serif leading-[1.15] tracking-[-0.02rem] mb-6">
                   The Only Platform Built Exclusively For Natural Products Retail Staff
                 </h2>
                 <div className="space-y-4 mb-8">
