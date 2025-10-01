@@ -94,9 +94,12 @@ export default function PublicWebsite() {
       <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="font-body pt-3 md:pt-4 text-[0.8rem] md:text-[0.9rem] tracking-[0.14em] uppercase text-black mb-6" aria-label="Section descriptor">
+            <span
+              className="text-neutral-600 text-xs font-medium leading-[normal] tracking-[0.15rem] block mb-6"
+              aria-label="Section descriptor"
+            >
               COMMUNITY & TRAINING FOR NATURAL PRODUCTS
-            </p>
+            </span>
             <h1
               className="font-heading text-[2.5rem] md:text-[2.9rem] font-light md:font-normal leading-[1.15] tracking-tight text-primary mb-6 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
