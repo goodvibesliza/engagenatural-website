@@ -76,11 +76,14 @@ export default function WhatsGoodFeed({
             brand: data?.communityName || 'What\'s Good',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
+            content: data?.body || '',
+            tags: Array.isArray(data?.tags) ? data.tags : [],
+            authorName: data?.authorName || '',
             createdAt: data?.createdAt,
           };
         });
 
-        // Load counts per post
+        // Load counts per post (numeric fields) — fallback to 0 if query fails
         const enriched = await Promise.all(
           base.map(async (post) => {
             try {
@@ -98,14 +101,10 @@ export default function WhatsGoodFeed({
               ]);
               const commentCount = commentsSnap.data().count || 0;
               const likeCount = likesSnap.data().count || 0;
-              return {
-                ...post,
-                commentIds: Array.from({ length: commentCount }, (_, i) => `comment-${i}`),
-                likeIds: Array.from({ length: likeCount }, (_, i) => `like-${i}`),
-              };
+              return { ...post, commentCount, likeCount };
             } catch (err) {
               console.warn('Failed loading counts for', post.id, err);
-              return { ...post, commentIds: [], likeIds: [] };
+              return { ...post, commentCount: 0, likeCount: 0 };
             }
           })
         );
@@ -125,7 +124,7 @@ export default function WhatsGoodFeed({
       cancelled = true;
       try { unsub(); } catch {}
     };
-  }, []);
+  }, [db]);
 
   // Fallback loading timer for network issues
   useEffect(() => {
@@ -174,8 +173,13 @@ export default function WhatsGoodFeed({
 
   const q = (query || search).trim().toLowerCase();
   const filtered = postsWithCounts.filter((p) => {
-    // Text query against content and author name (and optional title if exists)
-    const okText = !q || (p.content?.toLowerCase().includes(q) || p.author?.name?.toLowerCase().includes(q));
+    // Text query against title, content/body snippet, authorName, and brand
+    const okText = !q || (
+      (p.title || '').toLowerCase().includes(q) ||
+      (p.content || p.snippet || '').toLowerCase().includes(q) ||
+      (p.authorName || '').toLowerCase().includes(q) ||
+      (p.brand || '').toLowerCase().includes(q)
+    );
 
     // Brands: OR within brands. Back-compat: single brand select or multi-select chips
     const brandList = selectedBrands.length > 0 ? selectedBrands : (brand && brand !== 'All' ? [brand] : []);
