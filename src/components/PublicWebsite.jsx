@@ -97,7 +97,6 @@ export default function PublicWebsite() {
           <div className="text-center">
             <span
               className="text-neutral-600 text-xs font-medium leading-[normal] tracking-[0.15rem] block mb-6"
-              aria-label="Section descriptor"
             >
               COMMUNITY & TRAINING FOR NATURAL PRODUCTS
             </span>
