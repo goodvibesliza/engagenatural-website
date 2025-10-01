@@ -39,6 +39,23 @@ export const WHATS_GOOD_STUBS = [
   },
 ];
 
+/**
+ * Render the "What's Good" community feed with live posts, counts, filtering, and interaction handlers.
+ *
+ * Renders a list of public "What's Good" posts sourced from Firestore, enriches each post with comment and like counts,
+ * applies text/brand/tag filters, provides optimistic like toggling, and exposes handlers for commenting and navigation.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} [props.query] - Primary text search input (trimmed and lowercased); kept for backward compatibility with `search`.
+ * @param {string} [props.search] - Backward-compatible alias for `query`.
+ * @param {string} [props.brand] - Backward-compatible single-brand filter; ignored when `selectedBrands` is non-empty or equals "All".
+ * @param {string[]} [props.selectedBrands] - Array of selected brand names to filter posts; if empty, `brand` may be used.
+ * @param {string[]} [props.selectedTags] - Array of selected tag strings to filter posts; post is included if it has any of these tags.
+ * @param {Function} [props.onStartPost] - Callback invoked when a staff user requests to start a new post (e.g., clicking "Start a post").
+ * @param {Function} [props.onFiltersChange] - Optional callback called when available filter options are derived; receives an object `{ brands: string[], tags: string[] }`.
+ *
+ * @returns {JSX.Element} The feed UI for the "What's Good" community panel.
+ */
 export default function WhatsGoodFeed({
   query = '',
   search = '', // backward compat

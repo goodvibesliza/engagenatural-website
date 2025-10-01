@@ -32,6 +32,11 @@ export const PRO_STUBS = [
   },
 ];
 
+/**
+ * Read the developer override flag for "verified staff" from localStorage.
+ *
+ * @returns {boolean|null} `true` if localStorage key `DEV_isVerifiedStaff` is the string `'true'`, `false` if it's the string `'false'`, or `null` if the key is missing, has any other value, running outside a browser, or an error occurs.
+ */
 function readDevOverride() {
   if (typeof window === 'undefined') return null;
   try {
@@ -44,6 +49,19 @@ function readDevOverride() {
   }
 }
 
+/**
+ * Render the Pro Feed panel: subscribes to live public pro-feed posts, enriches them with like/comment counts and per-user like status, emits available brand/tag filters, and displays posts with loading and empty states.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} [props.query] - Text query to filter posts (overridden by `search` when provided).
+ * @param {string} [props.search] - Alternate text search input to filter posts.
+ * @param {string} [props.brand] - Active brand filter; 'All' disables brand filtering.
+ * @param {string[]} [props.selectedBrands] - Explicit list of brands to filter by.
+ * @param {string[]} [props.selectedTags] - Explicit list of tags to filter by.
+ * @param {(filters: {brands: string[], tags: string[]}) => void} [props.onFiltersChange] - Callback invoked with available brands and tags derived from loaded posts.
+ * @param {Object} [props.currentUser] - Current authenticated user object; when present, used to determine per-post `likedByMe` and to persist likes.
+ * @returns {JSX.Element} A panel containing the Pro Feed posts, or loading/empty UI when appropriate.
+ */
 function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands = [], selectedTags = [], onFiltersChange, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -259,6 +277,22 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   );
 }
 
+/**
+ * Render the professional feed UI, choosing between the staff-only ProFeedContent and the public ProGate.
+ *
+ * Uses authentication state and an optional developer localStorage override to determine staff access. When mounted (or when props change),
+ * it emits available filter options derived from PRO_STUBS via `onFiltersChange`.
+ *
+ * @param {object} props - Component props.
+ * @param {string} [props.query] - Primary text filter for the feed.
+ * @param {string} [props.search] - Backward-compatible alias for `query`.
+ * @param {string} [props.brand] - Backward-compatible active brand filter; defaults to 'All'.
+ * @param {string[]} [props.selectedBrands] - Selected brand filters.
+ * @param {string[]} [props.selectedTags] - Selected tag filters.
+ * @param {() => void} [props.onRequestVerify] - Callback invoked when a non-staff user requests verification.
+ * @param {(filters: {brands: string[], tags: string[]}) => void} [props.onFiltersChange] - Receives available filter options (brands and tags) derived from stub data on mount/prop change.
+ * @returns {JSX.Element} The rendered feed UI: ProFeedContent for verified staff, otherwise ProGate.
+ */
 export default function ProFeed({
   query = '',
   search = '', // backward compat

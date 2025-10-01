@@ -11,6 +11,16 @@ import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied } from '../lib/analytics';
 import './community.css';
 
+/**
+ * Render the Community page with two feed tabs ("Whats Good" and "Pro"), filters, navigation, and lazy-loaded Pro content.
+ *
+ * Renders a header with the tab selector and mobile controls, a desktop sticky sidebar containing a New Post button and FilterBar,
+ * and either the WhatsGoodFeed or a lazily loaded ProFeed based on the active tab. Synchronizes available filter options from child feeds,
+ * initializes Pro filters from PRO_STUBS when the Pro tab is active, supports deep links to a specific post via location.state.focusPostId,
+ * and records feed view analytics when the active tab changes.
+ *
+ * @returns {JSX.Element} The Community page component.
+ */
 export default function Community() {
   const location = useLocation();
   const navigate = useNavigate();

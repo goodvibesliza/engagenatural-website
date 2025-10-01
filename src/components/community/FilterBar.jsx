@@ -2,6 +2,20 @@
 import { useEffect, useMemo, useRef } from 'react';
 import COPY from '../../i18n/community.copy';
 
+/**
+ * Render a sticky filter bar with a search input, selectable brand chips, and selectable tag chips.
+ *
+ * Renders a search input (value controlled by `query`) and chip lists for `availableBrands` and `availableTags` (deduplicated and filtered). User input and chip toggles invoke `onChange` with the updated `{ query, selectedBrands, selectedTags }` state.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} props.query - Current search string shown in the input.
+ * @param {string[]} [props.selectedBrands=[]] - Currently selected brand values.
+ * @param {string[]} [props.selectedTags=[]] - Currently selected tag values.
+ * @param {string[]} [props.availableBrands=[]] - List of available brands to display as chips (falsy values removed, duplicates deduplicated).
+ * @param {string[]} [props.availableTags=[]] - List of available tags to display as chips (falsy values removed, duplicates deduplicated).
+ * @param {(state: {query: string, selectedBrands: string[], selectedTags: string[]}) => void} props.onChange - Callback invoked when the query or selection changes.
+ * @returns {JSX.Element} The FilterBar element.
+ */
 export default function FilterBar({
   query,
   selectedBrands = [],
