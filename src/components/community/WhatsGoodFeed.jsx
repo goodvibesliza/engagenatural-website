@@ -121,7 +121,9 @@ export default function WhatsGoodFeed({
             .sort((a, b) => b[1] - a[1])
             .map(([k]) => k);
           onFiltersChange?.({ brands, tags });
-        } catch {}
+        } catch (err) {
+          console.error('WhatsGoodFeed: failed to emit filters from live posts', { baseCount: Array.isArray(base) ? base.length : 0 }, err);
+        }
 
         // Load counts per post (numeric fields) — fallback to 0 if query fails
         const enriched = await Promise.all(
@@ -170,7 +172,9 @@ export default function WhatsGoodFeed({
         const brands = Array.from(new Set(fallback.map((p) => p.brand).filter(Boolean)));
         const tags = Array.from(new Set(fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
         onFiltersChange?.({ brands, tags });
-      } catch {}
+      } catch (e) {
+        console.error('WhatsGoodFeed: failed to compute fallback filters', { fallbackCount: Array.isArray(fallback) ? fallback.length : 0 }, e);
+      }
       setLoading(false);
     }
     return () => {
