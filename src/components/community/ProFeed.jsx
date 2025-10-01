@@ -147,7 +147,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
       setLoading(false);
     }
     return () => { try { unsub(); } catch {} };
-  }, []);
+  }, [currentUser?.uid, db]);
 
   const q = (query || search).trim().toLowerCase();
   const filtered = posts.filter((p) => {
