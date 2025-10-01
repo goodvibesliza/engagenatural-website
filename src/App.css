@@ -140,17 +140,25 @@
   /* Main headlines - Extra thick and readable */
 h1, .text-4xl, .text-3xl {
     font-family: 'Libre Baskerville', Georgia, serif;
-    font-weight: 700 !important; /* lightened from 800 */
-    letter-spacing: -0.01em !important;
-    line-height: 1.15 !important;
+    font-weight: 500 !important; /* match hero: font-medium */
+    /* Hero scale: 2.75rem / 3.25rem with matching leading */
+    font-size: 2.75rem;
+    line-height: 3.25rem !important;
+    letter-spacing: -0.104rem !important;
+}
+@media (min-width: 768px) {
+  h1, .text-4xl, .text-3xl {
+    font-size: 3.25rem;
+    line-height: 3.75rem !important;
+  }
 }
   
   /* Section headings - Still Playfair but slightly less thick */
 h2, .text-2xl, .text-xl {
     font-family: 'Libre Baskerville', Georgia, serif;
-    font-weight: 600 !important; /* lightened from 700 */
-    letter-spacing: -0.01em !important;
-    line-height: 1.2 !important;
+    font-weight: 500 !important; /* align with lighter headings */
+    letter-spacing: -1.28px !important; /* match provided h2 tracking */
+    line-height: normal !important;
 }
   
   /* FIXED: Subsection titles - Back to Inter font */
