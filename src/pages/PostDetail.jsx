@@ -106,6 +106,7 @@ export default function PostDetail() {
               createdAt: data.createdAt || null,
               authorName: data.authorName || '',
               authorPhotoURL: data.authorPhotoURL || '',
+              userId: data.userId || null,
               trainingId: data.trainingId || null,
               likeIds: [],
               commentIds: [],
@@ -281,6 +282,48 @@ export default function PostDetail() {
         }
       });
       setLikeError(COPY.errors.generic);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    try {
+      if (!post || !user?.uid || post.userId !== user.uid) return;
+      if (!window.confirm('Delete this post and its likes/comments? This cannot be undone.')) return;
+      const { writeBatch, collection: coll, query: q2, where: w2, getDocs: gd2, doc: d2, deleteDoc: del2 } = await import('firebase/firestore');
+      const batch = writeBatch(db);
+      // delete likes
+      const likesQ = q2(coll(db, 'post_likes'), w2('postId', '==', post.id));
+      const likesSnap = await gd2(likesQ);
+      likesSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+      // delete comments
+      const cmtsQ = q2(coll(db, 'community_comments'), w2('postId', '==', post.id));
+      const cmtsSnap = await gd2(cmtsQ);
+      cmtsSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+      // delete post
+      batch.delete(d2(db, 'community_posts', post.id));
+      await batch.commit();
+      navigate('/staff/community');
+    } catch (e) {
+      console.error('Failed to delete post', e);
+      try { window.alert('Failed to delete post. Please try again.'); } catch {}
+    }
+  };
+
+  const handleDeleteComment = async (cmt) => {
+    try {
+      if (!cmt?.id || !user?.uid || cmt.userId !== user.uid) return;
+      if (!window.confirm('Delete this comment?')) return;
+      const { doc: d2, deleteDoc: del2 } = await import('firebase/firestore');
+      await del2(d2(db, 'community_comments', cmt.id));
+      setComments((prev) => prev.filter((c) => c.id !== cmt.id));
+      setTimeout(() => {
+        if (typeof window.refreshWhatsGoodComments === 'function') {
+          window.refreshWhatsGoodComments(post.id);
+        }
+      }, 500);
+    } catch (e) {
+      console.error('Failed to delete comment', e);
+      try { window.alert('Failed to delete comment. Please try again.'); } catch {}
     }
   };
 
@@ -482,6 +525,15 @@ export default function PostDetail() {
               <span>{COPY.buttons.comment}</span>
               <span className="ml-2 text-gray-500">{comments.length}</span>
             </a>
+            {!!user?.uid && post.userId === user.uid && !location.state?.draft && (
+              <button
+                type="button"
+                onClick={handleDeletePost}
+                className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-rose-500 text-sm text-rose-600 hover:bg-rose-50"
+              >
+                Delete
+              </button>
+            )}
           </footer>
         </article>
 
@@ -523,6 +575,17 @@ export default function PostDetail() {
                 className="mt-2 inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                       >
                         Retry
+                      </button>
+                    </div>
+                  )}
+                  {!!user?.uid && c.userId === user.uid && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteComment(c)}
+                        className="inline-flex items-center justify-center px-2 h-8 rounded-md border border-rose-500 text-xs text-rose-600 hover:bg-rose-50"
+                      >
+                        Delete comment
                       </button>
                     </div>
                   )}
