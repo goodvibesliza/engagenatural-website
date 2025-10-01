@@ -6,6 +6,7 @@ import { PRO_STUBS } from '../components/community/ProFeed';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../contexts/auth-context';
 import SkeletonDetail from '../components/community/SkeletonDetail';
+import { filterPostContent } from '../ContentModeration';
 import ErrorBanner from '../components/community/ErrorBanner';
 import { postOpen, postLike as analyticsPostLike, postComment as analyticsPostComment, postOpenTraining } from '../lib/analytics';
 import COPY from '../i18n/community.copy';
@@ -330,6 +331,14 @@ export default function PostDetail() {
   const handleAddComment = async () => {
     const text = newComment.trim();
     if (!text) return;
+    // Moderate comment content before any optimistic UI
+    try {
+      const moderation = await filterPostContent({ content: text });
+      if (moderation?.isBlocked || moderation?.needsReview) {
+        try { window.alert('Your comment needs revision before it can be posted.'); } catch {}
+        return;
+      }
+    } catch {}
     analyticsPostComment({ postId: post.id, length: text.length });
     // Optimistic add; replace on success, mark error on failure
     const now = new Date();

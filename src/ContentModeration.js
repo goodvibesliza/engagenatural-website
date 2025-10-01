@@ -4,12 +4,13 @@
 const inappropriateWords = [
   // Profanity
   'damn', 'hell', 'crap', 'stupid', 'idiot', 'moron', 'dumb',
+  'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'dick', 'cunt',
   // Spam indicators
   'buy now', 'click here', 'free money', 'get rich quick', 'limited time',
   // Inappropriate health claims
   'cure cancer', 'miracle cure', 'guaranteed results', 'lose 50 pounds',
   // Offensive content
-  'hate', 'racist', 'sexist', 'discrimination',
+  'hate', 'racist', 'sexist', 'discrimination', 'porn', 'nsfw', 'xxx',
   // Competitor mentions (customize for your industry)
   'cvs pharmacy', 'walgreens', 'rite aid'
 ]
@@ -126,9 +127,8 @@ export const moderateHealthContent = (content) => {
       details: `Contains health claims: ${foundClaims.join(', ')}`,
       severity: 'high'
     })
-    result.confidence -= 0.5
-    
-    if (result.confidence < 0.5) {
+    // For DSHEA compliance, require at least review — but never downgrade a block
+    if (result.suggestedAction !== 'block') {
       result.isAppropriate = false
       result.suggestedAction = 'review'
       result.moderatedContent = content + ' [Health claims under review]'

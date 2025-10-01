@@ -73,6 +73,7 @@ export default function PublicWebsite() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <LogoWordmark size="md" />
+              <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
             </div>
             <div className="hidden md:flex space-x-8 items-center">
               <button onClick={scrollToContact} className="text-gray-700 hover:text-brand-secondary transition-colors font-body">
@@ -94,11 +95,13 @@ export default function PublicWebsite() {
       <section className="relative pt-20 pb-16 bg-[#f5f3f3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="font-body pt-3 md:pt-4 text-[0.8rem] md:text-[0.9rem] tracking-[0.14em] uppercase text-black mb-6" aria-label="Section descriptor">
+            <span
+              className="text-neutral-600 text-xs font-medium leading-[normal] tracking-[0.15rem] block mb-6"
+            >
               COMMUNITY & TRAINING FOR NATURAL PRODUCTS
-            </p>
+            </span>
             <h1
-              className="font-heading text-[2.5rem] md:text-[2.9rem] font-light md:font-normal leading-[1.15] tracking-tight text-primary mb-6 max-w-[24ch] mx-auto"
+              className="text-neutral-900 text-[2.75rem] md:text-[3.25rem] font-medium leading-[3.25rem] md:leading-[3.75rem] font-serif tracking-[-0.104rem] mb-6 max-w-[24ch] mx-auto"
               style={{ textWrap: 'balance' }}
             >
               <span className="block">More than training.</span>
@@ -128,7 +131,7 @@ export default function PublicWebsite() {
 
             <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
               <div className="text-left">
-                <h2 className="text-3xl font-bold text-brand-primary mb-6 font-heading">
+                <h2 className="text-neutral-900 text-3xl font-medium font-serif leading-[1.15] tracking-[-0.02rem] mb-6">
                   The Only Platform Built Exclusively For Natural Products Retail Staff
                 </h2>
                 <div className="space-y-4 mb-8">
@@ -373,12 +376,14 @@ export default function PublicWebsite() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="mb-4">
+              <div className="mb-4 flex items-center">
                 <LogoWordmark size="md" />
+                <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
               </div>
               <p className="text-black font-body">
                 Empowering retail teams through gamified engagement and community building.
               </p>
+              <p className="text-black font-body mt-1">Beta v0.16.16</p>
             </div>
             <div>
               <h3 className="font-semibold mb-4 font-heading">For Retail Staff</h3>

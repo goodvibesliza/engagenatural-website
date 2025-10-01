@@ -99,19 +99,24 @@ export default function WhatsGoodFeed({
             authorName: data?.authorName || '',
             authorPhotoURL: data?.authorPhotoURL || '',
             createdAt: data?.createdAt,
+            isBlocked: data?.isBlocked === true,
+            needsReview: data?.needsReview === true,
           };
         });
+        // Hide moderated content
+        const visible = base.filter(p => !p.isBlocked && !p.needsReview);
 
         // Emit available brands/tags (trending = tags sorted by frequency)
         try {
           const brandSet = new Set();
           const tagCounts = new Map();
-          for (const p of base) {
+          const bannedTagRe = /^(sex|nsfw|xxx)$/i;
+          for (const p of visible) {
             if (p.brand) brandSet.add(p.brand);
             if (Array.isArray(p.tags)) {
               for (const t of p.tags) {
                 const key = String(t || '').trim();
-                if (!key) continue;
+                if (!key || bannedTagRe.test(key)) continue;
                 tagCounts.set(key, (tagCounts.get(key) || 0) + 1);
               }
             }
@@ -127,7 +132,7 @@ export default function WhatsGoodFeed({
 
         // Load counts per post (numeric fields) — fallback to 0 if query fails
         const enriched = await Promise.all(
-          base.map(async (post) => {
+          visible.map(async (post) => {
             try {
               const commentsQ = firestoreQuery(
                 collection(db, 'community_comments'),
