@@ -3,12 +3,7 @@ import { Button } from '../ui/Button';
 import { 
   Bold, 
   Italic, 
-  Link, 
-  Undo, 
-  Redo, 
-  Type,
-  List,
-  ListOrdered
+  Link
 } from 'lucide-react';
 import {
   Popover,
@@ -58,7 +53,7 @@ export default function EditorToolbar({
         newCursorPos = selectedText ? end + 2 : start + 1;
         break;
         
-      case 'link':
+      case 'link': {
         const linkMarkdown = `[${linkText || selectedText || 'link text'}](${linkUrl})`;
         newText = text.substring(0, start) + linkMarkdown + text.substring(end);
         newCursorPos = start + linkMarkdown.length;
@@ -66,6 +61,7 @@ export default function EditorToolbar({
         setLinkUrl('');
         setLinkText('');
         break;
+      }
         
       default:
         return;

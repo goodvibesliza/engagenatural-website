@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { brandPostCreate, brandPostPublish, brandPostUpdate, brandPostDelete, brandPostAttachTraining, brandTrainingPreview, brandTrainingFilterToggle } from '../../lib/analytics';
 import LiveAnnouncer, { useAnnouncements } from '../../components/ui/LiveAnnouncer';
+import { toast } from 'sonner';
 import AccessibleConfirmDialog from '../../components/ui/AccessibleConfirmDialog';
 import TrainingSelect from '../../components/brands/TrainingSelectFixed';
 import PostListItem from '../../components/brands/PostListItem';

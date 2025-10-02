@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { brandReportView } from '../../lib/analytics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/Button';
@@ -36,6 +36,7 @@ export default function CommunityReport({
 }) {
   const [dateRange, setDateRange] = useState(30); // 7 or 30 days
   const [loading, setLoading] = useState(false);
+  const loadingTimeoutRef = useRef();
 
   // Calculate metrics when data or date range changes
   const metrics = useMemo(() => {
@@ -48,10 +49,18 @@ export default function CommunityReport({
     if (posts.length === 0) return { sparkline: [], weeklyBars: [] };
 
     // Daily post opens for sparkline
+    // Map posts to have numeric openCount field for bucketByDay
+    const postsWithOpenCount = posts
+      .filter(p => p.analytics?.post_open)
+      .map(p => ({
+        ...p,
+        openCount: Number(p.analytics?.post_open || 0)
+      }));
+      
     const postOpensDaily = bucketByDay(
-      posts.filter(p => p.analytics?.post_open), 
+      postsWithOpenCount, 
       'publishedAt', 
-      'analytics.post_open', 
+      'openCount', 
       dateRange
     );
 
@@ -74,9 +83,23 @@ export default function CommunityReport({
     // Track report view with date range
     brandReportView({ range: `${days}d` });
     
+    // Clear any existing timeout
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+    }
+    
     // Add small delay for smooth transition
-    setTimeout(() => setLoading(false), 200);
+    loadingTimeoutRef.current = setTimeout(() => setLoading(false), 200);
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Simple bar chart component
   const BarChart = ({ data, label, color = 'bg-blue-500' }) => {
