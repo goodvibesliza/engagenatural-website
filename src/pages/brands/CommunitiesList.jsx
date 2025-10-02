@@ -469,38 +469,44 @@ export default function CommunitiesList() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>
+                    <TableHead scope="col">
                       <button
                         onClick={() => handleSort('name')}
-                        className="flex items-center space-x-1 font-medium hover:text-gray-900"
+                        className="flex items-center space-x-1 font-medium hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
+                        aria-label="Sort by community name"
+                        aria-pressed={sortBy === 'name'}
                       >
                         <span>Community Name</span>
-                        <ArrowUpDown className="w-3 h-3" />
+                        <ArrowUpDown className="w-3 h-3" aria-hidden="true" />
                       </button>
                     </TableHead>
-                    <TableHead>
+                    <TableHead scope="col">
                       <button
                         onClick={() => handleSort('status')}
-                        className="flex items-center space-x-1 font-medium hover:text-gray-900"
+                        className="flex items-center space-x-1 font-medium hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
+                        aria-label="Sort by status"
+                        aria-pressed={sortBy === 'status'}
                       >
                         <span>Status</span>
-                        <ArrowUpDown className="w-3 h-3" />
+                        <ArrowUpDown className="w-3 h-3" aria-hidden="true" />
                       </button>
                     </TableHead>
-                    <TableHead>Posts (7/30 days)</TableHead>
-                    <TableHead>Unique Staff (7/30 days)</TableHead>
-                    <TableHead>Likes (7/30 days)</TableHead>
-                    <TableHead>Comments (7/30 days)</TableHead>
-                    <TableHead>
+                    <TableHead scope="col">Posts (7/30 days)</TableHead>
+                    <TableHead scope="col">Unique Staff (7/30 days)</TableHead>
+                    <TableHead scope="col">Likes (7/30 days)</TableHead>
+                    <TableHead scope="col">Comments (7/30 days)</TableHead>
+                    <TableHead scope="col">
                       <button
                         onClick={() => handleSort('lastActivity')}
-                        className="flex items-center space-x-1 font-medium hover:text-gray-900"
+                        className="flex items-center space-x-1 font-medium hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
+                        aria-label="Sort by last activity"
+                        aria-pressed={sortBy === 'lastActivity'}
                       >
                         <span>Last Activity</span>
-                        <ArrowUpDown className="w-3 h-3" />
+                        <ArrowUpDown className="w-3 h-3" aria-hidden="true" />
                       </button>
                     </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead scope="col" className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

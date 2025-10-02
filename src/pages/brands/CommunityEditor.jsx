@@ -18,11 +18,8 @@ import {
   limit 
 } from 'firebase/firestore';
 import { brandPostCreate, brandPostPublish, brandPostUpdate, brandPostDelete } from '../../lib/analytics';
-// Simple toast replacement to avoid external dependency
-const toast = {
-  success: (message) => alert(`✅ ${message}`),
-  error: (message) => alert(`❌ ${message}`)
-};
+import LiveAnnouncer, { useAnnouncements } from '../../components/ui/LiveAnnouncer';
+import AccessibleConfirmDialog from '../../components/ui/AccessibleConfirmDialog';
 import EditorToolbar from '../../components/brands/EditorToolbar';
 
 // UI Components
@@ -83,6 +80,7 @@ export default function CommunityEditor() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const textareaRef = useRef();
+  const { announcement, announce, clear } = useAnnouncements();
 
   // Community and posts state
   const [community, setCommunity] = useState(null);
@@ -113,6 +111,10 @@ export default function CommunityEditor() {
     status: 'draft'
   });
   const [newTag, setNewTag] = useState('');
+  
+  // Autosave state
+  const [lastSaved, setLastSaved] = useState(null);
+  const autosaveTimeoutRef = useRef();
 
   // Desktop breakpoint check
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
@@ -132,14 +134,14 @@ export default function CommunityEditor() {
     
     // Check if user has brand_manager role
     if (!user.role || user.role !== 'brand_manager') {
-      toast.error('Access denied. Only brand managers can manage community content.');
+      announce('Access denied. Only brand managers can manage community content.');
       navigate('/brands/communities');
       return;
     }
     
     // Check if user has brandId
     if (!user.brandId) {
-      toast.error('No brand associated with your account. Please contact support.');
+      announce('No brand associated with your account. Please contact support.');
       navigate('/brands/communities');
       return;
     }
@@ -160,7 +162,7 @@ export default function CommunityEditor() {
         
         const snapshot = await getDocs(existingCommunityQuery);
         if (!snapshot.empty) {
-          toast.error('Each brand can have only one community. Redirecting to existing community.');
+          announce('Each brand can have only one community. Redirecting to existing community.');
           const existingCommunity = snapshot.docs[0];
           navigate(`/brands/communities/${existingCommunity.id}`);
           return;
@@ -187,12 +189,12 @@ export default function CommunityEditor() {
           const communityData = { id: docSnap.id, ...docSnap.data() };
           setCommunity(communityData);
         } else {
-          toast.error('Community not found');
+          announce('Community not found');
           navigate('/brands/communities');
         }
       } catch (error) {
         console.error('Error fetching community:', error);
-        toast.error('Failed to load community');
+        announce('Failed to load community');
       } finally {
         setLoading(false);
       }
@@ -324,6 +326,89 @@ export default function CommunityEditor() {
     });
   };
 
+  // Autosave to localStorage every 10 seconds when editing
+  useEffect(() => {
+    if (selectedPost && (formData.title.trim() || formData.body.trim())) {
+      // Clear previous timeout
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+
+      // Set new timeout for autosave
+      autosaveTimeoutRef.current = setTimeout(() => {
+        const autosaveData = {
+          ...formData,
+          postId: selectedPost.id,
+          communityId: community.id,
+          timestamp: Date.now()
+        };
+        
+        const key = `autosave_${selectedPost.id}_${user?.uid}`;
+        localStorage.setItem(key, JSON.stringify(autosaveData));
+        setLastSaved(new Date());
+        
+        // Announce autosave to screen readers
+        announce('Draft automatically saved');
+      }, 10000); // 10 seconds
+    }
+
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+    };
+  }, [formData, selectedPost, community, user, announce]);
+
+  // Restore autosaved data on post selection
+  useEffect(() => {
+    if (selectedPost && !isNewPost && user?.uid) {
+      const key = `autosave_${selectedPost.id}_${user.uid}`;
+      const autosavedData = localStorage.getItem(key);
+      
+      if (autosavedData) {
+        try {
+          const parsed = JSON.parse(autosavedData);
+          const autosaveAge = Date.now() - parsed.timestamp;
+          
+          // Only restore if autosave is newer than 24 hours and has content
+          if (autosaveAge < 24 * 60 * 60 * 1000 && 
+              (parsed.title !== selectedPost.title || parsed.body !== selectedPost.body)) {
+            
+            // Announce restore option to screen readers
+            const shouldRestore = confirm('Found an autosaved version of this post. Would you like to restore it?');
+            
+            if (shouldRestore) {
+              setFormData({
+                title: parsed.title || '',
+                body: parsed.body || '',
+                tags: parsed.tags || [],
+                attachedTrainingId: parsed.attachedTrainingId || '',
+                status: parsed.status || 'draft'
+              });
+              setLastSaved(new Date(parsed.timestamp));
+              announce('Autosaved content restored');
+            } else {
+              // Clear old autosave if user chooses not to restore
+              localStorage.removeItem(key);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing autosave data:', error);
+          localStorage.removeItem(key);
+        }
+      }
+    }
+  }, [selectedPost, isNewPost, user, announce]);
+
+  // Clear autosave when post is successfully saved
+  const clearAutosave = () => {
+    if (selectedPost && user?.uid) {
+      const key = `autosave_${selectedPost.id}_${user.uid}`;
+      localStorage.removeItem(key);
+      setLastSaved(null);
+    }
+  };
+
   // Handle form changes
   const handleFormChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -349,7 +434,7 @@ export default function CommunityEditor() {
   // Save post (optimistic with rollback on failure)
   const handleSave = async (publishNow = false) => {
     if (!formData.title.trim()) {
-      toast.error('Post title is required');
+      announce('Post title is required');
       return;
     }
 
@@ -372,7 +457,7 @@ export default function CommunityEditor() {
     }
     
     setSelectedPost(optimisticPost);
-    toast.success(publishNow ? 'Post published!' : 'Post saved!');
+    announce(publishNow ? 'Post published!' : 'Post saved!');
 
     try {
       if (isNewPost) {
@@ -531,6 +616,7 @@ export default function CommunityEditor() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      <LiveAnnouncer message={announcement} onClear={clear} />
       {/* Header */}
       <div className="flex items-center justify-between p-6 bg-white border-b border-gray-200">
         <div className="flex items-center space-x-4">
@@ -885,28 +971,17 @@ export default function CommunityEditor() {
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Post</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{postToDelete?.title}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => handleDelete(postToDelete)}
-            >
-              Delete Post
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete Confirmation Dialog with Keyboard Trap */}
+      <AccessibleConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => handleDelete(postToDelete)}
+        title="Delete Post"
+        description={`Are you sure you want to delete "${postToDelete?.title}"? This action cannot be undone and will remove the post from your community feed.`}
+        confirmText="Delete Post"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }
