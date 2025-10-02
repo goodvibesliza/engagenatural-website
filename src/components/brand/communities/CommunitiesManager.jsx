@@ -363,7 +363,7 @@ export default function CommunitiesManager({ brandId }) {
           const tagCounts = {};
           list.forEach(p => {
             const text = `${p.content || ''} ${p.title || ''}`;
-            const matches = text.match(/#[A-Za-z0-9_]+/g) || [];
+            const matches = text.match(/#[\w-]+/g) || [];
             matches.forEach(tag => {
               const key = tag.toLowerCase();
               tagCounts[key] = (tagCounts[key] || 0) + 1;
@@ -440,7 +440,7 @@ export default function CommunitiesManager({ brandId }) {
           const tagCounts = {};
           list.forEach(p => {
             const text = `${p.content || ''} ${p.title || ''}`;
-            const matches = text.match(/#[A-Za-z0-9_]+/g) || [];
+            const matches = text.match(/#[\w-]+/g) || [];
             matches.forEach(tag => {
               const key = tag.toLowerCase();
               tagCounts[key] = (tagCounts[key] || 0) + 1;
