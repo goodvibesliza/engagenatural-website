@@ -355,7 +355,7 @@ export default function CommunitiesList() {
                 Manage your brand's communities and engage with your audience
               </p>
             </div>
-            <Button onClick={handleCreateCommunity} className="bg-brand-primary hover:bg-brand-primary/90">
+            <Button onClick={handleCreateCommunity} className="bg-brand-primary hover:bg-brand-primary/90" data-testid="community-create">
               {communities.length > 0 ? (
                 <>
                   <Eye className="w-4 h-4 mr-2" />
@@ -465,7 +465,7 @@ export default function CommunitiesList() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" data-testid="communities-table">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -513,7 +513,7 @@ export default function CommunitiesList() {
                   {getPaginatedCommunities().map((community) => {
                     const metrics = communityMetrics[community.id] || {};
                     return (
-                      <TableRow key={community.id} className="hover:bg-gray-50">
+                      <TableRow key={community.id} className="hover:bg-gray-50" data-testid={`community-row-${community.id}`}>
                         <TableCell>
                           <div>
                             <div className="font-medium text-gray-900">
@@ -565,11 +565,11 @@ export default function CommunitiesList() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEditCommunity(community)}>
+                              <DropdownMenuItem onClick={() => handleEditCommunity(community)} data-testid={`community-open-${community.id}`}>
                                 <Eye className="w-4 h-4 mr-2" />
                                 Open (Editor)
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleViewAsStaff(community)}>
+                              <DropdownMenuItem onClick={() => handleViewAsStaff(community)} data-testid={`view-as-staff-${community.id}`}>
                                 <ExternalLink className="w-4 h-4 mr-2" />
                                 View as Staff
                               </DropdownMenuItem>

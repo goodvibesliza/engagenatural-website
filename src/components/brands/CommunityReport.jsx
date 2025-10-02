@@ -207,6 +207,7 @@ export default function CommunityReport({
               size="sm"
               onClick={() => handleDateRangeChange(7)}
               disabled={loading}
+              data-testid="report-range-7"
             >
               7d
             </Button>
@@ -215,6 +216,7 @@ export default function CommunityReport({
               size="sm"
               onClick={() => handleDateRangeChange(30)}
               disabled={loading}
+              data-testid="report-range-30"
             >
               30d
             </Button>
@@ -290,7 +292,7 @@ export default function CommunityReport({
             </div>
 
             {/* Training CTR */}
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg" data-testid="report-ctr-card">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
                   <MousePointer className="w-5 h-5 text-blue-600 mr-2" />

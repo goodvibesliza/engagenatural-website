@@ -17,9 +17,11 @@ import {
   serverTimestamp,
   limit 
 } from 'firebase/firestore';
-import { brandPostCreate, brandPostPublish, brandPostUpdate, brandPostDelete } from '../../lib/analytics';
+import { brandPostCreate, brandPostPublish, brandPostUpdate, brandPostDelete, brandPostAttachTraining, brandTrainingPreview, brandTrainingFilterToggle } from '../../lib/analytics';
 import LiveAnnouncer, { useAnnouncements } from '../../components/ui/LiveAnnouncer';
 import AccessibleConfirmDialog from '../../components/ui/AccessibleConfirmDialog';
+import TrainingSelect from '../../components/brands/TrainingSelectFixed';
+import PostListItem from '../../components/brands/PostListItem';
 import EditorToolbar from '../../components/brands/EditorToolbar';
 
 // UI Components
@@ -101,6 +103,8 @@ export default function CommunityEditor() {
   const [statusFilter, setStatusFilter] = useState('all'); // all, published, draft
   const [dateFilter, setDateFilter] = useState('all'); // all, 7d, 30d
   const [tagFilter, setTagFilter] = useState('');
+  const [trainingFilterEnabled, setTrainingFilterEnabled] = useState(false);
+  const [selectedTraining, setSelectedTraining] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -254,6 +258,13 @@ export default function CommunityEditor() {
   // Filter posts based on current filters
   const getFilteredPosts = () => {
     return posts.filter(post => {
+      // Training filter (highest priority)
+      if (trainingFilterEnabled && selectedTraining) {
+        if (post.attachedTrainingId !== selectedTraining.id) {
+          return false;
+        }
+      }
+
       // Search filter
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
@@ -321,9 +332,135 @@ export default function CommunityEditor() {
       title: '',
       body: '',
       tags: [],
-      attachedTrainingId: '',
+      attachedTrainingId: selectedTraining?.id || '', // Prefill if training is selected
       status: 'draft'
     });
+  };
+
+  // Handle training selection
+  const handleTrainingSelect = (training) => {
+    setSelectedTraining(training);
+    handleFormChange('attachedTrainingId', training.id);
+    // Track training attachment
+    if (selectedPost?.id) {
+      brandPostAttachTraining({ 
+        postId: selectedPost.id, 
+        trainingId: training.id 
+      });
+    }
+  };
+
+  // Handle training clear
+  const handleTrainingClear = () => {
+    setSelectedTraining(null);
+    handleFormChange('attachedTrainingId', '');
+    // Disable filter when training is cleared
+    if (trainingFilterEnabled) {
+      setTrainingFilterEnabled(false);
+      announce('Training filter disabled - training cleared');
+    }
+  };
+
+  // Handle training filter toggle
+  const handleTrainingFilterToggle = (enabled) => {
+    setTrainingFilterEnabled(enabled);
+    
+    if (enabled && selectedTraining) {
+      const filteredCount = posts.filter(post => 
+        post.attachedTrainingId === selectedTraining.id
+      ).length;
+      
+      announce(`Filtered to posts linked to: ${selectedTraining.title}. ${filteredCount} results.`);
+      
+      // Track filter toggle
+      brandTrainingFilterToggle({
+        trainingId: selectedTraining.id,
+        enabled: true,
+        postCount: filteredCount
+      });
+    } else {
+      announce('Training filter disabled - showing all posts');
+      
+      if (selectedTraining) {
+        brandTrainingFilterToggle({
+          trainingId: selectedTraining.id,
+          enabled: false,
+          postCount: posts.length
+        });
+      }
+    }
+  };
+
+  // Handle post update from inline actions (optimistic updates)
+  const handlePostUpdate = async (updatedPost) => {
+    try {
+      // Update local state immediately (optimistic)
+      setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+      
+      // Update selected post if it's the same one
+      if (selectedPost?.id === updatedPost.id) {
+        setSelectedPost(updatedPost);
+        setEditingPost(updatedPost);
+        setFormData({
+          title: updatedPost.title || '',
+          body: updatedPost.body || '',
+          tags: updatedPost.tags || [],
+          attachedTrainingId: updatedPost.attachedTrainingId || '',
+          status: updatedPost.status || 'draft'
+        });
+      }
+      
+      // Update training filter visibility if needed
+      if (trainingFilterEnabled && selectedTraining) {
+        const afterFilterCount = posts.filter(p => 
+          p.attachedTrainingId === selectedTraining.id || 
+          (p.id === updatedPost.id && updatedPost.attachedTrainingId === selectedTraining.id)
+        ).length;
+        
+        if (afterFilterCount !== filteredPosts.length) {
+          announce(`Training filter updated. ${afterFilterCount} posts linked to ${selectedTraining.title}.`);
+        }
+      }
+
+      // Save to Firestore
+      const postData = {
+        title: updatedPost.title,
+        body: updatedPost.body,
+        tags: updatedPost.tags || [],
+        attachedTrainingId: updatedPost.attachedTrainingId || '',
+        status: updatedPost.status,
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, 'posts', updatedPost.id), postData);
+      
+      // Track analytics (handled by PostListItem component)
+      
+    } catch (error) {
+      console.error('Failed to update post:', error);
+      
+      // Revert optimistic update on failure
+      setPosts(posts); // Reset to original state
+      
+      // Revert form data if selected post was affected
+      if (selectedPost?.id === updatedPost.id) {
+        const originalPost = posts.find(p => p.id === updatedPost.id);
+        if (originalPost) {
+          setSelectedPost(originalPost);
+          setEditingPost(originalPost);
+          setFormData({
+            title: originalPost.title || '',
+            body: originalPost.body || '',
+            tags: originalPost.tags || [],
+            attachedTrainingId: originalPost.attachedTrainingId || '',
+            status: originalPost.status || 'draft'
+          });
+        }
+      }
+      
+      announce('Failed to update post. Please try again.', 'assertive');
+      throw error; // Re-throw for PostListItem error handling
+    }
   };
 
   // Autosave to localStorage every 10 seconds when editing
@@ -699,75 +836,40 @@ export default function CommunityEditor() {
           {/* Post List */}
           <div className="flex-1 overflow-y-auto">
             {filteredPosts.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
+              <div className="p-8 text-center text-gray-500" data-testid={trainingFilterEnabled && selectedTraining ? "post-list-empty-training" : "post-list-empty"}>
                 <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>No posts found</p>
-                <p className="text-sm">Create your first post to get started</p>
+                {trainingFilterEnabled && selectedTraining ? (
+                  <>
+                    <p className="text-base font-medium mb-2">No posts linked to this training yet.</p>
+                    <p className="text-sm mb-4">Create one to highlight the training in staff feeds.</p>
+                    <Button
+                      onClick={handleNewPost}
+                      className="bg-brand-primary hover:bg-brand-primary/90"
+                      data-testid="create-post-from-empty-training"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create post
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p>No posts found</p>
+                    <p className="text-sm">Create your first post to get started</p>
+                  </>
+                )}
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-gray-200" data-testid="post-list">
                 {filteredPosts.map((post) => (
-                  <div
+                  <PostListItem
                     key={post.id}
-                    onClick={() => handlePostSelect(post)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 ${
-                      selectedPost?.id === post.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {post.title || 'Untitled Post'}
-                          </h3>
-                          <Badge 
-                            variant={post.status === 'published' ? 'default' : 'secondary'}
-                            className={post.status === 'published' ? 'bg-green-100 text-green-800' : ''}
-                          >
-                            {post.status}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {post.body || 'No content yet...'}
-                        </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center space-x-3 text-xs text-gray-500">
-                            <span className="flex items-center">
-                              <Heart className="w-3 h-3 mr-1" />
-                              {post.likes?.length || 0}
-                            </span>
-                            <span className="flex items-center">
-                              <MessageSquare className="w-3 h-3 mr-1" />
-                              {post.comments?.length || 0}
-                            </span>
-                            {post.attachedTrainingId && (
-                              <span className="flex items-center">
-                                <BookOpen className="w-3 h-3 mr-1" />
-                                Training
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            {post.updatedAt?.toLocaleDateString()}
-                          </span>
-                        </div>
-                        {post.tags && post.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {post.tags.slice(0, 3).map(tag => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {post.tags.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{post.tags.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    post={post}
+                    isSelected={selectedPost?.id === post.id}
+                    onSelect={() => handlePostSelect(post)}
+                    onUpdatePost={handlePostUpdate}
+                    trainings={trainings}
+                    brandId={user?.brandId}
+                  />
                 ))}
               </div>
             )}
@@ -795,6 +897,7 @@ export default function CommunityEditor() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handlePreviewAsStaff(selectedPost)}
+                        data-testid="editor-preview-as-staff"
                       >
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Preview as Staff
@@ -809,6 +912,7 @@ export default function CommunityEditor() {
                           setDeleteConfirmOpen(true);
                         }}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        data-testid="editor-delete"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -827,6 +931,7 @@ export default function CommunityEditor() {
                     onChange={(e) => handleFormChange('title', e.target.value)}
                     placeholder="Enter post title..."
                     className="mt-1"
+                    data-testid="editor-title-input"
                   />
                 </div>
 
@@ -844,6 +949,7 @@ export default function CommunityEditor() {
                       onChange={(e) => handleFormChange('body', e.target.value)}
                       placeholder="Write your post content..."
                       className="min-h-[200px] rounded-t-none border-t-0"
+                      data-testid="editor-body-input"
                     />
                   </div>
                 </div>
@@ -859,6 +965,7 @@ export default function CommunityEditor() {
                         placeholder="Add a tag..."
                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
                         className="flex-1"
+                        data-testid="editor-tags-input"
                       />
                       <Button
                         type="button"
@@ -891,22 +998,39 @@ export default function CommunityEditor() {
                 {/* Attach Training */}
                 <div>
                   <Label>Attach Training (Optional)</Label>
-                  <Select
-                    value={formData.attachedTrainingId}
-                    onValueChange={(value) => handleFormChange('attachedTrainingId', value)}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select a training to attach..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No training</SelectItem>
-                      {trainings.map(training => (
-                        <SelectItem key={training.id} value={training.id}>
-                          {training.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="mt-1">
+                    <TrainingSelect
+                      value={formData.attachedTrainingId}
+                      brandId={user?.brandId}
+                      onSelect={handleTrainingSelect}
+                      onClear={handleTrainingClear}
+                    />
+                    
+                    {/* Training Filter Checkbox */}
+                    {selectedTraining && (
+                      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={trainingFilterEnabled}
+                            onChange={(e) => handleTrainingFilterToggle(e.target.checked)}
+                            disabled={!selectedTraining}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded focus:ring-2"
+                            data-testid="training-filter-checkbox"
+                            aria-describedby="training-filter-description"
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-gray-700">
+                              Show posts linked to this training
+                            </span>
+                            <p id="training-filter-description" className="text-xs text-gray-500 mt-1">
+                              Filter the post list to show only posts attached to "{selectedTraining.title}"
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Status and metrics */}
@@ -943,6 +1067,7 @@ export default function CommunityEditor() {
                       onClick={() => handleSave(false)}
                       disabled={saving || !formData.title.trim()}
                       variant="ghost"
+                      data-testid="editor-save-draft"
                     >
                       <Save className="w-4 h-4 mr-2" />
                       {saving ? 'Saving...' : 'Save Draft'}
@@ -952,6 +1077,7 @@ export default function CommunityEditor() {
                       onClick={() => handleSave(true)}
                       disabled={saving || !formData.title.trim()}
                       className="bg-brand-primary hover:bg-brand-primary/90"
+                      data-testid="editor-publish"
                     >
                       <Send className="w-4 h-4 mr-2" />
                       {formData.status === 'published' ? 'Update' : 'Publish'}

@@ -186,6 +186,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen }) {
               aria-label={`Navigate to ${item.label}${item.isNew ? ' (New feature)' : ''}`}
               aria-describedby="brand-nav-heading"
               tabIndex={0}
+              data-testid={item.id === 'communities' ? 'sidebar-communities' : `sidebar-${item.id}`}
               className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
                 active
                   ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'

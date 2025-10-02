@@ -73,7 +73,7 @@ export default function BrandDesktopLayout() {
   // Mobile blocking banner - desktop only enforcement
   if (!isDesktop) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" data-testid="brand-desktop-only-banner">
         <Card className="max-w-md mx-auto text-center border-orange-200 bg-orange-50">
           <CardHeader>
             <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
