@@ -330,7 +330,18 @@ export default function CommunityEditor() {
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
+    
+    // Handle Firestore Timestamp
+    let jsDate;
+    if (date && typeof date.toDate === 'function') {
+      jsDate = date.toDate();
+    } else if (date instanceof Date) {
+      jsDate = date;
+    } else {
+      jsDate = new Date(date);
+    }
+    
+    return jsDate.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

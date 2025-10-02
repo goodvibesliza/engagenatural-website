@@ -38,19 +38,27 @@ export default function Dashboard() {
     },
     {
       title: 'Analytics',
-      description: 'View performance metrics and engagement data',
+      description: 'View performance metrics and engagement data (Coming Soon)',
       icon: BarChart3,
-      href: '/brands/analytics',
+      href: '#',
+      disabled: true,
+      comingSoon: true
     },
     {
       title: 'Settings',
-      description: 'Configure your brand preferences and settings',
+      description: 'Configure your brand preferences and settings (Coming Soon)',
       icon: Settings,
-      href: '/brands/settings',
+      href: '#',
+      disabled: true,
+      comingSoon: true
     }
   ];
 
   const handleQuickAction = (action) => {
+    if (action.disabled || action.comingSoon) {
+      return; // Don't navigate for disabled actions
+    }
+    
     trackEvent('brand_quick_action', {
       action: action.title.toLowerCase(),
       brand_id: user?.brandId
@@ -74,14 +82,24 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {quickActions.map((action) => {
           const Icon = action.icon;
+          const isDisabled = action.disabled || action.comingSoon;
           return (
-            <Card key={action.title} className="hover:shadow-md transition-shadow cursor-pointer">
+            <Card 
+              key={action.title} 
+              className={`transition-shadow ${
+                isDisabled 
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : 'hover:shadow-md cursor-pointer'
+              }`}
+            >
               <CardHeader onClick={() => handleQuickAction(action)}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className={`p-2 rounded-md ${
                       action.isNew 
                         ? 'bg-green-100 text-green-600' 
+                        : isDisabled
+                        ? 'bg-gray-100 text-gray-400'
                         : 'bg-brand-primary/10 text-brand-primary'
                     }`}>
                       <Icon className="w-5 h-5" />
@@ -94,10 +112,15 @@ export default function Dashboard() {
                             New
                           </span>
                         )}
+                        {action.comingSoon && (
+                          <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            Coming Soon
+                          </span>
+                        )}
                       </CardTitle>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                  {!isDisabled && <ArrowRight className="w-4 h-4 text-gray-400" />}
                 </div>
                 <CardDescription className="mt-2">
                   {action.description}

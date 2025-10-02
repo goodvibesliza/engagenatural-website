@@ -96,71 +96,134 @@ export default function CommunitiesList() {
     if (!user?.brandId || communities.length === 0) return;
 
     const communityIds = communities.map(c => c.id);
+    const unsubscribers = []; // Track all unsubscribe functions
+    let allPosts = [];
+    let allComments = [];
+    let postsReceived = 0;
+    let commentsReceived = 0;
     
-    // Fetch posts for all communities
-    const postsQuery = query(
-      collection(db, 'posts'),
-      where('communityId', 'in', communityIds.slice(0, 10)), // Firestore 'in' limit is 10
-      orderBy('createdAt', 'desc'),
-      limit(1000) // Reasonable limit for client-side processing
-    );
+    // Helper to create batches of max 10 items for Firestore 'in' queries
+    const createBatches = (array, batchSize = 10) => {
+      const batches = [];
+      for (let i = 0; i < array.length; i += batchSize) {
+        batches.push(array.slice(i, i + batchSize));
+      }
+      return batches;
+    };
 
-    postsUnsubRef.current = onSnapshot(postsQuery, 
-      (snapshot) => {
-        const posts = snapshot.docs.map(doc => ({
+    // Helper to process collected data
+    const processCollectedData = () => {
+      // Compute metrics for each community
+      const metricsData = {};
+      communities.forEach(community => {
+        const communityPosts = allPosts.filter(p => p.communityId === community.id);
+        const communityComments = allComments.filter(c => 
+          communityPosts.some(p => p.id === c.postId)
+        );
+
+        metricsData[community.id] = computeCommunityMetrics({
+          posts: communityPosts,
+          comments: communityComments,
+          likes: [] // We'll use like counts from posts
+        });
+      });
+
+      setCommunityMetrics(metricsData);
+      
+      // Store data for CommunityReport
+      setAllPosts(allPosts);
+      setAllComments(allComments);
+      setAllLikes([]); // We'll use embedded likes from posts
+    };
+
+    // Create batches for community IDs
+    const communityBatches = createBatches(communityIds);
+    
+    // Fetch posts from all community batches
+    communityBatches.forEach((batch, batchIndex) => {
+      const postsQuery = query(
+        collection(db, 'posts'),
+        where('communityId', 'in', batch),
+        orderBy('createdAt', 'desc'),
+        limit(1000) // Reasonable limit for client-side processing
+      );
+
+      const postsUnsub = onSnapshot(postsQuery, (snapshot) => {
+        const batchPosts = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt
         }));
 
-        // Fetch comments for posts
-        if (posts.length > 0) {
-          const postIds = posts.map(p => p.id);
-          const commentsQuery = query(
-            collection(db, 'comments'),
-            where('postId', 'in', postIds.slice(0, 10)),
-            orderBy('createdAt', 'desc'),
-            limit(1000)
-          );
+        // Merge this batch's posts with existing posts
+        allPosts = allPosts.filter(p => !batch.includes(p.communityId)).concat(batchPosts);
+        postsReceived++;
 
-          commentsUnsubRef.current = onSnapshot(commentsQuery, 
-            (commentsSnapshot) => {
-              const comments = commentsSnapshot.docs.map(doc => ({
+        // Process comments for this batch of posts
+        if (batchPosts.length > 0) {
+          const postIds = batchPosts.map(p => p.id);
+          const postBatches = createBatches(postIds);
+
+          postBatches.forEach((postBatch, postBatchIndex) => {
+            // Unsubscribe previous comments listener if it exists
+            if (commentsUnsubRef.current) {
+              commentsUnsubRef.current();
+              commentsUnsubRef.current = null;
+            }
+
+            const commentsQuery = query(
+              collection(db, 'comments'),
+              where('postId', 'in', postBatch),
+              orderBy('createdAt', 'desc'),
+              limit(1000)
+            );
+
+            const commentsUnsub = onSnapshot(commentsQuery, (commentsSnapshot) => {
+              const batchComments = commentsSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 createdAt: doc.data().createdAt
               }));
 
-              // Compute metrics for each community
-              const metricsData = {};
-              communities.forEach(community => {
-                const communityPosts = posts.filter(p => p.communityId === community.id);
-                const communityComments = comments.filter(c => 
-                  communityPosts.some(p => p.id === c.postId)
-                );
+              // Merge this batch's comments with existing comments
+              allComments = allComments.filter(c => !postBatch.includes(c.postId)).concat(batchComments);
+              commentsReceived++;
 
-                metricsData[community.id] = computeCommunityMetrics({
-                  posts: communityPosts,
-                  comments: communityComments,
-                  likes: [] // We'll use like counts from posts
-                });
-              });
+              // Process collected data when all batches are received
+              if (postsReceived === communityBatches.length) {
+                processCollectedData();
+              }
+            });
 
-              setCommunityMetrics(metricsData);
-              
-              // Store data for CommunityReport
-              setAllPosts(posts);
-              setAllComments(comments);
-              setAllLikes([]); // We'll use embedded likes from posts
-            }
-          );
+            // Store the last comments unsubscriber
+            commentsUnsubRef.current = commentsUnsub;
+            unsubscribers.push(commentsUnsub);
+          });
+        } else {
+          // No posts in this batch, check if we can process data
+          if (postsReceived === communityBatches.length) {
+            processCollectedData();
+          }
         }
-      }
-    );
+      });
+
+      unsubscribers.push(postsUnsub);
+    });
+
+    // Store reference for cleanup
+    postsUnsubRef.current = () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
 
     return () => {
-      if (postsUnsubRef.current) postsUnsubRef.current();
-      if (commentsUnsubRef.current) commentsUnsubRef.current();
+      // Clean up all listeners
+      unsubscribers.forEach(unsub => {
+        if (typeof unsub === 'function') unsub();
+      });
+      if (commentsUnsubRef.current) {
+        commentsUnsubRef.current();
+        commentsUnsubRef.current = null;
+      }
     };
   }, [communities, user?.brandId]);
 

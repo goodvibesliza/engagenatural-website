@@ -551,7 +551,7 @@ export default function MyBrandsPage() {
                     {details?.communities?.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       <Link
-                        to={`/community?brand=${encodeURIComponent(follow.brandName)}`}
+                        to={`/staff/community?brand=${encodeURIComponent(follow.brandName)}`}
                         onClick={() => {
                           // Track community pill click
                           if (window.analytics?.track) {

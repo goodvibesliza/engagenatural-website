@@ -413,12 +413,84 @@ export default function CommunityEditor() {
       
       // Update training filter visibility if needed
       if (trainingFilterEnabled && selectedTraining) {
-        const afterFilterCount = posts.filter(p => 
-          p.attachedTrainingId === selectedTraining.id || 
-          (p.id === updatedPost.id && updatedPost.attachedTrainingId === selectedTraining.id)
-        ).length;
+        // Compute current filtered count using same logic as getFilteredPosts
+        const currentFilteredCount = posts.filter(post => {
+          // Training filter (highest priority)
+          if (trainingFilterEnabled && selectedTraining) {
+            if (post.attachedTrainingId !== selectedTraining.id) {
+              return false;
+            }
+          }
+
+          // Search filter
+          if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase();
+            if (!post.title?.toLowerCase().includes(searchLower) && 
+                !post.body?.toLowerCase().includes(searchLower)) {
+              return false;
+            }
+          }
+
+          // Status filter
+          if (statusFilter !== 'all' && post.status !== statusFilter) {
+            return false;
+          }
+
+          // Tag filter
+          if (tagFilter && !post.tags?.includes(tagFilter)) {
+            return false;
+          }
+
+          // Date filter
+          if (dateFilter !== 'all' && post.createdAt) {
+            const daysDiff = (new Date() - post.createdAt) / (1000 * 60 * 60 * 24);
+            if (dateFilter === '7d' && daysDiff > 7) return false;
+            if (dateFilter === '30d' && daysDiff > 30) return false;
+          }
+
+          return true;
+        }).length;
+
+        // Compute after filter count including the updated post
+        const postsWithUpdate = posts.map(p => p.id === updatedPost.id ? updatedPost : p);
+        const afterFilterCount = postsWithUpdate.filter(post => {
+          // Training filter (highest priority)
+          if (trainingFilterEnabled && selectedTraining) {
+            if (post.attachedTrainingId !== selectedTraining.id) {
+              return false;
+            }
+          }
+
+          // Search filter
+          if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase();
+            if (!post.title?.toLowerCase().includes(searchLower) && 
+                !post.body?.toLowerCase().includes(searchLower)) {
+              return false;
+            }
+          }
+
+          // Status filter
+          if (statusFilter !== 'all' && post.status !== statusFilter) {
+            return false;
+          }
+
+          // Tag filter
+          if (tagFilter && !post.tags?.includes(tagFilter)) {
+            return false;
+          }
+
+          // Date filter
+          if (dateFilter !== 'all' && post.createdAt) {
+            const daysDiff = (new Date() - post.createdAt) / (1000 * 60 * 60 * 24);
+            if (dateFilter === '7d' && daysDiff > 7) return false;
+            if (dateFilter === '30d' && daysDiff > 30) return false;
+          }
+
+          return true;
+        }).length;
         
-        if (afterFilterCount !== filteredPosts.length) {
+        if (afterFilterCount !== currentFilteredCount) {
           announce(`Training filter updated. ${afterFilterCount} posts linked to ${selectedTraining.title}.`);
         }
       }
@@ -710,11 +782,7 @@ export default function CommunityEditor() {
     // Open staff post detail view in new tab
     window.open(`/post/${post.id}`, '_blank');
     
-    trackEvent('post_preview_as_staff', {
-      post_id: post.id,
-      community_id: community.id,
-      brand_id: user?.brandId
-    });
+    // Track post preview analytics - already handled by brandPostUpdate when needed
   };
 
   // Get all unique tags from posts

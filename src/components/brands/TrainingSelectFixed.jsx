@@ -33,49 +33,7 @@ export default function TrainingSelect({
   const requestIdRef = useRef(0);
   const fetchAbortControllerRef = useRef(null);
 
-  // Load initial trainings and selected training data
-  useEffect(() => {
-    if (brandId) {
-      // Reset request tracking when brandId changes
-      requestIdRef.current = 0;
-      loadTrainings('');
-    }
-  }, [brandId, loadTrainings]);
-
-  // Find and set selected training when value changes
-  useEffect(() => {
-    if (value) {
-      // First try to find in current trainings
-      const training = trainings.find(t => t.id === value);
-      if (training) {
-        setSelectedTraining(training);
-      } else if (trainings.length > 0) {
-        // If value exists but not found in current page, fetch by ID
-        const fetchMissingTraining = async () => {
-          try {
-            const fetchedTraining = await findTrainingById(value);
-            if (fetchedTraining) {
-              setSelectedTraining(fetchedTraining);
-            } else {
-              // Training doesn't exist anymore, clear selection
-              setSelectedTraining(null);
-              onClear?.();
-            }
-          } catch (error) {
-            console.error('Error fetching training by ID:', error);
-            // Keep previous training or clear silently
-            setSelectedTraining(null);
-          }
-        };
-        
-        fetchMissingTraining();
-      }
-    } else {
-      setSelectedTraining(null);
-    }
-  }, [value, trainings, onClear]);
-
-  // Load trainings with optional search query
+  // Load trainings with optional search query (moved before useEffect to fix dependency order)
   const loadTrainings = useCallback(async (query = '') => {
     if (!brandId) return;
 
@@ -121,6 +79,50 @@ export default function TrainingSelect({
       }
     }
   }, [brandId]);
+
+  // Load initial trainings and selected training data
+  useEffect(() => {
+    if (brandId) {
+      // Reset request tracking when brandId changes
+      requestIdRef.current = 0;
+      loadTrainings('');
+    }
+  }, [brandId, loadTrainings]);
+
+  // Find and set selected training when value changes
+  useEffect(() => {
+    if (value) {
+      // First try to find in current trainings
+      const training = trainings.find(t => t.id === value);
+      if (training) {
+        setSelectedTraining(training);
+      } else if (trainings.length > 0) {
+        // If value exists but not found in current page, fetch by ID
+        const fetchMissingTraining = async () => {
+          try {
+            const fetchedTraining = await findTrainingById(value);
+            if (fetchedTraining) {
+              setSelectedTraining(fetchedTraining);
+            } else {
+              // Training doesn't exist anymore, clear selection
+              setSelectedTraining(null);
+              onClear?.();
+            }
+          } catch (error) {
+            console.error('Error fetching training by ID:', error);
+            // Keep previous training or clear silently
+            setSelectedTraining(null);
+          }
+        };
+        
+        fetchMissingTraining();
+      }
+    } else {
+      setSelectedTraining(null);
+    }
+  }, [value, trainings, onClear]);
+
+
 
   // Debounced search
   const handleSearchChange = useCallback((query) => {
