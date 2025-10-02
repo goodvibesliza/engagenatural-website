@@ -3,8 +3,8 @@
 This document captures the exact next steps to finish and validate the current workstream.
 
 ## Working Branch
-- Use branch: `fix/add-typescript-config`
-- Open PR: https://github.com/goodvibesliza/engagenatural-website/compare/main...fix/add-typescript-config
+- Use branch: `fix/brand-community-access-rca`
+- Open PR: https://github.com/goodvibesliza/engagenatural-website/compare/main...fix/brand-community-access-rca
 
 ## Environment Versions
 - Node: 20.x
@@ -85,9 +85,11 @@ Typical fixes:
 
 ## Rollback
 If needed, revert the following commits on this branch:
-- `38ba7557` – Node 20 alignment, Netlify install flags, firebase import in entrypoint
-- `213ae67d` – Update reliability-droid-report with mitigation details
+- <latest> – CommunitiesManager metrics and Refresh wiring
+- <latest> – EnhancedCommunityPage: Firestore community doc load + unconditional useAuth
 
 ## Owner Handoff Notes
-- After merge, clear Netlify build cache and redeploy to ensure Node 20 takes effect.
-- For any new modules, keep using `@/lib/firebase`; re-run the normalize script if needed.
+- App tree is wrapped with `AuthProvider` in `src/App.jsx`, so `useAuth()` is always defined. All pages using `useAuth` must call it unconditionally and null-check `user` where needed.
+- Brand community route is available at `/brand/community/:communityId` under RoleGuard(brand_manager).
+- CommunitiesManager now shows live metrics (24h interactions, trending hashtags) and has a functioning Refresh that restarts listeners.
+- `reliability-droid-report.html` has been updated with latest RCA and fixes.

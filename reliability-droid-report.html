@@ -10,7 +10,8 @@
     h1 { font-size: 24px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
     h2 { font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
     .header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 3px solid #eee; padding-bottom: 15px; }
-    .header-left { flex: 1; } .header-right { flex: 1; text-align: right; }
+    .header-left { flex: 1; }
+    .header-right { flex: 1; text-align: right; }
     .severity-badge { display: inline-block; padding: 5px 10px; border-radius: 4px; font-weight: bold; margin-bottom: 10px; }
     .sev-2 { background-color: #f0ad4e; color: white; }
     .section { margin-bottom: 30px; page-break-inside: avoid; }
@@ -19,62 +20,49 @@
     summary { font-weight: bold; cursor: pointer; }
     a { color: #0366d6; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    .timeline { margin-left: 20px; }
+    .timeline-item { margin-bottom: 15px; position: relative; }
+    .timeline-time { font-weight: bold; margin-right: 10px; }
+    .timeline-content { margin-left: 10px; }
     .fix-steps { list-style-type: decimal; padding-left: 20px; }
     .fix-step { margin-bottom: 15px; }
     .footer { margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; font-size: 12px; color: #777; text-align: center; }
-    .replace-note { background-color: #fffacd; padding: 2px 4px; border-radius: 3px; font-style: italic; font-size: 0.9em; color: #555; }
   </style>
 </head>
 <body>
   <div class="header" id="header">
     <div class="header-left">
-      <h1>Netlify build failure on branch fix/add-typescript-config</h1>
+      <h1>Alert Investigation – Brand managers cannot open communities</h1>
       <div>
         <span class="severity-badge sev-2">SEV-2</span>
+        <span>Started: <span id="start-time">2025-10-01 00:00:00 UTC</span></span>
       </div>
     </div>
     <div class="header-right">
-      <div>On-call: <strong id="oncall-engineer">Droid</strong></div>
+      <div>On-call: <strong id="oncall-engineer">Droid (Factory)</strong></div>
     </div>
   </div>
 
   <div class="section" id="exec-summary">
     <h2>Executive Summary</h2>
-    <p>Local build succeeds, but Netlify failed due to CI environment drift and install flags. Netlify wasn’t pinned to Node 20 and used a frozen install against cached modules. We aligned Node to 20 across toolchain files and switched to a clean pnpm install.</p>
+    <p>Brand managers initially could not open community views due to a missing brand route and a component import mismatch. We added a guarded brand route that reuses the staff community UI and fixed the import. Follow-up issues (community name display, refresh, and stats) were resolved by loading community docs from Firestore, wiring the Refresh button to restart listeners, and adding live metrics (24h interactions and trending hashtags). A React Hooks violation in EnhancedCommunityPage (conditional useAuth) was fixed by calling useAuth() unconditionally.</p>
   </div>
 
   <div class="section" id="rca">
     <h2>Root Cause Analysis</h2>
     <div>
       <ul>
-        <li><strong>Primary Hypothesis:</strong> Netlify used <code>--frozen-lockfile</code> with no explicit Node pin, causing install failures with cached deps.</li>
-        <li><strong>Contributing Factors:</strong> <code>.nvmrc</code> targeted Node 22 while <code>.node-version</code> was 20; Netlify lacked <code>NODE_VERSION=20</code>, leading to drift.</li>
+        <li><strong>Primary Cause:</strong> No brand route existed to render the staff-style community page, and the “Open” action navigated to <code>/community/:id</code> which redirects/404s for brand managers.</li>
+        <li><strong>Code Defect 1:</strong> EnhancedCommunityPage imported <code>./components/PostList.jsx</code> but the file path did not match; fixed and standardized.</li>
+        <li><strong>Code Defect 2:</strong> EnhancedCommunityPage called <code>useAuth</code> conditionally, violating React Hook rules. Fixed by calling <code>useAuth()</code> unconditionally and null-checking the returned user where used.</li>
       </ul>
 
       <h3>Evidence</h3>
-      <h4>Local Build</h4>
-      <details>
-        <summary>Local build output (summary)</summary>
-        <pre>
-Install & build completed successfully:
-  Command: pnpm install --no-frozen-lockfile && pnpm run build
-  Result: Success; artifacts emitted to dist/
-        </pre>
-      </details>
-
       <h4>Code Reference</h4>
-      <p>Updated configuration:</p>
-      <pre>[build]
-command = "npx pnpm install --no-frozen-lockfile && npx pnpm run build"
-publish = "dist"
-
-[build.environment]
-NODE_VERSION = "20"
-      </pre>
-      <pre>.nvmrc: 20
-.node-version: 20
-package.json engines.node: 20.x
-src/main.jsx → import '@/lib/firebase'
+      <pre>
+src/App.jsx – added route /brand/community/:communityId guarded by RoleGuard(brand_manager)
+src/components/community/EnhancedCommunityPage.jsx – fixed PostList import; fixed conditional useAuth; loads community docs from Firestore; live public posts subscription
+src/components/brand/communities/CommunitiesManager.jsx – “Open” navigates to /brand/community/:id; Refresh reloads + restarts listeners; added 24h interactions and trending hashtags
       </pre>
     </div>
   </div>
@@ -83,16 +71,16 @@ src/main.jsx → import '@/lib/firebase'
     <h2>Proposed Fix</h2>
     <ol class="fix-steps">
       <li class="fix-step">
-        <strong>Immediate Mitigation:</strong> Use <code>--no-frozen-lockfile</code> in Netlify build and pin Node to 20.
-        <div>Validation: Clear Netlify cache and deploy; build should pass.</div>
+        <strong>Immediate Mitigation:</strong> Add brand route <code>/brand/community/:communityId</code> that renders the staff-style <code>EnhancedCommunityPage</code> under a brand_manager RoleGuard.
+        <div>Validation: Brand manager can open a community from CommunitiesManager without error.</div>
       </li>
       <li class="fix-step">
-        <strong>Short-term Fix:</strong> Land repo-based changes so UI overrides aren’t required.
-        <div>Validation: Subsequent branch deploys succeed without Netlify UI edits.</div>
+        <strong>Short-term Fix:</strong> Update EnhancedCommunityPage imports; call <code>useAuth()</code> unconditionally; wire CommunitiesManager “Open” to the new route.
+        <div>Validation: No React Hook warnings; page renders posts and UI elements as expected.</div>
       </li>
       <li class="fix-step">
-        <strong>Long-term Solution:</strong> Keep CI and Netlify consistent (pnpm via corepack; Node pinned; consistent install flags).
-        <div>Validation: PR builds and Netlify deploys consistently succeed across branches.</div>
+        <strong>Additional Improvements:</strong> Load community details from Firestore for accurate names; add Refresh wiring; compute live metrics (24h interactions, trending hashtags) from public posts/comments.
+        <div>Validation: Community names render correctly; Refresh updates lists and feed; metrics update in real time.</div>
       </li>
     </ol>
   </div>
@@ -102,17 +90,25 @@ src/main.jsx → import '@/lib/firebase'
     <div class="timeline">
       <div class="timeline-item">
         <span class="timeline-time">T0</span>
-        <div class="timeline-content">Local build on <code>fix/add-typescript-config</code> succeeds.</div>
+        <div class="timeline-content">Brand manager clicks “Open” → navigates to <code>/community/:id</code> → redirect/404.</div>
       </div>
       <div class="timeline-item">
-        <span class="timeline-time">T1</span>
-        <div class="timeline-content">Applied Node 20 alignment (.nvmrc, engines), pinned Netlify NODE_VERSION=20, and changed install to no-frozen-lockfile.</div>
+        <span class="timeline-time">T0+1</span>
+        <div class="timeline-content">Added <code>/brand/community/:communityId</code> route; fixed EnhancedCommunityPage import.</div>
+      </div>
+      <div class="timeline-item">
+        <span class="timeline-time">T0+2</span>
+        <div class="timeline-content">Fixed conditional <code>useAuth</code> usage; EnhancedCommunityPage now loads community name/description from Firestore.</div>
+      </div>
+      <div class="timeline-item">
+        <span class="timeline-time">T0+3</span>
+        <div class="timeline-content">CommunitiesManager: wired Refresh and added live metrics (24h interactions, trending hashtags).</div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>Generated: <span id="generation-date">2025-09-27</span></p>
+    <p>Generated: <span id="generation-date">2025-10-02 00:00:00 UTC</span></p>
   </div>
 </body>
 </html>

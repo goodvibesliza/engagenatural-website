@@ -61,6 +61,7 @@ import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community (phone-first IA)
 import Community from './pages/Community';
+import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 import CommunityPostRedirect from './components/CommunityPostRedirect';
 import PostCompose from './pages/PostCompose.jsx';
@@ -153,19 +154,11 @@ const RootEntry = () => {
 };
 
 /**
- * Root application component that sets up authentication context, global UI chrome, feature flags, and the entire client-side route tree.
+ * Top-level application component that provides authentication context, global UI chrome, feature flags, and the client-side route tree.
  *
- * Renders AuthProvider and Router with:
- * - a global UserDropdownMenu and environment badge,
- * - RootEntry mounted at "/",
- * - role-guarded admin, brand, and staff areas,
- * - protected community routes (new nested feeds and legacy post view),
- * - emulator/debug routes gated by environment or feature flags,
- * - redirects for unknown routes.
+ * Reads the VITE_SHOW_DEMO_TOOLS environment flag to conditionally enable demo/dev routes and sets an internal emulator-initialized flag on mount.
  *
- * The component reads VITE_SHOW_DEMO_TOOLS to enable demo/dev routes and sets an internal emulator-initialized flag on mount.
- *
- * @returns {JSX.Element} The application root element containing routing and global UI.
+ * @returns {JSX.Element} The root React element that contains routing, global UI (user menu and environment badge), and all guarded application routes.
  */
 function App() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
@@ -272,6 +265,16 @@ function App() {
               </RoleGuard>
             } 
           />
+          {/* Brand Community View (staff-style UI for brand managers) */}
+          <Route 
+            path="/brand/community/:communityId"
+            element={
+              <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
+                <EnhancedCommunityPage />
+              </RoleGuard>
+            }
+          />
+          
           <Route 
             path="/admin/settings" 
             element={

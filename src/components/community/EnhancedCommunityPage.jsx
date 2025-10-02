@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, query, where, orderBy, onSnapshot, limit, doc, getDoc } from 'firebase/firestore';
 
 // Import simplified components
 import CommunityHeader from './components/CommunityHeader.jsx';
@@ -10,6 +13,7 @@ import ShareModal from './components/ShareModal.jsx';
 import CommunitySearch from './components/CommunitySearch.jsx';
 import PostForm from './components/PostForm.jsx';
 import ProfileModal from './components/ProfileModal.jsx';
+import { postCategories } from './utils/CommunityUtils.js';
 
 // Placeholder data
 const mockCommunities = {
@@ -61,24 +65,169 @@ const mockPosts = [
 const EnhancedCommunityPage = () => {
   const { communityId } = useParams();
   const navigate = useNavigate();
+  // Call useAuth unconditionally per React Hooks rules
+  const { user } = useAuth();
   const [posts, setPosts] = useState(mockPosts);
   const [community, setCommunity] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [viewedUser, setViewedUser] = useState(null);
+  // Local state to support CommunitySearch props when used in brand view
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeSort, setActiveSort] = useState('newest');
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    dateRange: 'all',
+    hasMedia: false,
+    verifiedOnly: false,
+    expertContent: false,
+    minLikes: 0,
+    minComments: 0,
+  });
+  const getCategoryInfo = (id) =>
+    postCategories.find((c) => c.id === id) || { id, name: 'All', icon: '' };
+
+  // Minimal state/handlers to satisfy PostForm props and avoid runtime errors in brand view
+  const [showNewPost, setShowNewPost] = useState(false);
+  const [newPost, setNewPost] = useState('');
+  const [mediaAttachments, setMediaAttachments] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const fileInputRef = useRef(null);
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    const mapped = files.map((file, idx) => ({
+      id: `${Date.now()}-${idx}`,
+      type: file.type.startsWith('video/') ? 'video' : 'image',
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setMediaAttachments((prev) => [...prev, ...mapped]);
+    // Simulate progress to 100%
+    const next = { ...uploadProgress };
+    mapped.forEach((m) => (next[m.id] = 100));
+    setUploadProgress(next);
+  };
+  const removeAttachment = (id) => {
+    setMediaAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+  const createPost = () => {
+    if (!newPost.trim()) return;
+    handleCreatePost(newPost.trim());
+    setNewPost('');
+    setMediaAttachments([]);
+    setShowNewPost(false);
+  };
+  const getProfileImageDisplay = () => null;
   
-  // Load community data based on ID
+  // Load community data by ID from Firestore; fall back to simple mapping when missing
   useEffect(() => {
-    // In a real app, this would be a database call
-    const communityData = mockCommunities[communityId];
-    if (communityData) {
+    let isActive = true;
+    const load = async () => {
+      if (!communityId) return;
+      try {
+        const ref = doc(db, 'communities', communityId);
+        const snap = await getDoc(ref);
+        if (isActive && snap.exists()) {
+          const data = snap.data();
+          setCommunity({
+            id: snap.id,
+            name: data.name || communityId?.replace(/[-_]/g, ' ') || 'Community',
+            description: data.description || 'Community feed',
+            members: data.members ?? data.memberCount ?? 0,
+            rules: Array.isArray(data.rules) ? data.rules : [],
+            ...data,
+          });
+          return;
+        }
+      } catch (e) {
+        // non-fatal; fall back below
+        // eslint-disable-next-line no-console
+        console.warn('Failed to load community doc, using fallback name.', e?.message);
+      }
+      // Fallback: mock map or simple name from id
+      if (!isActive) return;
+      const communityData = mockCommunities[communityId] || {
+        id: communityId,
+        name: communityId?.replace(/[-_]/g, ' ') || 'Community',
+        description: 'Community feed',
+        members: 0,
+        rules: [],
+      };
       setCommunity(communityData);
-    } else {
-      // Redirect if community not found
-      navigate('/communities');
-    }
-  }, [communityId, navigate]);
+    };
+    load();
+    return () => { isActive = false; };
+  }, [communityId]);
+
+  // Real-time Firestore posts feed for this community (public visibility)
+  useEffect(() => {
+    if (!communityId) return;
+    let unsub = null;
+    const start = () => {
+      try {
+        const q = query(
+          collection(db, 'community_posts'),
+          where('communityId', '==', communityId),
+          where('visibility', '==', 'public'),
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
+        unsub = onSnapshot(
+          q,
+          (snap) => {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            // Map to PostList shape
+            const mapped = list.map((p) => ({
+              id: p.id,
+              author: p.userName || p.authorName || 'User',
+              timestamp: p.createdAt?.toDate?.() || new Date(),
+              content: p.content || p.title || '',
+              reactions: { like: p.likeCount || 0 },
+              comments: new Array(p.commentCount || 0).fill(0).map((_, i) => ({ id: `${p.id}-c${i}` })),
+            }));
+            setPosts(mapped);
+          },
+          () => {
+            // fallback below
+            fallback();
+          }
+        );
+      } catch {
+        fallback();
+      }
+    };
+    const fallback = () => {
+      try {
+        const q2 = query(
+          collection(db, 'community_posts'),
+          where('communityId', '==', communityId),
+          where('visibility', '==', 'public')
+        );
+        unsub = onSnapshot(q2, (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          const mapped = list.map((p) => ({
+            id: p.id,
+            author: p.userName || p.authorName || 'User',
+            timestamp: p.createdAt?.toDate?.() || new Date(),
+            content: p.content || p.title || '',
+            reactions: { like: p.likeCount || 0 },
+            comments: new Array(p.commentCount || 0).fill(0).map((_, i) => ({ id: `${p.id}-c${i}` })),
+          }));
+          setPosts(mapped);
+        });
+      } catch {
+        // leave mock posts
+      }
+    };
+    start();
+    return () => {
+      if (typeof unsub === 'function') {
+        try { unsub(); } catch {}
+      }
+    };
+  }, [communityId]);
 
   // Handle post interactions
   const handlePostAction = (postId, action) => {
@@ -145,8 +294,38 @@ const EnhancedCommunityPage = () => {
       
       <div className="container mx-auto p-4">
         {/* Search bar and new post form */}
-        <CommunitySearch onSearch={handleSearch} />
-        <PostForm onSubmit={handleCreatePost} />
+        <CommunitySearch
+          onSearch={handleSearch}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          activeSort={activeSort}
+          setActiveSort={setActiveSort}
+          showAdvancedSearch={showAdvancedSearch}
+          setShowAdvancedSearch={setShowAdvancedSearch}
+          advancedFilters={advancedFilters}
+          setAdvancedFilters={setAdvancedFilters}
+          categories={postCategories.map((c) => c.id)}
+          getCategoryInfo={getCategoryInfo}
+        />
+        <PostForm
+          user={user}
+          community={community}
+          showNewPost={showNewPost}
+          setShowNewPost={setShowNewPost}
+          newPost={newPost}
+          setNewPost={setNewPost}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          mediaAttachments={mediaAttachments}
+          setMediaAttachments={setMediaAttachments}
+          uploadProgress={uploadProgress}
+          fileInputRef={fileInputRef}
+          handleFileSelect={handleFileSelect}
+          removeAttachment={removeAttachment}
+          createPost={createPost}
+          loading={false}
+          getProfileImageDisplay={getProfileImageDisplay}
+        />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Main content */}
           <div className="md:col-span-2">

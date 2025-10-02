@@ -465,14 +465,16 @@ export default function CommunitiesPage() {
   useEffect(() => {
     const loadCommunities = async () => {
       try {
+        // Query only for public communities to satisfy rules; allow any status
         const q = query(
           collection(db, 'communities'),
-          where('isActive', '==', true),
-          // must be public to satisfy Firestore rules
           where('isPublic', '==', true)
         );
         const snap = await getDocs(q);
         let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // Include items that are explicitly active OR have status === 'active' OR missing flags
+        items = items.filter((c) => c.isActive === true || c.status === 'active' || (c.isActive === undefined && !c.status));
 
         // put what's-good first
         items.sort((a, b) => {
@@ -481,11 +483,6 @@ export default function CommunitiesPage() {
           return (a.name || '').localeCompare(b.name || '');
         });
 
-        // ------------------------------------------------------------------
-        // Fallback: if Firestore returns zero public communities make sure
-        // at least the universal “What’s Good” community is present so the
-        // page always shows something useful.
-        // ------------------------------------------------------------------
         if (!items || items.length === 0) {
           items = [
             {
@@ -501,14 +498,12 @@ export default function CommunitiesPage() {
         }
 
         setCommunities(items);
-        // If URL param asks to compose, open the composer for what's-good by default
         const params = new URLSearchParams(location.search);
         const compose = params.get('compose');
         if (compose && (compose === '1' || compose === 'whats-good')) {
           setComposerCommunityId('whats-good');
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('Error loading communities', err);
         setCommunitiesError(true);
       } finally {
