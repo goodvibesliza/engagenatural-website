@@ -40,6 +40,12 @@ import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 // Brand Community Management
 import CommunityList from './pages/brand/CommunityList.jsx';
 import CommunityComposer from './pages/brand/CommunityComposer.jsx';
+// New Brand Manager Desktop UI
+import CommunitiesList from './pages/brands/CommunitiesList.jsx';
+import CommunityEditor from './pages/brands/CommunityEditor.jsx';
+import BrandSidebar from './components/brands/BrandSidebar.jsx';
+import BrandDesktopLayout from './components/brands/BrandDesktopLayout.jsx';
+import BrandDashboardHome from './pages/brands/Dashboard.jsx';
 
 // Staff Components
 import StaffDashboard from './pages/staff/Dashboard';
@@ -431,6 +437,21 @@ function App() {
               </RoleGuard>
             } 
           />
+
+          {/* New Brand Manager Desktop UI Routes */}
+          <Route
+            path="/brands/*"
+            element={
+              <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
+                <BrandDesktopLayout />
+              </RoleGuard>
+            }
+          >
+            <Route index element={<BrandDashboardHome />} />
+            <Route path="communities" element={<CommunitiesList />} />
+            <Route path="communities/new" element={<CommunityEditor />} />
+            <Route path="communities/:communityId" element={<CommunityEditor />} />
+          </Route>
 
           {/* Staff Routes - Protected for staff role */}
           {/* Staff Dashboard – new sidebar layout */}

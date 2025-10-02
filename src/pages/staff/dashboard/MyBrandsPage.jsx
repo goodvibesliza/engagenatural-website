@@ -546,6 +546,33 @@ export default function MyBrandsPage() {
                     <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-brand-primary"></div>
                   </div>
                 ) : (
+                  <div>
+                    {/* Community Pills */}
+                    {details?.communities?.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <Link
+                        to={`/staff/community?brand=${encodeURIComponent(follow.brandName)}`}
+                        onClick={() => {
+                          // Track community pill click
+                          if (window.analytics?.track) {
+                            window.analytics.track('Community Filter Applied', {
+                              brand: follow.brandName,
+                              source: 'my_brands_pill',
+                              user_id: user?.uid
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center px-3 py-1 bg-brand-primary text-white text-sm rounded-full hover:bg-brand-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+                        title={`View ${follow.brandName} community posts`}
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
+                        </svg>
+                        Community
+                      </Link>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Communities */}
                     <div className="border border-gray-100 rounded p-3">
@@ -605,6 +632,7 @@ export default function MyBrandsPage() {
                         <p className="text-sm text-gray-500">No challenges available</p>
                       )}
                     </div>
+                  </div>
                   </div>
                 )}
               </div>

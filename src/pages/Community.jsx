@@ -45,6 +45,19 @@ export default function Community() {
     }
   }, [location.state, navigate]);
 
+  // URL parameter support: read initial brand filter from ?brand=brandName
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const brandParam = searchParams.get('brand');
+    
+    if (brandParam && !selectedBrands.includes(brandParam)) {
+      setSelectedBrands([brandParam]);
+      
+      // Track filter applied from URL
+      filterApplied({ brands: [brandParam], tags: [], query: '' });
+    }
+  }, [location.search, selectedBrands]); // Include selectedBrands in dependency array
+
   // Update available filters when tab changes (Pro uses stubs for now)
   useEffect(() => {
     if (tab === 'pro') {
