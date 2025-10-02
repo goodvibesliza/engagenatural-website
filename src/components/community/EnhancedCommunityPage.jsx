@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, limit, doc, getDoc } from 'firebase/firestore';
 
 // Import simplified components
 import CommunityHeader from './components/CommunityHeader.jsx';
@@ -65,7 +65,8 @@ const mockPosts = [
 const EnhancedCommunityPage = () => {
   const { communityId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth ? useAuth() : { user: null };
+  // Call useAuth unconditionally per React Hooks rules
+  const { user } = useAuth();
   const [posts, setPosts] = useState(mockPosts);
   const [community, setCommunity] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -119,16 +120,44 @@ const EnhancedCommunityPage = () => {
   };
   const getProfileImageDisplay = () => null;
   
-  // Load community data based on ID (placeholder mapping for now)
+  // Load community data by ID from Firestore; fall back to simple mapping when missing
   useEffect(() => {
-    const communityData = mockCommunities[communityId] || {
-      id: communityId,
-      name: communityId?.replace(/[-_]/g, ' ') || 'Community',
-      description: 'Community feed',
-      members: 0,
-      rules: [],
+    let isActive = true;
+    const load = async () => {
+      if (!communityId) return;
+      try {
+        const ref = doc(db, 'communities', communityId);
+        const snap = await getDoc(ref);
+        if (isActive && snap.exists()) {
+          const data = snap.data();
+          setCommunity({
+            id: snap.id,
+            name: data.name || communityId?.replace(/[-_]/g, ' ') || 'Community',
+            description: data.description || 'Community feed',
+            members: data.members ?? data.memberCount ?? 0,
+            rules: Array.isArray(data.rules) ? data.rules : [],
+            ...data,
+          });
+          return;
+        }
+      } catch (e) {
+        // non-fatal; fall back below
+        // eslint-disable-next-line no-console
+        console.warn('Failed to load community doc, using fallback name.', e?.message);
+      }
+      // Fallback: mock map or simple name from id
+      if (!isActive) return;
+      const communityData = mockCommunities[communityId] || {
+        id: communityId,
+        name: communityId?.replace(/[-_]/g, ' ') || 'Community',
+        description: 'Community feed',
+        members: 0,
+        rules: [],
+      };
+      setCommunity(communityData);
     };
-    setCommunity(communityData);
+    load();
+    return () => { isActive = false; };
   }, [communityId]);
 
   // Real-time Firestore posts feed for this community (public visibility)

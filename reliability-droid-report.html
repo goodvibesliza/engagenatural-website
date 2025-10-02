@@ -32,7 +32,7 @@
 <body>
   <div class="header" id="header">
     <div class="header-left">
-      <h1>Alert Investigation Brand managers cannot open communities</h1>
+      <h1>Alert Investigation – Brand managers cannot open communities</h1>
       <div>
         <span class="severity-badge sev-2">SEV-2</span>
         <span>Started: <span id="start-time">2025-10-01 00:00:00 UTC</span></span>
@@ -45,7 +45,7 @@
 
   <div class="section" id="exec-summary">
     <h2>Executive Summary</h2>
-    <p>Brand managers could not open community views due to a broken route and a component import mismatch. We added a guarded brand route that reuses the staff community UI and fixed the component import; we also wired the brand CommunitiesManager “Open” action to the new route.</p>
+    <p>Brand managers initially could not open community views due to a missing brand route and a component import mismatch. We added a guarded brand route that reuses the staff community UI and fixed the import. Follow-up issues (community name display, refresh, and stats) were resolved by loading community docs from Firestore, wiring the Refresh button to restart listeners, and adding live metrics (24h interactions and trending hashtags). A React Hooks violation in EnhancedCommunityPage (conditional useAuth) was fixed by calling useAuth() unconditionally.</p>
   </div>
 
   <div class="section" id="rca">
@@ -53,15 +53,16 @@
     <div>
       <ul>
         <li><strong>Primary Cause:</strong> No brand route existed to render the staff-style community page, and the “Open” action navigated to <code>/community/:id</code> which redirects/404s for brand managers.</li>
-        <li><strong>Code Defect:</strong> EnhancedCommunityPage imported <code>./components/PostList.jsx</code> but the actual file is <code>PoslList.jsx</code>, breaking the page if rendered.</li>
+        <li><strong>Code Defect 1:</strong> EnhancedCommunityPage imported <code>./components/PostList.jsx</code> but the file path did not match; fixed and standardized.</li>
+        <li><strong>Code Defect 2:</strong> EnhancedCommunityPage called <code>useAuth</code> conditionally, violating React Hook rules. Fixed by calling <code>useAuth()</code> unconditionally and null-checking the returned user where used.</li>
       </ul>
 
       <h3>Evidence</h3>
       <h4>Code Reference</h4>
       <pre>
-src/App.jsx – added route: /brand/community/:communityId guarded by RoleGuard(brand_manager)
-src/components/community/EnhancedCommunityPage.jsx – fixed import to './components/PoslList.jsx'
-src/components/brand/communities/CommunitiesManager.jsx – “Open” now navigates to /brand/community/:id
+src/App.jsx – added route /brand/community/:communityId guarded by RoleGuard(brand_manager)
+src/components/community/EnhancedCommunityPage.jsx – fixed PostList import; fixed conditional useAuth; loads community docs from Firestore; live public posts subscription
+src/components/brand/communities/CommunitiesManager.jsx – “Open” navigates to /brand/community/:id; Refresh reloads + restarts listeners; added 24h interactions and trending hashtags
       </pre>
     </div>
   </div>
@@ -74,12 +75,12 @@ src/components/brand/communities/CommunitiesManager.jsx – “Open” now navig
         <div>Validation: Brand manager can open a community from CommunitiesManager without error.</div>
       </li>
       <li class="fix-step">
-        <strong>Short-term Fix:</strong> Update EnhancedCommunityPage import to match actual filename (<code>PoslList.jsx</code>), and change CommunitiesManager “Open” action to navigate to the new brand route.
-        <div>Validation: Page renders posts and UI elements as expected.</div>
+        <strong>Short-term Fix:</strong> Update EnhancedCommunityPage imports; call <code>useAuth()</code> unconditionally; wire CommunitiesManager “Open” to the new route.
+        <div>Validation: No React Hook warnings; page renders posts and UI elements as expected.</div>
       </li>
       <li class="fix-step">
-        <strong>Long-term Solution:</strong> Standardize component filename (“PostList.jsx”) and consider consolidating staff and brand community views behind a shared component to avoid drift.
-        <div>Validation: CI build + manual smoke test across staff/brand roles.</div>
+        <strong>Additional Improvements:</strong> Load community details from Firestore for accurate names; add Refresh wiring; compute live metrics (24h interactions, trending hashtags) from public posts/comments.
+        <div>Validation: Community names render correctly; Refresh updates lists and feed; metrics update in real time.</div>
       </li>
     </ol>
   </div>
@@ -89,21 +90,25 @@ src/components/brand/communities/CommunitiesManager.jsx – “Open” now navig
     <div class="timeline">
       <div class="timeline-item">
         <span class="timeline-time">T0</span>
-        <div class="timeline-content">
-          Brand manager clicks “Open” in CommunitiesManager → navigates to <code>/community/:id</code> → redirect/404.
-        </div>
+        <div class="timeline-content">Brand manager clicks “Open” → navigates to <code>/community/:id</code> → redirect/404.</div>
       </div>
       <div class="timeline-item">
         <span class="timeline-time">T0+1</span>
-        <div class="timeline-content">
-          Added brand route and fixed import; updated “Open” to point to <code>/brand/community/:id</code>.
-        </div>
+        <div class="timeline-content">Added <code>/brand/community/:communityId</code> route; fixed EnhancedCommunityPage import.</div>
+      </div>
+      <div class="timeline-item">
+        <span class="timeline-time">T0+2</span>
+        <div class="timeline-content">Fixed conditional <code>useAuth</code> usage; EnhancedCommunityPage now loads community name/description from Firestore.</div>
+      </div>
+      <div class="timeline-item">
+        <span class="timeline-time">T0+3</span>
+        <div class="timeline-content">CommunitiesManager: wired Refresh and added live metrics (24h interactions, trending hashtags).</div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>Generated: <span id="generation-date">2025-10-01 00:00:00 UTC</span></p>
+    <p>Generated: <span id="generation-date">2025-10-02 00:00:00 UTC</span></p>
   </div>
 </body>
 </html>

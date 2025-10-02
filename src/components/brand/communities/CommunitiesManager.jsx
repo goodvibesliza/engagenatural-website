@@ -113,6 +113,10 @@ export default function CommunitiesManager({ brandId }) {
   // Add state for community metrics
   const [communityMetrics, setCommunityMetrics] = useState({ totalPosts: 0, totalComments: 0, totalLikes: 0 });
   const commentsUnsubRef = useRef(null);
+  // Track 24h interactions and trending hashtags
+  const [dailyInteractions, setDailyInteractions] = useState(0);
+  const [trendingHashtags, setTrendingHashtags] = useState([]);
+  const postsDailyRef = useRef(0);
 
   /* ---------- helpers ---------- */
   const navigate = useNavigate();
@@ -344,12 +348,33 @@ export default function CommunitiesManager({ brandId }) {
         (snap) => {
           const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           setPosts(list);
-          
+
           // Compute metrics
           const totalPosts = list.length;
           const totalLikes = list.reduce((sum, p) => sum + (p.likeCount || 0), 0);
           setCommunityMetrics(prev => ({ ...prev, totalPosts, totalLikes }));
-          
+
+          // Compute 24h posts count and trending hashtags
+          const nowSec = Date.now() / 1000;
+          const dayAgo = nowSec - 24 * 60 * 60;
+          const postsLastDay = list.filter(p => (p.createdAt?.seconds || 0) >= dayAgo).length;
+          postsDailyRef.current = postsLastDay;
+
+          const tagCounts = {};
+          list.forEach(p => {
+            const text = `${p.content || ''} ${p.title || ''}`;
+            const matches = text.match(/#[A-Za-z0-9_]+/g) || [];
+            matches.forEach(tag => {
+              const key = tag.toLowerCase();
+              tagCounts[key] = (tagCounts[key] || 0) + 1;
+            });
+          });
+          const topTags = Object.entries(tagCounts)
+            .sort((a,b) => b[1]-a[1])
+            .slice(0,5)
+            .map(([tag,count]) => ({ tag, count }));
+          setTrendingHashtags(topTags);
+
           setPostsLoading(false);
         },
         (err) => {
@@ -369,6 +394,16 @@ export default function CommunitiesManager({ brandId }) {
         commentsQuery,
         (snapshot) => {
           setCommunityMetrics(prev => ({ ...prev, totalComments: snapshot.size }));
+          // 24h interactions = posts in last 24h + comments in last 24h
+          const now = Date.now();
+          const dayAgo = now - 24 * 60 * 60 * 1000;
+          let commentsLastDay = 0;
+          snapshot.docs.forEach(d => {
+            const ts = d.data()?.createdAt;
+            const ms = ts?.toDate ? ts.toDate().getTime() : (ts?.seconds ? ts.seconds * 1000 : 0);
+            if (ms >= dayAgo) commentsLastDay++;
+          });
+          setDailyInteractions(postsDailyRef.current + commentsLastDay);
         },
         (err) => {
           console.error('Comments listener error:', err);
@@ -395,6 +430,27 @@ export default function CommunitiesManager({ brandId }) {
           const totalPosts = list.length;
           const totalLikes = list.reduce((sum, p) => sum + (p.likeCount || 0), 0);
           setCommunityMetrics(prev => ({ ...prev, totalPosts, totalLikes }));
+
+          // 24h posts + hashtags
+          const nowSec = Date.now() / 1000;
+          const dayAgo = nowSec - 24 * 60 * 60;
+          const postsLastDay = list.filter(p => (p.createdAt?.seconds || 0) >= dayAgo).length;
+          postsDailyRef.current = postsLastDay;
+
+          const tagCounts = {};
+          list.forEach(p => {
+            const text = `${p.content || ''} ${p.title || ''}`;
+            const matches = text.match(/#[A-Za-z0-9_]+/g) || [];
+            matches.forEach(tag => {
+              const key = tag.toLowerCase();
+              tagCounts[key] = (tagCounts[key] || 0) + 1;
+            });
+          });
+          const topTags = Object.entries(tagCounts)
+            .sort((a,b) => b[1]-a[1])
+            .slice(0,5)
+            .map(([tag,count]) => ({ tag, count }));
+          setTrendingHashtags(topTags);
           
           setPostsLoading(false);
         },
@@ -411,11 +467,28 @@ export default function CommunitiesManager({ brandId }) {
         commentsQuery,
         (snapshot) => {
           setCommunityMetrics(prev => ({ ...prev, totalComments: snapshot.size }));
+          const now = Date.now();
+          const dayAgo = now - 24 * 60 * 60 * 1000;
+          let commentsLastDay = 0;
+          snapshot.docs.forEach(d => {
+            const ts = d.data()?.createdAt;
+            const ms = ts?.toDate ? ts.toDate().getTime() : (ts?.seconds ? ts.seconds * 1000 : 0);
+            if (ms >= dayAgo) commentsLastDay++;
+          });
+          setDailyInteractions(postsDailyRef.current + commentsLastDay);
         },
         (err) => {
           console.error('Comments listener error:', err);
         }
       );
+    }
+  };
+
+  // Refresh handler that also restarts feed for selected community
+  const handleRefresh = async () => {
+    await fetchCommunities();
+    if (selectedCommunity) {
+      startPostsListener(selectedCommunity);
     }
   };
   
@@ -620,7 +693,7 @@ export default function CommunitiesManager({ brandId }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchCommunities}
+            onClick={handleRefresh}
             disabled={loading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -783,6 +856,25 @@ export default function CommunitiesManager({ brandId }) {
               <div className="bg-white/70 rounded border p-3 text-center">
                 <div className="text-xs text-muted-foreground">Likes</div>
                 <div className="text-lg font-semibold">{communityMetrics.totalLikes}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              <div className="bg-white/70 rounded border p-3">
+                <div className="text-xs text-muted-foreground">24h Interactions</div>
+                <div className="text-lg font-semibold">{dailyInteractions}</div>
+              </div>
+              <div className="md:col-span-2 bg-white/70 rounded border p-3">
+                <div className="text-xs text-muted-foreground mb-1">Trending Hashtags</div>
+                <div className="flex flex-wrap gap-2">
+                  {trendingHashtags.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">No hashtags yet</span>
+                  ) : trendingHashtags.map(({ tag, count }) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      <Tag className="h-3 w-3 mr-1" />{tag} · {count}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </div>
             
