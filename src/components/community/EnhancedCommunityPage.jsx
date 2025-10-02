@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, limit, doc, getDoc } from 'firebase/firestore';
+import { db, storage } from '@/lib/firebase';
+import { collection, query, where, orderBy, onSnapshot, limit, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 // Import simplified components
 import CommunityHeader from './components/CommunityHeader.jsx';
@@ -94,29 +95,138 @@ const EnhancedCommunityPage = () => {
   const [mediaAttachments, setMediaAttachments] = useState([]);
   const [uploadProgress, setUploadProgress] = useState({});
   const fileInputRef = useRef(null);
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
     const mapped = files.map((file, idx) => ({
       id: `${Date.now()}-${idx}`,
       type: file.type.startsWith('video/') ? 'video' : 'image',
       file,
       preview: URL.createObjectURL(file),
+      url: null, // Will be set after upload
+      uploading: true,
     }));
+    
     setMediaAttachments((prev) => [...prev, ...mapped]);
-    // Simulate progress to 100%
-    const next = { ...uploadProgress };
-    mapped.forEach((m) => (next[m.id] = 100));
-    setUploadProgress(next);
+    
+    // Upload each file to Firebase Storage
+    for (const attachment of mapped) {
+      try {
+        // Create storage reference with unique path
+        const timestamp = Date.now();
+        const sanitizedFileName = attachment.file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const storagePath = `community-images/${communityId}/${user?.uid || 'anonymous'}/${timestamp}-${sanitizedFileName}`;
+        const storageRef = ref(storage, storagePath);
+        
+        // Start upload
+        const uploadTask = uploadBytesResumable(storageRef, attachment.file);
+        
+        // Track progress
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress((prev) => ({
+              ...prev,
+              [attachment.id]: Math.round(progress),
+            }));
+          },
+          (error) => {
+            console.error('Upload error:', error);
+            // Remove failed attachment
+            setMediaAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+            setUploadProgress((prev) => {
+              const updated = { ...prev };
+              delete updated[attachment.id];
+              return updated;
+            });
+          },
+          async () => {
+            try {
+              // Upload completed successfully, get download URL
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              
+              // Update attachment with URL and mark as uploaded
+              setMediaAttachments((prev) => 
+                prev.map((a) => 
+                  a.id === attachment.id 
+                    ? { ...a, url: downloadURL, uploading: false }
+                    : a
+                )
+              );
+              
+              setUploadProgress((prev) => ({
+                ...prev,
+                [attachment.id]: 100,
+              }));
+            } catch (error) {
+              console.error('Failed to get download URL:', error);
+              // Remove failed attachment
+              setMediaAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+              setUploadProgress((prev) => {
+                const updated = { ...prev };
+                delete updated[attachment.id];
+                return updated;
+              });
+            }
+          }
+        );
+      } catch (error) {
+        console.error('Failed to start upload:', error);
+        // Remove failed attachment
+        setMediaAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+      }
+    }
   };
   const removeAttachment = (id) => {
     setMediaAttachments((prev) => prev.filter((a) => a.id !== id));
   };
-  const createPost = () => {
-    if (!newPost.trim()) return;
-    handleCreatePost(newPost.trim());
-    setNewPost('');
-    setMediaAttachments([]);
-    setShowNewPost(false);
+  const createPost = async () => {
+    if (!newPost.trim() && mediaAttachments.length === 0) return;
+    
+    // Check if any attachments are still uploading
+    const stillUploading = mediaAttachments.some(attachment => attachment.uploading);
+    if (stillUploading) {
+      alert('Please wait for all images to finish uploading.');
+      return;
+    }
+    
+    try {
+      // Prepare image URLs from uploaded attachments
+      const imageUrls = mediaAttachments
+        .filter(attachment => attachment.url) // Only include successfully uploaded images
+        .map(attachment => attachment.url);
+      
+      // Create post data
+      const postData = {
+        content: newPost.trim(),
+        communityId: communityId,
+        communityName: community?.name || 'Community',
+        createdAt: serverTimestamp(),
+        userId: user?.uid || null,
+        authorName: user?.displayName || user?.email || 'Anonymous',
+        authorPhotoURL: user?.photoURL || null,
+        authorRole: user?.role || 'member',
+        visibility: 'public',
+        likeCount: 0,
+        commentCount: 0,
+        ...(imageUrls.length > 0 && { imageUrls }), // Add image URLs if present
+        ...(selectedCategory && selectedCategory !== 'all' && { category: selectedCategory }),
+      };
+      
+      // Save to Firestore
+      await addDoc(collection(db, 'community_posts'), postData);
+      
+      // Clear form
+      setNewPost('');
+      setMediaAttachments([]);
+      setUploadProgress({});
+      setShowNewPost(false);
+      
+      console.log('Post created successfully with images:', imageUrls);
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      alert('Failed to create post. Please try again.');
+    }
   };
   const getProfileImageDisplay = () => null;
   
@@ -185,6 +295,7 @@ const EnhancedCommunityPage = () => {
               content: p.content || p.title || '',
               reactions: { like: p.likeCount || 0 },
               comments: new Array(p.commentCount || 0).fill(0).map((_, i) => ({ id: `${p.id}-c${i}` })),
+              imageUrls: p.imageUrls || [],
             }));
             setPosts(mapped);
           },
@@ -214,6 +325,7 @@ const EnhancedCommunityPage = () => {
             content: p.content || p.title || '',
             reactions: { like: p.likeCount || 0 },
             comments: new Array(p.commentCount || 0).fill(0).map((_, i) => ({ id: `${p.id}-c${i}` })),
+            imageUrls: p.imageUrls || [],
           }));
           setPosts(mapped);
         });

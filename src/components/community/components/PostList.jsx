@@ -26,6 +26,38 @@ const PostList = ({ posts, onPostAction }) => {
           {/* Post Content */}
           <p className="mb-3">{post.content}</p>
           
+          {/* Post Images */}
+          {post.imageUrls && post.imageUrls.length > 0 && (
+            <div className="mb-3">
+              {post.imageUrls.length === 1 ? (
+                <img 
+                  src={post.imageUrls[0]} 
+                  alt="Post attachment" 
+                  className="w-full max-w-lg h-auto rounded-lg border border-gray-200"
+                />
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {post.imageUrls.slice(0, 4).map((url, index) => (
+                    <div key={index} className="relative">
+                      <img 
+                        src={url} 
+                        alt={`Post attachment ${index + 1}`} 
+                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                      />
+                      {index === 3 && post.imageUrls.length > 4 && (
+                        <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                          <span className="text-white font-medium">
+                            +{post.imageUrls.length - 4} more
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Post Actions */}
           <div className="flex gap-2 text-sm text-gray-600 border-t pt-2">
             <button 
