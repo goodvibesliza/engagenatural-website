@@ -29,3 +29,32 @@ export function postOpenTraining({ postId, trainingId }) {
 export function filterApplied({ brands = [], tags = [], query = '' }) {
   track('filter_applied', { brands, tags, query });
 }
+
+// Brand Manager Events
+export function brandCommunitiesView() {
+  track('brand_communities_view', {});
+}
+
+export function brandCommunityOpen({ communityId }) {
+  track('brand_community_open', { communityId });
+}
+
+export function brandPostCreate({ communityId, postId }) {
+  track('brand_post_create', { communityId, postId });
+}
+
+export function brandPostPublish({ postId }) {
+  track('brand_post_publish', { postId });
+}
+
+export function brandPostUpdate({ postId }) {
+  track('brand_post_update', { postId });
+}
+
+export function brandPostDelete({ postId }) {
+  track('brand_post_delete', { postId });
+}
+
+export function brandReportView({ range }) {
+  track('brand_report_view', { range });
+}
