@@ -686,8 +686,15 @@ export default function CommunityEditor() {
         };
 
         const docRef = await addDoc(collection(db, 'posts'), postData);
+        
+        // Update optimistic post in posts array with real Firestore ID
+        const updatedPost = { ...selectedPost, id: docRef.id };
+        setPosts(prev => prev.map(p => p.id === 'new' ? updatedPost : p));
+        
+        // Update both selected and editing post with real ID  
+        setSelectedPost(updatedPost);
+        setEditingPost(updatedPost);
         setIsNewPost(false);
-        setSelectedPost(prev => ({ ...prev, id: docRef.id }));
         
         // Track post create and publish if applicable
         brandPostCreate({ communityId: community.id, postId: docRef.id });

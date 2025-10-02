@@ -97,6 +97,7 @@ export default function CommunitiesList() {
 
     const communityIds = communities.map(c => c.id);
     const unsubscribers = []; // Track all unsubscribe functions
+    const commentsUnsubscribers = []; // Track all comment listeners separately
     let allPosts = [];
     let allComments = [];
     let postsReceived = 0;
@@ -149,6 +150,21 @@ export default function CommunitiesList() {
       );
 
       const postsUnsub = onSnapshot(postsQuery, (snapshot) => {
+        // Reset state at start of each snapshot to prevent stale data accumulation
+        if (batchIndex === 0) {
+          // Only reset on first batch to avoid race conditions
+          allPosts = [];
+          allComments = [];
+          postsReceived = 0;
+          commentsReceived = 0;
+          
+          // Cleanup existing comments listeners from collection
+          commentsUnsubscribers.forEach(unsub => {
+            if (typeof unsub === 'function') unsub();
+          });
+          commentsUnsubscribers.length = 0; // Clear the array
+        }
+
         const batchPosts = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -165,12 +181,6 @@ export default function CommunitiesList() {
           const postBatches = createBatches(postIds);
 
           postBatches.forEach((postBatch, postBatchIndex) => {
-            // Unsubscribe previous comments listener if it exists
-            if (commentsUnsubRef.current) {
-              commentsUnsubRef.current();
-              commentsUnsubRef.current = null;
-            }
-
             const commentsQuery = query(
               collection(db, 'comments'),
               where('postId', 'in', postBatch),
@@ -195,8 +205,8 @@ export default function CommunitiesList() {
               }
             });
 
-            // Store the last comments unsubscriber
-            commentsUnsubRef.current = commentsUnsub;
+            // Add comments listener to collection for proper cleanup
+            commentsUnsubscribers.push(commentsUnsub);
             unsubscribers.push(commentsUnsub);
           });
         } else {
