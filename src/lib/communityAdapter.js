@@ -116,7 +116,8 @@ export function computeLikeMetrics(posts = [], likes = []) {
   } else {
     // Otherwise, sum like counts from posts within the date range
     posts.forEach(post => {
-      const likeCount = post.likeCount || 0;
+      // Use likeCount if available, otherwise fall back to likeIds length
+      const likeCount = post.likeCount || (post.likeIds ? post.likeIds.length : 0);
       if (isWithinDateRange(post.createdAt, boundary7d)) {
         likes7d += likeCount;
       }

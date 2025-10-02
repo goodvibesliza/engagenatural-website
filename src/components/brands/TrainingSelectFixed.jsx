@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, ExternalLink, AlertCircle } from 'lucide-react';
-import { listBrandTrainings, formatRelativeTime } from '../../lib/trainingAdapter';
+import { listBrandTrainings, formatRelativeTime, findTrainingById } from '../../lib/trainingAdapter';
 import { brandTrainingPreview } from '../../lib/analytics';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/badge';
@@ -25,35 +25,77 @@ export default function TrainingSelect({
   const [selectedTraining, setSelectedTraining] = useState(null);
   const [activeDescendant, setActiveDescendant] = useState(-1);
 
-  // Refs for DOM elements
+  // Refs for DOM elements and request tracking
   const comboboxRef = useRef(null);
   const inputRef = useRef(null);
   const listboxRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const fetchAbortControllerRef = useRef(null);
 
   // Load initial trainings and selected training data
   useEffect(() => {
     if (brandId) {
+      // Reset request tracking when brandId changes
+      requestIdRef.current = 0;
       loadTrainings('');
     }
-  }, [brandId]);
+  }, [brandId, loadTrainings]);
 
   // Find and set selected training when value changes
   useEffect(() => {
-    if (value && trainings.length > 0) {
+    if (value) {
+      // First try to find in current trainings
       const training = trainings.find(t => t.id === value);
-      setSelectedTraining(training || null);
+      if (training) {
+        setSelectedTraining(training);
+      } else if (trainings.length > 0) {
+        // If value exists but not found in current page, fetch by ID
+        const fetchMissingTraining = async () => {
+          try {
+            const fetchedTraining = await findTrainingById(value);
+            if (fetchedTraining) {
+              setSelectedTraining(fetchedTraining);
+            } else {
+              // Training doesn't exist anymore, clear selection
+              setSelectedTraining(null);
+              onClear?.();
+            }
+          } catch (error) {
+            console.error('Error fetching training by ID:', error);
+            // Keep previous training or clear silently
+            setSelectedTraining(null);
+          }
+        };
+        
+        fetchMissingTraining();
+      }
     } else {
       setSelectedTraining(null);
     }
-  }, [value, trainings]);
+  }, [value, trainings, onClear]);
 
   // Load trainings with optional search query
   const loadTrainings = useCallback(async (query = '') => {
     if (!brandId) return;
 
-    setLoading(true);
-    setError(null);
+    // Increment request ID and capture current ID for this request
+    const currentRequestId = ++requestIdRef.current;
+    
+    // Abort previous request if it exists
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    fetchAbortControllerRef.current = abortController;
+
+    // Only set loading if this is the current request
+    if (currentRequestId === requestIdRef.current) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const results = await listBrandTrainings({
@@ -61,12 +103,22 @@ export default function TrainingSelect({
         query: query.trim(),
         limit: 20
       });
-      setTrainings(results);
+      
+      // Only update state if this is still the current request
+      if (currentRequestId === requestIdRef.current && !abortController.signal.aborted) {
+        setTrainings(results);
+      }
     } catch (err) {
-      console.error('Error loading trainings:', err);
-      setError('Failed to load trainings. Please try again.');
+      // Only handle error if this is still the current request and not aborted
+      if (currentRequestId === requestIdRef.current && !abortController.signal.aborted) {
+        console.error('Error loading trainings:', err);
+        setError('Failed to load trainings. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      // Only clear loading if this is still the current request
+      if (currentRequestId === requestIdRef.current && !abortController.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [brandId]);
 
@@ -163,11 +215,14 @@ export default function TrainingSelect({
     }
   }, [isOpen]);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeout and abort controller on unmount
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
+      }
+      if (fetchAbortControllerRef.current) {
+        fetchAbortControllerRef.current.abort();
       }
     };
   }, []);

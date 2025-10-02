@@ -6,25 +6,36 @@ import React, { useEffect, useRef } from 'react';
  */
 export default function LiveAnnouncer({ message, type = 'polite', onClear }) {
   const announcerRef = useRef(null);
+  const timeoutRef = useRef(null);
 
   useEffect(() => {
     if (message && announcerRef.current) {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
       // Clear previous content first
       announcerRef.current.textContent = '';
       
       // Small delay to ensure screen readers catch the change
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         if (announcerRef.current) {
           announcerRef.current.textContent = message;
         }
       }, 100);
 
       // Clear after announcement
-      const clearTimeout = setTimeout(() => {
+      const clearTimeoutId = setTimeout(() => {
         if (onClear) onClear();
       }, 5000);
 
-      return () => clearTimeout(clearTimeout);
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        clearTimeout(clearTimeoutId);
+      };
     }
   }, [message, onClear]);
 

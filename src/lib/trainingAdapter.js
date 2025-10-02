@@ -1,14 +1,16 @@
 // src/lib/trainingAdapter.js
 // Pure functions to fetch and normalize training data for brand managers
 
-import { db } from './firebase';
+import { db } from '@/lib/firebase';
 import { 
   collection, 
   query, 
   where, 
   orderBy, 
   limit as limitQuery, 
-  getDocs 
+  getDocs,
+  doc,
+  getDoc
 } from 'firebase/firestore';
 
 /**
@@ -122,18 +124,14 @@ export async function findTrainingById(trainingId) {
   if (!trainingId) return null;
 
   try {
-    const doc = await getDocs(query(
-      collection(db, 'trainings'),
-      where('__name__', '==', trainingId),
-      limitQuery(1)
-    ));
+    const docRef = doc(db, 'trainings', trainingId);
+    const docSnap = await getDoc(docRef);
 
-    if (doc.empty) return null;
+    if (!docSnap.exists()) return null;
 
-    const training = doc.docs[0];
     return normalizeTraining({
-      id: training.id,
-      ...training.data()
+      id: docSnap.id,
+      ...docSnap.data()
     });
   } catch (error) {
     console.error('Error finding training by ID:', error);
