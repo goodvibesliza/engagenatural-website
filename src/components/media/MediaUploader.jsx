@@ -157,19 +157,21 @@ export default function MediaUploader({
   };
 
   const handleRemove = (uploadId) => {
-    setUploads(prev => {
-      const upload = prev.find(u => u.id === uploadId);
-      
-      // Cancel if still uploading
-      if (upload && upload.status === 'uploading' && upload.uploadTask) {
-        upload.uploadTask.cancel();
-      }
-      
-      const updated = prev.filter(u => u.id !== uploadId);
-      updateUploadingCount(updated);
-      notifyComplete(updated);
-      return updated;
-    });
+    // Cancel upload task if exists
+    const task = uploadTasksRef.current.get(uploadId);
+    if (task && task.cancel) {
+      task.cancel();
+    }
+    uploadTasksRef.current.delete(uploadId);
+    
+    if (isMountedRef.current) {
+      setUploads(prev => {
+        const updated = prev.filter(u => u.id !== uploadId);
+        updateUploadingCount(updated);
+        notifyComplete(updated);
+        return updated;
+      });
+    }
   };
 
   const handleRetry = (uploadId) => {

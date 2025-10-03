@@ -119,8 +119,8 @@ export default function Communities({ brandId }) {
     }
   };
 
-  const handleOpen = (communityId) => {
-    navigate(`/brand/community/${communityId}`);
+  const handleOpen = (communityKey) => {
+    navigate(`/brand/communities/${communityKey}`);
   };
 
   return (

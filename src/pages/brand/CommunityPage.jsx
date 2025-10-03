@@ -54,10 +54,16 @@ export default function CommunityPage() {
   }, [communityId]);
 
   const fetchRecentPosts = async () => {
+    if (!brandId) {
+      setLoadingPosts(false);
+      return;
+    }
+    
     try {
       const postsQuery = query(
         collection(db, 'community_posts'),
         where('communityId', '==', communityId),
+        where('brandId', '==', brandId),
         orderBy('createdAt', 'desc'),
         limit(10)
       );
