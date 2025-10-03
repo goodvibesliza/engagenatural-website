@@ -91,10 +91,10 @@ export default function Communities({ brandId }) {
           return timestamp.toMillis() >= thirtyDaysAgo.toMillis();
         });
 
-        // Calculate unique staff (unique authorUid or userId)
+        // Calculate unique staff (unique authorUid, authorId, or userId)
         const uniqueStaffSet = new Set();
         posts30d.forEach(p => {
-          const uid = p.authorUid || p.userId;
+          const uid = p.authorUid || p.authorId || p.userId;
           if (uid) uniqueStaffSet.add(uid);
         });
 
@@ -207,5 +207,8 @@ export default function Communities({ brandId }) {
     </div>
   );
 }
-
+)}
+      </div>
+    </div>
+  );
 }
