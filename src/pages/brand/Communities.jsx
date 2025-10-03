@@ -6,6 +6,34 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Users, MessageSquare, ThumbsUp } from "lucide-react";
 
+// Fixed community definitions (module-level constant for stable reference)
+const COMMUNITIES = [
+  {
+    key: "whats_good",
+    id: "whats-good",
+    name: "What's Good",
+    description: "Share what's working for you and discover new natural products"
+  },
+  {
+    key: "supplement_scoop",
+    id: "supplement-scoop",
+    name: "Supplement Scoop",
+    description: "Latest insights and discussions on supplements"
+  },
+  {
+    key: "pro_feed",
+    id: "pro-feed",
+    name: "Pro Feed",
+    description: "Professional discussions and industry insights"
+  },
+  {
+    key: "brand_community",
+    id: "brand",
+    name: "Brand Community",
+    description: "Your brand's dedicated community space"
+  }
+];
+
 // Desktop-layout compact grid showing 4 communities with analytics
 export default function Communities({ brandId }) {
   const { user } = useAuth();
@@ -20,34 +48,6 @@ export default function Communities({ brandId }) {
     brand_community: { posts7d: 0, posts30d: 0, uniqueStaff: 0, likes: 0, comments: 0 }
   });
 
-  // Fixed community definitions
-  const communities = [
-    {
-      key: "whats_good",
-      id: "whats-good",
-      name: "What's Good",
-      description: "Share what's working for you and discover new natural products"
-    },
-    {
-      key: "supplement_scoop",
-      id: "supplement-scoop",
-      name: "Supplement Scoop",
-      description: "Latest insights and discussions on supplements"
-    },
-    {
-      key: "pro_feed",
-      id: "pro-feed",
-      name: "Pro Feed",
-      description: "Professional discussions and industry insights"
-    },
-    {
-      key: "brand_community",
-      id: "brand",
-      name: "Brand Community",
-      description: "Your brand's dedicated community space"
-    }
-  ];
-
   // Memoize fetchCommunityStats to prevent unnecessary re-renders
   const fetchCommunityStats = useCallback(async () => {
     setLoading(true);
@@ -58,7 +58,7 @@ export default function Communities({ brandId }) {
     try {
       const newStats = {};
 
-      for (const community of communities) {
+      for (const community of COMMUNITIES) {
         // Query posts for this community and brand
         const postsQuery = query(
           collection(db, "community_posts"),
@@ -110,7 +110,7 @@ export default function Communities({ brandId }) {
     } finally {
       setLoading(false);
     }
-  }, [activeBrandId, communities, setLoading, setCommunityStats]);
+  }, [activeBrandId]);
 
   useEffect(() => {
     if (!activeBrandId) {
@@ -132,7 +132,7 @@ export default function Communities({ brandId }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
-        {communities.map(community => {
+        {COMMUNITIES.map(community => {
           const stats = communityStats[community.key];
           
           return (
