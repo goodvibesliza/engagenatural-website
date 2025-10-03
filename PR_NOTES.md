@@ -88,21 +88,47 @@ Addressed CodeRabbit security/UX concerns:
 
 ## CodeRabbit Issues Addressed
 
-### ✅ Fixed: PostList Image Rendering (Issue #5)
+### ✅ Fixed: PostList Image Rendering (Round 1, Issue #5)
+**Commit**: `6f49a1ab`
 - URL sanitization with protocol validation
 - Descriptive alt text with context
 - Error handling with graceful fallback
 - Lazy loading and layout stability
 - Support for multiple image formats
 
+### ✅ Fixed: File Input Reset (Round 2, Issue #2)
+**Commit**: `ccb34423`
+- File input reset in `createPost` to allow re-selecting same file
+- Clear `uploadProgress` on form reset
+- File input already reset in `handleFileSelect` after processing
+
+### ✅ Already Fixed: Blob URL Memory Leaks (Round 2, Issue #4)
+**Status**: Already implemented in current code
+- `revokePreviewUrls()` helper function centralizes cleanup
+- URLs revoked in `removeAttachment()`
+- URLs revoked on successful upload
+- URLs revoked on upload failure
+- URLs revoked in cleanup `useEffect` on unmount
+- All removal points properly clean up blob URLs
+
 ### ℹ️ Not Found: Other Issues
 The following issues mentioned by CodeRabbit were not found in files modified by this PR:
-- Firestore batch processing (`postsReceivedRef`)
+
+**Round 1**:
+- Firestore batch processing (`postsReceivedRef`, `communityBatches`)
 - `TrainingQuickPicker.jsx` useEffect dependencies
 - `TrainingSelect.jsx` training preservation
 - `TrainingSelect.jsx` race condition
 
-These may be in other branches or files not touched by this PR.
+**Round 2**:
+- `TrainingSelectFixed.jsx` aria-describedby missing id
+- `LiveAnnouncer.jsx` announcement type storage
+- `communityMetrics.js` post.likes vs post.likeIds handling
+
+These files either:
+- Don't exist in the current branch
+- Weren't modified by this PR
+- May be in other branches or already resolved
 
 ## Breaking Changes
 None - fully backward compatible.
