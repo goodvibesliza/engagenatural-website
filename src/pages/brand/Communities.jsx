@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../contexts/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
@@ -49,15 +49,8 @@ export default function Communities({ brandId }) {
     }
   ];
 
-  useEffect(() => {
-    if (!activeBrandId) {
-      setLoading(false);
-      return;
-    }
-    fetchCommunityStats();
-  }, [activeBrandId]);
-
-  const fetchCommunityStats = async () => {
+  // Memoize fetchCommunityStats to prevent unnecessary re-renders
+  const fetchCommunityStats = useCallback(async () => {
     setLoading(true);
     const now = Timestamp.now();
     const sevenDaysAgo = Timestamp.fromMillis(now.toMillis() - 7 * 24 * 60 * 60 * 1000);
@@ -118,7 +111,15 @@ export default function Communities({ brandId }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeBrandId, communities, setLoading, setCommunityStats]);
+
+  useEffect(() => {
+    if (!activeBrandId) {
+      setLoading(false);
+      return;
+    }
+    fetchCommunityStats();
+  }, [activeBrandId, fetchCommunityStats]);
 
   const handleOpen = (communityKey) => {
     navigate(`/brand/communities/${communityKey}`);
