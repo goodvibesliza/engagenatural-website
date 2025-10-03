@@ -67,10 +67,11 @@ export default function Communities({ brandId }) {
       const newStats = {};
 
       for (const community of communities) {
-        // Query posts for this community
+        // Query posts for this community and brand
         const postsQuery = query(
           collection(db, "community_posts"),
-          where("communityId", "==", community.id)
+          where("communityId", "==", community.id),
+          where("brandId", "==", activeBrandId)
         );
 
         const postsSnapshot = await getDocs(postsQuery);
@@ -203,11 +204,6 @@ export default function Communities({ brandId }) {
             </Card>
           );
         })}
-      </div>
-    </div>
-  );
-}
-)}
       </div>
     </div>
   );
