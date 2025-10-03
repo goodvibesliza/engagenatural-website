@@ -7,6 +7,12 @@ import React, { useEffect, useRef } from 'react';
 export default function LiveAnnouncer({ message, type = 'polite', onClear }) {
   const announcerRef = useRef(null);
   const timeoutRef = useRef(null);
+  const onClearRef = useRef(onClear);
+
+  // Keep onClearRef in sync with latest onClear prop
+  useEffect(() => {
+    onClearRef.current = onClear;
+  }, [onClear]);
 
   useEffect(() => {
     if (message && announcerRef.current) {
@@ -27,7 +33,7 @@ export default function LiveAnnouncer({ message, type = 'polite', onClear }) {
 
       // Clear after announcement
       const clearTimeoutId = setTimeout(() => {
-        if (onClear) onClear();
+        if (onClearRef.current) onClearRef.current();
       }, 5000);
 
       return () => {
@@ -37,7 +43,7 @@ export default function LiveAnnouncer({ message, type = 'polite', onClear }) {
         clearTimeout(clearTimeoutId);
       };
     }
-  }, [message, onClear]);
+  }, [message]);
 
   if (!message) return null;
 
