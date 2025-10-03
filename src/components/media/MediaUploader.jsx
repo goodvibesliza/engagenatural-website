@@ -85,50 +85,68 @@ export default function MediaUploader({
       'state_changed',
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploads(prev => prev.map(u => 
-          u.id === uploadId 
-            ? { ...u, progress: Math.round(progress) }
-            : u
-        ));
+        if (isMountedRef.current) {
+          setUploads(prev => prev.map(u => 
+            u.id === uploadId 
+              ? { ...u, progress: Math.round(progress) }
+              : u
+          ));
+        }
       },
       (error) => {
+        // Remove from tracking
+        uploadTasksRef.current.delete(uploadId);
+        
         // Handle error
-        setUploads(prev => {
-          const updated = prev.map(u =>
-            u.id === uploadId
-              ? { ...u, status: 'error', error: error.message }
-              : u
-          );
-          updateUploadingCount(updated);
-          notifyComplete(updated);
-          return updated;
-        });
+        if (isMountedRef.current) {
+          setUploads(prev => {
+            const updated = prev.map(u =>
+              u.id === uploadId
+                ? { ...u, status: 'error', error: error.message }
+                : u
+            );
+            updateUploadingCount(updated);
+            notifyComplete(updated);
+            return updated;
+          });
+        }
       },
       async () => {
         // Handle successful upload
         try {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          setUploads(prev => {
-            const updated = prev.map(u =>
-              u.id === uploadId
-                ? { ...u, status: 'success', progress: 100, downloadURL }
-                : u
-            );
-            updateUploadingCount(updated);
-            notifyComplete(updated);
-            return updated;
-          });
+          
+          // Remove from tracking
+          uploadTasksRef.current.delete(uploadId);
+          
+          if (isMountedRef.current) {
+            setUploads(prev => {
+              const updated = prev.map(u =>
+                u.id === uploadId
+                  ? { ...u, status: 'success', progress: 100, downloadURL }
+                  : u
+              );
+              updateUploadingCount(updated);
+              notifyComplete(updated);
+              return updated;
+            });
+          }
         } catch (error) {
-          setUploads(prev => {
-            const updated = prev.map(u =>
-              u.id === uploadId
-                ? { ...u, status: 'error', error: 'Failed to get download URL' }
-                : u
-            );
-            updateUploadingCount(updated);
-            notifyComplete(updated);
-            return updated;
-          });
+          // Remove from tracking
+          uploadTasksRef.current.delete(uploadId);
+          
+          if (isMountedRef.current) {
+            setUploads(prev => {
+              const updated = prev.map(u =>
+                u.id === uploadId
+                  ? { ...u, status: 'error', error: 'Failed to get download URL' }
+                  : u
+              );
+              updateUploadingCount(updated);
+              notifyComplete(updated);
+              return updated;
+            });
+          }
         }
       }
     );
