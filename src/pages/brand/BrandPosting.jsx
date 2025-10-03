@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/auth-context';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import MediaUploader from './components/MediaUploader';
 import { 
   MessageSquare, 
   Image, 
@@ -28,6 +31,11 @@ export default function BrandPosting({ brandId }) {
   const [isPosting, setIsPosting] = useState(false);
   const [postStatus, setPostStatus] = useState(null);
   const [recentPosts, setRecentPosts] = useState([]);
+  
+  // Image upload state
+  const [images, setImages] = useState([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [postId, setPostId] = useState(null);
 
   // Check permissions on component mount
   useEffect(() => {
@@ -42,52 +50,77 @@ export default function BrandPosting({ brandId }) {
     // Fetch communities where brand can post
     fetchBrandCommunities();
     fetchRecentBrandPosts();
+    
+    // Generate post ID for this session
+    setPostId(`post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   }, [canPostAsBrand, brandId]);
 
   const fetchBrandCommunities = async () => {
     try {
-      // Replace with your actual API call
-      const response = await fetch(`/api/brands/${brandId}/communities`);
-      const data = await response.json();
-      setCommunities(data);
+      // Fetch real communities from Firestore
+      const communitiesQuery = query(
+        collection(db, 'communities'),
+        where('active', '==', true),
+        orderBy('name')
+      );
+      
+      const snapshot = await getDocs(communitiesQuery);
+      const communityData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      setCommunities(communityData);
       
       // Set first community as default
-      if (data.length > 0) {
-        setSelectedCommunity(data[0].id);
+      if (communityData.length > 0) {
+        setSelectedCommunity(communityData[0].id);
       }
     } catch (error) {
-      console.error('Error fetching communities:', error);
       // Fallback to mock data
       setCommunities([
-        { id: 'sustainability', name: 'Sustainability Champions', members: 1247 },
-        { id: 'product-training', name: 'Product Training Hub', members: 892 },
-        { id: 'retail-excellence', name: 'Retail Excellence', members: 1456 }
+        { id: 'whats-good', name: "What's Good", members: 1247 },
+        { id: 'supplement-scoop', name: 'Supplement Scoop', members: 892 },
+        { id: 'pro-feed', name: 'Pro Feed', members: 1456 },
+        { id: 'brand', name: 'Brand Community', members: 892 }
       ]);
-      setSelectedCommunity('sustainability');
+      setSelectedCommunity('whats-good');
     }
   };
 
   const fetchRecentBrandPosts = async () => {
     try {
-      // Replace with your actual API call
-      const response = await fetch(`/api/brands/${brandId}/posts?limit=5`);
-      const data = await response.json();
-      setRecentPosts(data);
+      // Fetch recent posts from this brand
+      const postsQuery = query(
+        collection(db, 'posts'),
+        where('brandId', '==', brandId),
+        where('isBrandPost', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
+      
+      const snapshot = await getDocs(postsQuery);
+      const postsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().createdAt?.toDate() || new Date()
+      }));
+      
+      setRecentPosts(postsData);
     } catch (error) {
-      console.error('Error fetching recent posts:', error);
       // Fallback to mock data
       setRecentPosts([
         {
           id: 1,
           content: 'Excited to announce our new sustainability initiative! 🌱',
-          community: 'Sustainability Champions',
+          community: 'What\'s Good',
           timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
           engagements: 45
         },
         {
           id: 2,
           content: 'New product training materials are now available in the hub.',
-          community: 'Product Training Hub',
+          community: 'Supplement Scoop',
           timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
           engagements: 23
         }
@@ -106,10 +139,10 @@ export default function BrandPosting({ brandId }) {
       return;
     }
 
-    if (!postContent.trim()) {
+    if (!postContent.trim() && images.length === 0) {
       setPostStatus({
         type: 'error',
-        message: 'Please enter some content for your post.'
+        message: 'Please enter some content or add images to your post.'
       });
       return;
     }
@@ -121,11 +154,29 @@ export default function BrandPosting({ brandId }) {
       });
       return;
     }
+    
+    // Check if any images are still uploading
+    if (uploadingCount > 0) {
+      setPostStatus({
+        type: 'error',
+        message: 'Please wait for all images to finish uploading.'
+      });
+      return;
+    }
 
     setIsPosting(true);
     setPostStatus(null);
 
     try {
+      // Prepare image data with download URLs only
+      const imageData = images
+        .filter(img => img.downloadURL && img.complete)
+        .map(img => ({
+          name: img.name,
+          path: img.path,
+          downloadURL: img.downloadURL
+        }));
+
       const postData = {
         content: postContent,
         type: postType,
@@ -134,37 +185,35 @@ export default function BrandPosting({ brandId }) {
         authorId: brandId,
         authorName: getBrandName(),
         isBrandPost: true,
-        timestamp: new Date()
+        brandId: brandId,
+        images: imageData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        likes: 0,
+        comments: 0,
+        shares: 0
       };
 
-      // Replace with your actual API call
-      const response = await fetch('/api/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userProfile.token}` // If you use tokens
-        },
-        body: JSON.stringify(postData)
-      });
+      // Save post to Firestore
+      await addDoc(collection(db, 'posts'), postData);
 
-      if (response.ok) {
-        setPostStatus({
-          type: 'success',
-          message: 'Post published successfully!'
-        });
-        setPostContent('');
-        setPostType('text');
-        
-        // Refresh recent posts
-        fetchRecentBrandPosts();
-      } else {
-        throw new Error('Failed to publish post');
-      }
+      setPostStatus({
+        type: 'success',
+        message: 'Post published successfully!'
+      });
+      
+      // Reset form
+      setPostContent('');
+      setPostType('text');
+      setImages([]);
+      setPostId(`post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+      
+      // Refresh recent posts
+      fetchRecentBrandPosts();
     } catch (error) {
-      console.error('Error posting:', error);
       setPostStatus({
         type: 'error',
-        message: 'Failed to publish post. Please try again.'
+        message: `Failed to publish post: ${error.message}`
       });
     } finally {
       setIsPosting(false);
@@ -172,8 +221,10 @@ export default function BrandPosting({ brandId }) {
   };
 
   const getBrandName = () => {
-    // Replace with actual brand name logic
-    return brandId === 'engagenatural' ? 'EngageNatural' : brandId;
+    // Get brand name from brand ID
+    return brandId.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
   };
 
   const formatTimeAgo = (timestamp) => {
@@ -252,7 +303,7 @@ export default function BrandPosting({ brandId }) {
               <option value="">Choose a community...</option>
               {communities.map((community) => (
                 <option key={community.id} value={community.id}>
-                  {community.name} ({community.members} members)
+                  {community.name} {community.members ? `(${community.members} members)` : ''}
                 </option>
               ))}
             </select>
@@ -316,7 +367,6 @@ export default function BrandPosting({ brandId }) {
               placeholder={`Share an official update from ${getBrandName()}...`}
               rows={6}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              required
             />
             <div className="flex justify-between items-center mt-2">
               <p className="text-sm text-gray-500">
@@ -327,6 +377,20 @@ export default function BrandPosting({ brandId }) {
                 <span>Posting as {getBrandName()}</span>
               </div>
             </div>
+          </div>
+
+          {/* Media Uploader */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Add Images (Optional)
+            </label>
+            <MediaUploader
+              brandId={brandId}
+              postId={postId}
+              maxMB={parseInt(import.meta.env.VITE_MAX_IMAGE_MB) || 5}
+              onImagesChange={setImages}
+              onUploadingChange={setUploadingCount}
+            />
           </div>
 
           {/* Status Messages */}
@@ -349,11 +413,18 @@ export default function BrandPosting({ brandId }) {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={isPosting || !postContent.trim() || !selectedCommunity}
+              disabled={isPosting || uploadingCount > 0 || (!postContent.trim() && images.length === 0) || !selectedCommunity}
               className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={uploadingCount > 0 ? 'Please wait for images to finish uploading' : ''}
             >
               <Send className="w-4 h-4" />
-              <span>{isPosting ? 'Publishing...' : 'Publish Post'}</span>
+              <span>
+                {uploadingCount > 0 
+                  ? `Uploading ${uploadingCount} ${uploadingCount === 1 ? 'image' : 'images'}...`
+                  : isPosting 
+                    ? 'Publishing...' 
+                    : 'Publish Post'}
+              </span>
             </button>
           </div>
         </form>
@@ -381,15 +452,27 @@ export default function BrandPosting({ brandId }) {
                         Brand
                       </span>
                       <span className="text-sm text-gray-500">•</span>
-                      <span className="text-sm text-gray-500">{post.community}</span>
+                      <span className="text-sm text-gray-500">{post.community || post.communityId}</span>
                       <span className="text-sm text-gray-500">•</span>
                       <span className="text-sm text-gray-500">{formatTimeAgo(post.timestamp)}</span>
                     </div>
                     <p className="text-gray-900 mb-3">{post.content}</p>
+                    {post.images && post.images.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        {post.images.slice(0, 4).map((img, idx) => (
+                          <img 
+                            key={idx} 
+                            src={img.downloadURL} 
+                            alt={img.name} 
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center space-x-1">
                         <Users className="w-4 h-4" />
-                        <span>{post.engagements} engagements</span>
+                        <span>{post.engagements || post.likes || 0} engagements</span>
                       </div>
                     </div>
                   </div>
@@ -420,6 +503,10 @@ export default function BrandPosting({ brandId }) {
           </li>
           <li className="flex items-start space-x-2">
             <CheckCircle className="w-4 h-4 mt-0.5 text-blue-600" />
+            <span>Images must be under {parseInt(import.meta.env.VITE_MAX_IMAGE_MB) || 5}MB each</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <CheckCircle className="w-4 h-4 mt-0.5 text-blue-600" />
             <span>Engage authentically with community members</span>
           </li>
           <li className="flex items-start space-x-2">
@@ -431,4 +518,3 @@ export default function BrandPosting({ brandId }) {
     </div>
   );
 }
-
