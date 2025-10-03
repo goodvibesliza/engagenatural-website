@@ -39,6 +39,7 @@ import BrandContentManager from './pages/brand/BrandContentManager';
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 import Communities from './pages/brand/Communities.jsx';
 import CommunityPage from './pages/brand/CommunityPage.jsx';
+import BrandProfile from './pages/brand/Profile.jsx';
 // Brand Community Management
 import CommunityList from './pages/brand/CommunityList.jsx';
 import CommunityComposer from './pages/brand/CommunityComposer.jsx';
@@ -287,6 +288,14 @@ function App() {
             element={
               <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
                 <CommunityPage />
+              </RoleGuard>
+            }
+          />
+          <Route 
+            path="/brand/profile"
+            element={
+              <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
+                <BrandProfile />
               </RoleGuard>
             }
           />

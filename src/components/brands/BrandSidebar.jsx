@@ -61,7 +61,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen }) {
       id: 'communities',
       label: 'Communities',
       icon: Users,
-      href: '/brands/communities',
+      href: '/brand/communities',
       description: 'Manage brand communities',
       isNew: true // Mark as new feature
     },

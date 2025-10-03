@@ -4,8 +4,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/Button";
-import { Users, MessageSquare, ThumbsUp, TrendingUp } from "lucide-react";
+import { Users, MessageSquare, ThumbsUp } from "lucide-react";
 
 // Desktop-layout compact grid showing 4 communities with analytics
 export default function Communities({ brandId }) {
@@ -140,7 +139,8 @@ export default function Communities({ brandId }) {
             <Card 
               key={community.key}
               data-testid={`community-card-${community.key}`}
-              className="flex flex-col min-w-[280px]"
+              onClick={() => handleOpen(community.key)}
+              className="flex flex-col min-w-[280px] cursor-pointer hover:shadow-md transition-shadow"
             >
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">{community.name}</CardTitle>
@@ -193,14 +193,6 @@ export default function Communities({ brandId }) {
                     </div>
                   </div>
                 )}
-                
-                <Button 
-                  onClick={() => handleOpen(community.key)}
-                  className="w-full mt-4"
-                  size="sm"
-                >
-                  Open
-                </Button>
               </CardContent>
             </Card>
           );
