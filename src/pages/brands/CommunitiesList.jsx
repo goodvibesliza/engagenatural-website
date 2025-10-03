@@ -178,6 +178,7 @@ export default function CommunitiesList() {
         // Merge this batch's posts with existing posts using current ref values
         allPostsRef.current = allPostsRef.current.filter(p => !batch.includes(p.communityId)).concat(batchPosts);
         postsReceivedRef.current++;
+        postsReceivedRef.current = Math.min(postsReceivedRef.current, communityBatches.length);
 
         // Process comments for this batch of posts
         if (batchPosts.length > 0) {

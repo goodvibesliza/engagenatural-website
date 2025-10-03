@@ -56,14 +56,16 @@ export default function LiveAnnouncer({ message, type = 'polite', onClear }) {
  */
 export function useAnnouncements() {
   const [announcement, setAnnouncement] = React.useState('');
+  const [politeness, setPoliteness] = React.useState('polite');
 
-  const announce = React.useCallback((message) => {
+  const announce = React.useCallback((message, type = 'polite') => {
     setAnnouncement(message);
+    setPoliteness(type);
   }, []);
 
   const clear = React.useCallback(() => {
     setAnnouncement('');
   }, []);
 
-  return { announcement, announce, clear };
+  return { announcement, announce, clear, politeness };
 }

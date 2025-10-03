@@ -46,8 +46,8 @@ export async function listBrandTrainings({ brandId, query: searchQuery = '', lim
     if (searchQuery && searchQuery.trim()) {
       const queryLower = searchQuery.toLowerCase().trim();
       trainings = trainings.filter(training => 
-        training.title?.toLowerCase().includes(queryLower) ||
-        training.description?.toLowerCase().includes(queryLower)
+        (training.title || '').toLowerCase().includes(queryLower) ||
+        (training.description || '').toLowerCase().includes(queryLower)
       );
     }
 
