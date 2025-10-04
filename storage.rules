@@ -5,12 +5,51 @@ service firebase.storage {
     function isSignedIn() { return request.auth != null; }
     function isOwner(uid) { return request.auth != null && request.auth.uid == uid; }
 
+    // Get user document from Firestore
+    function getUserDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+    
+    // Check if user is brand manager for specific brand
+    function isBrandManager(brandId) {
+      return isSignedIn() 
+        && getUserDoc().data.role == 'brand_manager' 
+        && getUserDoc().data.brandId == brandId;
+    }
+    
+    // Check if resource is an image
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Check file size limit
+    function isWithinSizeLimit(maxMB) {
+      return request.resource.size <= maxMB * 1024 * 1024;
+    }
+
     // User-owned uploads (avatars, verification photos)
     match /users/{uid}/{allPaths=**} {
-      allow read: if isSignedIn(); // app-only; tighten to (isOwner(uid)) if needed
+      allow read: if isSignedIn();
       allow write: if isOwner(uid)
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // Brand community posts - restricted to brand managers
+    match /brands/{brandId}/community/{postId}/{fileName} {
+      // Allow read for all signed-in users
+      allow read: if isSignedIn();
+      
+      // Allow create for brand managers of this brand - images only, max 5MB
+      allow create: if isBrandManager(brandId)
+                    && isImage()
+                    && isWithinSizeLimit(5);
+      
+      // Allow delete only by the same brand manager
+      allow delete: if isBrandManager(brandId);
+      
+      // Deny updates/overwrites
+      allow update: if false;
     }
 
     // App-scoped assets (brand images, training thumbnails, community images)

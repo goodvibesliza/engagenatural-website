@@ -37,6 +37,9 @@ import BrandDashboard from './pages/brand/Dashboard';
 import BrandContentManager from './pages/brand/BrandContentManager';
 // Brand Training Detail
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
+import Communities from './pages/brand/Communities.jsx';
+import CommunityPage from './pages/brand/CommunityPage.jsx';
+import BrandProfile from './pages/brand/Profile.jsx';
 // Brand Community Management
 import CommunityList from './pages/brand/CommunityList.jsx';
 import CommunityComposer from './pages/brand/CommunityComposer.jsx';
@@ -272,6 +275,30 @@ function App() {
             } 
           />
           {/* Brand Community View (staff-style UI for brand managers) */}
+          <Route 
+            path="/brand/communities"
+            element={
+              <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
+                <Communities />
+              </RoleGuard>
+            }
+          />
+          <Route 
+            path="/brand/communities/:key"
+            element={
+              <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
+                <CommunityPage />
+              </RoleGuard>
+            }
+          />
+          <Route 
+            path="/brand/profile"
+            element={
+              <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
+                <BrandProfile />
+              </RoleGuard>
+            }
+          />
           <Route 
             path="/brand/community/:communityId"
             element={

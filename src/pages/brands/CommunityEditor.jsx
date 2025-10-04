@@ -83,7 +83,7 @@ export default function CommunityEditor() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const textareaRef = useRef();
-  const { announcement, announce, clear } = useAnnouncements();
+  const { announcement, announce, clear, politeness } = useAnnouncements();
 
   // Community and posts state
   const [community, setCommunity] = useState(null);
@@ -829,7 +829,7 @@ export default function CommunityEditor() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      <LiveAnnouncer message={announcement} onClear={clear} />
+      <LiveAnnouncer message={announcement} type={politeness} onClear={clear} />
       {/* Header */}
       <div className="flex items-center justify-between p-6 bg-white border-b border-gray-200">
         <div className="flex items-center space-x-4">
