@@ -159,7 +159,7 @@ export default function CommunityPage() {
             onClick={() => setSidebarOpen(true)}
             className="p-2 lg:hidden"
           >
-            <Menu className="w-5 w-5" />
+            <Menu className="w-5 h-5" />
           </Button>
           
           {/* Logo and Beta Badge */}

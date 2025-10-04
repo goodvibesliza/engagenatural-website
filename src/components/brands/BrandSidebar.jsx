@@ -29,7 +29,6 @@ import {
   LogOut,
   Building,
   ChevronDown,
-  Menu,
   X
 } from 'lucide-react';
 
