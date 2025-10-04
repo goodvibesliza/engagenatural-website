@@ -93,6 +93,8 @@ import CommunityMetricsChart from '../../components/brand/CommunityMetricsChart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 // Communities manager
 import CommunitiesManager from '../../components/brand/communities/CommunitiesManager';
+// Brand Sidebar component
+import BrandSidebar from '../../components/brands/BrandSidebar';
 
 // Brand Dashboard Content component
 const BrandDashboardContent = ({ brandId }) => {
