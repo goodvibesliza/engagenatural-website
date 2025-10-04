@@ -1005,7 +1005,7 @@ const EnhancedBrandHome = () => {
     { id: 'users', label: 'User Management', icon: Users, description: 'Manage team access' },
     { id: 'content', label: 'Content Management', icon: FileText, description: 'Publish and organize content' },
     { id: 'samples', label: 'Sample Requests', icon: Package, description: 'Manage sample requests' },
-    { id: 'communities', label: 'Communities', icon: Users, description: 'Manage communities & posts' },
+    { id: 'communities', label: 'Communities', icon: Users, description: 'All Communities' },
     { id: 'brand', label: 'Brand Performance', icon: TrendingUp, description: 'Track engagement metrics' },
     { id: 'activity', label: 'Activity Feed', icon: Activity, description: 'Recent updates and events' },
     { id: 'settings', label: 'Settings', icon: Settings, description: 'Configure brand preferences' },
