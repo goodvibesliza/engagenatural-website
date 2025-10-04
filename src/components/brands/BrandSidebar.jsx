@@ -35,9 +35,14 @@ import {
 
 /**
  * Desktop sidebar for brand managers with Communities navigation
- * Includes desktop-only enforcement and route persistence
+ * Supports both route-based navigation and section callbacks for Dashboard
+ * @param {Object} props
+ * @param {boolean} props.sidebarOpen - Mobile sidebar open state
+ * @param {Function} props.setSidebarOpen - Mobile sidebar state setter
+ * @param {Function} props.onSectionChange - Optional callback for Dashboard section changes
+ * @param {string} props.activeSection - Active section ID for Dashboard
  */
-export default function BrandSidebar({ sidebarOpen, setSidebarOpen }) {
+export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionChange, activeSection }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -48,43 +53,71 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen }) {
   const brandId = user?.brandId || 'demo-brand';
   const brandName = user?.brandName || brandId;
 
-  // Navigation items
+  // Navigation items - supports both routes and sections via onSectionChange
   const navItems = [
     {
       id: 'dashboard',
       label: 'Dashboard',
       icon: Home,
-      href: '/brands',
-      description: 'Overview and analytics'
+      href: '/brand',
+      description: 'Overview and key metrics'
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics Dashboard',
+      icon: BarChart3,
+      section: 'analytics',
+      description: 'Key metrics and ROI'
+    },
+    {
+      id: 'users',
+      label: 'User Management',
+      icon: Users,
+      section: 'users',
+      description: 'Manage team access'
+    },
+    {
+      id: 'content',
+      label: 'Content Management',
+      icon: FileText,
+      section: 'content',
+      description: 'Publish and organize content'
+    },
+    {
+      id: 'samples',
+      label: 'Sample Requests',
+      icon: FileText,
+      section: 'samples',
+      description: 'Manage sample requests'
     },
     {
       id: 'communities',
       label: 'Communities',
       icon: Users,
       href: '/brand/communities',
-      description: 'Manage brand communities',
-      isNew: true // Mark as new feature
+      description: 'All Communities',
+      isNew: true
     },
     {
-      id: 'content',
-      label: 'Content',
-      icon: FileText,
-      href: '/brands/content',
-      description: 'Content management'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
+      id: 'brand',
+      label: 'Brand Performance',
       icon: BarChart3,
-      href: '/brands/analytics',
-      description: 'Performance metrics'
+      section: 'brand',
+      description: 'Track engagement metrics'
+    },
+    {
+      id: 'activity',
+      label: 'Activity Feed',
+      icon: FileText,
+      section: 'activity',
+      description: 'Recent updates and events'
     },
     {
       id: 'settings',
       label: 'Settings',
       icon: Settings,
-      href: '/brands/settings',
-      description: 'Brand configuration'
+      section: 'settings',
+      description: 'Configure brand preferences'
     }
   ];
 
@@ -96,11 +129,15 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen }) {
       from_path: location.pathname
     });
 
-    // Persist last route
-    localStorage.setItem('en.brand.lastRoute', item.href);
-
-    // Navigate
-    navigate(item.href);
+    // If item has an href, navigate to route
+    if (item.href) {
+      localStorage.setItem('en.brand.lastRoute', item.href);
+      navigate(item.href);
+    }
+    // If item has a section and callback is provided, use section callback
+    else if (item.section && onSectionChange) {
+      onSectionChange(item.section);
+    }
 
     // Close mobile sidebar
     if (setSidebarOpen) {
@@ -177,7 +214,8 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen }) {
         </div>
         
         {navItems.map((item, index) => {
-          const active = isActive(item.href);
+          // Check if active based on href route OR section match
+          const active = item.href ? isActive(item.href) : (item.section === activeSection);
           return (
             <button
               key={item.id}
