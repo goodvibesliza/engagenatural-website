@@ -93,3 +93,65 @@ If needed, revert the following commits on this branch:
 - Brand community route is available at `/brand/community/:communityId` under RoleGuard(brand_manager).
 - CommunitiesManager now shows live metrics (24h interactions, trending hashtags) and has a functioning Refresh that restarts listeners.
 - `reliability-droid-report.html` has been updated with latest RCA and fixes.
+
+## Dashboard Refactoring Recommendations
+
+### Current State (as of feature/integrate-brand-sidebar)
+- **Dashboard.jsx**: ~1,331 lines (down from ~1,600 after BrandSidebar integration)
+- **Status**: Manageable but monolithic - contains all dashboard sections inline
+- **Recent improvements**: 
+  - Replaced 242 lines of duplicate sidebar code with BrandSidebar component
+  - Removed old navItems array and duplicate user menu
+  - Proper onSectionChange callback wiring
+
+### Recommended Future Refactoring
+Extract individual dashboard sections into separate components to improve:
+- **Maintainability**: Smaller files are easier to understand and edit
+- **Testability**: Individual sections can be tested in isolation
+- **Performance**: Better code splitting and lazy loading opportunities
+- **Developer Experience**: Reduced cognitive load when working on specific features
+
+### Proposed Architecture
+
+```
+src/pages/brand/Dashboard.jsx (~200-300 lines)
+├─ Layout shell with BrandSidebar
+├─ Section routing logic
+└─ Import section components
+
+src/pages/brand/dashboard/
+├─ AnalyticsSection.jsx (~150-250 lines)
+├─ UsersSection.jsx (~100-200 lines)
+├─ ContentSection.jsx (~150-250 lines)
+├─ SampleRequestsSection.jsx (~200-300 lines)
+├─ BrandPerformanceSection.jsx (~150-250 lines)
+├─ ActivitySection.jsx (~100-200 lines)
+└─ SettingsSection.jsx (~100-150 lines)
+```
+
+### Implementation Plan
+1. **Create dashboard sections directory**: `src/pages/brand/dashboard/`
+2. **Extract sections one at a time** (order by complexity):
+   - Start with simpler sections (SettingsSection, ActivitySection)
+   - Move to medium complexity (UsersSection, ContentSection)
+   - Finish with complex sections (AnalyticsSection, SampleRequestsSection, BrandPerformanceSection)
+3. **For each section**:
+   - Extract JSX and related state/effects into new component
+   - Move section-specific hooks and utilities
+   - Keep shared utilities in parent or separate utility files
+   - Import and wire up in Dashboard.jsx
+4. **Test after each extraction** to ensure no regressions
+5. **Final cleanup**: Remove unused imports and state from Dashboard.jsx
+
+### Benefits
+- Each section file will be ~100-300 lines (optimal for AI editing tools)
+- Clear separation of concerns
+- Easier to add new sections or modify existing ones
+- Better code organization following single-responsibility principle
+- Reduced context switching when working on specific features
+
+### Notes
+- Current Dashboard.jsx is functional and not blocking - this is a quality-of-life improvement
+- Consider doing this refactoring on a separate feature branch
+- Can be done incrementally without breaking changes
+- BrandDesktopLayout.jsx is a bare-bones shell and doesn't have the section callback wiring needed
