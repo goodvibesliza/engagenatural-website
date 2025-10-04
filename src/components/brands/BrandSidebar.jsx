@@ -56,18 +56,11 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
   // Navigation items - supports both routes and sections via onSectionChange
   const navItems = [
     {
-      id: 'dashboard',
+      id: 'analytics',
       label: 'Dashboard',
       icon: Home,
-      href: '/brand',
-      description: 'Overview and key metrics'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics Dashboard',
-      icon: BarChart3,
       section: 'analytics',
-      description: 'Key metrics and ROI'
+      description: 'Overview and key metrics'
     },
     {
       id: 'users',
