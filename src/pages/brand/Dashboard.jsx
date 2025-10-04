@@ -606,48 +606,6 @@ const BrandDashboardContent = ({ brandId }) => {
   }, [brandId, trainings, thirtyDaysAgo]);
 
   // Helper function to render status badge
-  const renderStatusBadge = (status) => {
-    let color = "";
-    switch (status) {
-      case 'pending':
-        color = "bg-yellow-100 text-yellow-800";
-        break;
-      case 'approved':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      case 'shipped':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'denied':
-        color = "bg-red-100 text-red-800";
-        break;
-      case 'completed':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'in_progress':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      default:
-        color = "bg-gray-100 text-gray-800";
-    }
-    
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
-        {status.replace('_', ' ')}
-      </span>
-    );
-  };
-
-  // Format date function
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return new Intl.DateTimeFormat('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
   };
 
   // Display global error for brandId if present
