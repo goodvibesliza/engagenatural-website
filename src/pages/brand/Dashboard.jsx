@@ -606,48 +606,6 @@ const BrandDashboardContent = ({ brandId }) => {
   }, [brandId, trainings, thirtyDaysAgo]);
 
   // Helper function to render status badge
-  const renderStatusBadge = (status) => {
-    let color = "";
-    switch (status) {
-      case 'pending':
-        color = "bg-yellow-100 text-yellow-800";
-        break;
-      case 'approved':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      case 'shipped':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'denied':
-        color = "bg-red-100 text-red-800";
-        break;
-      case 'completed':
-        color = "bg-green-100 text-green-800";
-        break;
-      case 'in_progress':
-        color = "bg-blue-100 text-blue-800";
-        break;
-      default:
-        color = "bg-gray-100 text-gray-800";
-    }
-    
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
-        {status.replace('_', ' ')}
-      </span>
-    );
-  };
-
-  // Format date function
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return new Intl.DateTimeFormat('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
   };
 
   // Display global error for brandId if present
@@ -1005,7 +963,7 @@ const EnhancedBrandHome = () => {
     { id: 'users', label: 'User Management', icon: Users, description: 'Manage team access' },
     { id: 'content', label: 'Content Management', icon: FileText, description: 'Publish and organize content' },
     { id: 'samples', label: 'Sample Requests', icon: Package, description: 'Manage sample requests' },
-    { id: 'communities', label: 'Communities', icon: Users, description: 'Manage communities & posts' },
+    { id: 'communities', label: 'Communities', icon: Users, description: 'All Communities' },
     { id: 'brand', label: 'Brand Performance', icon: TrendingUp, description: 'Track engagement metrics' },
     { id: 'activity', label: 'Activity Feed', icon: Activity, description: 'Recent updates and events' },
     { id: 'settings', label: 'Settings', icon: Settings, description: 'Configure brand preferences' },
@@ -1502,50 +1460,6 @@ const EnhancedBrandHome = () => {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="justify-center text-center text-sm text-primary">
                     View all notifications
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            
-            {/* User profile dropdown */}
-            <div className="relative dropdown-container">
-              <DropdownMenu open={userDropdownOpen} onOpenChange={setUserDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 flex items-center space-x-2 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={userData.avatar} alt={userData.name} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {getUserInitials()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden md:inline-block text-sm">{userData.name}</span>
-                    <ChevronDown className="hidden md:block h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{userData.name}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{userData.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>My Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Building className="mr-2 h-4 w-4" />
-                    <span>Brand Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Account Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sign out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
