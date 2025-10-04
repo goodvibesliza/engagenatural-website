@@ -4,7 +4,10 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Users, MessageSquare, ThumbsUp } from "lucide-react";
+import { Button } from "../../components/ui/Button";
+import { Users, MessageSquare, ThumbsUp, Menu } from "lucide-react";
+import BrandSidebar from "../../components/brands/BrandSidebar";
+import LogoWordmark from "../../components/brand/LogoWordmark";
 
 // Fixed community definitions (module-level constant for stable reference)
 const COMMUNITIES = [
@@ -41,6 +44,7 @@ export default function Communities({ brandId }) {
   const activeBrandId = brandId || user?.brandId;
   
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [communityStats, setCommunityStats] = useState({
     whats_good: { posts7d: 0, posts30d: 0, uniqueStaff: 0, likes: 0, comments: 0 },
     supplement_scoop: { posts7d: 0, posts30d: 0, uniqueStaff: 0, likes: 0, comments: 0 },
@@ -125,13 +129,42 @@ export default function Communities({ brandId }) {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Communities</h1>
-        <p className="text-gray-500 dark:text-gray-400">Manage and monitor your brand communities</p>
-      </div>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <BrandSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* Main Content Area */}
+      <div className="flex-1 lg:pl-72 flex flex-col overflow-hidden">
+        {/* Header with Logo */}
+        <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between">
+          {/* Mobile menu button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 lg:hidden"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+          
+          {/* Logo and Beta Badge */}
+          <div className="flex items-center">
+            <LogoWordmark size="md" />
+            <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
+          </div>
+          
+          {/* Spacer for alignment */}
+          <div className="w-9 lg:w-0" />
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Communities</h1>
+            <p className="text-gray-500 dark:text-gray-400">Manage and monitor your brand communities</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
         {COMMUNITIES.map(community => {
           const stats = communityStats[community.key];
           
@@ -197,6 +230,8 @@ export default function Communities({ brandId }) {
             </Card>
           );
         })}
+          </div>
+        </main>
       </div>
     </div>
   );

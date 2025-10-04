@@ -3,14 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
-import PublicHeader from '../../components/layout/PublicHeader';
+import BrandSidebar from '../../components/brands/BrandSidebar';
+import LogoWordmark from '../../components/brand/LogoWordmark';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/card';
 import { Textarea } from '../../components/ui/textarea';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import MediaUploader from '../../components/media/MediaUploader';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Menu } from 'lucide-react';
 
 // Community name mappings
 const COMMUNITY_NAMES = {
@@ -31,6 +32,9 @@ export default function CommunityPage() {
   const { key } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // Layout state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -140,25 +144,52 @@ export default function CommunityPage() {
   const canSubmit = title.trim() && body.trim() && uploadingCount === 0 && !submitting;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PublicHeader />
-      
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/brand/communities')}
-          className="mb-6"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Communities
-        </Button>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <BrandSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-        {/* Community Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{communityName}</h1>
-          <p className="text-gray-600 mt-2">Share updates and engage with your community</p>
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 lg:pl-72 flex flex-col overflow-hidden">
+        {/* Header with Logo */}
+        <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between">
+          {/* Mobile menu button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 lg:hidden"
+          >
+            <Menu className="w-5 w-5" />
+          </Button>
+          
+          {/* Logo and Beta Badge */}
+          <div className="flex items-center">
+            <LogoWordmark size="md" />
+            <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
+          </div>
+          
+          {/* Spacer for alignment */}
+          <div className="w-9 lg:w-0" />
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-4 py-8">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/brand/communities')}
+              className="mb-6"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Communities
+            </Button>
+
+            {/* Community Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">{communityName}</h1>
+              <p className="text-gray-600 mt-2">Share updates and engage with your community</p>
+            </div>
 
         {/* Create Post Form */}
         {user?.role === 'brand_manager' && (
@@ -270,6 +301,8 @@ export default function CommunityPage() {
             </div>
           )}
         </div>
+          </div>
+        </main>
       </div>
     </div>
   );
