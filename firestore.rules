@@ -136,9 +136,17 @@ service cloud.firestore {
 
     // ---------- community_posts ----------
     match /community_posts/{postId} {
-      // Anyone signed-in can read posts that are flagged public
-      // Guard against missing field to avoid property access error
-      allow read: if ('visibility' in resource.data) && resource.data.visibility == 'public';
+      // Read rules:
+      // - Public posts readable by any signed-in user
+      // - Additionally, approved/loose brand managers, super admins, or users that belong to the brand
+      //   may read posts (even if not public). This unblocks brand dashboard/community views.
+      allow read: if request.auth != null && (
+        (('visibility' in resource.data) && resource.data.visibility == 'public') ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        belongsToBrand(request.auth.uid, resource.data.brandId) ||
+        isSuperAdmin(request.auth.uid)
+      );
 
       // Create allowed for approved brand managers, loose brand managers, or super admins
       // Posts can be created in ANY community (not restricted to 'whats-good' only)
@@ -364,6 +372,29 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Owner-only updates/deletes; guard against missing userId field
       allow update, delete: if request.auth != null && ('userId' in resource.data) && resource.data.userId == request.auth.uid;
+    }
+
+    // ---------- roi_scenarios (brand ROI calculator saved scenarios) ----------
+    match /roi_scenarios/{scenarioId} {
+      // Brand managers (approved/loose), super admins, or users that belong to the brand can read
+      allow read: if request.auth != null && (
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        belongsToBrand(request.auth.uid, resource.data.brandId) ||
+        isSuperAdmin(request.auth.uid)
+      );
+
+      // Create allowed for brand managers or super admins, constrained to their own brand
+      allow create: if request.auth != null && (
+        (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid) || isSuperAdmin(request.auth.uid)) &&
+        request.resource.data.brandId == userData(request.auth.uid).brandId
+      );
+
+      // Update/Delete allowed for brand managers or super admins on their brand's scenarios
+      allow update, delete: if request.auth != null && (
+        (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid) || isSuperAdmin(request.auth.uid)) &&
+        resource.data.brandId == userData(request.auth.uid).brandId
+      );
     }
   }
 }
