@@ -14,12 +14,17 @@ import {
 
 export default function BrandPosting({ brandId }) {
   const { 
-    canPostAsBrand, 
     userProfile, 
     isBrandManager,
     hasPermission,
     PERMISSIONS 
   } = useAuth();
+
+  // Derive canPostAsBrand from available auth helpers
+  const canPostAsBrand =
+    typeof hasPermission === 'function' && PERMISSIONS?.BRAND_POST
+      ? () => hasPermission(PERMISSIONS.BRAND_POST)
+      : () => Boolean(isBrandManager);
   
   const [postContent, setPostContent] = useState('');
   const [postType, setPostType] = useState('text');
@@ -188,7 +193,7 @@ export default function BrandPosting({ brandId }) {
   };
 
   // Check if user has access to this brand
-  if (isBrandManager() && userProfile?.brandId !== brandId) {
+  if (isBrandManager && userProfile?.brandId !== brandId) {
     return (
       <div className="text-center py-8">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />

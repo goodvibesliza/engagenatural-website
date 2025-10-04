@@ -174,14 +174,22 @@ export default function MediaUploader({
   const notifyComplete = (currentUploads) => {
     const uploadingCount = currentUploads.filter(u => u.status === 'uploading').length;
     
-    // Only notify when all uploads are done
-    if (uploadingCount === 0 && currentUploads.length > 0) {
-      const successfulUrls = currentUploads
-        .filter(u => u.status === 'success' && u.downloadURL)
-        .map(u => u.downloadURL);
-      
-      if (onComplete) {
-        onComplete(successfulUrls);
+    // Notify when all uploads are done
+    if (uploadingCount === 0) {
+      if (currentUploads.length === 0) {
+        // Empty list - notify parent with empty array
+        if (onComplete) {
+          onComplete([]);
+        }
+      } else {
+        // Non-empty list - collect successful URLs
+        const successfulUrls = currentUploads
+          .filter(u => u.status === 'success' && u.downloadURL)
+          .map(u => u.downloadURL);
+        
+        if (onComplete) {
+          onComplete(successfulUrls);
+        }
       }
     }
   };
