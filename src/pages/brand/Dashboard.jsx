@@ -607,9 +607,6 @@ const BrandDashboardContent = ({ brandId }) => {
     };
   }, [brandId, trainings, thirtyDaysAgo]);
 
-  // Helper function to render status badge
-  };
-
   // Display global error for brandId if present
   if (error.brandId) {
     return (

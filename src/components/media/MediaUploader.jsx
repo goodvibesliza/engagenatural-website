@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Button } from '../ui/Button';
@@ -23,6 +23,17 @@ export default function MediaUploader({
   const fileInputRef = useRef(null);
   const [uploads, setUploads] = useState([]);
   const [error, setError] = useState('');
+  const uploadTasksRef = useRef(new Map());
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      uploadTasksRef.current.forEach((task) => task.cancel?.());
+      uploadTasksRef.current.clear();
+    };
+  }, []);
   
   const maxBytes = (maxMB || Number(import.meta.env.VITE_MAX_IMAGE_MB) || 5) * 1024 * 1024;
   const currentPostId = postId || `temp_${Date.now()}`;
@@ -62,6 +73,7 @@ export default function MediaUploader({
     const storageRef = ref(storage, storagePath);
 
     const uploadTask = uploadBytesResumable(storageRef, file);
+    uploadTasksRef.current.set(uploadId, uploadTask);
 
     // Create upload entry
     const newUpload = {
@@ -220,13 +232,9 @@ export default function MediaUploader({
             type="button"
             variant="outline"
             className="w-full"
-            onClick={() => fileInputRef.current?.click()}
-            asChild
           >
-            <span>
-              <Upload className="h-4 w-4 mr-2" />
-              Select Images
-            </span>
+            <Upload className="h-4 w-4 mr-2" />
+            Select Images
           </Button>
         </label>
         <p className="text-xs text-gray-500 mt-1">

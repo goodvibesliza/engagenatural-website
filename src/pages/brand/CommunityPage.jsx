@@ -51,7 +51,7 @@ export default function CommunityPage() {
     if (communityId) {
       fetchRecentPosts();
     }
-  }, [communityId]);
+  }, [communityId, brandId]);
 
   const fetchRecentPosts = async () => {
     if (!brandId) {
@@ -108,7 +108,7 @@ export default function CommunityPage() {
         communityId,
         brandId,
         authorId: user.uid,
-        authorName: user.name || 'Brand Manager',
+        authorName: user.name || user.displayName || 'Brand Manager',
         title: title.trim(),
         body: body.trim(),
         images: images || [],
