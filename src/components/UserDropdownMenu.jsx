@@ -139,12 +139,15 @@ export default function UserDropdownMenu() {
         )}
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem asChild>
-          <Link to={role === 'brand_manager' ? '/brand/profile' : '/staff/profile'}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </Link>
-        </DropdownMenuItem>
+        {/* For brand managers, don't duplicate Profile with Settings; hide Settings. */}
+        {role !== 'brand_manager' && (
+          <DropdownMenuItem asChild>
+            <Link to="/staff/profile">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         
         {role === 'super_admin' && (
           <>

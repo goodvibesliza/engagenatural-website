@@ -25,6 +25,7 @@ import {
   FileText,
   BarChart3,
   Settings,
+  User,
   HelpCircle,
   LogOut,
   Building,
@@ -64,7 +65,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
     {
       id: 'profile',
       label: 'Profile',
-      icon: Settings,
+      icon: User,
       href: '/brand/profile',
       description: 'Manage your brand profile'
     },
@@ -167,7 +168,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       <div className="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3">
           <img
-            src="/logo-wordmark.svg"
+            src="/logo.png"
             alt="EngageNatural"
             className="h-6 w-auto object-contain"
             loading="lazy"
