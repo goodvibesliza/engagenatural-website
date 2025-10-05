@@ -62,6 +62,13 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       description: 'Overview and key metrics'
     },
     {
+      id: 'profile',
+      label: 'Profile',
+      icon: Settings,
+      href: '/brand/profile',
+      description: 'Manage your brand profile'
+    },
+    {
       id: 'users',
       label: 'User Management',
       icon: Users,
@@ -156,10 +163,18 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
 
   const SidebarContent = () => (
     <>
-      {/* Brand Header */}
+      {/* Brand Header with EngageNatural wordmark */}
       <div className="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="w-10 h-10 rounded-full bg-brand-primary/90 flex items-center justify-center text-white font-bold text-lg">
-          {brandName.charAt(0).toUpperCase()}
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo-wordmark.svg"
+            alt="EngageNatural"
+            className="h-6 w-auto object-contain"
+            loading="lazy"
+          />
+          <div className="w-9 h-9 rounded-full bg-brand-primary/90 flex items-center justify-center text-white font-bold text-base">
+            {brandName.charAt(0).toUpperCase()}
+          </div>
         </div>
         <span className="ml-3 text-lg font-semibold text-gray-800 dark:text-gray-200">
           {brandName}

@@ -91,37 +91,56 @@ export default function UserDropdownMenu() {
         
         <DropdownMenuSeparator />
         
-        {/* Staff navigation links */}
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link to="/staff/profile">
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/staff/verification">
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              <span>Verification</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/community">
-              <Users className="mr-2 h-4 w-4" />
-              <span>Communities</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/staff/my-brands">
-              <Trophy className="mr-2 h-4 w-4" />
-              <span>My Brands</span>
-            </Link>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        {/* Role-specific navigation links */}
+        {role === 'staff' && (
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild>
+              <Link to="/staff/profile">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/staff/verification">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Verification</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/community">
+                <Users className="mr-2 h-4 w-4" />
+                <span>Communities</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/staff/my-brands">
+                <Trophy className="mr-2 h-4 w-4" />
+                <span>My Brands</span>
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        )}
+
+        {role === 'brand_manager' && (
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild>
+              <Link to="/brand/profile">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/brand/communities">
+                <Users className="mr-2 h-4 w-4" />
+                <span>Communities</span>
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        )}
         <DropdownMenuSeparator />
         
         <DropdownMenuItem asChild>
-          <Link to="/staff/profile">
+          <Link to={role === 'brand_manager' ? '/brand/profile' : '/staff/profile'}>
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
           </Link>
