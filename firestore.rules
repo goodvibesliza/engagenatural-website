@@ -384,16 +384,20 @@ service cloud.firestore {
         isSuperAdmin(request.auth.uid)
       );
 
-      // Create allowed for brand managers or super admins, constrained to their own brand
+      // Create: super admins can always create; managers must match their own brandId
       allow create: if request.auth != null && (
-        (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid) || isSuperAdmin(request.auth.uid)) &&
-        request.resource.data.brandId == userData(request.auth.uid).brandId
+        isSuperAdmin(request.auth.uid) || (
+          (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid)) &&
+          request.resource.data.brandId == userData(request.auth.uid).brandId
+        )
       );
 
-      // Update/Delete allowed for brand managers or super admins on their brand's scenarios
+      // Update/Delete: super admins can always modify; managers must match their own brandId
       allow update, delete: if request.auth != null && (
-        (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid) || isSuperAdmin(request.auth.uid)) &&
-        resource.data.brandId == userData(request.auth.uid).brandId
+        isSuperAdmin(request.auth.uid) || (
+          (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid)) &&
+          resource.data.brandId == userData(request.auth.uid).brandId
+        )
       );
     }
   }
