@@ -233,18 +233,16 @@ export default function MediaUploader({
           multiple
           onChange={handleFileSelect}
           className="hidden"
-          id="media-upload-input"
         />
-        <label htmlFor="media-upload-input">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Select Images
-          </Button>
-        </label>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Select Images
+        </Button>
         <p className="text-xs text-gray-500 mt-1">
           Max file size: {maxMB || 5}MB per image
         </p>
