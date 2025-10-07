@@ -139,8 +139,8 @@ export default function UserDropdownMenu() {
         )}
         <DropdownMenuSeparator />
         
-        {/* For brand managers, don't duplicate Profile with Settings; hide Settings. */}
-        {role !== 'brand_manager' && (
+        {/* Hide Settings for brand managers AND staff (no distinct settings page) */}
+        {(role !== 'brand_manager' && role !== 'staff') && (
           <DropdownMenuItem asChild>
             <Link to="/staff/profile">
               <Settings className="mr-2 h-4 w-4" />
