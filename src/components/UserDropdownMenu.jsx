@@ -139,10 +139,10 @@ export default function UserDropdownMenu() {
         )}
         <DropdownMenuSeparator />
         
-        {/* Hide Settings for brand managers AND staff (no distinct settings page) */}
-        {(role !== 'brand_manager' && role !== 'staff') && (
+        {/* Only super_admin has a real settings page; others see Profile-specific menus above */}
+        {role === 'super_admin' && (
           <DropdownMenuItem asChild>
-            <Link to="/staff/profile">
+            <Link to="/admin/settings">
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </Link>
