@@ -666,6 +666,36 @@ export default function CommunityFeed() {
                 {formatDate(post.createdAt)}
               </div>
               <p className="whitespace-pre-wrap mb-4">{post.content}</p>
+
+              {/* Post images */}
+              {Array.isArray(post.imageUrls) && post.imageUrls.length > 0 && (
+                <div className="mb-4">
+                  {post.imageUrls.length === 1 ? (
+                    <img
+                      src={post.imageUrls[0]}
+                      alt="Post attachment"
+                      className="w-full max-w-2xl h-auto rounded-lg border border-gray-200"
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {post.imageUrls.slice(0, 4).map((url, i) => (
+                        <div key={i} className="relative">
+                          <img
+                            src={url}
+                            alt={`Attachment ${i + 1}`}
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                          />
+                          {i === 3 && post.imageUrls.length > 4 && (
+                            <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center text-white font-medium">
+                              +{post.imageUrls.length - 4}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Post actions */}
               <div className="flex items-center space-x-4 mb-4">

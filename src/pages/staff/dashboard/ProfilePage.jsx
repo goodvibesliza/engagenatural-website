@@ -22,6 +22,14 @@ export default function ProfilePage() {
   const [editingUserInfo, setEditingUserInfo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    emailNotifications: true,
+    pushNotifications: true,
+    communityUpdates: true,
+    trainingReminders: true,
+    sampleRequests: true,
+    weeklyDigest: false,
+  });
 
   // Avatar options
   const avatarOptions = [
@@ -78,6 +86,14 @@ export default function ProfilePage() {
           });
           
           setProfileImage(userData.profileImage || null);
+          setNotificationPreferences({
+            emailNotifications: userData.notificationPreferences?.emailNotifications ?? true,
+            pushNotifications: userData.notificationPreferences?.pushNotifications ?? true,
+            communityUpdates: userData.notificationPreferences?.communityUpdates ?? true,
+            trainingReminders: userData.notificationPreferences?.trainingReminders ?? true,
+            sampleRequests: userData.notificationPreferences?.sampleRequests ?? true,
+            weeklyDigest: userData.notificationPreferences?.weeklyDigest ?? false,
+          });
         }
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -201,6 +217,21 @@ export default function ProfilePage() {
       alert('Error updating information. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Toggle notification preference
+  const togglePref = async (key) => {
+    if (!user?.uid) return;
+    const next = { ...notificationPreferences, [key]: !notificationPreferences[key] };
+    setNotificationPreferences(next);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { notificationPreferences: next });
+    } catch (err) {
+      console.error('Failed to update notification preferences', err);
+      // revert on failure
+      setNotificationPreferences((prev) => ({ ...prev, [key]: !next[key] }));
+      alert('Could not save notification preference.');
     }
   };
 
@@ -437,6 +468,39 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Notification Preferences (parity with brand profile) */}
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold" style={fontStyles.subsectionTitle}>Notification Preferences</h3>
+            </div>
+            <div className="space-y-4">
+              {[
+                { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive email updates about your account' },
+                { key: 'pushNotifications', label: 'Push Notifications', desc: 'Receive push notifications in the app' },
+                { key: 'communityUpdates', label: 'Community Updates', desc: 'New posts and activity in your communities' },
+                { key: 'trainingReminders', label: 'Training Reminders', desc: 'Reminders about trainings and new content' },
+                { key: 'sampleRequests', label: 'Sample Request Notifications', desc: 'Get notified about new sample requests' },
+                { key: 'weeklyDigest', label: 'Weekly Digest', desc: 'Weekly summary of activity and insights' },
+              ].map((row) => (
+                <div key={row.key} className="flex items-center justify-between py-1">
+                  <div className="space-y-0.5">
+                    <div className="font-medium text-gray-900 text-sm">{row.label}</div>
+                    <div className="text-xs text-gray-500">{row.desc}</div>
+                  </div>
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={!!notificationPreferences[row.key]}
+                      onChange={() => togglePref(row.key)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary relative" />
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
