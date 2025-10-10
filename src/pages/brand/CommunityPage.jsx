@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import BrandSidebar from '../../components/brands/BrandSidebar';
 import LogoWordmark from '../../components/brand/LogoWordmark';
 import { Button } from '../../components/ui/Button';
@@ -208,6 +208,15 @@ export default function CommunityPage() {
         {user?.role === 'brand_manager' && (
           <Card className="mb-8" data-testid="community-create-form">
             <CardContent className="pt-6">
+              {/* Heading indicates create vs edit mode */}
+              <div className="mb-2">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {editingPostId ? 'Editing Post' : 'Create New Post'}
+                </h2>
+                {editingPostId && (
+                  <p className="text-sm text-gray-500">You are editing a post. Make changes and click Update, or cancel to discard edits.</p>
+                )}
+              </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="title">Title *</Label>
@@ -239,22 +248,44 @@ export default function CommunityPage() {
                   <MediaUploader
                     brandId={brandId}
                     maxMB={5}
-                    onComplete={handleMediaComplete}
+                    onComplete={(urls) => {
+                      // In edit mode, append to existing images; in create mode, replace
+                      if (editingPostId) {
+                        setImages((prev) => [...(Array.isArray(prev) ? prev : []), ...urls]);
+                      } else {
+                        handleMediaComplete(urls);
+                      }
+                    }}
                     onUploadingChange={handleMediaUploadingChange}
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className="w-full"
-                >
-                  {uploadingCount > 0 
-                    ? `Uploading ${uploadingCount} image${uploadingCount > 1 ? 's' : ''}...` 
-                    : submitting 
-                      ? (editingPostId ? 'Updating Post...' : 'Creating Post...') 
-                      : (editingPostId ? 'Update Post' : 'Create Post')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="submit"
+                    disabled={!canSubmit}
+                  >
+                    {uploadingCount > 0 
+                      ? `Uploading ${uploadingCount} image${uploadingCount > 1 ? 's' : ''}...` 
+                      : submitting 
+                        ? (editingPostId ? 'Updating Post...' : 'Creating Post...') 
+                        : (editingPostId ? 'Update Post' : 'Create Post')}
+                  </Button>
+                  {editingPostId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingPostId(null);
+                        setTitle('');
+                        setBody('');
+                        setImages([]);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -289,41 +320,105 @@ export default function CommunityPage() {
               {recentPosts.map(post => (
                 <Card key={post.id}>
                   <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      {post.images && post.images.length > 0 && (
-                        <img
-                          src={post.images[0]}
-                          alt=""
-                          className="w-24 h-24 object-cover rounded"
-                          loading="lazy"
+                    {editingPostId === post.id ? (
+                      // Inline edit form within the post card
+                      <form onSubmit={handleSubmit} className="space-y-3">
+                        {/* Existing thumbnails */}
+                        {Array.isArray(images) && images.length > 0 && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                            {images.map((url, idx) => (
+                              <div key={`img-${idx}`} className="relative aspect-square rounded overflow-hidden border">
+                                <img src={url} alt={`Existing ${idx+1}`} className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                                  onClick={() => setImages((prev) => prev.filter((u, i) => i !== idx))}
+                                  aria-label="Remove image"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Title/body inputs bound to global edit state */}
+                        <Input
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          placeholder="Post title"
+                          required
+                          maxLength={200}
                         />
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                          {post.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-2">
-                          {post.authorName} • {post.createdAt?.toDate?.().toLocaleDateString() || 'Recently'}
-                        </p>
-                        <p className="text-gray-700 line-clamp-3">{post.body}</p>
-                        <div className="mt-3">
+                        <Textarea
+                          value={body}
+                          onChange={(e) => setBody(e.target.value)}
+                          placeholder="Write your post…"
+                          required
+                          rows={4}
+                          maxLength={5000}
+                        />
+                        <MediaUploader
+                          brandId={brandId}
+                          maxMB={5}
+                          onComplete={(urls) => setImages((prev) => [...(Array.isArray(prev) ? prev : []), ...urls])}
+                          onUploadingChange={handleMediaUploadingChange}
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button type="submit" disabled={!canSubmit}>
+                            {submitting ? 'Updating Post...' : 'Update Post'}
+                          </Button>
                           <Button
+                            type="button"
                             variant="outline"
-                            size="sm"
                             onClick={() => {
-                              setEditingPostId(post.id);
-                              setTitle(post.title || '');
-                              setBody(post.body || '');
-                              setImages(Array.isArray(post.images) ? post.images : []);
-                              // Scroll up to form
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                              setEditingPostId(null);
+                              setTitle('');
+                              setBody('');
+                              setImages([]);
                             }}
                           >
-                            Edit
+                            Cancel
                           </Button>
                         </div>
+                      </form>
+                    ) : (
+                      <div className="flex items-start gap-4">
+                        {post.images && post.images.length > 0 && (
+                          <img
+                            src={post.images[0]}
+                            alt=""
+                            className="w-24 h-24 object-cover rounded"
+                            loading="lazy"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                            {post.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 mb-2">
+                            {post.authorName} • {post.createdAt?.toDate?.().toLocaleDateString() || 'Recently'}
+                          </p>
+                          <p className="text-gray-700 line-clamp-3">{post.body}</p>
+                          {/* Edit button only for owner/brand */}
+                          {(post.authorId === user?.uid || post.brandId === brandId) && (
+                            <div className="mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingPostId(post.id);
+                                  setTitle(post.title || '');
+                                  setBody(post.body || '');
+                                  setImages(Array.isArray(post.images) ? post.images : []);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

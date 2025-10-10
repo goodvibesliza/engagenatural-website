@@ -46,6 +46,11 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
 
   const truncate = (text, n = 160) => (text && text.length > n ? `${text.slice(0, n)}...` : (text || ''));
 
+  // Normalize images from either field
+  const imageUrls = Array.isArray(post.imageUrls)
+    ? post.imageUrls
+    : (Array.isArray(post.images) ? post.images : []);
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm hover:shadow transition-shadow">
       <div className="flex justify-between items-start">
@@ -57,6 +62,38 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
       </div>
 
       {post.body && <p className="text-gray-700 my-3">{truncate(post.body)}</p>}
+
+      {/* Image thumbnails */}
+      {imageUrls.length > 0 && (
+        <div className="mt-2">
+          {imageUrls.length === 1 ? (
+            <img
+              src={imageUrls[0]}
+              alt="Post attachment"
+              className="w-full max-h-72 rounded-md object-cover border"
+              loading="lazy"
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {imageUrls.slice(0, 4).map((url, idx) => (
+                <div key={idx} className="relative">
+                  <img
+                    src={url}
+                    alt={`Attachment ${idx + 1}`}
+                    className="w-full h-32 object-cover rounded-md border"
+                    loading="lazy"
+                  />
+                  {idx === 3 && imageUrls.length > 4 && (
+                    <div className="absolute inset-0 bg-black/50 rounded-md text-white flex items-center justify-center text-sm font-medium">
+                      +{imageUrls.length - 4}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-between items-center mt-4">
         <div className="flex space-x-5 items-center">
