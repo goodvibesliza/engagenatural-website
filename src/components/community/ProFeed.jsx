@@ -82,13 +82,16 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
       unsub = onSnapshot(q, async (snap) => {
         const base = snap.docs.map((d) => {
           const data = d.data();
+          const imgs = Array.isArray(data?.imageUrls)
+            ? data.imageUrls
+            : (Array.isArray(data?.images) ? data.images : []);
           return {
             id: d.id,
             brand: data?.brandName || 'Pro Feed',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
-            imageUrls: Array.isArray(data?.imageUrls) ? data.imageUrls : [],
+            imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
             authorPhotoURL: data?.authorPhotoURL || '',

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import BrandSidebar from '../../components/brands/BrandSidebar';
 import LogoWordmark from '../../components/brand/LogoWordmark';
 import { Button } from '../../components/ui/Button';

@@ -89,13 +89,16 @@ export default function WhatsGoodFeed({
       unsub = onSnapshot(q, async (snap) => {
         const base = snap.docs.map((d) => {
           const data = d.data();
+          const imgs = Array.isArray(data?.imageUrls)
+            ? data.imageUrls
+            : (Array.isArray(data?.images) ? data.images : []);
           return {
             id: d.id,
             brand: data?.brandName || data?.communityName || 'What\'s Good',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
-            imageUrls: Array.isArray(data?.imageUrls) ? data.imageUrls : [],
+            imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
             authorPhotoURL: data?.authorPhotoURL || '',
@@ -169,7 +172,7 @@ export default function WhatsGoodFeed({
         title: p.title || 'Untitled',
         snippet: (p.content || '').slice(0, 200),
         content: p.content || '',
-        imageUrls: Array.isArray(p.imageUrls) ? p.imageUrls : [],
+        imageUrls: Array.isArray(p.imageUrls) ? p.imageUrls : (Array.isArray(p.images) ? p.images : []),
         authorName: p.author?.name || '',
         commentCount: 0,
         likeCount: 0,
