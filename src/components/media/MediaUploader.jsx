@@ -18,7 +18,8 @@ export default function MediaUploader({
   postId,
   maxMB,
   onComplete,
-  onUploadingChange
+  onUploadingChange,
+  pathPrefix // optional override like 'app/community/whats-good/users/{uid}'
 }) {
   const fileInputRef = useRef(null);
   const [uploads, setUploads] = useState([]);
@@ -69,7 +70,10 @@ export default function MediaUploader({
     const uploadId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const timestamp = Date.now();
     const filename = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const storagePath = `brands/${brandId}/community/${currentPostId}/${filename}`;
+    const basePrefix = pathPrefix && typeof pathPrefix === 'string' && pathPrefix.trim().length > 0
+      ? pathPrefix.trim()
+      : `brands/${brandId}/community`;
+    const storagePath = `${basePrefix}/${currentPostId}/${filename}`;
     const storageRef = ref(storage, storagePath);
 
     const uploadTask = uploadBytesResumable(storageRef, file);
