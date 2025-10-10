@@ -315,7 +315,7 @@ export default function PostCompose() {
             <p className="text-sm font-medium text-gray-700 mb-1">Images (optional)</p>
             <MediaUploader
               maxMB={5}
-              onComplete={(urls) => setImages((prev) => [...(Array.isArray(prev) ? prev : []), ...urls])}
+              onComplete={(urls) => setImages(urls)}
               onUploadingChange={setUploadingCount}
               // Use app path so staff uploads are allowed by storage rules
               pathPrefix={`app/community/${(selectedCommunityId || 'whats-good').replaceAll('_','-')}/users/${user?.uid || 'anon'}`}
