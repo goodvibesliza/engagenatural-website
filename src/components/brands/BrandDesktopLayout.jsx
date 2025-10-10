@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { trackEvent } from '../../services/analytics';
 import BrandSidebar from './BrandSidebar';
+import LogoWordmark from '../brand/LogoWordmark';
 
 // UI Components
 import { Button } from '../ui/Button';
@@ -103,19 +104,26 @@ export default function BrandDesktopLayout() {
 
       {/* Main Content Area */}
       <div className="flex-1 lg:pl-72 flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        {/* Header with Logo */}
+        <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between">
+          {/* Mobile menu button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSidebarOpen(true)}
-            className="p-2"
+            className="p-2 lg:hidden"
           >
             <Menu className="w-5 h-5" />
           </Button>
-          <div className="font-semibold text-gray-800">
-            {user?.brandName || user?.brandId || 'Brand Manager'}
+          
+          {/* Logo and Beta Badge */}
+          <div className="flex items-center">
+            <LogoWordmark size="md" />
+            <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
           </div>
+          
+          {/* Spacer for alignment */}
+          <div className="w-9 lg:w-0" />
         </header>
 
         {/* Page Content */}

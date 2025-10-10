@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
-import PublicHeader from '../../components/layout/PublicHeader';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
+import BrandSidebar from '../../components/brands/BrandSidebar';
+import LogoWordmark from '../../components/brand/LogoWordmark';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/card';
 import { Textarea } from '../../components/ui/textarea';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import MediaUploader from '../../components/media/MediaUploader';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Menu } from 'lucide-react';
 
 // Community name mappings
 const COMMUNITY_NAMES = {
@@ -32,12 +33,16 @@ export default function CommunityPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   
+  // Layout state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
   // Form state
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [images, setImages] = useState([]);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [editingPostId, setEditingPostId] = useState(null);
   
   // Posts state
   const [recentPosts, setRecentPosts] = useState([]);
@@ -104,28 +109,40 @@ export default function CommunityPage() {
     setSubmitting(true);
 
     try {
-      const postData = {
-        communityId,
-        brandId,
-        authorId: user.uid,
-        authorName: user.name || user.displayName || 'Brand Manager',
-        title: title.trim(),
-        body: body.trim(),
-        images: images || [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: 'published',
-        visibility: 'public',
-        likeCount: 0,
-        commentCount: 0
-      };
-
-      await addDoc(collection(db, 'community_posts'), postData);
+      if (editingPostId) {
+        // Update existing post
+        const ref = doc(db, 'community_posts', editingPostId);
+        await updateDoc(ref, {
+          title: title.trim(),
+          body: body.trim(),
+          images: images || [],
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        // Create new post
+        const postData = {
+          communityId,
+          brandId,
+          authorId: user.uid,
+          authorName: user.name || user.displayName || 'Brand Manager',
+          title: title.trim(),
+          body: body.trim(),
+          images: images || [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          status: 'published',
+          visibility: 'public',
+          likeCount: 0,
+          commentCount: 0
+        };
+        await addDoc(collection(db, 'community_posts'), postData);
+      }
 
       // Reset form
       setTitle('');
       setBody('');
       setImages([]);
+      setEditingPostId(null);
       
       // Refresh posts
       fetchRecentPosts();
@@ -140,30 +157,66 @@ export default function CommunityPage() {
   const canSubmit = title.trim() && body.trim() && uploadingCount === 0 && !submitting;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PublicHeader />
-      
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/brand/communities')}
-          className="mb-6"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Communities
-        </Button>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <BrandSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-        {/* Community Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{communityName}</h1>
-          <p className="text-gray-600 mt-2">Share updates and engage with your community</p>
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 lg:pl-72 flex flex-col overflow-hidden">
+        {/* Header with Logo */}
+        <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between">
+          {/* Mobile menu button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 lg:hidden"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+          
+          {/* Logo and Beta Badge */}
+          <div className="flex items-center">
+            <LogoWordmark size="md" />
+            <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
+          </div>
+          
+          {/* Spacer for alignment */}
+          <div className="w-9 lg:w-0" />
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-4 py-8">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/brand/communities')}
+              className="mb-6"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Communities
+            </Button>
+
+            {/* Community Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">{communityName}</h1>
+              <p className="text-gray-600 mt-2">Share updates and engage with your community</p>
+            </div>
 
         {/* Create Post Form */}
         {user?.role === 'brand_manager' && (
           <Card className="mb-8" data-testid="community-create-form">
             <CardContent className="pt-6">
+              {/* Heading indicates create vs edit mode */}
+              <div className="mb-2">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {editingPostId ? 'Editing Post' : 'Create New Post'}
+                </h2>
+                {editingPostId && (
+                  <p className="text-sm text-gray-500">You are editing a post. Make changes and click Update, or cancel to discard edits.</p>
+                )}
+              </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="title">Title *</Label>
@@ -195,22 +248,44 @@ export default function CommunityPage() {
                   <MediaUploader
                     brandId={brandId}
                     maxMB={5}
-                    onComplete={handleMediaComplete}
+                    onComplete={(urls) => {
+                      // In edit mode, append to existing images; in create mode, replace
+                      if (editingPostId) {
+                        setImages((prev) => [...(Array.isArray(prev) ? prev : []), ...urls]);
+                      } else {
+                        handleMediaComplete(urls);
+                      }
+                    }}
                     onUploadingChange={handleMediaUploadingChange}
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className="w-full"
-                >
-                  {uploadingCount > 0 
-                    ? `Uploading ${uploadingCount} image${uploadingCount > 1 ? 's' : ''}...` 
-                    : submitting 
-                      ? 'Creating Post...' 
-                      : 'Create Post'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="submit"
+                    disabled={!canSubmit}
+                  >
+                    {uploadingCount > 0 
+                      ? `Uploading ${uploadingCount} image${uploadingCount > 1 ? 's' : ''}...` 
+                      : submitting 
+                        ? (editingPostId ? 'Updating Post...' : 'Creating Post...') 
+                        : (editingPostId ? 'Update Post' : 'Create Post')}
+                  </Button>
+                  {editingPostId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingPostId(null);
+                        setTitle('');
+                        setBody('');
+                        setImages([]);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -245,31 +320,113 @@ export default function CommunityPage() {
               {recentPosts.map(post => (
                 <Card key={post.id}>
                   <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      {post.images && post.images.length > 0 && (
-                        <img
-                          src={post.images[0]}
-                          alt=""
-                          className="w-24 h-24 object-cover rounded"
-                          loading="lazy"
+                    {editingPostId === post.id ? (
+                      // Inline edit form within the post card
+                      <form onSubmit={handleSubmit} className="space-y-3">
+                        {/* Existing thumbnails */}
+                        {Array.isArray(images) && images.length > 0 && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                            {images.map((url, idx) => (
+                              <div key={`img-${idx}`} className="relative aspect-square rounded overflow-hidden border">
+                                <img src={url} alt={`Existing ${idx+1}`} className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                                  onClick={() => setImages((prev) => prev.filter((u, i) => i !== idx))}
+                                  aria-label="Remove image"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Title/body inputs bound to global edit state */}
+                        <Input
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          placeholder="Post title"
+                          required
+                          maxLength={200}
                         />
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                          {post.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-2">
-                          {post.authorName} • {post.createdAt?.toDate?.().toLocaleDateString() || 'Recently'}
-                        </p>
-                        <p className="text-gray-700 line-clamp-3">{post.body}</p>
+                        <Textarea
+                          value={body}
+                          onChange={(e) => setBody(e.target.value)}
+                          placeholder="Write your post…"
+                          required
+                          rows={4}
+                          maxLength={5000}
+                        />
+                        <MediaUploader
+                          brandId={brandId}
+                          maxMB={5}
+                          onComplete={(urls) => setImages((prev) => [...(Array.isArray(prev) ? prev : []), ...urls])}
+                          onUploadingChange={handleMediaUploadingChange}
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button type="submit" disabled={!canSubmit}>
+                            {submitting ? 'Updating Post...' : 'Update Post'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingPostId(null);
+                              setTitle('');
+                              setBody('');
+                              setImages([]);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex items-start gap-4">
+                        {post.images && post.images.length > 0 && (
+                          <img
+                            src={post.images[0]}
+                            alt=""
+                            className="w-24 h-24 object-cover rounded"
+                            loading="lazy"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                            {post.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 mb-2">
+                            {post.authorName} • {post.createdAt?.toDate?.().toLocaleDateString() || 'Recently'}
+                          </p>
+                          <p className="text-gray-700 line-clamp-3">{post.body}</p>
+                          {/* Edit button only for owner/brand */}
+                          {(post.authorId === user?.uid || post.brandId === brandId) && (
+                            <div className="mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingPostId(post.id);
+                                  setTitle(post.title || '');
+                                  setBody(post.body || '');
+                                  setImages(Array.isArray(post.images) ? post.images : []);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
         </div>
+          </div>
+        </main>
       </div>
     </div>
   );

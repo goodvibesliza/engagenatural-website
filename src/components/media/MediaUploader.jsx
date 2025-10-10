@@ -18,7 +18,8 @@ export default function MediaUploader({
   postId,
   maxMB,
   onComplete,
-  onUploadingChange
+  onUploadingChange,
+  pathPrefix // optional override like 'app/community/whats-good/users/{uid}'
 }) {
   const fileInputRef = useRef(null);
   const [uploads, setUploads] = useState([]);
@@ -69,7 +70,10 @@ export default function MediaUploader({
     const uploadId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const timestamp = Date.now();
     const filename = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const storagePath = `brands/${brandId}/community/${currentPostId}/${filename}`;
+    const basePrefix = pathPrefix && typeof pathPrefix === 'string' && pathPrefix.trim().length > 0
+      ? pathPrefix.trim()
+      : `brands/${brandId}/community`;
+    const storagePath = `${basePrefix}/${currentPostId}/${filename}`;
     const storageRef = ref(storage, storagePath);
 
     const uploadTask = uploadBytesResumable(storageRef, file);
@@ -83,6 +87,8 @@ export default function MediaUploader({
       status: 'uploading', // uploading | success | error
       downloadURL: null,
       error: null,
+      file,
+      preview: URL.createObjectURL(file),
       uploadTask
     };
 
@@ -233,18 +239,16 @@ export default function MediaUploader({
           multiple
           onChange={handleFileSelect}
           className="hidden"
-          id="media-upload-input"
         />
-        <label htmlFor="media-upload-input">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Select Images
-          </Button>
-        </label>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Select Images
+        </Button>
         <p className="text-xs text-gray-500 mt-1">
           Max file size: {maxMB || 5}MB per image
         </p>
@@ -261,6 +265,32 @@ export default function MediaUploader({
       {/* Upload List */}
       {uploads.length > 0 && (
         <div className="space-y-2">
+          {/* Preview grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {uploads.map((u) => (
+              <div key={`prev-${u.id}`} className="relative aspect-square rounded-md overflow-hidden border border-gray-200">
+                <img
+                  src={u.preview || u.downloadURL}
+                  alt={u.name}
+                  className="w-full h-full object-cover"
+                />
+                {u.status === 'uploading' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+                    <div className="h-full bg-brand-primary" style={{ width: `${u.progress}%` }} />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemove(u.id)}
+                  className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-black"
+                  aria-label="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+          {/* Upload rows with filenames and status */}
           {uploads.map(upload => (
             <div
               key={upload.id}

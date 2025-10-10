@@ -117,6 +117,34 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
             {snippet}
           </p>
         )}
+        {Array.isArray(post?.imageUrls) && post.imageUrls.length > 0 && (
+          <div className="mt-3">
+            {post.imageUrls.length === 1 ? (
+              <img
+                src={post.imageUrls[0]}
+                alt="Post attachment"
+                className="w-full max-h-80 rounded-lg object-cover border border-gray-200"
+              />
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {post.imageUrls.slice(0, 4).map((url, idx) => (
+                  <div key={idx} className="relative">
+                    <img
+                      src={url}
+                      alt={`Attachment ${idx + 1}`}
+                      className="w-full h-36 object-cover rounded-lg border border-gray-200"
+                    />
+                    {idx === 3 && post.imageUrls.length > 4 && (
+                      <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center text-white font-medium">
+                        +{post.imageUrls.length - 4}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <footer className="mt-4 flex items-center gap-3">

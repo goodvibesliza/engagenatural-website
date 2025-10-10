@@ -35,6 +35,16 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*|application/pdf');
     }
 
+    // Profile images stored at /profile_images/{uid}/...
+    match /profile_images/{uid}/{allPaths=**} {
+      // Avatars are generally safe to read for signed-in users; download URLs are tokenized anyway
+      allow read: if isSignedIn();
+      // Only the owner can upload/modify their profile images (10 MB limit, image MIME types only)
+      allow write: if isOwner(uid)
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     // Brand community posts - restricted to brand managers
     match /brands/{brandId}/community/{postId}/{fileName} {
       // Allow read for all signed-in users

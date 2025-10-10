@@ -25,11 +25,11 @@ import {
   FileText,
   BarChart3,
   Settings,
+  User,
   HelpCircle,
   LogOut,
   Building,
   ChevronDown,
-  Menu,
   X
 } from 'lucide-react';
 
@@ -56,18 +56,18 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
   // Navigation items - supports both routes and sections via onSectionChange
   const navItems = [
     {
-      id: 'dashboard',
+      id: 'analytics',
       label: 'Dashboard',
       icon: Home,
-      href: '/brand',
+      section: 'analytics',
       description: 'Overview and key metrics'
     },
     {
-      id: 'analytics',
-      label: 'Analytics Dashboard',
-      icon: BarChart3,
-      section: 'analytics',
-      description: 'Key metrics and ROI'
+      id: 'profile',
+      label: 'Profile',
+      icon: User,
+      href: '/brand/profile',
+      description: 'Manage your brand profile'
     },
     {
       id: 'users',
@@ -164,10 +164,18 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
 
   const SidebarContent = () => (
     <>
-      {/* Brand Header */}
+      {/* Brand Header with EngageNatural wordmark */}
       <div className="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="w-10 h-10 rounded-full bg-brand-primary/90 flex items-center justify-center text-white font-bold text-lg">
-          {brandName.charAt(0).toUpperCase()}
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo.png"
+            alt="EngageNatural"
+            className="h-6 w-auto object-contain"
+            loading="lazy"
+          />
+          <div className="w-9 h-9 rounded-full bg-brand-primary/90 flex items-center justify-center text-white font-bold text-base">
+            {brandName.charAt(0).toUpperCase()}
+          </div>
         </div>
         <span className="ml-3 text-lg font-semibold text-gray-800 dark:text-gray-200">
           {brandName}
