@@ -56,6 +56,12 @@ export default function PostDetail() {
     });
   };
 
+  // Reset failed image tracking when navigating to a different post or when
+  // the current post's image list changes so images can be retried per post.
+  useEffect(() => {
+    setFailedImages(new Set());
+  }, [postId, JSON.stringify(post?.imageUrls || [])]);
+
   // Focus the heading after content is loaded and rendered
   useEffect(() => {
     if (!loading && post && headingRef.current) {
