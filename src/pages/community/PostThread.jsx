@@ -107,8 +107,8 @@ export default function PostThread() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
-        authorName: user.displayName || user.name || 'Anonymous',
-        authorPhotoURL: user.profileImage || null,
+        authorName: user?.displayName || user?.name || user?.email || 'Anonymous',
+        authorPhotoURL: user?.profileImage || user?.photoURL || null,
         text,
         createdAt: serverTimestamp(),
       });

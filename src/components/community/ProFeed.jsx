@@ -88,6 +88,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
+            imageUrls: Array.isArray(data?.imageUrls) ? data.imageUrls : [],
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
             authorPhotoURL: data?.authorPhotoURL || '',

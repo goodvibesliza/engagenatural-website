@@ -107,6 +107,7 @@ export default function PostDetail() {
               createdAt: data.createdAt || null,
               authorName: data.authorName || '',
               authorPhotoURL: data.authorPhotoURL || '',
+              imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
               userId: data.userId || null,
               trainingId: data.trainingId || null,
               likeIds: [],
@@ -364,8 +365,8 @@ export default function PostDetail() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
-        authorName: user.displayName || user.email || 'User',
-        authorPhotoURL: user.photoURL || null,
+        authorName: user?.displayName || user?.name || user?.email || 'Anonymous',
+        authorPhotoURL: user?.profileImage || user?.photoURL || null,
         text,
         createdAt: serverTimestamp(),
       });
@@ -396,8 +397,8 @@ export default function PostDetail() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
-        authorName: user.displayName || user.email || 'User',
-        authorPhotoURL: user.photoURL || null,
+        authorName: user?.displayName || user?.name || user?.email || 'Anonymous',
+        authorPhotoURL: user?.profileImage || user?.photoURL || null,
         text: cmt.text,
         createdAt: serverTimestamp(),
       });
@@ -488,6 +489,36 @@ export default function PostDetail() {
 
           {post.content && (
             <div className="mt-2 text-gray-800 whitespace-pre-wrap">{post.content}</div>
+          )}
+
+          {/* Images */}
+          {Array.isArray(post.imageUrls) && post.imageUrls.length > 0 && (
+            <div className="mt-3">
+              {post.imageUrls.length === 1 ? (
+                <img
+                  src={post.imageUrls[0]}
+                  alt="Post attachment"
+                  className="w-full max-w-2xl h-auto rounded-lg border border-gray-200"
+                />
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {post.imageUrls.slice(0, 4).map((url, idx) => (
+                    <div key={idx} className="relative">
+                      <img
+                        src={url}
+                        alt={`Attachment ${idx + 1}`}
+                        className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                      />
+                      {idx === 3 && post.imageUrls.length > 4 && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center text-white font-medium">
+                          +{post.imageUrls.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {post.trainingId && (
