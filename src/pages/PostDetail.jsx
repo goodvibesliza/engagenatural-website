@@ -127,12 +127,14 @@ export default function PostDetail() {
               id: snap.id,
               brand: data.brand || data.communityName || 'General',
               title: data.title || 'Update',
-              snippet: data.body || '',
-              content: data.body || '',
+              snippet: data.body || data.content || '',
+              content: data.body || data.content || '',
               createdAt: data.createdAt || null,
               authorName: data.authorName || '',
               authorPhotoURL: data.authorPhotoURL || '',
-              imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
+              imageUrls: Array.isArray(data.imageUrls)
+                ? data.imageUrls
+                : (Array.isArray(data.images) ? data.images : []),
               userId: data.userId || null,
               trainingId: data.trainingId || null,
               likeIds: [],

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import BrandSidebar from '../../components/brands/BrandSidebar';
 import LogoWordmark from '../../components/brand/LogoWordmark';
 import { Button } from '../../components/ui/Button';
@@ -42,6 +42,7 @@ export default function CommunityPage() {
   const [images, setImages] = useState([]);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [editingPostId, setEditingPostId] = useState(null);
   
   // Posts state
   const [recentPosts, setRecentPosts] = useState([]);
@@ -108,28 +109,40 @@ export default function CommunityPage() {
     setSubmitting(true);
 
     try {
-      const postData = {
-        communityId,
-        brandId,
-        authorId: user.uid,
-        authorName: user.name || user.displayName || 'Brand Manager',
-        title: title.trim(),
-        body: body.trim(),
-        images: images || [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: 'published',
-        visibility: 'public',
-        likeCount: 0,
-        commentCount: 0
-      };
-
-      await addDoc(collection(db, 'community_posts'), postData);
+      if (editingPostId) {
+        // Update existing post
+        const ref = doc(db, 'community_posts', editingPostId);
+        await updateDoc(ref, {
+          title: title.trim(),
+          body: body.trim(),
+          images: images || [],
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        // Create new post
+        const postData = {
+          communityId,
+          brandId,
+          authorId: user.uid,
+          authorName: user.name || user.displayName || 'Brand Manager',
+          title: title.trim(),
+          body: body.trim(),
+          images: images || [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          status: 'published',
+          visibility: 'public',
+          likeCount: 0,
+          commentCount: 0
+        };
+        await addDoc(collection(db, 'community_posts'), postData);
+      }
 
       // Reset form
       setTitle('');
       setBody('');
       setImages([]);
+      setEditingPostId(null);
       
       // Refresh posts
       fetchRecentPosts();
@@ -239,8 +252,8 @@ export default function CommunityPage() {
                   {uploadingCount > 0 
                     ? `Uploading ${uploadingCount} image${uploadingCount > 1 ? 's' : ''}...` 
                     : submitting 
-                      ? 'Creating Post...' 
-                      : 'Create Post'}
+                      ? (editingPostId ? 'Updating Post...' : 'Creating Post...') 
+                      : (editingPostId ? 'Update Post' : 'Create Post')}
                 </Button>
               </form>
             </CardContent>
@@ -293,6 +306,22 @@ export default function CommunityPage() {
                           {post.authorName} • {post.createdAt?.toDate?.().toLocaleDateString() || 'Recently'}
                         </p>
                         <p className="text-gray-700 line-clamp-3">{post.body}</p>
+                        <div className="mt-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingPostId(post.id);
+                              setTitle(post.title || '');
+                              setBody(post.body || '');
+                              setImages(Array.isArray(post.images) ? post.images : []);
+                              // Scroll up to form
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>

@@ -83,6 +83,8 @@ export default function MediaUploader({
       status: 'uploading', // uploading | success | error
       downloadURL: null,
       error: null,
+      file,
+      preview: URL.createObjectURL(file),
       uploadTask
     };
 
@@ -259,6 +261,32 @@ export default function MediaUploader({
       {/* Upload List */}
       {uploads.length > 0 && (
         <div className="space-y-2">
+          {/* Preview grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {uploads.map((u) => (
+              <div key={`prev-${u.id}`} className="relative aspect-square rounded-md overflow-hidden border border-gray-200">
+                <img
+                  src={u.preview || u.downloadURL}
+                  alt={u.name}
+                  className="w-full h-full object-cover"
+                />
+                {u.status === 'uploading' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+                    <div className="h-full bg-brand-primary" style={{ width: `${u.progress}%` }} />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemove(u.id)}
+                  className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-black"
+                  aria-label="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+          {/* Upload rows with filenames and status */}
           {uploads.map(upload => (
             <div
               key={upload.id}
