@@ -1,5 +1,7 @@
 // src/pages/Community.jsx
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import useIsMobile from '../hooks/useIsMobile.js';
+import { getFlag } from '../lib/featureFlags.js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
 import WhatsGoodFeed from '../components/community/WhatsGoodFeed';
@@ -111,8 +113,12 @@ export default function Community() {
     communityView({ feedType: tab });
   }, [tab]);
 
+  const isMobile = useIsMobile();
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+
   return (
-    <div className="min-h-screen bg-cool-gray">
+    <div className="min-h-screen bg-cool-gray" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       {header}
       <main className="max-w-5xl mx-auto px-4 py-6">
         <div className="community-grid">

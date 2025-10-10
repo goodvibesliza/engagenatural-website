@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import useIsMobile from '../hooks/useIsMobile.js'
+import { getFlag } from '../lib/featureFlags.js'
 import { useNavigate, useParams } from 'react-router-dom'
 import { auth, db } from '@/lib/firebase'
 import { doc, getDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
@@ -390,8 +392,13 @@ export default function CommunityPage() {
     )
   }
 
+  // Mobile-only LinkedIn-style skin flag
+  const isMobile = useIsMobile()
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase()
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin'
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       {/* ELEGANT Header with EngageNatural Branding */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-6">

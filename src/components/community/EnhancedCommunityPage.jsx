@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useIsMobile from '../../hooks/useIsMobile.js';
+import { getFlag } from '../../lib/featureFlags.js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { db, storage } from '@/lib/firebase';
@@ -397,8 +399,13 @@ const EnhancedCommunityPage = () => {
     return <div className="p-4">Loading community...</div>;
   }
 
+  // Mobile-only LinkedIn-style skin flag
+  const isMobile = useIsMobile();
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+
   return (
-    <div className="bg-gray-100 min-h-screen">
+    <div className="bg-gray-100 min-h-screen" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       <CommunityHeader 
         community={community}
         onBackToProfile={handleBackToProfile}
