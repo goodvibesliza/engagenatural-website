@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import '../styles/communityDesktop.css';
 
 /**
@@ -14,6 +15,8 @@ import '../styles/communityDesktop.css';
 export default function CommunityDesktopShell({ children, headerContent = null, leftNav = null, rightRail = null, dataTestId }) {
   // track width for responsive right-rail visibility (>=1280)
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onResize = () => setW(window.innerWidth);
@@ -44,17 +47,45 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
     </div>
   ), []);
 
-  const defaultLeft = useMemo(() => (
-    <div className="en-cd-left-inner">
-      {/* Placeholder left nav */}
-      <div className="en-cd-left-title">Navigation</div>
-      <ul className="en-cd-left-menu">
-        <li>Home</li>
-        <li>Whats Good</li>
-        <li>Pro</li>
-      </ul>
-    </div>
-  ), []);
+  const defaultLeft = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab') || 'whatsGood';
+    const go = (nextTab) => {
+      const p = new URLSearchParams(location.search);
+      p.set('tab', nextTab);
+      navigate({ pathname: location.pathname, search: p.toString() });
+    };
+    return (
+      <div className="en-cd-left-inner">
+        <div className="en-cd-left-title">Feed</div>
+        <ul className="en-cd-left-menu" role="list">
+          <li>
+            <a
+              href={"/community?tab=whatsGood"}
+              onClick={(e) => { e.preventDefault(); go('whatsGood'); }}
+              className={`en-cd-left-link ${tab === 'whatsGood' ? 'is-active' : ''}`}
+              aria-current={tab === 'whatsGood' ? 'page' : undefined}
+              data-testid="left-nav-whatsgood"
+            >
+              What's Good
+            </a>
+          </li>
+          <li>
+            <a
+              href={"/community?tab=pro"}
+              onClick={(e) => { e.preventDefault(); go('pro'); }}
+              className={`en-cd-left-link ${tab === 'pro' ? 'is-active' : ''}`}
+              aria-current={tab === 'pro' ? 'page' : undefined}
+              data-testid="left-nav-pro"
+            >
+              Pro
+            </a>
+          </li>
+        </ul>
+      </div>
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search]);
 
   const defaultRight = useMemo(() => (
     <div className="en-cd-right-inner">

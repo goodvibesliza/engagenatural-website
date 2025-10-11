@@ -58,6 +58,32 @@ export default function Community() {
     }
   }, [location.search, selectedBrands]); // Include selectedBrands in dependency array
 
+  // Sync tab with URL (?tab=whatsGood|pro) to preserve deep linking and left-nav highlight
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const t = sp.get('tab');
+    if (t === 'pro' && tab !== 'pro') {
+      setTab('pro');
+    } else if (t === 'whatsGood' && tab !== 'whatsGood') {
+      setTab('whatsGood');
+    } else if (!t) {
+      // default param for clarity
+      sp.set('tab', 'whatsGood');
+      navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  // When the UI tab changes, reflect it in URL to keep selection highlighted
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const current = sp.get('tab');
+    if (current !== tab) {
+      sp.set('tab', tab);
+      navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+    }
+  }, [tab]);
+
   // Update available filters when tab changes (Pro uses stubs for now)
   useEffect(() => {
     if (tab === 'pro') {
