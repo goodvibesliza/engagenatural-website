@@ -70,6 +70,7 @@ import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community (phone-first IA)
 import Community from './pages/Community';
+import CommunityDesktopShell from './layouts/CommunityDesktopShell';
 import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 import CommunityPostRedirect from './components/CommunityPostRedirect';
@@ -562,7 +563,23 @@ function App() {
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
           {/* Community Routes - Legacy redirects */}
-          <Route path="/community" element={<Navigate to="/staff/community" replace />} />
+          <Route
+            path="/community"
+            element={
+              (() => {
+                const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+                const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : false;
+                if (flag === 'linkedin' && isDesktop) {
+                  return (
+                    <CommunityDesktopShell>
+                      <Community />
+                    </CommunityDesktopShell>
+                  );
+                }
+                return <Navigate to="/staff/community" replace />;
+              })()
+            }
+          />
           <Route path="/community/whats-good" element={<Navigate to="/staff/community" replace />} />
           <Route path="/community/post/:postId" element={<CommunityPostRedirect />} />
 

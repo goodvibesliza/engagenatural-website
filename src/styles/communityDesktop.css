@@ -1,0 +1,118 @@
+/* Community Desktop Shell Styles (scoped) */
+
+:root {
+  --en-header-h: 64px; /* header height */
+  --en-left-w: 280px; /* left nav width */
+  --en-right-w: 300px; /* right rail width */
+}
+
+.en-cd-shell {
+  position: relative;
+  background: var(--en-bg, #f5f7f9);
+}
+
+/* Fixed header */
+.en-cd-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--en-header-h);
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 50;
+}
+.en-cd-header-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+}
+.en-cd-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Fixed left nav */
+.en-cd-left {
+  position: fixed;
+  top: var(--en-header-h);
+  left: 0;
+  width: var(--en-left-w);
+  height: calc(100vh - var(--en-header-h));
+  overflow-y: auto;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  z-index: 40;
+}
+.en-cd-left-inner {
+  padding: 12px 12px 16px;
+}
+.en-cd-left-title {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.en-cd-left-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.en-cd-left-menu li {
+  padding: 8px 6px;
+  color: #374151;
+}
+
+/* Center scroller */
+.en-cd-center {
+  position: fixed;
+  top: var(--en-header-h);
+  left: var(--en-left-w);
+  right: 0;
+  height: calc(100vh - var(--en-header-h));
+  overflow-y: auto; /* only center scrolls */
+}
+
+/* Center width – fluid between 680px and 760px, centered */
+.en-cd-center-inner {
+  width: clamp(680px, 58vw, 760px);
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* Right rail placeholder (only shows when >=1280px) */
+.en-cd-right {
+  position: fixed;
+  top: var(--en-header-h);
+  right: 0;
+  width: var(--en-right-w);
+  height: calc(100vh - var(--en-header-h));
+  overflow: hidden;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+}
+.en-cd-right-inner {
+  padding: 12px 12px 16px;
+}
+.en-cd-right-title {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.en-cd-right-placeholder {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* When viewport is >=1280px, center should not underlap right rail
+   We keep center width constrained, so just add padding to avoid overlap */
+@media (min-width: 1280px) {
+  .en-cd-center {
+    right: var(--en-right-w);
+  }
+}
+
+/* Below 1280px collapse the right rail automatically by not rendering it */
