@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useIsMobile from '../../hooks/useIsMobile.js';
+import { getFlag } from '../../lib/featureFlags.js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { db, storage } from '@/lib/firebase';
@@ -15,6 +17,9 @@ import CommunitySearch from './components/CommunitySearch.jsx';
 import PostForm from './components/PostForm.jsx';
 import ProfileModal from './components/ProfileModal.jsx';
 import { postCategories } from './utils/CommunityUtils.js';
+import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
+import ComposerMobile from './mobile/ComposerMobile.jsx';
+import FilterBarMobileCompact from './mobile/FilterBarMobileCompact.jsx';
 
 // Placeholder data
 const mockCommunities = {
@@ -72,8 +77,7 @@ const EnhancedCommunityPage = () => {
   const [community, setCommunity] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [viewedUser, setViewedUser] = useState(null);
+  // Removed unused profile modal state to satisfy lint
   // Local state to support CommunitySearch props when used in brand view
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeSort, setActiveSort] = useState('newest');
@@ -88,6 +92,8 @@ const EnhancedCommunityPage = () => {
   });
   const getCategoryInfo = (id) =>
     postCategories.find((c) => c.id === id) || { id, name: 'All', icon: '' };
+  // Local state for mobile filter query so FilterBarMobileCompact is controlled
+  const [mobileQuery, setMobileQuery] = useState('');
 
   // Minimal state/handlers to satisfy PostForm props and avoid runtime errors in brand view
   const [showNewPost, setShowNewPost] = useState(false);
@@ -252,7 +258,6 @@ const EnhancedCommunityPage = () => {
         }
       } catch (e) {
         // non-fatal; fall back below
-        // eslint-disable-next-line no-console
         console.warn('Failed to load community doc, using fallback name.', e?.message);
       }
       // Fallback: mock map or simple name from id
@@ -329,14 +334,15 @@ const EnhancedCommunityPage = () => {
           }));
           setPosts(mapped);
         });
-      } catch {
+      } catch (err) {
+        void err
         // leave mock posts
       }
     };
     start();
     return () => {
       if (typeof unsub === 'function') {
-        try { unsub(); } catch {}
+        try { unsub(); } catch (err) { void err }
       }
     };
   }, [communityId]);
@@ -369,18 +375,7 @@ const EnhancedCommunityPage = () => {
     console.log('Searching for:', term);
   };
 
-  // Create a new post handler
-  const handleCreatePost = (content) => {
-    const newPost = {
-      id: `post-${Date.now()}`,
-      author: 'Current User',
-      timestamp: new Date(),
-      content,
-      reactions: { like: 0 },
-      comments: []
-    };
-    setPosts(prev => [newPost, ...prev]);
-  };
+  // removed unused handleCreatePost to satisfy lint
 
   // Handle going back to profile
   const handleBackToProfile = () => {
@@ -393,55 +388,116 @@ const EnhancedCommunityPage = () => {
     setShareModalOpen(false);
   };
 
+  // Mobile-only LinkedIn-style skin flag (must run unconditionally per Rules of Hooks)
+  const isMobile = useIsMobile();
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+
   if (!community) {
     return <div className="p-4">Loading community...</div>;
   }
 
   return (
-    <div className="bg-gray-100 min-h-screen">
+    <div className="bg-gray-100 min-h-screen" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       <CommunityHeader 
         community={community}
         onBackToProfile={handleBackToProfile}
       />
       
       <div className="container mx-auto p-4">
-        {/* Search bar and new post form */}
-        <CommunitySearch
-          onSearch={handleSearch}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          activeSort={activeSort}
-          setActiveSort={setActiveSort}
-          showAdvancedSearch={showAdvancedSearch}
-          setShowAdvancedSearch={setShowAdvancedSearch}
-          advancedFilters={advancedFilters}
-          setAdvancedFilters={setAdvancedFilters}
-          categories={postCategories.map((c) => c.id)}
-          getCategoryInfo={getCategoryInfo}
-        />
-        <PostForm
-          user={user}
-          community={community}
-          showNewPost={showNewPost}
-          setShowNewPost={setShowNewPost}
-          newPost={newPost}
-          setNewPost={setNewPost}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          mediaAttachments={mediaAttachments}
-          setMediaAttachments={setMediaAttachments}
-          uploadProgress={uploadProgress}
-          fileInputRef={fileInputRef}
-          handleFileSelect={handleFileSelect}
-          removeAttachment={removeAttachment}
-          createPost={createPost}
-          loading={false}
-          getProfileImageDisplay={getProfileImageDisplay}
-        />
+        {/* Search + Composer */}
+        {!useLinkedInMobileSkin && (
+          <>
+            <CommunitySearch
+              onSearch={handleSearch}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              activeSort={activeSort}
+              setActiveSort={setActiveSort}
+              showAdvancedSearch={showAdvancedSearch}
+              setShowAdvancedSearch={setShowAdvancedSearch}
+              advancedFilters={advancedFilters}
+              setAdvancedFilters={setAdvancedFilters}
+              categories={postCategories.map((c) => c.id)}
+              getCategoryInfo={getCategoryInfo}
+            />
+            <PostForm
+              user={user}
+              community={community}
+              showNewPost={showNewPost}
+              setShowNewPost={setShowNewPost}
+              newPost={newPost}
+              setNewPost={setNewPost}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              mediaAttachments={mediaAttachments}
+              setMediaAttachments={setMediaAttachments}
+              uploadProgress={uploadProgress}
+              fileInputRef={fileInputRef}
+              handleFileSelect={handleFileSelect}
+              removeAttachment={removeAttachment}
+              createPost={createPost}
+              loading={false}
+              getProfileImageDisplay={getProfileImageDisplay}
+            />
+          </>
+        )}
+        {useLinkedInMobileSkin && (
+          <>
+            <FilterBarMobileCompact 
+              query={mobileQuery}
+              onChange={({ query: q }) => {
+                setMobileQuery(q);
+                handleSearch(q);
+              }} 
+            />
+            <div className="mt-3 md:hidden">
+              <ComposerMobile onStartPost={() => setShowNewPost(true)} />
+            </div>
+            {showNewPost && (
+              <div className="md:hidden mt-3">
+                <PostForm
+                  user={user}
+                  community={community}
+                  showNewPost={showNewPost}
+                  setShowNewPost={setShowNewPost}
+                  newPost={newPost}
+                  setNewPost={setNewPost}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                  mediaAttachments={mediaAttachments}
+                  setMediaAttachments={setMediaAttachments}
+                  uploadProgress={uploadProgress}
+                  fileInputRef={fileInputRef}
+                  handleFileSelect={handleFileSelect}
+                  removeAttachment={removeAttachment}
+                  createPost={createPost}
+                  loading={false}
+                  getProfileImageDisplay={getProfileImageDisplay}
+                />
+              </div>
+            )}
+          </>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Main content */}
           <div className="md:col-span-2">
-            <PostList posts={posts} onPostAction={handlePostAction} />
+            {!useLinkedInMobileSkin && (
+              <PostList posts={posts} onPostAction={handlePostAction} />
+            )}
+            {useLinkedInMobileSkin && (
+              <div className="space-y-3 md:hidden">
+                {posts.map((p) => (
+                  <PostCardMobileLinkedIn
+                    key={p.id}
+                    post={p}
+                    onLike={() => handlePostAction(p.id, 'like')}
+                    onComment={() => {/* no-op placeholder */}}
+                    onViewTraining={() => {/* no-op placeholder */}}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Sidebar */}

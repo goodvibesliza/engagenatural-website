@@ -1,0 +1,20 @@
+/* Mobile-only tweaks for LinkedIn-style skin */
+@media (max-width: 767.98px) {
+  [data-mobile-skin="linkedin"] .li-sticky {
+    position: sticky;
+    top: 56px; /* below header/tabs */
+    z-index: 30;
+    background: white;
+  }
+
+  /* Fixed bottom nav and content padding so it isn't covered */
+  [data-mobile-skin="linkedin"] {
+    /* reserve space for bottom nav + safe area */
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-bottom-nav {
+    height: 60px; /* ~56–64px */
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  }
+}
