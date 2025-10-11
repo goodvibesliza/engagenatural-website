@@ -22,7 +22,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
   const byline = `${name} · ${timeAgo(post.timestamp || post.createdAt)}`
   const content = post.content || post.title || ''
 
-  const handleCardActivate = (e) => {
+  const handleCardActivate = () => {
     if (!onCardClick) return
     onCardClick(post)
   }
