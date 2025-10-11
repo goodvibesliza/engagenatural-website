@@ -72,7 +72,10 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   const desktopFlag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    // Prime on mount to correct any SSR/hydration mismatch
+    onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);

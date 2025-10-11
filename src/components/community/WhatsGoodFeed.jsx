@@ -75,7 +75,10 @@ export default function WhatsGoodFeed({
   const desktopFlag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    // Prime on mount so SSR/hydrated clients compute layout immediately
+    onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);

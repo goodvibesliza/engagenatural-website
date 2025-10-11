@@ -1,5 +1,5 @@
 // src/pages/Community.jsx
-import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
 import WhatsGoodFeed from '../components/community/WhatsGoodFeed';
@@ -75,14 +75,19 @@ export default function Community() {
   }, [location.search]);
 
   // When the UI tab changes, reflect it in URL to keep selection highlighted
+  // Use a ref to avoid unnecessary navigations and safely include all deps
+  const lastAppliedRef = useRef('');
   useEffect(() => {
+    const key = `${location.pathname}|${tab}`;
+    if (lastAppliedRef.current === key) return;
     const sp = new URLSearchParams(location.search);
     const current = sp.get('tab');
     if (current !== tab) {
       sp.set('tab', tab);
       navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
     }
-  }, [tab]);
+    lastAppliedRef.current = key;
+  }, [tab, navigate, location.pathname, location.search]);
 
   // Update available filters when tab changes (Pro uses stubs for now)
   useEffect(() => {

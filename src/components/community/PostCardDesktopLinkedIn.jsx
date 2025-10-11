@@ -2,7 +2,6 @@
 import React from 'react';
 import { getBrandLogo, getBrandInitial } from '../../lib/brandAssets';
 import { formatRelativeTime as formatRelativeTimeShared } from '../../lib/trainingAdapter';
-import '../common/AspectBox';
 import AspectBox from '../common/AspectBox';
 import '../../styles/truncate.css';
 
