@@ -164,7 +164,7 @@ export default function PostDetail() {
             
             if (!cancelled) {
               const likeCount = likesSnap.data().count || 0;
-              // Initialize likeIds as placeholders to derive count; ensure 'me' present if likedByMe resolves true later
+              // Initialize likeIds as placeholders to derive count; do not add 'me' yet
               setLikeIds(Array.from({ length: likeCount }, (_, i) => `x${i}`));
             }
 
@@ -184,12 +184,24 @@ export default function PostDetail() {
                 const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
                 const likeDoc = await getDoc(likeRef);
                 if (!cancelled) {
-                  setLiked(likeDoc.exists());
-                  // Ensure local likeIds includes 'me' token when liked
+                  const likedByMe = likeDoc.exists();
+                  setLiked(likedByMe);
+                  // Rebuild array to keep length equal to Firestore count, replacing a placeholder with 'me' if liked
                   setLikeIds((prev) => {
+                    const count = prev.length; // Firestore likeCount-derived length
                     const hasMe = prev.includes('me');
-                    if (likeDoc.exists() && !hasMe) return [...prev, 'me'];
-                    if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
+                    if (likedByMe) {
+                      if (hasMe) return prev; // already represented
+                      if (count === 0) return prev; // nothing to replace; keep exact count
+                      // replace last placeholder with 'me' to maintain length
+                      const withoutLast = prev.slice(0, count - 1);
+                      return [...withoutLast, 'me'];
+                    }
+                    // Not liked by me: if 'me' is present, replace it with a placeholder to keep length
+                    if (hasMe) {
+                      const withoutMe = prev.filter((v) => v !== 'me');
+                      return [...withoutMe, `x${withoutMe.length}`];
+                    }
                     return prev;
                   });
                 }
@@ -230,18 +242,33 @@ export default function PostDetail() {
       // On logout, clear liked state immediately
       if (!user?.uid) {
         setLiked(false);
-        setLikeIds((prev) => (prev.includes('me') ? prev.filter((v) => v !== 'me') : prev));
+        // Replace 'me' with a placeholder to keep count length stable
+        setLikeIds((prev) => {
+          if (!prev.includes('me')) return prev;
+          const withoutMe = prev.filter((v) => v !== 'me');
+          return [...withoutMe, `x${withoutMe.length}`];
+        });
         return;
       }
       try {
         const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
         const likeDoc = await getDoc(likeRef);
         if (cancelled) return;
-        setLiked(likeDoc.exists());
+        const likedByMe = likeDoc.exists();
+        setLiked(likedByMe);
         setLikeIds((prev) => {
+          const count = prev.length;
           const hasMe = prev.includes('me');
-          if (likeDoc.exists() && !hasMe) return [...prev, 'me'];
-          if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
+          if (likedByMe) {
+            if (hasMe) return prev;
+            if (count === 0) return prev; // nothing to replace
+            const withoutLast = prev.slice(0, count - 1);
+            return [...withoutLast, 'me'];
+          }
+          if (hasMe) {
+            const withoutMe = prev.filter((v) => v !== 'me');
+            return [...withoutMe, `x${withoutMe.length}`];
+          }
           return prev;
         });
       } catch (err) {
