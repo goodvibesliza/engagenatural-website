@@ -3,8 +3,25 @@
 This document captures the exact next steps to finish and validate the current workstream.
 
 ## Working Branch
-- Use branch: `fix/brand-community-access-rca`
-- Open PR: https://github.com/goodvibesliza/engagenatural-website/compare/main...fix/brand-community-access-rca
+- Use branch: `phase-8.7/mobile-linkedin-skin-web`
+- Open PR: https://github.com/goodvibesliza/engagenatural-website/compare/main...phase-8.7/mobile-linkedin-skin-web
+
+### Feature Flags / Mobile Skin
+- Env flag: `EN_MOBILE_FEED_SKIN=linkedin`
+- Active only on mobile (<768px). Desktop remains unchanged.
+- CSS scoped with `data-mobile-skin="linkedin"` on page root/container.
+
+### QA Hooks (Test IDs)
+- Top bar: `topbar`, `topbar-avatar`, `topbar-search`
+- Bottom nav: `bottomnav`, `bottomnav-mybrands`, `bottomnav-notifications`, `bottomnav-communities`, `bottomnav-learning`
+- Mobile components: `mobile-linkedin-composer`, `mobile-linkedin-filterbar`, `mobile-linkedin-postcard`, `mobile-linkedin-action-*`
+
+### Post-Auth Redirect Rules
+Order:
+1) `redirectTo` (or `returnUrl`) query param
+2) `localStorage.en.lastRoute` (valid staff/community path)
+3) Defaults: staff → `/community?tab=whats-good`; brand/admin unchanged
+Util: `src/lib/postAuthRedirect.js` (wired in `src/pages/auth/Login.jsx`)
 
 ## Environment Versions
 - Node: 20.x
