@@ -17,7 +17,7 @@ function timeAgo(ts) {
   }
 }
 
-export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, onViewTraining, onCardClick }) {
+export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, onViewTraining, onCardClick, dataTestId }) {
   const name = post.author || post.authorName || post.brand || 'User'
   const avatarUrl = post.authorAvatar || post.photoURL || null
   const byline = `${name} · ${timeAgo(post.timestamp || post.createdAt)}`
@@ -32,7 +32,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
     <article
       className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm cursor-pointer"
       role="button"
-      data-testid="mobile-linkedin-postcard"
+      data-testid={dataTestId || 'mobile-linkedin-postcard'}
       aria-label="Post"
       onClick={handleCardActivate}
       onKeyDown={(e) => {
