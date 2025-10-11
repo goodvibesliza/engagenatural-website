@@ -180,7 +180,7 @@ export default function PostDetail() {
           }
         }
       } catch (err) {
-        void err;
+        console.error('PostDetail: failed to load post or related data', { postId }, err);
         if (!cancelled) {
           setPost(null);
         }
@@ -216,7 +216,9 @@ export default function PostDetail() {
           if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
           return prev;
         });
-      } catch (err) { void err }
+      } catch (err) {
+        console.error('PostDetail: refreshLiked failed', { postId, userId: user?.uid }, err);
+      }
     }
     refreshLiked();
     return () => {
@@ -267,8 +269,8 @@ export default function PostDetail() {
           }
         }
       }
-    } catch (_E) {
-      void _E;
+    } catch (err) {
+      console.error('PostDetail: failed to persist like toggle', { postId: post?.id, userId: user?.uid, intendedNext }, err);
       // Revert and show error
       setLiked((prev) => !prev); // undo last toggle
       setLikeIds((prev) => {
@@ -305,8 +307,12 @@ export default function PostDetail() {
       await batch.commit();
       navigate('/staff/community');
     } catch (e) {
-      console.error('Failed to delete post', e);
-      try { window.alert('Failed to delete post. Please try again.'); } catch (err) { void err }
+      console.error('PostDetail: failed to delete post', { postId: post?.id, userId: user?.uid }, e);
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert('Failed to delete post. Please try again.');
+      } else {
+        console.error('PostDetail: window.alert unavailable to notify user of delete failure');
+      }
     }
   };
 
@@ -323,8 +329,12 @@ export default function PostDetail() {
         }
       }, 500);
     } catch (e) {
-      console.error('Failed to delete comment', e);
-      try { window.alert('Failed to delete comment. Please try again.'); } catch (err) { void err }
+      console.error('PostDetail: failed to delete comment', { commentId: cmt?.id, postId: post?.id, userId: user?.uid }, e);
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert('Failed to delete comment. Please try again.');
+      } else {
+        console.error('PostDetail: window.alert unavailable to notify user of comment delete failure');
+      }
     }
   };
 
@@ -335,10 +345,17 @@ export default function PostDetail() {
     try {
       const moderation = await filterPostContent({ content: text });
       if (moderation?.isBlocked || moderation?.needsReview) {
-        try { window.alert('Your comment needs revision before it can be posted.'); } catch (_E) { void _E }
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert('Your comment needs revision before it can be posted.');
+        } else {
+          console.error('PostDetail: moderation blocked comment but alert unavailable');
+        }
         return;
       }
-    } catch (err) { void err }
+    } catch (err) {
+      // Fail-open: allow user to proceed if moderation service fails, but log for monitoring
+      console.error('PostDetail: moderation check failed, proceeding fail-open', err);
+    }
     analyticsPostComment({ postId: post.id, length: text.length });
     // Optimistic add; replace on success, mark error on failure
     const now = new Date();
@@ -380,8 +397,8 @@ export default function PostDetail() {
           console.warn('window.refreshWhatsGoodComments not available');
         }
       }, 1000); // 1 second delay to allow Firestore to propagate
-    } catch (_E) {
-      void _E;
+    } catch (err) {
+      console.error('PostDetail: failed to add comment', { postId: post?.id, userId: user?.uid }, err);
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
     }
   };
@@ -403,8 +420,8 @@ export default function PostDetail() {
         createdAt: serverTimestamp(),
       });
       setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, id: ref.id, status: 'ok' } : c)));
-    } catch (_E) {
-      void _E;
+    } catch (err) {
+      console.error('PostDetail: failed to resend comment', { commentId: cmt?.id, postId: post?.id, userId: user?.uid }, err);
       setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'error' } : c)));
     }
   };
