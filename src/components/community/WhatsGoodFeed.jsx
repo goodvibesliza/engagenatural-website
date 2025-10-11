@@ -74,7 +74,8 @@ export default function WhatsGoodFeed({
   const [error, setError] = useState('');
   const [postsWithCounts, setPostsWithCounts] = useState([]);
   const isMobile = useIsMobile();
-  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const flag = getFlag('EN_MOBILE_FEED_SKIN');
+  const mobileSkin = typeof flag === 'string' ? flag.toLowerCase() : '';
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
 
   // Check if user is staff (can create posts)

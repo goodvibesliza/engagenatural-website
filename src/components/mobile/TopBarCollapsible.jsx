@@ -8,7 +8,24 @@ export default function TopBarCollapsible() {
   const [hidden, setHidden] = useState(false)
   const lastY = useRef(typeof window !== 'undefined' ? window.scrollY : 0)
   const ticking = useRef(false)
-  const reducedMotion = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const [reducedMotion, setReducedMotion] = useState(false)
+
+  useEffect(() => {
+    // Respect prefers-reduced-motion (client-side only)
+    try {
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+        const apply = () => setReducedMotion(!!mq.matches)
+        apply()
+        if (mq.addEventListener) mq.addEventListener('change', apply)
+        else if (mq.addListener) mq.addListener(apply)
+        return () => {
+          if (mq.removeEventListener) mq.removeEventListener('change', apply)
+          else if (mq.removeListener) mq.removeListener(apply)
+        }
+      }
+    } catch { /* no-op */ }
+  }, [])
 
   useEffect(() => {
     const onScroll = () => {
@@ -84,7 +101,7 @@ export default function TopBarCollapsible() {
           <button
             type="button"
             onClick={focusCommunitySearch}
-            className="w-full h-10 min-h-[40px] px-3 rounded-lg border border-gray-300 text-sm text-gray-600 text-left"
+            className="w-full h-11 min-h-[44px] px-3 rounded-lg border border-gray-300 text-sm text-gray-600 text-left"
             aria-label="Search posts"
             data-testid="topbar-search"
           >
