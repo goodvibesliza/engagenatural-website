@@ -16,14 +16,30 @@ function timeAgo(ts) {
   }
 }
 
-export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, onViewTraining }) {
+export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, onViewTraining, onCardClick }) {
   const name = post.author || post.authorName || post.brand || 'User'
   const avatarUrl = post.authorAvatar || post.photoURL || null
   const byline = `${name} · ${timeAgo(post.timestamp || post.createdAt)}`
   const content = post.content || post.title || ''
 
+  const handleCardActivate = (e) => {
+    if (!onCardClick) return
+    onCardClick(post)
+  }
+
   return (
-    <article className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm" aria-label="Post">
+    <article
+      className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm cursor-pointer"
+      aria-label="Post"
+      onClick={handleCardActivate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardActivate()
+        }
+      }}
+      tabIndex={0}
+    >
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-sm font-semibold text-gray-700" aria-hidden="true">
@@ -55,7 +71,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
       <div className="flex items-center justify-between pt-1">
         <button
           type="button"
-          onClick={onLike}
+          onClick={(e) => { e.stopPropagation(); onLike?.(post); }}
           aria-label="Like post"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
@@ -63,7 +79,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
         </button>
         <button
           type="button"
-          onClick={onComment}
+          onClick={(e) => { e.stopPropagation(); onComment?.(post); }}
           aria-label="Comment on post"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
@@ -71,7 +87,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
         </button>
         <button
           type="button"
-          onClick={onViewTraining}
+          onClick={(e) => { e.stopPropagation(); onViewTraining?.(post?.trainingId, post); }}
           aria-label="View related training"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
