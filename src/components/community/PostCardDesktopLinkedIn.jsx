@@ -2,6 +2,9 @@
 import React from 'react';
 import { getBrandLogo, getBrandInitial } from '../../lib/brandAssets';
 import { formatRelativeTime as formatRelativeTimeShared } from '../../lib/trainingAdapter';
+import '../common/AspectBox';
+import AspectBox from '../common/AspectBox';
+import '../../styles/truncate.css';
 
 export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onViewTraining, onCardClick, dataTestId }) {
   const likes = Number.isFinite(post?.likeCount)
@@ -77,11 +80,11 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
 
       {/* Title + Body (clamped) */}
       <div className="px-4">
-        <h3 className="text-base font-semibold text-gray-900 leading-snug overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <h3 className="text-base font-semibold text-gray-900 leading-snug overflow-hidden line-clamp-2">
           {title}
         </h3>
         {body && (
-          <p className="mt-1 text-sm text-gray-700 overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+          <p className="mt-1 text-sm text-gray-700 overflow-hidden line-clamp-3">
             {body}
           </p>
         )}
@@ -89,15 +92,15 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
 
       {/* Hero image with consistent height */}
       <div className="mt-3" aria-hidden>
-        {imgSrc ? (
-          <div style={{ height: `${HERO_H}px` }} className="w-full">
+        <AspectBox ratio="16/9">
+          {imgSrc ? (
             <img src={imgSrc} alt="" className="w-full h-full object-cover" />
-          </div>
-        ) : (
-          <div style={{ height: `${HERO_H}px` }} className="w-full bg-gray-100 border-t border-b border-gray-200 flex items-center justify-center text-gray-400">
-            <span className="text-sm">No image</span>
-          </div>
-        )}
+          ) : (
+            <div className="w-full h-full bg-gray-100 border-t border-b border-gray-200 flex items-center justify-center text-gray-400">
+              <span className="text-sm">No image</span>
+            </div>
+          )}
+        </AspectBox>
       </div>
 
       {/* Action row */}
