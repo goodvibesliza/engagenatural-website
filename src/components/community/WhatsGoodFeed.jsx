@@ -101,6 +101,9 @@ export default function WhatsGoodFeed({
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
+            imageUrls: Array.isArray(data?.imageUrls) && data.imageUrls.length
+              ? data.imageUrls
+              : (Array.isArray(data?.images) ? data.images : []),
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
             authorPhotoURL: data?.authorPhotoURL || '',
@@ -190,7 +193,7 @@ export default function WhatsGoodFeed({
     }
     return () => {
       cancelled = true;
-      try { unsub(); } catch {}
+      try { unsub(); } catch (e) { void e }
     };
   }, [db]);
 
