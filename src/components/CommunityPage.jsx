@@ -44,6 +44,8 @@ export default function CommunityPage() {
   const [showNewPost, setShowNewPost] = useState(false)
   const navigate = useNavigate()
   const { communityId } = useParams()
+  // SSR-safe mobile detection must be at top-level to satisfy Rules of Hooks
+  const isMobile = useIsMobile()
 
   // Helper function to display profile image properly
   const getProfileImageDisplay = (user) => {
@@ -395,7 +397,6 @@ export default function CommunityPage() {
   }
 
   // Mobile-only LinkedIn-style skin flag
-  const isMobile = useIsMobile()
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase()
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin'
 

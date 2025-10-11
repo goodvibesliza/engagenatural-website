@@ -398,14 +398,14 @@ const EnhancedCommunityPage = () => {
     setShareModalOpen(false);
   };
 
-  if (!community) {
-    return <div className="p-4">Loading community...</div>;
-  }
-
-  // Mobile-only LinkedIn-style skin flag
+  // Mobile-only LinkedIn-style skin flag (must run unconditionally per Rules of Hooks)
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+
+  if (!community) {
+    return <div className="p-4">Loading community...</div>;
+  }
 
   return (
     <div className="bg-gray-100 min-h-screen" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
