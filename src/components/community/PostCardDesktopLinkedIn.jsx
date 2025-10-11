@@ -52,7 +52,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
   return (
     <article
       className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden focus:outline-none focus:ring-2 focus:ring-deep-moss focus:ring-offset-2"
-      data-testid={dataTestId || 'postcard-desktop-linkedin'}
+      data-testid={dataTestId || 'postcard-desktop'}
       aria-label={title}
       role="button"
       tabIndex={0}
@@ -61,7 +61,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
     >
       {/* Byline Row */}
       <header className="flex items-center gap-3 p-4">
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200" aria-hidden>
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200" aria-hidden data-testid="postcard-brand-logo">
           {logoUrl ? (
             <img src={logoUrl} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -69,10 +69,10 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           )}
         </div>
         <div className="min-w-0">
-          <div className="text-sm text-gray-900 font-medium truncate" title={brandName} aria-label={`Brand ${brandName}`}>
+          <div className="text-sm text-gray-900 font-medium truncate" title={brandName} aria-label={`Brand ${brandName}`} data-testid="postcard-brand-name">
             {brandName}
           </div>
-          <div className="text-xs text-gray-500" aria-label={`Posted ${time}`}>
+          <div className="text-xs text-gray-500" aria-label={`Posted ${time}`} data-testid="postcard-date">
             <span>{time}</span>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
       </div>
 
       {/* Hero image with consistent height */}
-      <div className="mt-3" aria-hidden>
+      <div className="mt-3" aria-hidden data-testid="postcard-hero">
         <AspectBox ratio="16/9">
           {imgSrc ? (
             <img src={imgSrc} alt="" className="w-full h-full object-cover" />
@@ -113,7 +113,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           }`}
           aria-pressed={liked ? 'true' : 'false'}
           aria-label={liked ? `Unlike post (${likes} likes)` : `Like post (${likes} likes)`}
-          data-testid="desktop-linkedin-action-like"
+          data-testid="postcard-action-like"
         >
           <span className="mr-2" aria-hidden>{liked ? '❤️' : '🤍'}</span>
           <span>Like</span>
@@ -125,7 +125,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           onClick={() => onComment?.(post)}
           className="inline-flex items-center justify-center h-10 rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 text-gray-700"
           aria-label={`Comment on post (${comments} comments)`}
-          data-testid="desktop-linkedin-action-comment"
+          data-testid="postcard-action-comment"
         >
           <span className="mr-2" aria-hidden>💬</span>
           <span>Comment</span>
@@ -140,7 +140,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
             hasTraining ? 'text-deep-moss hover:bg-oat-beige' : 'text-gray-400 cursor-not-allowed'
           }`}
           aria-label={hasTraining ? 'View related training' : 'No related training'}
-          data-testid="desktop-linkedin-action-training"
+          data-testid="postcard-action-training"
         >
           <span aria-hidden>🎓</span>
           <span className="ml-2">View training</span>

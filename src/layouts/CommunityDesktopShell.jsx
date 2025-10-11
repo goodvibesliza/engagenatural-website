@@ -97,25 +97,25 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
   return (
     <div className="en-cd-shell" data-testid={dataTestId}>
       {/* Fixed Header */}
-      <header className="en-cd-header" role="banner" aria-label="Top bar" data-testid="topbar">
+      <header className="en-cd-header" role="banner" aria-label="Top bar" data-testid="desktop-shell-header">
         {headerContent || defaultHeader}
       </header>
 
       {/* Fixed Left Nav */}
-      <nav className="en-cd-left" role="navigation" aria-label="Primary navigation" data-testid="left-nav">
+      <nav className="en-cd-left" role="navigation" aria-label="Primary navigation" data-testid="desktop-shell-leftnav">
         {leftNav || defaultLeft}
       </nav>
 
       {/* Center scroller */}
-      <main className="en-cd-center" role="main" aria-label="Main content">
-        <div className="en-cd-center-inner" data-testid="center-scroller">
+      <main className="en-cd-center" role="main" aria-label="Main content" data-testid="desktop-shell-center">
+        <div className="en-cd-center-inner">
           {children}
         </div>
       </main>
 
       {/* Right rail placeholder (>=1280 only) */}
       {showRight && (
-        <aside className="en-cd-right" role="complementary" aria-label="Right rail" data-testid="right-rail">
+        <aside className="en-cd-right" role="complementary" aria-label="Right rail" data-testid="desktop-shell-rightrail">
           {rightRail || defaultRight}
         </aside>
       )}
