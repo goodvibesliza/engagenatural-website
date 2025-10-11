@@ -1,5 +1,5 @@
 // src/pages/PostDetail.jsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
@@ -130,10 +130,8 @@ export default function PostDetail() {
         if (db && !cancelled) {
           try {
             const likesQ = query(collection(db, 'post_likes'), where('postId', '==', postId));
-            const commentsQ = query(collection(db, 'community_comments'), where('postId', '==', postId));
-            const [likesSnap, commentsSnap] = await Promise.all([
+            const [likesSnap] = await Promise.all([
               getCountFromServer(likesQ),
-              getCountFromServer(commentsQ),
             ]);
             
             if (!cancelled) {
@@ -181,7 +179,8 @@ export default function PostDetail() {
             }
           }
         }
-      } catch (e) {
+      } catch (err) {
+        void err;
         if (!cancelled) {
           setPost(null);
         }
@@ -217,7 +216,7 @@ export default function PostDetail() {
           if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
           return prev;
         });
-      } catch {}
+      } catch (err) { void err }
     }
     refreshLiked();
     return () => {
@@ -268,7 +267,8 @@ export default function PostDetail() {
           }
         }
       }
-    } catch (e) {
+    } catch (_E) {
+      void _E;
       // Revert and show error
       setLiked((prev) => !prev); // undo last toggle
       setLikeIds((prev) => {
@@ -290,7 +290,7 @@ export default function PostDetail() {
     try {
       if (!post || !user?.uid || post.userId !== user.uid) return;
       if (!window.confirm('Delete this post and its likes/comments? This cannot be undone.')) return;
-      const { writeBatch, collection: coll, query: q2, where: w2, getDocs: gd2, doc: d2, deleteDoc: del2 } = await import('firebase/firestore');
+      const { writeBatch, collection: coll, query: q2, where: w2, getDocs: gd2, doc: d2 } = await import('firebase/firestore');
       const batch = writeBatch(db);
       // delete likes
       const likesQ = q2(coll(db, 'post_likes'), w2('postId', '==', post.id));
@@ -306,7 +306,7 @@ export default function PostDetail() {
       navigate('/staff/community');
     } catch (e) {
       console.error('Failed to delete post', e);
-      try { window.alert('Failed to delete post. Please try again.'); } catch {}
+      try { window.alert('Failed to delete post. Please try again.'); } catch (err) { void err }
     }
   };
 
@@ -324,7 +324,7 @@ export default function PostDetail() {
       }, 500);
     } catch (e) {
       console.error('Failed to delete comment', e);
-      try { window.alert('Failed to delete comment. Please try again.'); } catch {}
+      try { window.alert('Failed to delete comment. Please try again.'); } catch (err) { void err }
     }
   };
 
@@ -335,10 +335,10 @@ export default function PostDetail() {
     try {
       const moderation = await filterPostContent({ content: text });
       if (moderation?.isBlocked || moderation?.needsReview) {
-        try { window.alert('Your comment needs revision before it can be posted.'); } catch {}
+        try { window.alert('Your comment needs revision before it can be posted.'); } catch (_E) { void _E }
         return;
       }
-    } catch {}
+    } catch (err) { void err }
     analyticsPostComment({ postId: post.id, length: text.length });
     // Optimistic add; replace on success, mark error on failure
     const now = new Date();
@@ -380,7 +380,8 @@ export default function PostDetail() {
           console.warn('window.refreshWhatsGoodComments not available');
         }
       }, 1000); // 1 second delay to allow Firestore to propagate
-    } catch (e) {
+    } catch (_E) {
+      void _E;
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
     }
   };
@@ -402,7 +403,8 @@ export default function PostDetail() {
         createdAt: serverTimestamp(),
       });
       setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, id: ref.id, status: 'ok' } : c)));
-    } catch (e) {
+    } catch (_E) {
+      void _E;
       setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'error' } : c)));
     }
   };
@@ -504,7 +506,7 @@ export default function PostDetail() {
             </section>
           )}
 
-          <footer className="mt-6 flex items-center gap-3">
+          <footer className="mt-6 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleLike}
@@ -538,7 +540,7 @@ export default function PostDetail() {
               <button
                 type="button"
                 onClick={handleDeletePost}
-                className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-rose-500 text-sm text-rose-600 hover:bg-rose-50"
+                className="sm:ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-rose-500 text-sm text-rose-600 hover:bg-rose-50 w-full sm:w-auto"
               >
                 Delete
               </button>
