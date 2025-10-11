@@ -17,6 +17,9 @@ import CommunitySearch from './components/CommunitySearch.jsx';
 import PostForm from './components/PostForm.jsx';
 import ProfileModal from './components/ProfileModal.jsx';
 import { postCategories } from './utils/CommunityUtils.js';
+import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
+import ComposerMobile from './mobile/ComposerMobile.jsx';
+import FilterBarMobileCompact from './mobile/FilterBarMobileCompact.jsx';
 
 // Placeholder data
 const mockCommunities = {
@@ -412,43 +415,93 @@ const EnhancedCommunityPage = () => {
       />
       
       <div className="container mx-auto p-4">
-        {/* Search bar and new post form */}
-        <CommunitySearch
-          onSearch={handleSearch}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          activeSort={activeSort}
-          setActiveSort={setActiveSort}
-          showAdvancedSearch={showAdvancedSearch}
-          setShowAdvancedSearch={setShowAdvancedSearch}
-          advancedFilters={advancedFilters}
-          setAdvancedFilters={setAdvancedFilters}
-          categories={postCategories.map((c) => c.id)}
-          getCategoryInfo={getCategoryInfo}
-        />
-        <PostForm
-          user={user}
-          community={community}
-          showNewPost={showNewPost}
-          setShowNewPost={setShowNewPost}
-          newPost={newPost}
-          setNewPost={setNewPost}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          mediaAttachments={mediaAttachments}
-          setMediaAttachments={setMediaAttachments}
-          uploadProgress={uploadProgress}
-          fileInputRef={fileInputRef}
-          handleFileSelect={handleFileSelect}
-          removeAttachment={removeAttachment}
-          createPost={createPost}
-          loading={false}
-          getProfileImageDisplay={getProfileImageDisplay}
-        />
+        {/* Search + Composer */}
+        {!useLinkedInMobileSkin && (
+          <>
+            <CommunitySearch
+              onSearch={handleSearch}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              activeSort={activeSort}
+              setActiveSort={setActiveSort}
+              showAdvancedSearch={showAdvancedSearch}
+              setShowAdvancedSearch={setShowAdvancedSearch}
+              advancedFilters={advancedFilters}
+              setAdvancedFilters={setAdvancedFilters}
+              categories={postCategories.map((c) => c.id)}
+              getCategoryInfo={getCategoryInfo}
+            />
+            <PostForm
+              user={user}
+              community={community}
+              showNewPost={showNewPost}
+              setShowNewPost={setShowNewPost}
+              newPost={newPost}
+              setNewPost={setNewPost}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              mediaAttachments={mediaAttachments}
+              setMediaAttachments={setMediaAttachments}
+              uploadProgress={uploadProgress}
+              fileInputRef={fileInputRef}
+              handleFileSelect={handleFileSelect}
+              removeAttachment={removeAttachment}
+              createPost={createPost}
+              loading={false}
+              getProfileImageDisplay={getProfileImageDisplay}
+            />
+          </>
+        )}
+        {useLinkedInMobileSkin && (
+          <>
+            <FilterBarMobileCompact onChange={({ query: q }) => handleSearch(q)} />
+            <div className="mt-3 md:hidden">
+              <ComposerMobile onStartPost={() => setShowNewPost(true)} />
+            </div>
+            {showNewPost && (
+              <div className="md:hidden mt-3">
+                <PostForm
+                  user={user}
+                  community={community}
+                  showNewPost={showNewPost}
+                  setShowNewPost={setShowNewPost}
+                  newPost={newPost}
+                  setNewPost={setNewPost}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                  mediaAttachments={mediaAttachments}
+                  setMediaAttachments={setMediaAttachments}
+                  uploadProgress={uploadProgress}
+                  fileInputRef={fileInputRef}
+                  handleFileSelect={handleFileSelect}
+                  removeAttachment={removeAttachment}
+                  createPost={createPost}
+                  loading={false}
+                  getProfileImageDisplay={getProfileImageDisplay}
+                />
+              </div>
+            )}
+          </>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Main content */}
           <div className="md:col-span-2">
-            <PostList posts={posts} onPostAction={handlePostAction} />
+            {!useLinkedInMobileSkin && (
+              <PostList posts={posts} onPostAction={handlePostAction} />
+            )}
+            {useLinkedInMobileSkin && (
+              <div className="space-y-3 md:hidden">
+                {posts.map((p) => (
+                  <PostCardMobileLinkedIn
+                    key={p.id}
+                    post={p}
+                    onLike={() => handlePostAction(p.id, 'like')}
+                    onComment={() => {/* no-op placeholder */}}
+                    onViewTraining={() => {/* no-op placeholder */}}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Sidebar */}

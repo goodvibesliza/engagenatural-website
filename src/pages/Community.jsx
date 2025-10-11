@@ -8,6 +8,8 @@ import WhatsGoodFeed from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
 const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
+import ComposerMobile from '../components/community/mobile/ComposerMobile.jsx';
+import FilterBarMobileCompact from '../components/community/mobile/FilterBarMobileCompact.jsx';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
 import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied } from '../lib/analytics';
@@ -32,6 +34,9 @@ export default function Community() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [availableBrands, setAvailableBrands] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
+  const isMobile = useIsMobile();
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
 
   // Stable handler to receive filters (brands/tags) from child feeds
   const handleFiltersChange = useCallback(({ brands, tags } = {}) => {
@@ -81,41 +86,60 @@ export default function Community() {
         </div>
         {/* Inline filters for mobile/tablet; hidden on desktop */}
         <div className="only-mobile">
-          <div className="px-4 pt-3">
-            <button
-              type="button"
-              onClick={() => navigate('/staff/community/post/new')}
-              className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
-            >
-              New Post
-            </button>
-          </div>
-          <FilterBar
-            query={query}
-            selectedBrands={selectedBrands}
-            selectedTags={selectedTags}
-            availableBrands={availableBrands}
-            availableTags={availableTags}
-            onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
-              setQuery(q ?? '');
-              setSelectedBrands(sb ?? []);
-              setSelectedTags(st ?? []);
-              filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
-            }}
-          />
+          {!useLinkedInMobileSkin && (
+            <>
+              <div className="px-4 pt-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/staff/community/post/new')}
+                  className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
+                >
+                  New Post
+                </button>
+              </div>
+              <FilterBar
+                query={query}
+                selectedBrands={selectedBrands}
+                selectedTags={selectedTags}
+                availableBrands={availableBrands}
+                availableTags={availableTags}
+                onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
+                  setQuery(q ?? '');
+                  setSelectedBrands(sb ?? []);
+                  setSelectedTags(st ?? []);
+                  filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
+                }}
+              />
+            </>
+          )}
+          {useLinkedInMobileSkin && (
+            <>
+              <FilterBarMobileCompact
+                query={query}
+                availableBrands={availableBrands}
+                selectedBrands={selectedBrands}
+                onChange={({ query: q, selectedBrands: sb }) => {
+                  setQuery(q ?? '');
+                  setSelectedBrands(sb ?? []);
+                  filterApplied({ brands: sb ?? [], tags: selectedTags ?? [], query: q ?? '' });
+                }}
+              />
+              <div className="px-4 pt-2">
+                <ComposerMobile onStartPost={() => navigate('/staff/community/post/new')} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
-  }, [tab, query, selectedBrands, selectedTags, availableBrands, availableTags]);
+  }, [tab, query, selectedBrands, selectedTags, availableBrands, availableTags, useLinkedInMobileSkin, navigate]);
 
   // Track tab view on mount and whenever the tab changes
   useEffect(() => {
     communityView({ feedType: tab });
   }, [tab]);
 
-  const isMobile = useIsMobile();
-  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
-  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  // flag handled above
 
   return (
     <div className="min-h-screen bg-cool-gray" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>

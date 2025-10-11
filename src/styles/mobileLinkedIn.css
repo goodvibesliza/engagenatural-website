@@ -1,0 +1,9 @@
+/* Mobile-only tweaks for LinkedIn-style skin */
+@media (max-width: 767.98px) {
+  [data-mobile-skin="linkedin"] .li-sticky {
+    position: sticky;
+    top: 56px; /* below header/tabs */
+    z-index: 30;
+    background: white;
+  }
+}

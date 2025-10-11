@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import useIsMobile from '../hooks/useIsMobile.js'
 import { getFlag } from '../lib/featureFlags.js'
 import { useNavigate, useParams } from 'react-router-dom'
+import PostCardMobileLinkedIn from './community/mobile/PostCardMobileLinkedIn.jsx'
+import ComposerMobile from './community/mobile/ComposerMobile.jsx'
 import { auth, db } from '@/lib/firebase'
 import { doc, getDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 
@@ -466,8 +468,13 @@ export default function CommunityPage() {
         <div className="grid lg:grid-cols-4 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-3">
+            {useLinkedInMobileSkin && (
+              <div className="md:hidden mb-4">
+                <ComposerMobile onStartPost={() => setShowNewPost(true)} />
+              </div>
+            )}
             {/* New Post Section */}
-            {user && canUserPost() && (
+            {!useLinkedInMobileSkin && user && canUserPost() && (
               <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mb-6">
                 {!showNewPost ? (
                   <button
@@ -561,100 +568,101 @@ export default function CommunityPage() {
             )}
 
             {/* Posts Feed */}
-            <div className="space-y-6">
-              {posts.map((post) => (
-                <div key={post.id} className={`bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden ${
-                  post.isEasterEgg ? 'ring-2 ring-purple-200 bg-gradient-to-r from-purple-50 to-pink-50' : ''
-                }`}>
-                  {/* Post Header */}
-                  <div className="p-6 pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl overflow-hidden">
-                          {post.authorAvatar && (post.authorAvatar.startsWith('http') || post.authorAvatar.startsWith('data:')) ? (
-                            <img 
-                              src={post.authorAvatar} 
-                              alt="Profile" 
-                              className="w-full h-full object-cover rounded-full"
-                              onError={(e) => {
-                                e.target.style.display = 'none'
-                                e.target.nextSibling.style.display = 'flex'
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex items-center justify-center">
-                              <span className="text-white font-medium">
-                                {post.author.charAt(0)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900">{post.author}</span>
-                            {post.verified && <span className="text-green-600 text-sm">✓ Verified</span>}
+            {!useLinkedInMobileSkin && (
+              <div className="space-y-6">
+                {posts.map((post) => (
+                  <div key={post.id} className={`bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden ${
+                    post.isEasterEgg ? 'ring-2 ring-purple-200 bg-gradient-to-r from-purple-50 to-pink-50' : ''
+                  }`}>
+                    {/* ...legacy card (unchanged) ... */}
+                    <div className="p-6 pb-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl overflow-hidden">
+                            {post.authorAvatar && (post.authorAvatar.startsWith('http') || post.authorAvatar.startsWith('data:')) ? (
+                              <img 
+                                src={post.authorAvatar} 
+                                alt="Profile" 
+                                className="w-full h-full object-cover rounded-full"
+                                onError={(e) => {
+                                  e.target.style.display = 'none'
+                                  e.target.nextSibling.style.display = 'flex'
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex items-center justify-center">
+                                <span className="text-white font-medium">
+                                  {post.author.charAt(0)}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-sm text-gray-500">{post.authorRole}</div>
-                          <div className="text-xs text-gray-400">{formatTimeAgo(post.timestamp)}</div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-medium text-gray-900">{post.author}</span>
+                              {post.verified && <span className="text-green-600 text-sm">✓ Verified</span>}
+                            </div>
+                            <div className="text-sm text-gray-500">{post.authorRole}</div>
+                            <div className="text-xs text-gray-400">{formatTimeAgo(post.timestamp)}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-medium">
-                          {getPostTypeLabel(post.type)}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-medium">
+                            {getPostTypeLabel(post.type)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Post Content */}
-                  <div className="px-6 pb-4">
-                    <p className="text-gray-800 leading-relaxed">{post.content}</p>
-                    
-                    {/* Tags */}
-                    {post.tags && post.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {post.tags.map((tag, index) => (
-                          <span key={index} className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Post Actions */}
-                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-6">
-                        <button
-                          onClick={() => handleLike(post.id)}
-                          className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
-                        >
-                          <span className="text-sm">Like</span>
-                          <span className="text-sm font-medium">{post.likes}</span>
-                        </button>
-                        <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
-                          <span className="text-sm">Comment</span>
-                          <span className="text-sm font-medium">{post.comments}</span>
-                        </button>
-                        <button
-                          onClick={() => handleShare(post.id)}
-                          className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors"
-                        >
-                          <span className="text-sm">Share</span>
-                          <span className="text-sm font-medium">{post.shares}</span>
-                        </button>
-                      </div>
-                      {post.isEasterEgg && (
-                        <div className="text-xs text-purple-600 font-medium">
-                          Special Offer Found!
+                    <div className="px-6 pb-4">
+                      <p className="text-gray-800 leading-relaxed">{post.content}</p>
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {post.tags.map((tag, index) => (
+                            <span key={index} className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                              #{tag}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>
+                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-6">
+                          <button onClick={() => handleLike(post.id)} className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors">
+                            <span className="text-sm">Like</span>
+                            <span className="text-sm font-medium">{post.likes}</span>
+                          </button>
+                          <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
+                            <span className="text-sm">Comment</span>
+                            <span className="text-sm font-medium">{post.comments}</span>
+                          </button>
+                          <button onClick={() => handleShare(post.id)} className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors">
+                            <span className="text-sm">Share</span>
+                            <span className="text-sm font-medium">{post.shares}</span>
+                          </button>
+                        </div>
+                        {post.isEasterEgg && (
+                          <div className="text-xs text-purple-600 font-medium">Special Offer Found!</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+            {useLinkedInMobileSkin && (
+              <div className="md:hidden space-y-3">
+                {posts.map((post) => (
+                  <PostCardMobileLinkedIn
+                    key={post.id}
+                    post={post}
+                    onLike={() => handleLike(post.id)}
+                    onComment={() => {/* no-op */}}
+                    onViewTraining={() => {/* no-op */}}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
