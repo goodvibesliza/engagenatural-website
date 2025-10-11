@@ -107,6 +107,8 @@ export default function PostThread() {
         brandId: post.brandId || null,
         userId: user.uid,
         userRole: user.role || 'user',
+        authorName: user?.displayName || user?.name || user?.email || 'Anonymous',
+        authorPhotoURL: user?.profileImage || user?.photoURL || null,
         text,
         createdAt: serverTimestamp(),
       });
@@ -166,10 +168,22 @@ export default function PostThread() {
           <div className="space-y-3">
             {comments.map((c) => (
               <div key={c.id} className="bg-gray-50 rounded p-3">
-                <div className="text-xs text-gray-500 mb-1">
-                  {c.userRole || 'user'} • {c.createdAt?.toDate ? new Date(c.createdAt.toDate()).toLocaleString() : 'Recently'}
+                <div className="flex items-start gap-3">
+                  {c.authorPhotoURL ? (
+                    <img src={c.authorPhotoURL} alt="" className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-600">
+                      {(c.authorName || 'U').slice(0,1).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-500 mb-1">
+                      <span className="font-medium text-gray-700 mr-1">{c.authorName || 'User'}</span>
+                      <span>{c.userRole || 'user'} • {c.createdAt?.toDate ? new Date(c.createdAt.toDate()).toLocaleString() : 'Recently'}</span>
+                    </div>
+                    <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">{c.text}</div>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-800 whitespace-pre-wrap">{c.text}</div>
               </div>
             ))}
           </div>

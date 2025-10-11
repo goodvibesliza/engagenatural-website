@@ -1132,7 +1132,7 @@ const EnhancedBrandHome = () => {
         activeSection={activeSection}
       />
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 lg:pl-72 flex flex-col overflow-hidden">
         {/* Top header */}
         <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between h-16 px-4 lg:px-6">
           {/* Left section: Mobile menu button and breadcrumbs */}

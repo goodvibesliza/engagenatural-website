@@ -5,6 +5,7 @@ import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc
 import { db } from '@/lib/firebase';
 import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
+import MediaUploader from '../components/media/MediaUploader';
 
 /**
  * Post composition UI for creating a community post.
@@ -21,6 +22,8 @@ export default function PostCompose() {
   const headingRef = useRef(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [images, setImages] = useState([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [communities, setCommunities] = useState([]);
@@ -124,7 +127,7 @@ export default function PostCompose() {
     loadCommunities();
   }, [location.search, user?.role, hasRole]);
 
-  const canSubmit = title.trim().length > 0 && body.trim().length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && body.trim().length > 0 && !submitting && uploadingCount === 0;
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -214,9 +217,10 @@ export default function PostCompose() {
         communityName: cname,
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
-        authorName: user?.displayName || user?.email || 'Staff',
-        authorPhotoURL: user?.photoURL || null,
+        authorName: user?.name || user?.displayName || user?.email || 'Staff',
+        authorPhotoURL: user?.profileImage || user?.photoURL || null,
         authorRole: user?.role || 'staff',
+        images: Array.isArray(images) ? images : [],
         ...(brandId ? { brandId } : {}),
         ...(brandName ? { brandName } : {}),
         ...(tags.length ? { tags } : {}),
@@ -306,6 +310,21 @@ export default function PostCompose() {
             className="mt-3 w-full px-3 py-3 border border-gray-300 rounded-md text-base resize-vertical min-h-[200px]"
           />
 
+          {/* Images */}
+          <div className="mt-3">
+            <p className="text-sm font-medium text-gray-700 mb-1">Images (optional)</p>
+            <MediaUploader
+              maxMB={5}
+              onComplete={(urls) => setImages(urls)}
+              onUploadingChange={setUploadingCount}
+              // Use app path so staff uploads are allowed by storage rules
+              pathPrefix={`app/community/${(selectedCommunityId || 'whats-good').replaceAll('_','-')}/users/${user?.uid || 'anon'}`}
+            />
+            {uploadingCount > 0 && (
+              <p className="text-xs text-gray-500 mt-1">Uploading {uploadingCount} image(s)…</p>
+            )}
+          </div>
+
           {/* Desktop actions */}
           <div className="hidden sm:flex justify-end gap-2 mt-4">
             <button
@@ -324,7 +343,7 @@ export default function PostCompose() {
                   : 'bg-gray-200 text-white border-gray-300 cursor-not-allowed'
               }`}
             >
-              Post
+              {uploadingCount > 0 ? `Uploading ${uploadingCount}…` : 'Post'}
             </button>
           </div>
         </form>
@@ -350,7 +369,7 @@ export default function PostCompose() {
                 : 'bg-gray-200 text-white border-gray-300 cursor-not-allowed'
             }`}
           >
-            Post
+            {uploadingCount > 0 ? `Uploading ${uploadingCount}…` : 'Post'}
           </button>
         </div>
       </div>

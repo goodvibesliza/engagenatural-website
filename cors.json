@@ -2,19 +2,22 @@
   {
     "origin": [
       "https://engagenaturalv2.netlify.app",
-      "https://deploy-preview-7--engagenaturalv2.netlify.app/staff/profile",
+      "https://deploy-preview-43--engagenaturalv2.netlify.app",
       "https://engagenatural.com",
       "http://localhost:3000",
       "http://localhost:5173",
       "https://localhost:5173"
     ],
-    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "method": ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
     "maxAgeSeconds": 3600,
     "responseHeader": [
       "Content-Type",
-      "Access-Control-Allow-Origin",
-      "Access-Control-Allow-Methods",
-      "Access-Control-Allow-Headers"
+      "Authorization",
+      "x-goog-upload-protocol",
+      "x-goog-upload-command",
+      "x-goog-upload-offset",
+      "x-goog-upload-file-name",
+      "x-goog-upload-content-type"
     ]
   }
 ]

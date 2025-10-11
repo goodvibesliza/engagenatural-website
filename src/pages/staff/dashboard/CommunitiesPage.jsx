@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
+import MediaUploader from '../../../components/media/MediaUploader';
 import { db } from '@/lib/firebase';
 import { filterPostContent } from '../../../ContentModeration';
 import {
@@ -46,6 +47,11 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
 
   const truncate = (text, n = 160) => (text && text.length > n ? `${text.slice(0, n)}...` : (text || ''));
 
+  // Normalize images from either field
+  const imageUrls = Array.isArray(post.imageUrls)
+    ? post.imageUrls
+    : (Array.isArray(post.images) ? post.images : []);
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm hover:shadow transition-shadow">
       <div className="flex justify-between items-start">
@@ -57,6 +63,38 @@ const PostCard = ({ post, liked, likeCount, commentCount, onToggleLike, pendingL
       </div>
 
       {post.body && <p className="text-gray-700 my-3">{truncate(post.body)}</p>}
+
+      {/* Image thumbnails */}
+      {imageUrls.length > 0 && (
+        <div className="mt-2">
+          {imageUrls.length === 1 ? (
+            <img
+              src={imageUrls[0]}
+              alt="Post attachment"
+              className="w-full max-h-72 rounded-md object-cover border"
+              loading="lazy"
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {imageUrls.slice(0, 4).map((url, idx) => (
+                <div key={idx} className="relative">
+                  <img
+                    src={url}
+                    alt={`Attachment ${idx + 1}`}
+                    className="w-full h-32 object-cover rounded-md border"
+                    loading="lazy"
+                  />
+                  {idx === 3 && imageUrls.length > 4 && (
+                    <div className="absolute inset-0 bg-black/50 rounded-md text-white flex items-center justify-center text-sm font-medium">
+                      +{imageUrls.length - 4}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-between items-center mt-4">
         <div className="flex space-x-5 items-center">
@@ -162,6 +200,8 @@ export default function CommunitiesPage() {
   const [loadingCommunities, setLoadingCommunities] = useState(true);
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
+  const [newImages, setNewImages] = useState([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
   /* which community the composer is for – toggled by Whats-Good card */
   const [composerCommunityId, setComposerCommunityId] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -371,6 +411,7 @@ export default function CommunitiesPage() {
   const handleCreatePost = async (e) => {
     e.preventDefault();
     if (!canPostHere || !newTitle.trim() || !newBody.trim() || creating) return;
+    if (uploadingCount > 0) return; // wait for images to finish
 
     setCreating(true);
     setCreateError('');
@@ -420,6 +461,9 @@ export default function CommunitiesPage() {
           authorRole: user?.role || 'user',
           communityId: cid,
           communityName: cname,
+          images: Array.isArray(newImages) ? newImages : [],
+          authorName: user?.name || user?.displayName || '',
+          authorPhotoURL: user?.profileImage || user?.photoURL || '',
           needsReview,
           isBlocked,
           moderationFlags,
@@ -450,6 +494,7 @@ export default function CommunitiesPage() {
       
       setNewTitle('');
       setNewBody('');
+      setNewImages([]);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
@@ -718,6 +763,17 @@ export default function CommunitiesPage() {
               rows="4"
               className="w-full mb-3 p-2 border border-gray-300 rounded"
             />
+            {/* Image uploader for staff posts (max 5MB per image) */}
+            <div className="mb-3">
+              <p className="text-sm font-medium text-gray-700 mb-1">Images (optional)</p>
+              <MediaUploader
+                maxMB={5}
+                onComplete={(urls) => setNewImages((prev) => [...(Array.isArray(prev) ? prev : []), ...urls])}
+                onUploadingChange={setUploadingCount}
+                // Store under app path so staff can upload without brand manager role
+                pathPrefix={`app/community/whats-good/users/${user?.uid || 'anon'}`}
+              />
+            </div>
             <div className="flex justify-between">
               <button
                 type="button"
@@ -728,10 +784,10 @@ export default function CommunitiesPage() {
               </button>
               <button
                 type="submit"
-                disabled={creating || !newTitle.trim() || !newBody.trim()}
+                disabled={creating || !newTitle.trim() || !newBody.trim() || uploadingCount > 0}
                 className="px-4 py-2 rounded bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {creating ? 'Posting…' : 'Post'}
+                {uploadingCount > 0 ? `Uploading ${uploadingCount}…` : (creating ? 'Posting…' : 'Post')}
               </button>
             </div>
           </form>
