@@ -77,8 +77,7 @@ const EnhancedCommunityPage = () => {
   const [community, setCommunity] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [viewedUser, setViewedUser] = useState(null);
+  // Removed unused profile modal state to satisfy lint
   // Local state to support CommunitySearch props when used in brand view
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeSort, setActiveSort] = useState('newest');
@@ -93,6 +92,8 @@ const EnhancedCommunityPage = () => {
   });
   const getCategoryInfo = (id) =>
     postCategories.find((c) => c.id === id) || { id, name: 'All', icon: '' };
+  // Local state for mobile filter query so FilterBarMobileCompact is controlled
+  const [mobileQuery, setMobileQuery] = useState('');
 
   // Minimal state/handlers to satisfy PostForm props and avoid runtime errors in brand view
   const [showNewPost, setShowNewPost] = useState(false);
@@ -257,7 +258,6 @@ const EnhancedCommunityPage = () => {
         }
       } catch (e) {
         // non-fatal; fall back below
-        // eslint-disable-next-line no-console
         console.warn('Failed to load community doc, using fallback name.', e?.message);
       }
       // Fallback: mock map or simple name from id
@@ -334,14 +334,15 @@ const EnhancedCommunityPage = () => {
           }));
           setPosts(mapped);
         });
-      } catch {
+      } catch (err) {
+        void err
         // leave mock posts
       }
     };
     start();
     return () => {
       if (typeof unsub === 'function') {
-        try { unsub(); } catch {}
+        try { unsub(); } catch (err) { void err }
       }
     };
   }, [communityId]);
@@ -374,18 +375,7 @@ const EnhancedCommunityPage = () => {
     console.log('Searching for:', term);
   };
 
-  // Create a new post handler
-  const handleCreatePost = (content) => {
-    const newPost = {
-      id: `post-${Date.now()}`,
-      author: 'Current User',
-      timestamp: new Date(),
-      content,
-      reactions: { like: 0 },
-      comments: []
-    };
-    setPosts(prev => [newPost, ...prev]);
-  };
+  // removed unused handleCreatePost to satisfy lint
 
   // Handle going back to profile
   const handleBackToProfile = () => {
@@ -454,7 +444,13 @@ const EnhancedCommunityPage = () => {
         )}
         {useLinkedInMobileSkin && (
           <>
-            <FilterBarMobileCompact onChange={({ query: q }) => handleSearch(q)} />
+            <FilterBarMobileCompact 
+              query={mobileQuery}
+              onChange={({ query: q }) => {
+                setMobileQuery(q);
+                handleSearch(q);
+              }} 
+            />
             <div className="mt-3 md:hidden">
               <ComposerMobile onStartPost={() => setShowNewPost(true)} />
             </div>

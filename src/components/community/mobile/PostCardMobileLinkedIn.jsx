@@ -3,6 +3,7 @@ import React from 'react'
 function timeAgo(ts) {
   try {
     const d = ts instanceof Date ? ts : (ts?.toDate?.() || new Date(ts))
+    if (!d || Number.isNaN(d.getTime())) return ''
     const diff = Date.now() - d.getTime()
     const m = Math.floor(diff / 60000)
     if (m < 1) return 'Just now'
@@ -30,6 +31,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
   return (
     <article
       className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm cursor-pointer"
+      role="button"
       data-testid="mobile-linkedin-postcard"
       aria-label="Post"
       onClick={handleCardActivate}
