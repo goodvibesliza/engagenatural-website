@@ -13,7 +13,7 @@ export default function FilterBarMobileCompact({
   }
 
   return (
-    <div className="li-sticky md:hidden border-b border-gray-200 bg-white">
+    <div className="li-sticky md:hidden border-b border-gray-200 bg-white" data-testid="mobile-linkedin-filterbar">
       <div className="px-4 py-2">
         <label htmlFor="community-mobile-search" className="visually-hidden">Search posts</label>
         <input

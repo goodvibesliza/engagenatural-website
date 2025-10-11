@@ -30,6 +30,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
   return (
     <article
       className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm cursor-pointer"
+      data-testid="mobile-linkedin-postcard"
       aria-label="Post"
       onClick={handleCardActivate}
       onKeyDown={(e) => {
@@ -72,6 +73,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onLike?.(post); }}
+          data-testid="mobile-linkedin-action-like"
           aria-label="Like post"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
@@ -80,6 +82,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onComment?.(post); }}
+          data-testid="mobile-linkedin-action-comment"
           aria-label="Comment on post"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
@@ -88,6 +91,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onViewTraining?.(post?.trainingId, post); }}
+          data-testid="mobile-linkedin-action-training"
           aria-label="View related training"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >

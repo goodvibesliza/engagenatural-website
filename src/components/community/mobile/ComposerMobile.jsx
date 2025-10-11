@@ -2,7 +2,7 @@ import React from 'react'
 
 export default function ComposerMobile({ onStartPost }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm" data-testid="mobile-linkedin-composer">
       <button
         type="button"
         onClick={onStartPost}
