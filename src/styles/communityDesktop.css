@@ -142,3 +142,19 @@
 }
 
 /* Below 1280px collapse the right rail automatically by not rendering it */
+
+/* --- Desktop shell overrides for inner community layout --- */
+/* Force single-column cards inside the desktop shell center, regardless of community.css breakpoints */
+.en-cd-center-inner .community-cards {
+  grid-template-columns: 1fr !important;
+}
+
+/* Prevent the inner page from creating its own two-column grid */
+.en-cd-center-inner .community-grid {
+  display: block !important;
+}
+
+/* Hide inner desktop-only sidebar; the shell provides left rail navigation */
+.en-cd-center-inner .only-desktop {
+  display: none !important;
+}

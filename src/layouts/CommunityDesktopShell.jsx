@@ -35,7 +35,8 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
     };
   }, []);
 
-  const showRight = w >= 1280;
+  // Hide right rail to keep focus on single-column center and dedicated left rail
+  const showRight = false;
 
   const defaultHeader = useMemo(() => (
     <div className="en-cd-header-inner">
