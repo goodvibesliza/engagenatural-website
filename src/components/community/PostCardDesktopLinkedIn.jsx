@@ -1,32 +1,7 @@
 // src/components/community/PostCardDesktopLinkedIn.jsx
 import React from 'react';
 import { getBrandLogo, getBrandInitial } from '../../lib/brandAssets';
-
-function formatRelativeTime(input) {
-  try {
-    let d = input;
-    if (!d) return '';
-    if (typeof d?.toDate === 'function') d = d.toDate();
-    if (typeof d === 'number') d = new Date(d);
-    if (typeof d === 'string') {
-      const parsed = new Date(d);
-      if (!isNaN(parsed)) d = parsed;
-    }
-    if (!(d instanceof Date)) return String(input || '');
-    const diff = Date.now() - d.getTime();
-    const s = Math.max(1, Math.floor(diff / 1000));
-    if (s < 60) return `${s}s ago`;
-    const m = Math.floor(s / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
-    const days = Math.floor(h / 24);
-    if (days < 7) return `${days}d ago`;
-    return d.toLocaleDateString();
-  } catch {
-    return '';
-  }
-}
+import { formatRelativeTime as formatRelativeTimeShared } from '../../lib/trainingAdapter';
 
 export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onViewTraining, onCardClick, dataTestId }) {
   const likes = Number.isFinite(post?.likeCount)
@@ -40,7 +15,16 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
   const brandId = post?.brandId || brandName;
   const title = post?.title || brandName || 'Update';
   const body = post?.snippet || post?.content || '';
-  const time = post?.timeAgo || formatRelativeTime(post?.createdAt);
+  let createdDate = null;
+  if (post?.createdAt) {
+    if (typeof post.createdAt?.toDate === 'function') createdDate = post.createdAt.toDate();
+    else if (post.createdAt instanceof Date) createdDate = post.createdAt;
+    else if (typeof post.createdAt === 'number' || typeof post.createdAt === 'string') {
+      const parsed = new Date(post.createdAt);
+      if (!isNaN(parsed)) createdDate = parsed;
+    }
+  }
+  const time = post?.timeAgo || (createdDate ? formatRelativeTimeShared(createdDate) : '');
   const hasTraining = !!post?.trainingId;
 
   const logoUrl = getBrandLogo(brandId);
@@ -126,6 +110,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           }`}
           aria-pressed={liked ? 'true' : 'false'}
           aria-label={liked ? `Unlike post (${likes} likes)` : `Like post (${likes} likes)`}
+          data-testid="desktop-linkedin-action-like"
         >
           <span className="mr-2" aria-hidden>{liked ? '❤️' : '🤍'}</span>
           <span>Like</span>
@@ -137,6 +122,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           onClick={() => onComment?.(post)}
           className="inline-flex items-center justify-center h-10 rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 text-gray-700"
           aria-label={`Comment on post (${comments} comments)`}
+          data-testid="desktop-linkedin-action-comment"
         >
           <span className="mr-2" aria-hidden>💬</span>
           <span>Comment</span>
@@ -151,6 +137,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
             hasTraining ? 'text-deep-moss hover:bg-oat-beige' : 'text-gray-400 cursor-not-allowed'
           }`}
           aria-label={hasTraining ? 'View related training' : 'No related training'}
+          data-testid="desktop-linkedin-action-training"
         >
           <span aria-hidden>🎓</span>
           <span className="ml-2">View training</span>
