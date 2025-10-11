@@ -104,9 +104,6 @@ export default function WhatsGoodFeed({
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
-            imageUrls: Array.isArray(data?.imageUrls) && data.imageUrls.length
-              ? data.imageUrls
-              : (Array.isArray(data?.images) ? data.images : []),
             imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',

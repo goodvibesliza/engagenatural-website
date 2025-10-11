@@ -36,7 +36,7 @@ export default function FilterBarMobileCompact({
                 onClick={() => toggleBrand(brand)}
                 aria-pressed={selectedBrands.includes(brand)}
                 aria-label={`Filter by ${brand}`}
-                className={`h-9 min-h-[36px] px-3 rounded-full border text-xs whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary ${
+                className={`h-11 min-h-[44px] px-3 rounded-full border text-xs whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary ${
                   selectedBrands.includes(brand)
                     ? 'bg-brand-primary text-white border-brand-primary'
                     : 'bg-white text-gray-700 border-gray-300'

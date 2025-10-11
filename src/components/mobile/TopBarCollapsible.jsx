@@ -70,7 +70,7 @@ export default function TopBarCollapsible() {
         <button
           type="button"
           onClick={openUserMenu}
-          className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center"
+          className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full bg-gray-200 overflow-hidden flex items-center justify-center"
           aria-label="Open user menu"
           data-testid="topbar-avatar"
         >

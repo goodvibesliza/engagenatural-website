@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import PostCardMobileLinkedIn from './community/mobile/PostCardMobileLinkedIn.jsx'
 import ComposerMobile from './community/mobile/ComposerMobile.jsx'
 import { auth, db } from '@/lib/firebase'
-import { doc, getDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 
 // Font styles matching the updated App.css
 const fontStyles = {
@@ -471,7 +471,7 @@ export default function CommunityPage() {
           <div className="lg:col-span-3">
             {useLinkedInMobileSkin && (
               <div className="md:hidden mb-4">
-                <ComposerMobile onStartPost={() => setShowNewPost(true)} />
+                <ComposerMobile onStartPost={() => navigate('/staff/community/post/new')} />
               </div>
             )}
             {/* New Post Section */}

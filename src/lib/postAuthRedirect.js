@@ -21,7 +21,13 @@ export default function postAuthRedirect(user = {}, opts = {}) {
     if (search) {
       const params = new URLSearchParams(search);
       const redirectTo = params.get('redirectTo') || params.get('returnUrl');
-      if (redirectTo && redirectTo.startsWith('/')) return redirectTo;
+      if (
+        redirectTo &&
+        redirectTo.startsWith('/') &&
+        (redirectTo.length === 1 || redirectTo[1] !== '/')
+      ) {
+        return redirectTo;
+      }
     }
   } catch (e) { void e; }
 
