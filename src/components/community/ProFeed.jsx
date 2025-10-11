@@ -5,6 +5,7 @@ import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCou
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
+import PostCardDesktopLinkedIn from './PostCardDesktopLinkedIn';
 import ProGate from './ProGate';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
@@ -67,6 +68,14 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   const [error, setError] = useState('');
   const [posts, setPosts] = useState([]);
   const navigate = useNavigate();
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const desktopFlag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Subscribe to Firestore for live "Pro Feed" public posts
   useEffect(() => {
@@ -274,23 +283,26 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
           <ErrorBanner message={error} onDismiss={() => setError('')} />
         </div>
       )}
-      {filtered.map((post, idx) => (
-        <div key={post.id}>
-          {post.isPinned && (
-            <div className="flex items-center space-x-2 text-xs font-medium text-deep-moss mb-2">
-              <span>PINNED</span>
-            </div>
-          )}
-          <PostCard 
-            post={post} 
-            dataTestId={idx === 0 ? 'postcard-first' : undefined}
-            onLike={handleLike}
-            onComment={handleComment}
-            onCardClick={handleCardClick}
-            onViewTraining={handleViewTraining}
-          />
-        </div>
-      ))}
+      {filtered.map((post, idx) => {
+        const Card = (isDesktop && desktopFlag === 'linkedin') ? PostCardDesktopLinkedIn : PostCard;
+        return (
+          <div key={post.id}>
+            {post.isPinned && (
+              <div className="flex items-center space-x-2 text-xs font-medium text-deep-moss mb-2">
+                <span>PINNED</span>
+              </div>
+            )}
+            <Card
+              post={post}
+              dataTestId={idx === 0 ? 'postcard-first' : undefined}
+              onLike={handleLike}
+              onComment={handleComment}
+              onCardClick={handleCardClick}
+              onViewTraining={handleViewTraining}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

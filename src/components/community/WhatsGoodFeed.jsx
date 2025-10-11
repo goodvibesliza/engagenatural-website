@@ -5,6 +5,7 @@ import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCou
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
+import PostCardDesktopLinkedIn from './PostCardDesktopLinkedIn';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
 import COPY from '../../i18n/community.copy';
@@ -70,6 +71,14 @@ export default function WhatsGoodFeed({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [postsWithCounts, setPostsWithCounts] = useState([]);
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const desktopFlag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Check if user is staff (can create posts)
   const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
@@ -396,17 +405,20 @@ export default function WhatsGoodFeed({
           <ErrorBanner message={error} onDismiss={() => setError('')} />
         </div>
       )}
-      {filtered.map((post, idx) => (
-        <PostCard 
-          key={post.id} 
-          post={post} 
-          dataTestId={idx === 0 ? 'postcard-first' : undefined}
-          onLike={handleLike}
-          onComment={handleComment}
-          onCardClick={handleCardClick}
-          onViewTraining={handleViewTraining}
-        />
-      ))}
+      {filtered.map((post, idx) => {
+        const Card = (isDesktop && desktopFlag === 'linkedin') ? PostCardDesktopLinkedIn : PostCard;
+        return (
+          <Card
+            key={post.id}
+            post={post}
+            dataTestId={idx === 0 ? 'postcard-first' : undefined}
+            onLike={handleLike}
+            onComment={handleComment}
+            onCardClick={handleCardClick}
+            onViewTraining={handleViewTraining}
+          />
+        );
+      })}
     </div>
   );
 }
