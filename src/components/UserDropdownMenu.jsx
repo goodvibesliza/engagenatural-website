@@ -71,7 +71,7 @@ export default function UserDropdownMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+        <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-user-menu="trigger" aria-haspopup="menu">
           <Avatar className="h-9 w-9">
             {user.profileImage && user.profileImage.startsWith('http') ? (
               <AvatarImage src={user.profileImage} alt={user.displayName || 'User Avatar'} />

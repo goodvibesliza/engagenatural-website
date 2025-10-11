@@ -44,7 +44,10 @@ export default function StaffDashboardLayout() {
       </div>
 
       {/* Main Content with Sidebar */}
-      <div className="container mx-auto px-4 py-6" style={showCommunityTopBar ? { paddingTop: 56 } : undefined}>
+      <div
+        className={`container mx-auto px-4 py-6 ${useLinkedInMobileSkin ? 'pb-[60px] md:pb-0' : ''}`}
+        style={showCommunityTopBar ? { paddingTop: 56 } : undefined}
+      >
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar - Vertical on desktop, Horizontal on mobile */}
           <div className="md:w-64 flex-shrink-0">

@@ -33,14 +33,9 @@ export default function TopBarCollapsible() {
 
   const openUserMenu = () => {
     try {
-      // Try a few selectors to trigger existing global user dropdown
-      const fixed = document.querySelector('[class*="fixed"][class*="top-3"][class*="right-3"] button')
-      if (fixed) {
-        fixed.click()
-        return
-      }
-      const anyTrigger = document.querySelector('button[aria-haspopup="menu"], [data-user-menu="trigger"]')
-      anyTrigger?.click()
+      // Trigger existing global user dropdown via stable attributes only
+      const trigger = document.querySelector('button[data-user-menu="trigger"], button[aria-haspopup="menu"]')
+      trigger?.click()
     } catch (err) {
       console.error('TopBarCollapsible: failed to open user menu', err)
     }
