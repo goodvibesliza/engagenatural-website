@@ -11,7 +11,7 @@ import '../styles/communityDesktop.css';
  * - ≥1280px shows optional right rail placeholder (300px). Below that, it collapses.
  * - When mounted, prevents body scroll (html, body { overflow: hidden }) and restores on unmount.
  */
-export default function CommunityDesktopShell({ children, headerContent = null, leftNav = null, rightRail = null }) {
+export default function CommunityDesktopShell({ children, headerContent = null, leftNav = null, rightRail = null, dataTestId }) {
   // track width for responsive right-rail visibility (>=1280)
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
 
@@ -37,6 +37,10 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
   const defaultHeader = useMemo(() => (
     <div className="en-cd-header-inner">
       <div className="en-cd-header-title">Community</div>
+      <div className="en-cd-header-tools" aria-hidden>
+        <span data-testid="topbar-search" />
+        <span data-testid="topbar-avatar" />
+      </div>
     </div>
   ), []);
 
@@ -60,27 +64,27 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
   ), []);
 
   return (
-    <div className="en-cd-shell">
+    <div className="en-cd-shell" data-testid={dataTestId}>
       {/* Fixed Header */}
-      <header className="en-cd-header">
+      <header className="en-cd-header" role="banner" aria-label="Top bar" data-testid="topbar">
         {headerContent || defaultHeader}
       </header>
 
       {/* Fixed Left Nav */}
-      <nav className="en-cd-left">
+      <nav className="en-cd-left" role="navigation" aria-label="Primary navigation" data-testid="left-nav">
         {leftNav || defaultLeft}
       </nav>
 
       {/* Center scroller */}
-      <main className="en-cd-center" role="main">
-        <div className="en-cd-center-inner">
+      <main className="en-cd-center" role="main" aria-label="Main content">
+        <div className="en-cd-center-inner" data-testid="center-scroller">
           {children}
         </div>
       </main>
 
       {/* Right rail placeholder (>=1280 only) */}
       {showRight && (
-        <aside className="en-cd-right">
+        <aside className="en-cd-right" role="complementary" aria-label="Right rail" data-testid="right-rail">
           {rightRail || defaultRight}
         </aside>
       )}

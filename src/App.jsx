@@ -89,6 +89,29 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// LinkedIn-style Desktop Community Route Wrapper
+const CommunityLinkedInRoute = () => {
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    return (
+      <RoleGuard allowedRoles={['staff']}>
+        <CommunityDesktopShell dataTestId="community-desktop-shell">
+          <Community />
+        </CommunityDesktopShell>
+      </RoleGuard>
+    );
+  }
+  return <Navigate to="/staff/community" replace />;
+};
+
 // ---------------------------------------------------------------------------
 // Protected Route – keeps returnUrl so users can be sent back after login
 // ---------------------------------------------------------------------------
@@ -562,24 +585,8 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
-          {/* Community Routes - Legacy redirects */}
-          <Route
-            path="/community"
-            element={
-              (() => {
-                const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
-                const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : false;
-                if (flag === 'linkedin' && isDesktop) {
-                  return (
-                    <CommunityDesktopShell>
-                      <Community />
-                    </CommunityDesktopShell>
-                  );
-                }
-                return <Navigate to="/staff/community" replace />;
-              })()
-            }
-          />
+          {/* Community Routes - LinkedIn-style desktop shell behind flag */}
+          <Route path="/community" element={<CommunityLinkedInRoute />} />
           <Route path="/community/whats-good" element={<Navigate to="/staff/community" replace />} />
           <Route path="/community/post/:postId" element={<CommunityPostRedirect />} />
 
