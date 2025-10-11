@@ -112,7 +112,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           }`}
           aria-pressed={liked ? 'true' : 'false'}
           aria-label={liked ? `Unlike post (${likes} likes)` : `Like post (${likes} likes)`}
-          data-testid="postcard-action-like"
+          data-testid="desktop-linkedin-action-like"
         >
           <span className="mr-2" aria-hidden>{liked ? '❤️' : '🤍'}</span>
           <span>Like</span>
@@ -124,7 +124,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           onClick={() => onComment?.(post)}
           className="inline-flex items-center justify-center h-10 rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 text-gray-700"
           aria-label={`Comment on post (${comments} comments)`}
-          data-testid="postcard-action-comment"
+          data-testid="desktop-linkedin-action-comment"
         >
           <span className="mr-2" aria-hidden>💬</span>
           <span>Comment</span>
@@ -139,7 +139,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
             hasTraining ? 'text-deep-moss hover:bg-oat-beige' : 'text-gray-400 cursor-not-allowed'
           }`}
           aria-label={hasTraining ? 'View related training' : 'No related training'}
-          data-testid="postcard-action-training"
+          data-testid="desktop-linkedin-action-training"
         >
           <span aria-hidden>🎓</span>
           <span className="ml-2">View training</span>
