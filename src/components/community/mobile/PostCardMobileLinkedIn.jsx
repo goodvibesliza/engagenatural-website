@@ -66,7 +66,11 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
       {/* Media (first image only, if any) */}
       {Array.isArray(post.imageUrls) && post.imageUrls[0] && (
         <div className="mt-2 mb-2">
-          <img src={post.imageUrls[0]} alt="" className="w-full rounded-lg object-cover" />
+          <img 
+            src={post.imageUrls[0]} 
+            alt={post.imageAlt || (name ? `Image shared by ${name}` : 'Posted image')} 
+            className="w-full rounded-lg object-cover" 
+          />
         </div>
       )}
 
@@ -76,6 +80,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
           type="button"
           onClick={(e) => { e.stopPropagation(); onLike?.(post); }}
           data-testid="mobile-linkedin-action-like"
+          tabIndex={-1}
           aria-label="Like post"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
@@ -85,6 +90,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
           type="button"
           onClick={(e) => { e.stopPropagation(); onComment?.(post); }}
           data-testid="mobile-linkedin-action-comment"
+          tabIndex={-1}
           aria-label="Comment on post"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
@@ -94,6 +100,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
           type="button"
           onClick={(e) => { e.stopPropagation(); onViewTraining?.(post?.trainingId, post); }}
           data-testid="mobile-linkedin-action-training"
+          tabIndex={-1}
           aria-label="View related training"
           className="flex-1 h-11 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
         >
