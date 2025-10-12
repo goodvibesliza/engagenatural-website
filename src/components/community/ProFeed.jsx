@@ -173,8 +173,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
                     authorPhotoURL = u.profileImage || u.photoURL || '';
                   }
                 }
-              } catch (e) {
-                // Tolerate enrichment failures silently
+              } catch (err) {
+                // eslint-disable-next-line no-console
+                console.warn('ProFeed: profile enrichment failed; continuing without enrichment', { postId: post.id, userId: post.userId }, err);
               }
             }
             const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
