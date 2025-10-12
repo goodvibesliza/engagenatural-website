@@ -33,7 +33,7 @@ export default function TopMenuBarDesktop() {
     <nav
       className="hidden lg:flex items-center justify-between w-full h-full"
       aria-label="Community top navigation"
-      data-testid="topmenu-desktop"
+      data-testid="topbar"
       onKeyDown={onKeyDown}
     >
       {/* Left: wordmark */}
@@ -47,11 +47,11 @@ export default function TopMenuBarDesktop() {
         <NavLink
           to="/staff/notifications"
           className={itemClasses}
-          data-testid="topmenu-notifications"
+          data-testid="topbar-notifications"
           aria-label="Notifications"
           ref={notifRef}
           onClick={() => {
-            try { track('topmenu_click', { item: 'notifications', surface: 'community_desktop' }); } catch (e) { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
+            try { track('topmenu_click', { item: 'notifications', surface: 'community_desktop' }); } catch { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
             // Dev visibility in local envs
             // eslint-disable-next-line no-console
             console.debug?.('topmenu_click', { item: 'notifications', surface: 'community_desktop' });
@@ -63,11 +63,11 @@ export default function TopMenuBarDesktop() {
         <NavLink
           to="/staff/my-brands"
           className={itemClasses}
-          data-testid="topmenu-mybrands"
+          data-testid="topbar-mybrands"
           aria-label="My Brands"
           ref={brandsRef}
           onClick={() => {
-            try { track('topmenu_click', { item: 'my_brands', surface: 'community_desktop' }); } catch (e) { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
+            try { track('topmenu_click', { item: 'my_brands', surface: 'community_desktop' }); } catch { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
             // eslint-disable-next-line no-console
             console.debug?.('topmenu_click', { item: 'my_brands', surface: 'community_desktop' });
           }}
@@ -78,11 +78,11 @@ export default function TopMenuBarDesktop() {
         <NavLink
           to="/training"
           className={itemClasses}
-          data-testid="topmenu-learning"
+          data-testid="topbar-learning"
           aria-label="Learning"
           ref={learningRef}
           onClick={() => {
-            try { track('topmenu_click', { item: 'learning', surface: 'community_desktop' }); } catch (e) { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
+            try { track('topmenu_click', { item: 'learning', surface: 'community_desktop' }); } catch { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
             // eslint-disable-next-line no-console
             console.debug?.('topmenu_click', { item: 'learning', surface: 'community_desktop' });
           }}
@@ -90,7 +90,7 @@ export default function TopMenuBarDesktop() {
         >
           Learning
         </NavLink>
-        <div className="flex items-center" data-testid="topmenu-user-avatar">
+        <div className="flex items-center" data-testid="topbar-avatar">
           <UserDropdownMenu />
         </div>
       </div>
