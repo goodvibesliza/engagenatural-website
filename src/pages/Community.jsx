@@ -109,8 +109,9 @@ export default function Community({ hideTopTabs = false }) {
       const ev = new CustomEvent('communityTagStats', { detail });
       window.dispatchEvent(ev);
     } catch (e) {
-      // Best-effort broadcast; failures are non-critical (e.g., SSR/no window or event not supported)
-      console.debug('Community: failed to dispatch communityTagStats event (non-critical)', e);
+      // Best-effort broadcast; log for visibility and lint compliance
+      // eslint-disable-next-line no-console
+      console.error('Community: Failed to dispatch communityTagStats', e);
     }
   }, [tagCounts]);
 

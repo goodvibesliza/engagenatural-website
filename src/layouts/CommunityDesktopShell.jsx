@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../styles/communityDesktop.css';
+import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 
 /**
  * CommunityDesktopShell – fixed header + left nav with a center-only scroller.
@@ -32,11 +33,7 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
 
   const defaultHeader = useMemo(() => (
     <div className="en-cd-header-inner">
-      <div className="en-cd-header-title">Community</div>
-      <div className="en-cd-header-tools" aria-hidden>
-        <span data-testid="topbar-search" />
-        <span data-testid="topbar-avatar" />
-      </div>
+      <TopMenuBarDesktop />
     </div>
   ), []);
 

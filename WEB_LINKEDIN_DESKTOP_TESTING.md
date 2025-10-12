@@ -41,3 +41,28 @@ QA hooks (data-testid)
 - Shell: `desktop-shell-header`, `desktop-shell-leftnav`, `desktop-shell-center`, `desktop-shell-rightrail`.
 - Card: `postcard-desktop`, `postcard-brand-logo`, `postcard-brand-name`, `postcard-date`, `postcard-hero`.
 - Actions: `postcard-action-like`, `postcard-action-comment`, `postcard-action-training`.
+
+---
+
+Top Menu Bar (Desktop)
+
+Setup
+- Width 1440, feature flag on: navigate to `/community`.
+
+Expectations
+- `topmenu-desktop` is visible; header and left nav remain fixed; only the center column scrolls.
+- Clicking each item routes correctly and updates active state (aria-current="page"):
+  - Notifications → `/staff/notifications`
+  - My Brands → `/staff/my-brands`
+  - Learning → `/training`
+- Analytics: Dev console logs `topmenu_click` with `{ item, surface: 'community_desktop' }` on each click.
+- User menu: Click avatar (or focus then Enter) to open existing dropdown; keyboard accessible.
+- Resize below 1024px: Top menu hides and mobile/tablet layouts take over.
+- No overlap: First card in feed is fully visible; center scroller height accounts for the top bar.
+
+QA hooks (top menu)
+- `topmenu-desktop`
+- `topmenu-notifications`
+- `topmenu-mybrands`
+- `topmenu-learning`
+- `topmenu-user-avatar`

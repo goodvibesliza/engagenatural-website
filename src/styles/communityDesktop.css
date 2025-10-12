@@ -1,7 +1,10 @@
 /* Community Desktop Shell Styles (scoped) */
 
 :root {
-  --en-header-h: 64px; /* header height */
+  /* Top bar height for community desktop shell */
+  --community-topbar-h: 64px;
+  /* Legacy vars (kept for backward compat) */
+  --en-header-h: var(--community-topbar-h);
   --en-left-w: 280px; /* left nav width */
   --en-right-w: 300px; /* right rail width */
 }
@@ -17,7 +20,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: var(--en-header-h);
+  height: var(--community-topbar-h);
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
   z-index: 100; /* ensure above feed */
@@ -37,12 +40,11 @@
 /* Fixed left nav */
 .en-cd-left {
   position: fixed;
-  top: var(--en-header-h);
+  top: var(--community-topbar-h);
   left: 0;
   width: var(--en-left-w);
-  height: calc(100vh - var(--en-header-h));
-  overflow-y: auto;
-  overscroll-behavior: contain; /* prevent scroll chaining */
+  height: calc(100vh - var(--community-topbar-h));
+  overflow: hidden; /* center-only scroll */
   background: #fff;
   border-right: 1px solid #e5e7eb;
   z-index: 40;
@@ -93,10 +95,10 @@
 /* Center scroller */
 .en-cd-center {
   position: fixed;
-  top: var(--en-header-h);
+  top: var(--community-topbar-h);
   left: var(--en-left-w);
   right: 0;
-  height: calc(100vh - var(--en-header-h));
+  height: calc(100vh - var(--community-topbar-h));
   overflow-y: auto; /* only center scrolls */
   overscroll-behavior: contain; /* prevent body scroll on wheel */
 }
@@ -111,10 +113,10 @@
 /* Right rail placeholder (only shows when >=1280px) */
 .en-cd-right {
   position: fixed;
-  top: var(--en-header-h);
+  top: var(--community-topbar-h);
   right: 0;
   width: var(--en-right-w);
-  height: calc(100vh - var(--en-header-h));
+  height: calc(100vh - var(--community-topbar-h));
   overflow: hidden;
   background: #fff;
   border-left: 1px solid #e5e7eb;

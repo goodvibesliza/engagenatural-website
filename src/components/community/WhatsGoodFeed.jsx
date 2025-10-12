@@ -231,7 +231,11 @@ export default function WhatsGoodFeed({
     }
     return () => {
       cancelled = true;
-      try { unsub(); } catch {}
+      try { unsub(); } catch (e) {
+        // Best-effort unsubscribe; non-critical during unmount
+        // eslint-disable-next-line no-console
+        console.debug('WhatsGoodFeed: unsubscribe failed (non-critical)', e);
+      }
     };
   }, [db]);
 
