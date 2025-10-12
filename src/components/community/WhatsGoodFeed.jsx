@@ -112,7 +112,7 @@ export default function WhatsGoodFeed({
             : (Array.isArray(data?.images) ? data.images : []);
           return {
             id: d.id,
-            userId: data?.userId || null,
+            userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
             brand: data?.brandName || data?.communityName || '',
             // Prefer explicit company/store/retailer from author/profile over generic community label
             company:
@@ -131,7 +131,8 @@ export default function WhatsGoodFeed({
             imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || data?.author?.name || '',
-            authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || '',
+            authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || data?.author?.avatar || data?.author?.avatarUrl || data?.author?.image || '',
+            brandId: data?.brandId || data?.brandSlug || data?.brandKey || data?.brandName || data?.brand || '',
             createdAt: data?.createdAt,
             isBlocked: data?.isBlocked === true,
             needsReview: data?.needsReview === true,

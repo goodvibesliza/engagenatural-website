@@ -100,6 +100,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
           return {
             id: d.id,
             brand: data?.brandName || 'Pro Feed',
+            userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
             company:
               data?.companyName ||
               data?.brandName ||
@@ -115,7 +116,8 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
             imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
-            authorPhotoURL: data?.authorPhotoURL || '',
+            authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || data?.author?.avatar || data?.author?.avatarUrl || data?.author?.image || '',
+            brandId: data?.brandId || data?.brandSlug || data?.brandKey || data?.brandName || data?.brand || '',
             createdAt: data?.createdAt,
             isBlocked: data?.isBlocked === true,
             needsReview: data?.needsReview === true,
@@ -161,6 +163,28 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         // Numeric counts; fallback to 0 if queries fail
         const enriched = await Promise.all(withLikeStatus.filter(p => !p.isBlocked && !p.needsReview).map(async (post) => {
           try {
+            // Profile enrichment for brand/store and avatar
+            let company = post.company;
+            let authorPhotoURL = post.authorPhotoURL;
+            const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(company));
+            if ((isGeneric || !authorPhotoURL) && db && post.userId) {
+              try {
+                const userRef = doc(db, 'users', post.userId);
+                const userDoc = await getDoc(userRef);
+                if (userDoc.exists()) {
+                  const u = userDoc.data() || {};
+                  const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                  if (profileCompany && isGeneric) {
+                    company = profileCompany;
+                  }
+                  if (!authorPhotoURL) {
+                    authorPhotoURL = u.profileImage || u.photoURL || '';
+                  }
+                }
+              } catch (e) {
+                // Tolerate enrichment failures silently
+              }
+            }
             const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
             const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
             const [commentsSnap, likesSnap] = await Promise.all([
@@ -169,6 +193,8 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
             ]);
             return {
               ...post,
+              company,
+              authorPhotoURL,
               commentCount: commentsSnap.data().count || 0,
               likeCount: likesSnap.data().count || 0,
             };
