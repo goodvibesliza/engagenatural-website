@@ -100,6 +100,15 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
           return {
             id: d.id,
             brand: data?.brandName || 'Pro Feed',
+            company:
+              data?.companyName ||
+              data?.brandName ||
+              data?.author?.companyName ||
+              data?.author?.company ||
+              data?.author?.brand ||
+              data?.author?.storeName ||
+              data?.author?.retailerName ||
+              '',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',

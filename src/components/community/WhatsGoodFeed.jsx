@@ -108,7 +108,17 @@ export default function WhatsGoodFeed({
             id: d.id,
             userId: data?.userId || null,
             brand: data?.brandName || data?.communityName || '',
-            company: data?.companyName || data?.brandName || data?.author?.storeName || data?.author?.retailerName || data?.communityName || '',
+            // Prefer explicit company/store/retailer from author/profile over generic community label
+            company:
+              data?.companyName ||
+              data?.brandName ||
+              data?.author?.companyName ||
+              data?.author?.company ||
+              data?.author?.brand ||
+              data?.author?.storeName ||
+              data?.author?.retailerName ||
+              data?.communityName ||
+              '',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
@@ -155,15 +165,15 @@ export default function WhatsGoodFeed({
             try {
               let company = post.company;
               let authorPhotoURL = post.authorPhotoURL;
-              if ((!company || !company.trim() || !authorPhotoURL) && db && post.userId) {
+              const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|all|public)$/i.test(String(company));
+              if ((isGeneric || !authorPhotoURL) && db && post.userId) {
                 try {
                   const userRef = doc(db, 'users', post.userId);
                   const userDoc = await getDoc(userRef);
                   if (userDoc.exists()) {
                     const u = userDoc.data() || {};
                     const profileCompany = u.storeName || u.retailerName || u.companyName || '';
-                    const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|all|public)$/i.test(String(company));
-                    if (profileCompany && (isGeneric)) {
+                    if (profileCompany && isGeneric) {
                       company = profileCompany;
                     } else if (!company || !company.trim()) {
                       company = post.brand || post.company || profileCompany || '';
