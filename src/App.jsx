@@ -71,6 +71,7 @@ import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community (phone-first IA)
 import Community from './pages/Community';
 import CommunityDesktopShell from './layouts/CommunityDesktopShell';
+import DesktopLeftNav from './components/community/DesktopLeftNav';
 import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 import CommunityPostRedirect from './components/CommunityPostRedirect';
@@ -103,7 +104,7 @@ const CommunityLinkedInRoute = () => {
   if (flag === 'linkedin' && isDesktop) {
     return (
       <RoleGuard allowedRoles={['staff']}>
-        <CommunityDesktopShell dataTestId="community-desktop-shell">
+        <CommunityDesktopShell dataTestId="community-desktop-shell" leftNav={<DesktopLeftNav /> }>
           <Community />
         </CommunityDesktopShell>
       </RoleGuard>

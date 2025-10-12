@@ -28,13 +28,17 @@ export default function Community() {
   const [query, setQuery] = useState('');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [tagCounts, setTagCounts] = useState({});
   const [availableBrands, setAvailableBrands] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
 
   // Stable handler to receive filters (brands/tags) from child feeds
-  const handleFiltersChange = useCallback(({ brands, tags } = {}) => {
+  const handleFiltersChange = useCallback(({ brands, tags, tagCounts: counts } = {}) => {
     setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
     setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
+    if (counts && typeof counts === 'object') {
+      setTagCounts(counts);
+    }
   }, []);
 
   // Deep-link support: if navigated with { state: { focusPostId } }, redirect to detail
@@ -49,12 +53,21 @@ export default function Community() {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const brandParam = searchParams.get('brand');
+    const qParam = searchParams.get('q') || '';
+    const tagsParam = searchParams.get('tags') || '';
     
     if (brandParam && !selectedBrands.includes(brandParam)) {
       setSelectedBrands([brandParam]);
       
       // Track filter applied from URL
       filterApplied({ brands: [brandParam], tags: [], query: '' });
+    }
+    if (qParam !== query) {
+      setQuery(qParam);
+    }
+    const urlTags = tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (JSON.stringify(urlTags) !== JSON.stringify(selectedTags)) {
+      setSelectedTags(urlTags);
     }
   }, [location.search, selectedBrands]); // Include selectedBrands in dependency array
 
@@ -88,6 +101,15 @@ export default function Community() {
     }
     lastAppliedRef.current = key;
   }, [tab, navigate, location.pathname, location.search]);
+
+  // Broadcast tag statistics for shell left-nav (event-based wiring)
+  useEffect(() => {
+    try {
+      const detail = { tagCounts };
+      const ev = new CustomEvent('communityTagStats', { detail });
+      window.dispatchEvent(ev);
+    } catch {}
+  }, [tagCounts]);
 
   // Update available filters when tab changes (Pro uses stubs for now)
   useEffect(() => {
@@ -150,25 +172,32 @@ export default function Community() {
           {/* Desktop sidebar filters */}
           <aside className="only-desktop">
             <div className="community-sticky">
-              <button
+            <button
                 type="button"
                 onClick={() => navigate('/staff/community/post/new')}
                 className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
               >
                 New Post
               </button>
-              <FilterBar
+            <FilterBar
                 query={query}
                 selectedBrands={selectedBrands}
                 selectedTags={selectedTags}
                 availableBrands={availableBrands}
                 availableTags={availableTags}
-                onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
-                  setQuery(q ?? '');
-                  setSelectedBrands(sb ?? []);
-                  setSelectedTags(st ?? []);
-                  filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
-                }}
+              onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
+                const qv = q ?? '';
+                const sbv = sb ?? [];
+                const stv = st ?? [];
+                setQuery(qv);
+                setSelectedBrands(sbv);
+                setSelectedTags(stv);
+                const sp = new URLSearchParams(location.search);
+                if (qv) sp.set('q', qv); else sp.delete('q');
+                if (stv.length) sp.set('tags', stv.join(',')); else sp.delete('tags');
+                navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+                filterApplied({ brands: sbv, tags: stv, query: qv });
+              }}
               />
             </div>
           </aside>

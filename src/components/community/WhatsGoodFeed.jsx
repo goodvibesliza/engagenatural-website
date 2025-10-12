@@ -106,7 +106,8 @@ export default function WhatsGoodFeed({
             : (Array.isArray(data?.images) ? data.images : []);
           return {
             id: d.id,
-            brand: data?.brandName || data?.communityName || 'What\'s Good',
+            brand: data?.brandName || data?.communityName || '',
+            company: data?.companyName || data?.brandName || data?.communityName || '',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
@@ -141,7 +142,8 @@ export default function WhatsGoodFeed({
           const tags = Array.from(tagCounts.entries())
             .sort((a, b) => b[1] - a[1])
             .map(([k]) => k);
-          onFiltersChange?.({ brands, tags });
+          const countsObj = Object.fromEntries(tagCounts.entries());
+          onFiltersChange?.({ brands, tags, tagCounts: countsObj });
         } catch (err) {
           console.error('WhatsGoodFeed: failed to emit filters from live posts', { baseCount: Array.isArray(base) ? base.length : 0 }, err);
         }
@@ -186,14 +188,19 @@ export default function WhatsGoodFeed({
         content: p.content || '',
         imageUrls: Array.isArray(p.imageUrls) ? p.imageUrls : (Array.isArray(p.images) ? p.images : []),
         authorName: p.author?.name || '',
+        company: p.brand || '',
         commentCount: 0,
         likeCount: 0,
       }));
       setPostsWithCounts(fallback);
       try {
         const brands = Array.from(new Set(fallback.map((p) => p.brand).filter(Boolean)));
-        const tags = Array.from(new Set(fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
-        onFiltersChange?.({ brands, tags });
+        const allTags = fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean);
+        const tagCounts = allTags.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc; }, {});
+        const tags = Object.entries(tagCounts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k]) => k);
+        onFiltersChange?.({ brands, tags, tagCounts });
       } catch (e) {
         console.error('WhatsGoodFeed: failed to compute fallback filters', { fallbackCount: Array.isArray(fallback) ? fallback.length : 0 }, e);
       }

@@ -13,8 +13,9 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
     ? post.commentCount
     : (Array.isArray(post?.commentIds) ? post.commentIds.length : 0);
   const liked = post?.likedByMe === true;
-  const brandName = post?.brandName || post?.brand || 'Brand';
-  const brandId = post?.brandId || brandName;
+  const authorName = post?.authorName || 'Unknown';
+  const brandName = post?.company || post?.brandName || post?.brand || '';
+  const brandId = post?.brandId || brandName || 'brand';
   const title = post?.title || brandName || 'Update';
   const body = post?.snippet || post?.content || '';
   let createdDate = null;
@@ -30,6 +31,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
   const hasTraining = !!post?.trainingId;
 
   const logoUrl = getBrandLogo(brandId);
+  const authorPhotoURL = post?.authorPhotoURL || '';
 
   const handleCardClick = (e) => {
     if (e.target.closest('button')) return;
@@ -60,19 +62,21 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
     >
       {/* Byline Row */}
       <header className="flex items-center gap-3 p-4">
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200" aria-hidden data-testid="postcard-brand-logo">
-          {logoUrl ? (
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200" aria-hidden data-testid="postcard-avatar">
+          {authorPhotoURL ? (
+            <img src={authorPhotoURL} alt="" className="w-full h-full object-cover" />
+          ) : logoUrl ? (
             <img src={logoUrl} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-sm font-semibold text-gray-600">{getBrandInitial(brandName)}</span>
+            <span className="text-sm font-semibold text-gray-600">{getBrandInitial(authorName)}</span>
           )}
         </div>
         <div className="min-w-0">
-          <div className="text-sm text-gray-900 font-medium truncate" title={brandName} aria-label={`Brand ${brandName}`} data-testid="postcard-brand-name">
-            {brandName}
+          <div className="text-sm text-gray-900 font-medium truncate" title={authorName} aria-label={`Author ${authorName}`} data-testid="postcard-author-name">
+            {authorName}
           </div>
-          <div className="text-xs text-gray-500" aria-label={`Posted ${time}`} data-testid="postcard-date">
-            <span>{time}</span>
+          <div className="text-xs text-gray-500 truncate" aria-label={`Company and time`} data-testid="postcard-company-time">
+            <span>{brandName}</span>{brandName && time ? <span> • </span> : null}<span>{time}</span>
           </div>
         </div>
       </header>
