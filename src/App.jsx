@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import './App.css';
 
@@ -73,6 +73,7 @@ import Community from './pages/Community';
 import CommunityDesktopShell from './layouts/CommunityDesktopShell';
 import DesktopLeftNav from './components/community/DesktopLeftNav';
 import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
+import VerificationPrompt from './components/community/components/VerificationPrompt';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 import CommunityPostRedirect from './components/CommunityPostRedirect';
 import PostCompose from './pages/PostCompose.jsx';
@@ -93,6 +94,7 @@ const LoadingSpinner = () => (
 // LinkedIn-style Desktop Community Route Wrapper
 const CommunityLinkedInRoute = () => {
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -104,8 +106,12 @@ const CommunityLinkedInRoute = () => {
   if (flag === 'linkedin' && isDesktop) {
     return (
       <RoleGuard allowedRoles={['staff']}>
-        <CommunityDesktopShell dataTestId="community-desktop-shell" leftNav={<DesktopLeftNav /> }>
-          <Community />
+        <CommunityDesktopShell
+          dataTestId="community-desktop-shell"
+          leftNav={<DesktopLeftNav />}
+          rightRail={<VerificationPrompt navigate={navigate} />}
+        >
+          <Community hideTopTabs />
         </CommunityDesktopShell>
       </RoleGuard>
     );

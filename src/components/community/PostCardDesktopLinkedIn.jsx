@@ -13,7 +13,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
     ? post.commentCount
     : (Array.isArray(post?.commentIds) ? post.commentIds.length : 0);
   const liked = post?.likedByMe === true;
-  const authorName = post?.authorName || 'Unknown';
+  const authorName = post?.authorName || post?.author?.name || 'Unknown';
   const brandName = post?.company || post?.brandName || post?.brand || '';
   const brandId = post?.brandId || brandName || 'brand';
   const title = post?.title || brandName || 'Update';
@@ -31,7 +31,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
   const hasTraining = !!post?.trainingId;
 
   const logoUrl = getBrandLogo(brandId);
-  const authorPhotoURL = post?.authorPhotoURL || '';
+  const authorPhotoURL = post?.authorPhotoURL || post?.author?.photoURL || post?.author?.profileImage || '';
 
   const handleCardClick = (e) => {
     if (e.target.closest('button')) return;

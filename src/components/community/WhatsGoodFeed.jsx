@@ -106,15 +106,16 @@ export default function WhatsGoodFeed({
             : (Array.isArray(data?.images) ? data.images : []);
           return {
             id: d.id,
+            userId: data?.userId || null,
             brand: data?.brandName || data?.communityName || '',
-            company: data?.companyName || data?.brandName || data?.communityName || '',
+            company: data?.companyName || data?.brandName || data?.author?.storeName || data?.author?.retailerName || data?.communityName || '',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
             imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
-            authorName: data?.authorName || '',
-            authorPhotoURL: data?.authorPhotoURL || '',
+            authorName: data?.authorName || data?.author?.name || '',
+            authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || '',
             createdAt: data?.createdAt,
             isBlocked: data?.isBlocked === true,
             needsReview: data?.needsReview === true,
@@ -148,10 +149,28 @@ export default function WhatsGoodFeed({
           console.error('WhatsGoodFeed: failed to emit filters from live posts', { baseCount: Array.isArray(base) ? base.length : 0 }, err);
         }
 
-        // Load counts per post (numeric fields) — fallback to 0 if query fails
+        // Load counts and enrich missing author/company data from user profile when available
         const enriched = await Promise.all(
           visible.map(async (post) => {
             try {
+              let company = post.company;
+              let authorPhotoURL = post.authorPhotoURL;
+              if ((!company || !company.trim() || !authorPhotoURL) && db && post.userId) {
+                try {
+                  const userRef = doc(db, 'users', post.userId);
+                  const userDoc = await getDoc(userRef);
+                  if (userDoc.exists()) {
+                    const u = userDoc.data() || {};
+                    if (!company || !company.trim()) {
+                      company = u.storeName || u.retailerName || u.companyName || post.brand || post.company || '';
+                    }
+                    if (!authorPhotoURL) {
+                      authorPhotoURL = u.profileImage || u.photoURL || '';
+                    }
+                  }
+                } catch {}
+              }
+
               const commentsQ = firestoreQuery(
                 collection(db, 'community_comments'),
                 where('postId', '==', post.id)
@@ -166,7 +185,7 @@ export default function WhatsGoodFeed({
               ]);
               const commentCount = commentsSnap.data().count || 0;
               const likeCount = likesSnap.data().count || 0;
-              return { ...post, commentCount, likeCount };
+              return { ...post, company, authorPhotoURL, commentCount, likeCount };
             } catch (err) {
               console.warn('Failed loading counts for', post.id, err);
               return { ...post, commentCount: 0, likeCount: 0 };

@@ -21,7 +21,7 @@ import './community.css';
  *
  * @returns {JSX.Element} The Community page component.
  */
-export default function Community() {
+export default function Community({ hideTopTabs = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState('whatsGood'); // 'whatsGood' | 'pro'
@@ -122,6 +122,7 @@ export default function Community() {
   }, [tab]);
 
   const header = useMemo(() => {
+    if (hideTopTabs) return null;
     return (
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 pt-3">
@@ -157,7 +158,7 @@ export default function Community() {
         </div>
       </div>
     );
-  }, [tab, query, selectedBrands, selectedTags, availableBrands, availableTags]);
+  }, [hideTopTabs, tab, query, selectedBrands, selectedTags, availableBrands, availableTags]);
 
   // Track tab view on mount and whenever the tab changes
   useEffect(() => {

@@ -91,6 +91,25 @@ export default function DesktopLeftNav() {
             data-testid="desktop-left-search"
           />
         </form>
+        {(activeTags.length > 0 || (query || '').trim().length > 0) && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                const next = new URLSearchParams(location.search);
+                next.delete('q');
+                next.delete('tags');
+                setQuery('');
+                navigate({ pathname: location.pathname, search: next.toString() });
+              }}
+              className="w-full h-9 px-3 inline-flex items-center justify-center rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              aria-label="Clear search and hashtag filters"
+              data-testid="desktop-left-clear"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="mt-5">
