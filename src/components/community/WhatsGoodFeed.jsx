@@ -1,5 +1,5 @@
 // src/components/community/WhatsGoodFeed.jsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -86,6 +86,12 @@ export default function WhatsGoodFeed({
   // Check if user is staff (can create posts)
   const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
 
+  // Hoist onFiltersChange into a ref to satisfy exhaustive-deps and avoid stale closures
+  const onFiltersChangeRef = useRef(onFiltersChange);
+  useEffect(() => {
+    onFiltersChangeRef.current = onFiltersChange;
+  }, [onFiltersChange]);
+
   // Subscribe to Firestore for live "What's Good" public posts and enrich counts
   useEffect(() => {
     let unsub = () => {};
@@ -154,7 +160,7 @@ export default function WhatsGoodFeed({
             .sort((a, b) => b[1] - a[1])
             .map(([k]) => k);
           const countsObj = Object.fromEntries(tagCounts.entries());
-          onFiltersChange?.({ brands, tags, tagCounts: countsObj });
+          onFiltersChangeRef.current?.({ brands, tags, tagCounts: countsObj });
         } catch (err) {
           console.error('WhatsGoodFeed: failed to emit filters from live posts', { baseCount: Array.isArray(base) ? base.length : 0 }, err);
         }
@@ -237,7 +243,7 @@ export default function WhatsGoodFeed({
         const tags = Object.entries(tagCounts)
           .sort((a, b) => b[1] - a[1])
           .map(([k]) => k);
-        onFiltersChange?.({ brands, tags, tagCounts });
+        onFiltersChangeRef.current?.({ brands, tags, tagCounts });
       } catch (e) {
         console.error('WhatsGoodFeed: failed to compute fallback filters', { fallbackCount: Array.isArray(fallback) ? fallback.length : 0 }, e);
       }
