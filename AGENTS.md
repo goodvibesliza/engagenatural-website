@@ -2,6 +2,68 @@
 
 This document captures the exact next steps to finish and validate the current workstream.
 
+## Quickstart: Community Byline/Avatar Debugging (Store/Brand not showing)
+
+Goal: Ensure posts display the author name with the correct Store/Brand byline and avatar across /community, /staff/community and post detail pages.
+
+Primary files to inspect (byline + avatar mapping):
+- src/components/community/WhatsGoodFeed.jsx
+  - Maps Firestore docs to post objects; sets: userId, brand, company, authorName, authorPhotoURL, brandId
+  - Enrichment: if company is generic or avatar missing, loads users/{userId} to fill company (storeName|retailerName|companyName) and avatar (profileImage|photoURL)
+- src/components/community/ProFeed.jsx
+  - Same mapping + enrichment as above for the Pro feed
+- src/components/community/PostCardDesktopLinkedIn.jsx
+  - Byline uses: brandName = post.company || post.brandName || post.brand
+  - Avatar uses: post.authorPhotoURL fallbacks
+- src/components/community/PostCard.jsx (non-desktop variant)
+  - Pill prefers company when non-generic; shows company next to author
+- src/pages/PostDetail.jsx
+  - CONSTANT: GENERIC_COMPANY_REGEX used to determine whether a company value is “generic” (e.g., whats-good|all|public|pro feed)
+  - Same enrichment from users/{userId} when company is generic or avatar missing
+
+Checklist to diagnose when brand/store still does not appear:
+1) Verify post doc fields in Firestore (community_posts/{postId}):
+   - userId OR authorId OR author.uid exists and matches a users/{userId} document
+   - brandName/companyName present if available
+   - authorName and authorPhotoURL present or available via author.* fields
+2) Verify user profile doc (users/{userId}):
+   - storeName or retailerName or companyName set
+   - profileImage or photoURL set
+   - Security rules permit reads for these fields
+3) Confirm mapping/enrichment runs:
+   - WhatsGoodFeed/ProFeed map: userId, company, authorPhotoURL, brandId
+   - Enrichment triggers when company is generic per GENERIC_COMPANY_REGEX or avatar missing
+4) UI components:
+   - PostCardDesktopLinkedIn: uses company first; falls back to brand
+   - PostCard: pill prefers non-generic company; author row shows company dot-joined when non-generic
+   - PostDetail: pill and author-row use GENERIC_COMPANY_REGEX to prefer non-generic company
+
+Common root causes and fixes:
+- Missing userId on post: Add userId/authorId on write; or expand mapping fallbacks
+- users/{userId} lacks company/avatar fields: Populate storeName/retailerName/companyName and profileImage/photoURL
+- Rules block user profile read: Update Firestore rules to allow safe read of non-sensitive profile fields
+- Brand/company stored under unexpected keys: Extend feed mappers to include the new keys
+
+Feature flag and routes:
+- Desktop shell for community is behind VITE_EN_DESKTOP_FEED_LAYOUT=linkedin
+- Routes involved:
+  - /community → CommunityLinkedInRoute wrapper (desktop shell when flag+viewport match; redirects to /staff/community otherwise)
+  - /staff/community → phone-first IA
+  - /community/post/:postId → redirector to staff route
+  - /staff/community/post/:postId → PostDetail (uses enrichment and shared generic detection)
+
+Temporary debug tips:
+- Add console.debug in WhatsGoodFeed/ProFeed mapping to log { id, userId, company, brand, authorName, authorPhotoURL }
+- Check console for enrichment errors surfaced in PostDetail (catch logs)
+
+Potential improvements (future work):
+- Extract GENERIC_COMPANY_REGEX to a shared util and reuse in PostCard/feeds
+- Add a shared resolveAuthorFields(postDoc) helper to unify mapping across feeds/detail
+- Expand brandId resolution to improve getBrandLogo coverage
+
+Landing behavior change (staff):
+- Staff-family roles (staff, verified_staff, retail_staff) now land on /community after login (see src/utils/landing.js)
+
 ## Working Branch
 - Use branch: `fix/brand-community-access-rca`
 - Open PR: https://github.com/goodvibesliza/engagenatural-website/compare/main...fix/brand-community-access-rca
