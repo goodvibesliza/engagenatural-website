@@ -167,7 +167,10 @@ export default function PostDetail() {
                   if (!mappedPost.authorPhotoURL) mappedPost.authorPhotoURL = u.profileImage || u.photoURL || '';
                 }
               }
-            } catch {}
+            } catch (err) {
+              // Surface enrichment failures for diagnostics; non-fatal
+              console.error('Failed to populate author/company from user doc', err);
+            }
           }
         }
 
