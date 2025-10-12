@@ -68,17 +68,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   const [error, setError] = useState('');
   const [posts, setPosts] = useState([]);
   const navigate = useNavigate();
-  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
-  const desktopFlag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
-    // Prime on mount to correct any SSR/hydration mismatch
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  const isMobile = useIsMobile();
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
 
   // Subscribe to Firestore for live "Pro Feed" public posts
   useEffect(() => {
@@ -322,7 +314,7 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         </div>
       )}
       {filtered.map((post, idx) => {
-        const Card = (isDesktop && desktopFlag === 'linkedin') ? PostCardDesktopLinkedIn : PostCard;
+        const Card = useLinkedInMobileSkin ? PostCardMobileLinkedIn : PostCard;
         return (
           <div key={post.id}>
             {post.isPinned && (

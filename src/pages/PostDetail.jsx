@@ -1,5 +1,5 @@
 // src/pages/PostDetail.jsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
@@ -190,15 +190,13 @@ export default function PostDetail() {
         if (db && !cancelled) {
           try {
             const likesQ = query(collection(db, 'post_likes'), where('postId', '==', postId));
-            const commentsQ = query(collection(db, 'community_comments'), where('postId', '==', postId));
-            const [likesSnap, commentsSnap] = await Promise.all([
+            const [likesSnap] = await Promise.all([
               getCountFromServer(likesQ),
-              getCountFromServer(commentsQ),
             ]);
             
             if (!cancelled) {
               const likeCount = likesSnap.data().count || 0;
-              // Initialize likeIds as placeholders to derive count; ensure 'me' present if likedByMe resolves true later
+              // Initialize likeIds as placeholders to derive count; do not add 'me' yet
               setLikeIds(Array.from({ length: likeCount }, (_, i) => `x${i}`));
             }
 
@@ -218,12 +216,24 @@ export default function PostDetail() {
                 const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
                 const likeDoc = await getDoc(likeRef);
                 if (!cancelled) {
-                  setLiked(likeDoc.exists());
-                  // Ensure local likeIds includes 'me' token when liked
+                  const likedByMe = likeDoc.exists();
+                  setLiked(likedByMe);
+                  // Rebuild array to keep length equal to Firestore count, replacing a placeholder with 'me' if liked
                   setLikeIds((prev) => {
+                    const count = prev.length; // Firestore likeCount-derived length
                     const hasMe = prev.includes('me');
-                    if (likeDoc.exists() && !hasMe) return [...prev, 'me'];
-                    if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
+                    if (likedByMe) {
+                      if (hasMe) return prev; // already represented
+                      if (count === 0) return prev; // nothing to replace; keep exact count
+                      // replace last placeholder with 'me' to maintain length
+                      const withoutLast = prev.slice(0, count - 1);
+                      return [...withoutLast, 'me'];
+                    }
+                    // Not liked by me: if 'me' is present, replace it with a placeholder to keep length
+                    if (hasMe) {
+                      const withoutMe = prev.filter((v) => v !== 'me');
+                      return [...withoutMe, `x${withoutMe.length}`];
+                    }
                     return prev;
                   });
                 }
@@ -241,7 +251,8 @@ export default function PostDetail() {
             }
           }
         }
-      } catch (e) {
+      } catch (err) {
+        console.error('PostDetail: failed to load post or related data', { postId }, err);
         if (!cancelled) {
           setPost(null);
         }
@@ -263,21 +274,38 @@ export default function PostDetail() {
       // On logout, clear liked state immediately
       if (!user?.uid) {
         setLiked(false);
-        setLikeIds((prev) => (prev.includes('me') ? prev.filter((v) => v !== 'me') : prev));
+        // Replace 'me' with a placeholder to keep count length stable
+        setLikeIds((prev) => {
+          if (!prev.includes('me')) return prev;
+          const withoutMe = prev.filter((v) => v !== 'me');
+          return [...withoutMe, `x${withoutMe.length}`];
+        });
         return;
       }
       try {
         const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
         const likeDoc = await getDoc(likeRef);
         if (cancelled) return;
-        setLiked(likeDoc.exists());
+        const likedByMe = likeDoc.exists();
+        setLiked(likedByMe);
         setLikeIds((prev) => {
+          const count = prev.length;
           const hasMe = prev.includes('me');
-          if (likeDoc.exists() && !hasMe) return [...prev, 'me'];
-          if (!likeDoc.exists() && hasMe) return prev.filter((v) => v !== 'me');
+          if (likedByMe) {
+            if (hasMe) return prev;
+            if (count === 0) return prev; // nothing to replace
+            const withoutLast = prev.slice(0, count - 1);
+            return [...withoutLast, 'me'];
+          }
+          if (hasMe) {
+            const withoutMe = prev.filter((v) => v !== 'me');
+            return [...withoutMe, `x${withoutMe.length}`];
+          }
           return prev;
         });
-      } catch {}
+      } catch (err) {
+        console.error('PostDetail: refreshLiked failed', { postId, userId: user?.uid }, err);
+      }
     }
     refreshLiked();
     return () => {
@@ -328,7 +356,8 @@ export default function PostDetail() {
           }
         }
       }
-    } catch (e) {
+    } catch (err) {
+      console.error('PostDetail: failed to persist like toggle', { postId: post?.id, userId: user?.uid, intendedNext }, err);
       // Revert and show error
       setLiked((prev) => !prev); // undo last toggle
       setLikeIds((prev) => {
@@ -350,7 +379,7 @@ export default function PostDetail() {
     try {
       if (!post || !user?.uid || post.userId !== user.uid) return;
       if (!window.confirm('Delete this post and its likes/comments? This cannot be undone.')) return;
-      const { writeBatch, collection: coll, query: q2, where: w2, getDocs: gd2, doc: d2, deleteDoc: del2 } = await import('firebase/firestore');
+      const { writeBatch, collection: coll, query: q2, where: w2, getDocs: gd2, doc: d2 } = await import('firebase/firestore');
       const batch = writeBatch(db);
       // delete likes
       const likesQ = q2(coll(db, 'post_likes'), w2('postId', '==', post.id));
@@ -365,8 +394,12 @@ export default function PostDetail() {
       await batch.commit();
       navigate('/staff/community');
     } catch (e) {
-      console.error('Failed to delete post', e);
-      try { window.alert('Failed to delete post. Please try again.'); } catch {}
+      console.error('PostDetail: failed to delete post', { postId: post?.id, userId: user?.uid }, e);
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert('Failed to delete post. Please try again.');
+      } else {
+        console.error('PostDetail: window.alert unavailable to notify user of delete failure');
+      }
     }
   };
 
@@ -383,8 +416,12 @@ export default function PostDetail() {
         }
       }, 500);
     } catch (e) {
-      console.error('Failed to delete comment', e);
-      try { window.alert('Failed to delete comment. Please try again.'); } catch {}
+      console.error('PostDetail: failed to delete comment', { commentId: cmt?.id, postId: post?.id, userId: user?.uid }, e);
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert('Failed to delete comment. Please try again.');
+      } else {
+        console.error('PostDetail: window.alert unavailable to notify user of comment delete failure');
+      }
     }
   };
 
@@ -395,10 +432,17 @@ export default function PostDetail() {
     try {
       const moderation = await filterPostContent({ content: text });
       if (moderation?.isBlocked || moderation?.needsReview) {
-        try { window.alert('Your comment needs revision before it can be posted.'); } catch {}
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert('Your comment needs revision before it can be posted.');
+        } else {
+          console.error('PostDetail: moderation blocked comment but alert unavailable');
+        }
         return;
       }
-    } catch {}
+    } catch (err) {
+      // Fail-open: allow user to proceed if moderation service fails, but log for monitoring
+      console.error('PostDetail: moderation check failed, proceeding fail-open', err);
+    }
     analyticsPostComment({ postId: post.id, length: text.length });
     // Optimistic add; replace on success, mark error on failure
     const now = new Date();
@@ -440,7 +484,8 @@ export default function PostDetail() {
           console.warn('window.refreshWhatsGoodComments not available');
         }
       }, 1000); // 1 second delay to allow Firestore to propagate
-    } catch (e) {
+    } catch (err) {
+      console.error('PostDetail: failed to add comment', { postId: post?.id, userId: user?.uid }, err);
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
     }
   };
@@ -462,7 +507,8 @@ export default function PostDetail() {
         createdAt: serverTimestamp(),
       });
       setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, id: ref.id, status: 'ok' } : c)));
-    } catch (e) {
+    } catch (err) {
+      console.error('PostDetail: failed to resend comment', { commentId: cmt?.id, postId: post?.id, userId: user?.uid }, err);
       setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'error' } : c)));
     }
   };
@@ -609,7 +655,7 @@ export default function PostDetail() {
             </section>
           )}
 
-          <footer className="mt-6 flex items-center gap-3">
+          <footer className="mt-6 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleLike}
@@ -643,7 +689,7 @@ export default function PostDetail() {
               <button
                 type="button"
                 onClick={handleDeletePost}
-                className="ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-rose-500 text-sm text-rose-600 hover:bg-rose-50"
+                className="sm:ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-rose-500 text-sm text-rose-600 hover:bg-rose-50 w-full sm:w-auto"
               >
                 Delete
               </button>

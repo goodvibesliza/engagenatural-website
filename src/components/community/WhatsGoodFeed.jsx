@@ -5,7 +5,9 @@ import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCou
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
-import PostCardDesktopLinkedIn from './PostCardDesktopLinkedIn';
+import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
+import useIsMobile from '../../hooks/useIsMobile.js';
+import { getFlag } from '../../lib/featureFlags.js';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
 import COPY from '../../i18n/community.copy';
@@ -71,17 +73,10 @@ export default function WhatsGoodFeed({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [postsWithCounts, setPostsWithCounts] = useState([]);
-  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
-  const desktopFlag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
-    // Prime on mount so SSR/hydrated clients compute layout immediately
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  const isMobile = useIsMobile();
+  const flag = getFlag('EN_MOBILE_FEED_SKIN');
+  const mobileSkin = typeof flag === 'string' ? flag.toLowerCase() : '';
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
 
   // Check if user is staff (can create posts)
   const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
@@ -252,11 +247,7 @@ export default function WhatsGoodFeed({
     }
     return () => {
       cancelled = true;
-      try { unsub(); } catch (e) {
-        // Best-effort unsubscribe; non-critical during unmount
-        // eslint-disable-next-line no-console
-        console.debug('WhatsGoodFeed: unsubscribe failed (non-critical)', e);
-      }
+      try { unsub(); } catch (e) { void e }
     };
   }, [db]);
 
@@ -464,7 +455,7 @@ export default function WhatsGoodFeed({
         </div>
       )}
       {filtered.map((post, idx) => {
-        const Card = (isDesktop && desktopFlag === 'linkedin') ? PostCardDesktopLinkedIn : PostCard;
+        const Card = useLinkedInMobileSkin ? PostCardMobileLinkedIn : PostCard;
         return (
           <Card
             key={post.id}

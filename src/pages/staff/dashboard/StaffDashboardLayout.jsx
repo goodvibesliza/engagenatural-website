@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
+import useIsMobile from '../../../hooks/useIsMobile.js';
+import { getFlag } from '../../../lib/featureFlags.js';
+import NavBarBottom from '../../../components/mobile/NavBarBottom.jsx';
+import TopBarCollapsible from '../../../components/mobile/TopBarCollapsible.jsx';
 
 /**
  * Staff dashboard layout component that renders the header, user avatar menu, responsive sidebar, and main content area for nested routes.
@@ -12,13 +16,16 @@ import { useAuth } from '../../../contexts/auth-context';
 export default function StaffDashboardLayout() {
   const { user } = useAuth();
   const location = useLocation();
+  const isMobile = useIsMobile();
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  const showCommunityTopBar = useLinkedInMobileSkin && location.pathname.startsWith('/staff/community');
 
-  const handleSignOut = () => {
-    window.location.href = '/?logout=true';
-  };
+  // sign-out handled globally elsewhere
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
+      {showCommunityTopBar && <TopBarCollapsible />}
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-4">
@@ -37,7 +44,10 @@ export default function StaffDashboardLayout() {
       </div>
 
       {/* Main Content with Sidebar */}
-      <div className="container mx-auto px-4 py-6">
+      <div
+        className={`container mx-auto px-4 py-6 ${useLinkedInMobileSkin ? 'pb-[60px] md:pb-0' : ''}`}
+        style={showCommunityTopBar ? { paddingTop: 56 } : undefined}
+      >
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar - Vertical on desktop, Horizontal on mobile */}
           <div className="md:w-64 flex-shrink-0">
@@ -112,6 +122,11 @@ export default function StaffDashboardLayout() {
           </div>
         </div>
       </div>
+
+      {/* Fixed bottom nav (mobile, LinkedIn skin only) */}
+      {useLinkedInMobileSkin && (
+        <NavBarBottom />
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, Navigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/auth-context";
-import getLandingRouteFor from "../../utils/landing";
+import postAuthRedirect from "../../lib/postAuthRedirect";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -11,12 +11,10 @@ export default function Login() {
   const [error, setError] = useState("");
   const [isRateLimited, setIsRateLimited] = useState(false);
 
-  const { isAuthenticated, role, signIn } = useAuth();
+  const { isAuthenticated, role, user, signIn } = useAuth();
   const location = useLocation();
   
-  // Get returnUrl from query params or use from state
-  const searchParams = new URLSearchParams(location.search);
-  const returnUrl = searchParams.get('returnUrl') || location.state?.from?.pathname || "/";
+  // Note: redirect handled after auth via postAuthRedirect
 
   // Clear rate limit status after 30 seconds
   useEffect(() => {
@@ -65,8 +63,7 @@ export default function Login() {
 
   // If already logged in, redirect to appropriate landing page
   if (isAuthenticated) {
-    // Build a minimal user object containing the role so the helper works
-    const landing = getLandingRouteFor({ role });
+    const landing = postAuthRedirect({ role, approved: user?.approved }, { search: location.search });
     return <Navigate to={landing} state={{ from: location }} replace />;
   }
 

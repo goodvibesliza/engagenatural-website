@@ -1,9 +1,45 @@
 // src/lib/analytics.js
-// Minimal, centralized analytics wrapper. Default: no-op.
+// Centralized analytics wrapper with lightweight dev logging.
+import { getFlag } from './featureFlags.js'
+
+const COMMUNITY_EVENTS = new Set([
+  'community_view',
+  'post_open',
+  'post_like',
+  'post_comment',
+  'post_open_training',
+  'filter_applied',
+])
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false
+  try {
+    if (typeof window.matchMedia === 'function') {
+      return window.matchMedia('(max-width: 767.98px)').matches
+    }
+    return window.innerWidth < 768
+  } catch {
+    return false
+  }
+}
+
+function computeUiVariant() {
+  const skin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase()
+  const isMobile = isMobileViewport()
+  return isMobile && skin === 'linkedin' ? 'mobile_linkedin' : 'default'
+}
 
 export function track(eventName, payload = {}) {
-  // Intentionally no-op by default.
-  // Swap this implementation to wire a real SDK later (e.g., GA4, Segment).
+  const augmented = COMMUNITY_EVENTS.has(eventName)
+    ? { ...payload, ui_variant: computeUiVariant() }
+    : payload
+
+  // Dev console log for visibility
+  if (typeof window !== 'undefined' && import.meta?.env?.DEV) {
+    try { console.log('[analytics]', eventName, augmented) } catch (err) { void err }
+  }
+
+  // No-op placeholder for real SDK wiring (e.g., GA4, Segment)
 }
 
 export function communityView({ feedType }) {
