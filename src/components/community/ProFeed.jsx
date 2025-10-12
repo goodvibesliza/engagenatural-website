@@ -6,10 +6,13 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import PostCardDesktopLinkedIn from './PostCardDesktopLinkedIn';
+import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
 import ProGate from './ProGate';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
 import COPY from '../../i18n/community.copy';
+import useIsMobile from '../../hooks/useIsMobile.js';
+import { getFlag } from '../../lib/featureFlags.js';
 
 export const PRO_STUBS = [
   {
