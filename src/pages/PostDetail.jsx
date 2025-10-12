@@ -125,22 +125,49 @@ export default function PostDetail() {
             const data = snap.data();
             mappedPost = {
               id: snap.id,
-              brand: data.brand || data.communityName || 'General',
+              // Keep community label; company byline is computed separately
+              brand: data.brand || data.brandName || data.communityName || 'General',
               title: data.title || 'Update',
               snippet: data.body || data.content || '',
               content: data.body || data.content || '',
               createdAt: data.createdAt || null,
-              authorName: data.authorName || '',
-              authorPhotoURL: data.authorPhotoURL || '',
+              authorName: data.authorName || data.author?.name || '',
+              authorPhotoURL: data.authorPhotoURL || data.author?.photoURL || data.author?.profileImage || data.author?.avatar || data.author?.avatarUrl || data.author?.image || '',
+              // Company/brand/store byline with broad fallbacks
+              company:
+                data.companyName ||
+                data.brandName ||
+                data.author?.companyName ||
+                data.author?.company ||
+                data.author?.brand ||
+                data.author?.storeName ||
+                data.author?.retailerName ||
+                data.communityName ||
+                '',
+              brandId: data.brandId || data.brandSlug || data.brandKey || data.brandName || data.brand || '',
               imageUrls: Array.isArray(data.imageUrls)
                 ? data.imageUrls
                 : (Array.isArray(data.images) ? data.images : []),
-              userId: data.userId || null,
+              userId: data.userId || data.authorId || data.author?.uid || data.author?.id || null,
               trainingId: data.trainingId || null,
               likeIds: [],
               commentIds: [],
             };
             feedType = 'unknown';
+            // Enrich when company is generic or avatar missing
+            try {
+              const isGeneric = !mappedPost.company || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(mappedPost.company));
+              if (db && mappedPost.userId && (isGeneric || !mappedPost.authorPhotoURL)) {
+                const userRef = doc(db, 'users', mappedPost.userId);
+                const userDoc = await getDoc(userRef);
+                if (userDoc.exists()) {
+                  const u = userDoc.data() || {};
+                  const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                  if (isGeneric && profileCompany) mappedPost.company = profileCompany;
+                  if (!mappedPost.authorPhotoURL) mappedPost.authorPhotoURL = u.profileImage || u.photoURL || '';
+                }
+              }
+            } catch {}
           }
         }
 
@@ -465,6 +492,8 @@ export default function PostDetail() {
   }
 
   const timeText = post.timeAgo || '';
+  const isGenericCompany = !post?.company || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(post.company));
+  const brandPillText = (!isGenericCompany && post?.company) ? post.company : (post.brand || 'General');
   const validImageUrls = Array.isArray(post?.imageUrls)
     ? post.imageUrls.filter((u) => !!u && !failedImages.has(u))
     : [];
@@ -489,7 +518,7 @@ export default function PostDetail() {
           <header className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
-                {post.brand || 'General'}
+                {brandPillText}
               </span>
               {(post.authorName || post.authorPhotoURL) && (
                 <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -501,6 +530,12 @@ export default function PostDetail() {
                     </div>
                   )}
                   <span className="truncate max-w-[160px]" title={post.authorName}>{post.authorName}</span>
+                  {!isGenericCompany && post.company && (
+                    <>
+                      <span className="text-gray-400">•</span>
+                      <span className="truncate max-w-[160px]" title={post.company}>{post.company}</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>
