@@ -2,6 +2,7 @@
 import React, { useRef, useCallback } from 'react';
 import { NavLink } from 'react-router-dom';
 import UserDropdownMenu from '@/components/UserDropdownMenu';
+import LogoWordmark from '@/components/brand/LogoWordmark';
 import { track } from '@/lib/analytics';
 
 function itemClasses({ isActive }) {
@@ -35,7 +36,14 @@ export default function TopMenuBarDesktop() {
       data-testid="topmenu-desktop"
       onKeyDown={onKeyDown}
     >
-      <div className="flex items-center gap-2">
+      {/* Left: wordmark */}
+      <div className="flex items-center">
+        <LogoWordmark size="md" />
+        <span className="ml-2 text-neutral-700 text-[10px] font-medium leading-none tracking-[0.15rem] font-body">BETA</span>
+      </div>
+
+      {/* Right: nav items + avatar */}
+      <div className="flex items-center gap-3">
         <NavLink
           to="/staff/notifications"
           className={itemClasses}
@@ -82,10 +90,9 @@ export default function TopMenuBarDesktop() {
         >
           Learning
         </NavLink>
-      </div>
-
-      <div className="flex items-center" data-testid="topmenu-user-avatar">
-        <UserDropdownMenu />
+        <div className="flex items-center" data-testid="topmenu-user-avatar">
+          <UserDropdownMenu />
+        </div>
       </div>
     </nav>
   );
