@@ -21,6 +21,8 @@ import {
   where,
 } from 'firebase/firestore';
 
+const GENERIC_COMPANY_REGEX = /^(whats-?good|whatsgood|all|public|pro feed)$/i;
+
 export default function PostDetail() {
   const { postId } = useParams();
   const navigate = useNavigate();
@@ -156,7 +158,7 @@ export default function PostDetail() {
             feedType = 'unknown';
             // Enrich when company is generic or avatar missing
             try {
-              const isGeneric = !mappedPost.company || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(mappedPost.company));
+              const isGeneric = !mappedPost.company || GENERIC_COMPANY_REGEX.test(String(mappedPost.company));
               if (db && mappedPost.userId && (isGeneric || !mappedPost.authorPhotoURL)) {
                 const userRef = doc(db, 'users', mappedPost.userId);
                 const userDoc = await getDoc(userRef);
@@ -495,7 +497,7 @@ export default function PostDetail() {
   }
 
   const timeText = post.timeAgo || '';
-  const isGenericCompany = !post?.company || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(post.company));
+  const isGenericCompany = !post?.company || GENERIC_COMPANY_REGEX.test(String(post.company));
   const brandPillText = (!isGenericCompany && post?.company) ? post.company : (post.brand || 'General');
   const validImageUrls = Array.isArray(post?.imageUrls)
     ? post.imageUrls.filter((u) => !!u && !failedImages.has(u))
