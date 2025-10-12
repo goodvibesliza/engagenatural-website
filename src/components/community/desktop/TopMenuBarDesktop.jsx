@@ -51,7 +51,7 @@ export default function TopMenuBarDesktop() {
           aria-label="Notifications"
           ref={notifRef}
           onClick={() => {
-            try { track('topmenu_click', { item: 'notifications', surface: 'community_desktop' }); } catch {}
+            try { track('topmenu_click', { item: 'notifications', surface: 'community_desktop' }); } catch (e) { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
             // Dev visibility in local envs
             // eslint-disable-next-line no-console
             console.debug?.('topmenu_click', { item: 'notifications', surface: 'community_desktop' });
@@ -67,7 +67,7 @@ export default function TopMenuBarDesktop() {
           aria-label="My Brands"
           ref={brandsRef}
           onClick={() => {
-            try { track('topmenu_click', { item: 'my_brands', surface: 'community_desktop' }); } catch {}
+            try { track('topmenu_click', { item: 'my_brands', surface: 'community_desktop' }); } catch (e) { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
             // eslint-disable-next-line no-console
             console.debug?.('topmenu_click', { item: 'my_brands', surface: 'community_desktop' });
           }}
@@ -82,7 +82,7 @@ export default function TopMenuBarDesktop() {
           aria-label="Learning"
           ref={learningRef}
           onClick={() => {
-            try { track('topmenu_click', { item: 'learning', surface: 'community_desktop' }); } catch {}
+            try { track('topmenu_click', { item: 'learning', surface: 'community_desktop' }); } catch (e) { /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
             // eslint-disable-next-line no-console
             console.debug?.('topmenu_click', { item: 'learning', surface: 'community_desktop' });
           }}
