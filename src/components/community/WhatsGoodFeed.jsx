@@ -161,8 +161,12 @@ export default function WhatsGoodFeed({
                   const userDoc = await getDoc(userRef);
                   if (userDoc.exists()) {
                     const u = userDoc.data() || {};
-                    if (!company || !company.trim()) {
-                      company = u.storeName || u.retailerName || u.companyName || post.brand || post.company || '';
+                    const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                    const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|all|public)$/i.test(String(company));
+                    if (profileCompany && (isGeneric)) {
+                      company = profileCompany;
+                    } else if (!company || !company.trim()) {
+                      company = post.brand || post.company || profileCompany || '';
                     }
                     if (!authorPhotoURL) {
                       authorPhotoURL = u.profileImage || u.photoURL || '';
