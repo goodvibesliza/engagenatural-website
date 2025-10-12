@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../styles/communityDesktop.css';
 
@@ -13,16 +13,8 @@ import '../styles/communityDesktop.css';
  * - When mounted, prevents body scroll (html, body { overflow: hidden }) and restores on unmount.
  */
 export default function CommunityDesktopShell({ children, headerContent = null, leftNav = null, rightRail = null, dataTestId }) {
-  // track width for responsive right-rail visibility (>=1280)
-  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
   const location = useLocation();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const onResize = () => setW(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
 
   useEffect(() => {
     const prevHtml = document.documentElement.style.overflow;
@@ -35,8 +27,8 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
     };
   }, []);
 
-  // Show right rail on wide desktops (>=1280)
-  const showRight = w >= 1280;
+  // Show right rail within the desktop shell context
+  const showRight = true;
 
   const defaultHeader = useMemo(() => (
     <div className="en-cd-header-inner">

@@ -53,7 +53,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
   return (
     <article
       className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden focus:outline-none focus:ring-2 focus:ring-deep-moss focus:ring-offset-2"
-      data-testid={dataTestId || 'postcard-desktop'}
+      data-testid={dataTestId || 'desktop-linkedin-postcard'}
       aria-label={title}
       role="button"
       tabIndex={0}
@@ -62,7 +62,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
     >
       {/* Byline Row */}
       <header className="flex items-center gap-3 p-4">
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200" aria-hidden data-testid="postcard-avatar">
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200" aria-hidden data-testid="desktop-linkedin-avatar">
           {authorPhotoURL ? (
             <img src={authorPhotoURL} alt="" className="w-full h-full object-cover" />
           ) : logoUrl ? (
@@ -72,10 +72,10 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
           )}
         </div>
         <div className="min-w-0">
-          <div className="text-sm text-gray-900 font-medium truncate" title={authorName} aria-label={`Author ${authorName}`} data-testid="postcard-author-name">
+          <div className="text-sm text-gray-900 font-medium truncate" title={authorName} aria-label={`Author ${authorName}`} data-testid="desktop-linkedin-author-name">
             {authorName}
           </div>
-          <div className="text-xs text-gray-500 truncate" aria-label={`Company and time`} data-testid="postcard-company-time">
+          <div className="text-xs text-gray-500 truncate" aria-label={`Company and time`} data-testid="desktop-linkedin-company-time">
             <span>{brandName}</span>{brandName && time ? <span> • </span> : null}<span>{time}</span>
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
       </div>
 
       {/* Hero image with consistent height */}
-      <div className="mt-3" aria-hidden data-testid="postcard-hero">
+      <div className="mt-3" aria-hidden data-testid="desktop-linkedin-hero">
         <AspectBox ratio="16/9">
           {imgSrc ? (
             <img src={imgSrc} alt="" className="w-full h-full object-cover" />
