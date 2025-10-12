@@ -1,5 +1,5 @@
 // src/pages/Community.jsx
-import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { getFlag } from '../lib/featureFlags.js';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -96,7 +96,7 @@ export default function Community({ hideTopTabs = false }) {
 
   // When the UI tab changes, reflect it in URL to keep selection highlighted
   // Use a ref to avoid unnecessary navigations and safely include all deps
-  const lastAppliedRef = useRef('');
+  const lastAppliedRef = React.useRef('');
   useEffect(() => {
     const key = `${location.pathname}|${tab}`;
     if (lastAppliedRef.current === key) return;
