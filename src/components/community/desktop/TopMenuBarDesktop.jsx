@@ -16,9 +16,8 @@ export default function TopMenuBarDesktop() {
   const brandsRef = useRef(null);
   const learningRef = useRef(null);
 
-  const items = [notifRef, brandsRef, learningRef];
-
   const onKeyDown = useCallback((e) => {
+    const items = [notifRef, brandsRef, learningRef];
     const keys = ['ArrowLeft', 'ArrowRight'];
     if (!keys.includes(e.key)) return;
     e.preventDefault();
@@ -28,7 +27,7 @@ export default function TopMenuBarDesktop() {
     if (e.key === 'ArrowLeft') nextIndex = (focusedIndex - 1 + items.length) % items.length;
     const next = items[nextIndex]?.current;
     if (next) next.focus();
-  }, [items]);
+  }, []);
   return (
     <nav
       className="hidden lg:flex items-center justify-between w-full h-full"
