@@ -108,7 +108,10 @@ export default function Community({ hideTopTabs = false }) {
       const detail = { tagCounts };
       const ev = new CustomEvent('communityTagStats', { detail });
       window.dispatchEvent(ev);
-    } catch {}
+    } catch (e) {
+      // Best-effort broadcast; failures are non-critical (e.g., SSR/no window or event not supported)
+      console.debug('Community: failed to dispatch communityTagStats event (non-critical)', e);
+    }
   }, [tagCounts]);
 
   // Update available filters when tab changes (Pro uses stubs for now)

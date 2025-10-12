@@ -168,7 +168,11 @@ export default function WhatsGoodFeed({
                       authorPhotoURL = u.profileImage || u.photoURL || '';
                     }
                   }
-                } catch {}
+                } catch (e) {
+                  // Best-effort profile enrichment; tolerate failures (e.g., permission/latency)
+                  // Intentionally not surfacing to the user.
+                  console.debug('WhatsGoodFeed: profile enrichment skipped due to error', { postId: post.id }, e);
+                }
               }
 
               const commentsQ = firestoreQuery(
