@@ -170,20 +170,17 @@ service cloud.firestore {
 
       // Updates:
       // - Super admin / brand managers: allowed
-      // - Owner: allowed, BUT if the owner is a verified staff member, they cannot
-      //   change communityId, visibility, or userId (prevents post-move/private toggles)
+      // - Owner: allowed, but may NOT change communityId, visibility, or userId
+      //   (prevents escalation by moving post to other communities or toggling visibility)
       allow update: if request.auth != null && (
         isSuperAdmin(request.auth.uid) ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
         (
-          resource.data.userId == request.auth.uid && (
-            !isVerifiedStaff(request.auth.uid) || (
-              request.resource.data.communityId == resource.data.communityId &&
-              request.resource.data.visibility == resource.data.visibility &&
-              request.resource.data.userId == resource.data.userId
-            )
-          )
+          resource.data.userId == request.auth.uid &&
+          request.resource.data.communityId == resource.data.communityId &&
+          request.resource.data.visibility == resource.data.visibility &&
+          request.resource.data.userId == resource.data.userId
         )
       );
 
