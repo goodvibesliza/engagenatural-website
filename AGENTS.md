@@ -65,8 +65,8 @@ Landing behavior change (staff):
 - Staff-family roles (staff, verified_staff, retail_staff) now land on /community after login (see src/utils/landing.js)
 
 ## Working Branch
-- Use branch: `phase-8.7/mobile-linkedin-skin-web`
-- Open PR: https://github.com/goodvibesliza/engagenatural-website/compare/main...phase-8.7/mobile-linkedin-skin-web
+- Use branch: `phase-8.8/web-linkedin-desktop-layout`
+- Open PR: https://github.com/goodvibesliza/engagenatural-website/compare/main...phase-8.8/web-linkedin-desktop-layout
 
 ### Feature Flags / Mobile Skin
 - Env flag: `EN_MOBILE_FEED_SKIN=linkedin`
@@ -74,8 +74,9 @@ Landing behavior change (staff):
 - CSS scoped with `data-mobile-skin="linkedin"` on page root/container.
 
 ### QA Hooks (Test IDs)
-- Top bar: `topbar`, `topbar-avatar`, `topbar-search`
-- Bottom nav: `bottomnav`, `bottomnav-mybrands`, `bottomnav-notifications`, `bottomnav-communities`, `bottomnav-learning`
+- Top bar (desktop): `topbar`, `topbar-notifications`, `topbar-mybrands`, `topbar-learning`, `topbar-avatar`
+- Bottom nav (mobile): `bottomnav`, `bottomnav-mybrands`, `bottomnav-notifications`, `bottomnav-communities`, `bottomnav-learning`
+- Desktop card (LinkedIn): `desktop-linkedin-postcard`, `desktop-linkedin-avatar`, `desktop-linkedin-author-name`, `desktop-linkedin-company-time`, `desktop-linkedin-hero`, `desktop-linkedin-action-like`, `desktop-linkedin-action-comment`, `desktop-linkedin-action-training`
 - Mobile components: `mobile-linkedin-composer`, `mobile-linkedin-filterbar`, `mobile-linkedin-postcard`, `mobile-linkedin-action-*`
 
 ### Post-Auth Redirect Rules

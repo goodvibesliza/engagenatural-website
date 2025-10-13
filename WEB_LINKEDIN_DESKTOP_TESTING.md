@@ -39,8 +39,8 @@ Scenarios
 
 QA hooks (data-testid)
 - Shell: `desktop-shell-header`, `desktop-shell-leftnav`, `desktop-shell-center`, `desktop-shell-rightrail`.
-- Card: `postcard-desktop`, `postcard-brand-logo`, `postcard-brand-name`, `postcard-date`, `postcard-hero`.
-- Actions: `postcard-action-like`, `postcard-action-comment`, `postcard-action-training`.
+- Card (desktop LinkedIn): `desktop-linkedin-postcard`, `desktop-linkedin-avatar`, `desktop-linkedin-author-name`, `desktop-linkedin-company-time`, `desktop-linkedin-hero`.
+- Actions (desktop LinkedIn): `desktop-linkedin-action-like`, `desktop-linkedin-action-comment`, `desktop-linkedin-action-training`.
 
 ---
 
@@ -50,7 +50,7 @@ Setup
 - Width 1440, feature flag on: navigate to `/community`.
 
 Expectations
-- `topmenu-desktop` is visible; header and left nav remain fixed; only the center column scrolls.
+- `topbar` is visible; header and left nav remain fixed; only the center column scrolls.
 - Clicking each item routes correctly and updates active state (aria-current="page"):
   - Notifications → `/staff/notifications`
   - My Brands → `/staff/my-brands`
@@ -61,8 +61,8 @@ Expectations
 - No overlap: First card in feed is fully visible; center scroller height accounts for the top bar.
 
 QA hooks (top menu)
-- `topmenu-desktop`
-- `topmenu-notifications`
-- `topmenu-mybrands`
-- `topmenu-learning`
-- `topmenu-user-avatar`
+- `topbar`
+- `topbar-notifications`
+- `topbar-mybrands`
+- `topbar-learning`
+- `topbar-avatar`
