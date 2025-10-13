@@ -39,6 +39,10 @@ export default function Community({ hideTopTabs = false }) {
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
 
+  // Refs to avoid stale closures when syncing from URL params
+  const lastSyncedQueryRef = useRef('');
+  const lastSyncedTagsRef = useRef('');
+
   // Stable handler to receive filters (brands/tags) from child feeds
   const handleFiltersChange = useCallback(({ brands, tags, tagCounts: counts } = {}) => {
     setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
@@ -62,21 +66,24 @@ export default function Community({ hideTopTabs = false }) {
     const brandParam = searchParams.get('brand');
     const qParam = searchParams.get('q') || '';
     const tagsParam = searchParams.get('tags') || '';
-    
+    const urlTags = tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const tagsKey = JSON.stringify(urlTags);
+
     if (brandParam && !selectedBrands.includes(brandParam)) {
       setSelectedBrands([brandParam]);
-      
-      // Track filter applied from URL
       filterApplied({ brands: [brandParam], tags: [], query: '' });
     }
-    if (qParam !== query) {
+
+    if (qParam !== lastSyncedQueryRef.current) {
       setQuery(qParam);
+      lastSyncedQueryRef.current = qParam;
     }
-    const urlTags = tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
-    if (JSON.stringify(urlTags) !== JSON.stringify(selectedTags)) {
+
+    if (tagsKey !== lastSyncedTagsRef.current) {
       setSelectedTags(urlTags);
+      lastSyncedTagsRef.current = tagsKey;
     }
-  }, [location.search, selectedBrands]); // Include selectedBrands in dependency array
+  }, [location.search, selectedBrands]);
 
   // Sync tab with URL (?tab=whatsGood|pro) to preserve deep linking and left-nav highlight
   useEffect(() => {

@@ -73,7 +73,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const desktopSkin = (getFlag('EN_DESKTOP_FEED_LAYOUT') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  const useLinkedInDesktopSkin = !isMobile && desktopSkin === 'linkedin';
 
   // Subscribe to Firestore for live "Pro Feed" public posts
   useEffect(() => {
@@ -318,7 +320,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         </div>
       )}
       {filtered.map((post, idx) => {
-        const Card = useLinkedInMobileSkin ? PostCardMobileLinkedIn : PostCard;
+        const Card = useLinkedInMobileSkin
+          ? PostCardMobileLinkedIn
+          : (useLinkedInDesktopSkin ? PostCardDesktopLinkedIn : PostCard);
         return (
           <div key={post.id}>
             {post.isPinned && (
