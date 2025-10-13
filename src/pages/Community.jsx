@@ -214,13 +214,6 @@ export default function Community({ hideTopTabs = false }) {
           {/* Desktop sidebar filters */}
           <aside className="only-desktop">
             <div className="community-sticky">
-            <button
-                type="button"
-                onClick={() => navigate('/staff/community/post/new')}
-                className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
-              >
-                New Post
-              </button>
             <FilterBar
                 query={query}
                 selectedBrands={selectedBrands}
@@ -241,6 +234,13 @@ export default function Community({ hideTopTabs = false }) {
                 filterApplied({ brands: sbv, tags: stv, query: qv });
               }}
               />
+              <button
+                type="button"
+                onClick={() => navigate('/staff/community/post/new')}
+                className="mt-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
+              >
+                New Post
+              </button>
             </div>
           </aside>
           {/* Feed content */}

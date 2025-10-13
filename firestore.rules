@@ -63,8 +63,10 @@ service cloud.firestore {
     // Allow full access to user documents to unblock seeding/migration.
     // Tighten these rules once permissions are fully resolved.
     match /users/{uid} {
-      // Owner-only access to the user document (no public/unrestricted access)
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      // Read: any authenticated user (needed for community byline/avatar enrichment)
+      allow read: if request.auth != null;
+      // Write: owner-only
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
     // Allow per-user subcollections (e.g., drafts) for the owner
     match /users/{uid}/{document=**} {
