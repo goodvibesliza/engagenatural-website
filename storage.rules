@@ -47,8 +47,12 @@ service firebase.storage {
 
     // Verification photos stored at /verification/{uid}/...
     match /verification/{uid}/{allPaths=**} {
-      // Allow reads for signed-in users; download URLs are tokenized
-      allow read: if isSignedIn();
+      // Restrict reads to owner or staff reviewers (super_admin, brand_manager)
+      allow read: if isOwner(uid)
+                   || (isSignedIn() && (
+                        getUserDoc().data.role == 'super_admin' ||
+                        getUserDoc().data.role == 'brand_manager'
+                      ));
       // Only the owner can upload/modify their verification photos (10 MB, images or PDFs)
       allow write: if isOwner(uid)
                    && request.resource.size < 10 * 1024 * 1024
