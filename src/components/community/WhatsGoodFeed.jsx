@@ -111,6 +111,7 @@ export default function WhatsGoodFeed({
           return {
             id: d.id,
             userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
+            userEmail: data?.userEmail || data?.authorEmail || data?.author?.email || data?.email || null,
             communityId: data?.communityId || 'whats-good',
             communityName: data?.communityName || '',
             brand: data?.brandName || data?.communityName || '',
@@ -175,13 +176,21 @@ export default function WhatsGoodFeed({
               const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|what'?s good community|all|public|community)$/i.test(String(company).toLowerCase()) ||
                 (company && post.communityName && String(company).toLowerCase() === String(post.communityName).toLowerCase()) ||
                 (String(company).toLowerCase().includes('community'));
-              if ((isGeneric || !authorPhotoURL) && db && post.userId) {
+              if ((isGeneric || !authorPhotoURL) && db) {
                 try {
-                  const userRef = doc(db, 'users', post.userId);
-                  const userDoc = await getDoc(userRef);
-                  if (userDoc.exists()) {
-                    const u = userDoc.data() || {};
-                    const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                  let u = null;
+                  if (post.userId) {
+                    const userRef = doc(db, 'users', post.userId);
+                    const userDoc = await getDoc(userRef);
+                    if (userDoc.exists()) u = userDoc.data() || null;
+                  } else if (post.userEmail) {
+                    const { getDocs, query, collection: coll, where: w, limit } = await import('firebase/firestore');
+                    const qUsers = query(coll(db, 'users'), w('email', '==', post.userEmail), limit(1));
+                    const snap = await getDocs(qUsers);
+                    if (!snap.empty) u = (snap.docs[0].data() || null);
+                  }
+                  if (u) {
+                    const profileCompany = u.storeName || u.retailerName || u.companyName || u.brandName || u.brandId || '';
                     if (profileCompany && isGeneric) {
                       company = profileCompany;
                     } else if (!company || !company.trim()) {

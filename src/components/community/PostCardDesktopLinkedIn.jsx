@@ -14,7 +14,10 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
     : (Array.isArray(post?.commentIds) ? post.commentIds.length : 0);
   const liked = post?.likedByMe === true;
   const authorName = post?.authorName || post?.author?.name || 'Unknown';
-  const brandName = post?.company || post?.brandName || post?.brand || '';
+  // Derive company/store/brand label; hide generic community labels
+  const baseCompany = post?.company || post?.brandName || post?.brand || '';
+  const isGenericCompany = !baseCompany || /^(whats-?good|whatsgood|what'?s good( community)?|all|public|pro feed|community)$/i.test(String(baseCompany).trim());
+  const brandName = isGenericCompany ? '' : baseCompany;
   const brandId = post?.brandId || brandName || 'brand';
   const title = post?.title || brandName || 'Update';
   const body = post?.snippet || post?.content || '';
@@ -94,17 +97,13 @@ export default function PostCardDesktopLinkedIn({ post, onLike, onComment, onVie
       </div>
 
       {/* Hero image with consistent height */}
-      <div className="mt-3" aria-hidden data-testid="desktop-linkedin-hero">
-        <AspectBox ratio="16/9">
-          {imgSrc ? (
+      {imgSrc && (
+        <div className="mt-3" aria-hidden data-testid="desktop-linkedin-hero">
+          <AspectBox ratio="16/9">
             <img src={imgSrc} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-100 border-t border-b border-gray-200 flex items-center justify-center text-gray-400">
-              <span className="text-sm">No image</span>
-            </div>
-          )}
-        </AspectBox>
-      </div>
+          </AspectBox>
+        </div>
+      )}
 
       {/* Action row */}
       <footer className="px-2 py-2 border-t border-gray-200 mt-2 grid grid-cols-3 gap-2 text-sm">
