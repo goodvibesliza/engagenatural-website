@@ -159,6 +159,12 @@ service cloud.firestore {
           isVerifiedStaff(request.auth.uid) &&
           request.resource.data.visibility == 'public' &&
           request.resource.data.userId == request.auth.uid
+        ) ||
+        // NEW: Allow any signed-in user to post to What's Good (public, owner-only)
+        (
+          request.resource.data.visibility == 'public' &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.communityId == 'whats-good'
         )
       );
 
