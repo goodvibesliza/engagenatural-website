@@ -193,6 +193,41 @@ service cloud.firestore {
       );
     }
 
+    // ---------- verification_requests (user submits for staff review) ----------
+    match /verification_requests/{requestId} {
+      // Read: owner or staff reviewers (approved/loose brand managers) or super admin
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+
+      // Create: owner-only; force initial status to 'pending' and prevent spoofing reviewer fields
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        // If provided, status must be 'pending'
+        (!('status' in request.resource.data) || request.resource.data.status == 'pending') &&
+        // Disallow reviewer-controlled fields on create
+        !('reviewedBy' in request.resource.data) &&
+        !('rejectionReason' in request.resource.data) &&
+        !('approvedAt' in request.resource.data);
+
+      // Update: only reviewers may update; keep identity fields immutable
+      allow update: if request.auth != null && (
+        (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid) || isSuperAdmin(request.auth.uid)) &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.userEmail == resource.data.userEmail &&
+        request.resource.data.submittedAt == resource.data.submittedAt
+      );
+
+      // Delete: owner may withdraw only while pending; super admin always may
+      allow delete: if request.auth != null && (
+        (resource.data.userId == request.auth.uid && resource.data.status == 'pending') ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
+
     // ---------- community_comments ----------
     match /community_comments/{commentId} {
       // Readable by any authenticated user (needed for post threads)
