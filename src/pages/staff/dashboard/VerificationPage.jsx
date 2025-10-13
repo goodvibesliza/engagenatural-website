@@ -5,6 +5,13 @@ import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/fi
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import PhotoUploadComponent from '../PhotoVerify';
 
+/**
+ * Render the Verification Center page where users can submit photo or code-based verification and view their verification status.
+ *
+ * Supports photo capture/upload, optional geolocation attachment, brand/manager code entry, and submission of a verification request to the backend.
+ *
+ * @returns {JSX.Element} The VerificationPage React element.
+ */
 export default function VerificationPage() {
   const { user } = useAuth();
   const [verificationPhoto, setVerificationPhoto] = useState(null);
