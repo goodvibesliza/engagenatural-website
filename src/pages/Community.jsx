@@ -1,5 +1,5 @@
 // src/pages/Community.jsx
-import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { getFlag } from '../lib/featureFlags.js';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -25,23 +25,31 @@ import './community.css';
  *
  * @returns {JSX.Element} The Community page component.
  */
-export default function Community() {
+export default function Community({ hideTopTabs = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState('whatsGood'); // 'whatsGood' | 'pro'
   const [query, setQuery] = useState('');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [tagCounts, setTagCounts] = useState({});
   const [availableBrands, setAvailableBrands] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
 
+  // Refs to avoid stale closures when syncing from URL params
+  const lastSyncedQueryRef = useRef('');
+  const lastSyncedTagsRef = useRef('');
+
   // Stable handler to receive filters (brands/tags) from child feeds
-  const handleFiltersChange = useCallback(({ brands, tags } = {}) => {
+  const handleFiltersChange = useCallback(({ brands, tags, tagCounts: counts } = {}) => {
     setAvailableBrands(Array.from(new Set((brands || []).filter(Boolean))));
     setAvailableTags(Array.from(new Set((tags || []).filter(Boolean))));
+    if (counts && typeof counts === 'object') {
+      setTagCounts(counts);
+    }
   }, []);
 
   // Deep-link support: if navigated with { state: { focusPostId } }, redirect to detail
@@ -56,14 +64,70 @@ export default function Community() {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const brandParam = searchParams.get('brand');
-    
+    const qParam = searchParams.get('q') || '';
+    const tagsParam = searchParams.get('tags') || '';
+    const urlTags = tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const tagsKey = JSON.stringify(urlTags);
+
     if (brandParam && !selectedBrands.includes(brandParam)) {
       setSelectedBrands([brandParam]);
-      
-      // Track filter applied from URL
       filterApplied({ brands: [brandParam], tags: [], query: '' });
     }
-  }, [location.search, selectedBrands]); // Include selectedBrands in dependency array
+
+    if (qParam !== lastSyncedQueryRef.current) {
+      setQuery(qParam);
+      lastSyncedQueryRef.current = qParam;
+    }
+
+    if (tagsKey !== lastSyncedTagsRef.current) {
+      setSelectedTags(urlTags);
+      lastSyncedTagsRef.current = tagsKey;
+    }
+  }, [location.search, selectedBrands]);
+
+  // Sync tab with URL (?tab=whatsGood|pro) to preserve deep linking and left-nav highlight
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const t = sp.get('tab');
+    if (t === 'pro' && tab !== 'pro') {
+      setTab('pro');
+    } else if (t === 'whatsGood' && tab !== 'whatsGood') {
+      setTab('whatsGood');
+    } else if (!t) {
+      // default param for clarity
+      sp.set('tab', 'whatsGood');
+      navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  // When the UI tab changes, reflect it in URL to keep selection highlighted
+  // Use a ref to avoid unnecessary navigations and safely include all deps
+  const lastAppliedRef = useRef('');
+  useEffect(() => {
+    const key = `${location.pathname}|${tab}`;
+    if (lastAppliedRef.current === key) return;
+    const sp = new URLSearchParams(location.search);
+    const current = sp.get('tab');
+    if (current !== tab) {
+      sp.set('tab', tab);
+      navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+    }
+    lastAppliedRef.current = key;
+  }, [tab, navigate, location.pathname, location.search]);
+
+  // Broadcast tag statistics for shell left-nav (event-based wiring)
+  useEffect(() => {
+    try {
+      const detail = { tagCounts };
+      const ev = new CustomEvent('communityTagStats', { detail });
+      window.dispatchEvent(ev);
+    } catch (e) {
+      // Best-effort broadcast; log for visibility and lint compliance
+      // eslint-disable-next-line no-console
+      console.error('Community: Failed to dispatch communityTagStats', e);
+    }
+  }, [tagCounts]);
 
   // Update available filters when tab changes (Pro uses stubs for now)
   useEffect(() => {
@@ -76,6 +140,7 @@ export default function Community() {
   }, [tab]);
 
   const header = useMemo(() => {
+    if (hideTopTabs) return null;
     return (
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 pt-3">
@@ -149,25 +214,32 @@ export default function Community() {
           {/* Desktop sidebar filters */}
           <aside className="only-desktop">
             <div className="community-sticky">
-              <button
+            <button
                 type="button"
                 onClick={() => navigate('/staff/community/post/new')}
                 className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
               >
                 New Post
               </button>
-              <FilterBar
+            <FilterBar
                 query={query}
                 selectedBrands={selectedBrands}
                 selectedTags={selectedTags}
                 availableBrands={availableBrands}
                 availableTags={availableTags}
-                onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
-                  setQuery(q ?? '');
-                  setSelectedBrands(sb ?? []);
-                  setSelectedTags(st ?? []);
-                  filterApplied({ brands: sb ?? [], tags: st ?? [], query: q ?? '' });
-                }}
+              onChange={({ query: q, selectedBrands: sb, selectedTags: st }) => {
+                const qv = q ?? '';
+                const sbv = sb ?? [];
+                const stv = st ?? [];
+                setQuery(qv);
+                setSelectedBrands(sbv);
+                setSelectedTags(stv);
+                const sp = new URLSearchParams(location.search);
+                if (qv) sp.set('q', qv); else sp.delete('q');
+                if (stv.length) sp.set('tags', stv.join(',')); else sp.delete('tags');
+                navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+                filterApplied({ brands: sbv, tags: stv, query: qv });
+              }}
               />
             </div>
           </aside>

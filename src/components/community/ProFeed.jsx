@@ -5,13 +5,14 @@ import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCou
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
+import PostCardDesktopLinkedIn from './PostCardDesktopLinkedIn';
 import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
-import useIsMobile from '../../hooks/useIsMobile.js';
-import { getFlag } from '../../lib/featureFlags.js';
 import ProGate from './ProGate';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
 import COPY from '../../i18n/community.copy';
+import useIsMobile from '../../hooks/useIsMobile.js';
+import { getFlag } from '../../lib/featureFlags.js';
 
 export const PRO_STUBS = [
   {
@@ -72,7 +73,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const desktopSkin = (getFlag('EN_DESKTOP_FEED_LAYOUT') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  const useLinkedInDesktopSkin = !isMobile && desktopSkin === 'linkedin';
 
   // Subscribe to Firestore for live "Pro Feed" public posts
   useEffect(() => {
@@ -94,13 +97,24 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
           return {
             id: d.id,
             brand: data?.brandName || 'Pro Feed',
+            userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
+            company:
+              data?.companyName ||
+              data?.brandName ||
+              data?.author?.companyName ||
+              data?.author?.company ||
+              data?.author?.brand ||
+              data?.author?.storeName ||
+              data?.author?.retailerName ||
+              '',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
             imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
             authorName: data?.authorName || '',
-            authorPhotoURL: data?.authorPhotoURL || '',
+            authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || data?.author?.avatar || data?.author?.avatarUrl || data?.author?.image || '',
+            brandId: data?.brandId || data?.brandSlug || data?.brandKey || data?.brandName || data?.brand || '',
             createdAt: data?.createdAt,
             isBlocked: data?.isBlocked === true,
             needsReview: data?.needsReview === true,
@@ -146,6 +160,29 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         // Numeric counts; fallback to 0 if queries fail
         const enriched = await Promise.all(withLikeStatus.filter(p => !p.isBlocked && !p.needsReview).map(async (post) => {
           try {
+            // Profile enrichment for brand/store and avatar
+            let company = post.company;
+            let authorPhotoURL = post.authorPhotoURL;
+            const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(company));
+            if ((isGeneric || !authorPhotoURL) && db && post.userId) {
+              try {
+                const userRef = doc(db, 'users', post.userId);
+                const userDoc = await getDoc(userRef);
+                if (userDoc.exists()) {
+                  const u = userDoc.data() || {};
+                  const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                  if (profileCompany && isGeneric) {
+                    company = profileCompany;
+                  }
+                  if (!authorPhotoURL) {
+                    authorPhotoURL = u.profileImage || u.photoURL || '';
+                  }
+                }
+              } catch (err) {
+                // eslint-disable-next-line no-console
+                console.warn('ProFeed: profile enrichment failed; continuing without enrichment', { postId: post.id, userId: post.userId }, err);
+              }
+            }
             const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
             const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
             const [commentsSnap, likesSnap] = await Promise.all([
@@ -154,6 +191,8 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
             ]);
             return {
               ...post,
+              company,
+              authorPhotoURL,
               commentCount: commentsSnap.data().count || 0,
               likeCount: likesSnap.data().count || 0,
             };
@@ -281,7 +320,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         </div>
       )}
       {filtered.map((post, idx) => {
-        const Card = useLinkedInMobileSkin ? PostCardMobileLinkedIn : PostCard;
+        const Card = useLinkedInMobileSkin
+          ? PostCardMobileLinkedIn
+          : (useLinkedInDesktopSkin ? PostCardDesktopLinkedIn : PostCard);
         return (
           <div key={post.id}>
             {post.isPinned && (

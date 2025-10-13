@@ -1,5 +1,5 @@
 // src/components/community/WhatsGoodFeed.jsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -81,6 +81,12 @@ export default function WhatsGoodFeed({
   // Check if user is staff (can create posts)
   const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
 
+  // Hoist onFiltersChange into a ref to satisfy exhaustive-deps and avoid stale closures
+  const onFiltersChangeRef = useRef(onFiltersChange);
+  useEffect(() => {
+    onFiltersChangeRef.current = onFiltersChange;
+  }, [onFiltersChange]);
+
   // Subscribe to Firestore for live "What's Good" public posts and enrich counts
   useEffect(() => {
     let unsub = () => {};
@@ -101,14 +107,27 @@ export default function WhatsGoodFeed({
             : (Array.isArray(data?.images) ? data.images : []);
           return {
             id: d.id,
-            brand: data?.brandName || data?.communityName || 'What\'s Good',
+            userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
+            brand: data?.brandName || data?.communityName || '',
+            // Prefer explicit company/store/retailer from author/profile over generic community label
+            company:
+              data?.companyName ||
+              data?.brandName ||
+              data?.author?.companyName ||
+              data?.author?.company ||
+              data?.author?.brand ||
+              data?.author?.storeName ||
+              data?.author?.retailerName ||
+              data?.communityName ||
+              '',
             title: data?.title || 'Untitled',
             snippet: (data?.body || '').slice(0, 200),
             content: data?.body || '',
             imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
-            authorName: data?.authorName || '',
-            authorPhotoURL: data?.authorPhotoURL || '',
+            authorName: data?.authorName || data?.author?.name || '',
+            authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || data?.author?.avatar || data?.author?.avatarUrl || data?.author?.image || '',
+            brandId: data?.brandId || data?.brandSlug || data?.brandKey || data?.brandName || data?.brand || '',
             createdAt: data?.createdAt,
             isBlocked: data?.isBlocked === true,
             needsReview: data?.needsReview === true,
@@ -136,15 +155,42 @@ export default function WhatsGoodFeed({
           const tags = Array.from(tagCounts.entries())
             .sort((a, b) => b[1] - a[1])
             .map(([k]) => k);
-          onFiltersChange?.({ brands, tags });
+          const countsObj = Object.fromEntries(tagCounts.entries());
+          onFiltersChangeRef.current?.({ brands, tags, tagCounts: countsObj });
         } catch (err) {
           console.error('WhatsGoodFeed: failed to emit filters from live posts', { baseCount: Array.isArray(base) ? base.length : 0 }, err);
         }
 
-        // Load counts per post (numeric fields) — fallback to 0 if query fails
+        // Load counts and enrich missing author/company data from user profile when available
         const enriched = await Promise.all(
           visible.map(async (post) => {
             try {
+              let company = post.company;
+              let authorPhotoURL = post.authorPhotoURL;
+              const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|all|public)$/i.test(String(company));
+              if ((isGeneric || !authorPhotoURL) && db && post.userId) {
+                try {
+                  const userRef = doc(db, 'users', post.userId);
+                  const userDoc = await getDoc(userRef);
+                  if (userDoc.exists()) {
+                    const u = userDoc.data() || {};
+                    const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                    if (profileCompany && isGeneric) {
+                      company = profileCompany;
+                    } else if (!company || !company.trim()) {
+                      company = post.brand || post.company || profileCompany || '';
+                    }
+                    if (!authorPhotoURL) {
+                      authorPhotoURL = u.profileImage || u.photoURL || '';
+                    }
+                  }
+                } catch (e) {
+                  // Best-effort profile enrichment; tolerate failures (e.g., permission/latency)
+                  // Intentionally not surfacing to the user.
+                  console.debug('WhatsGoodFeed: profile enrichment skipped due to error', { postId: post.id }, e);
+                }
+              }
+
               const commentsQ = firestoreQuery(
                 collection(db, 'community_comments'),
                 where('postId', '==', post.id)
@@ -159,7 +205,7 @@ export default function WhatsGoodFeed({
               ]);
               const commentCount = commentsSnap.data().count || 0;
               const likeCount = likesSnap.data().count || 0;
-              return { ...post, commentCount, likeCount };
+              return { ...post, company, authorPhotoURL, commentCount, likeCount };
             } catch (err) {
               console.warn('Failed loading counts for', post.id, err);
               return { ...post, commentCount: 0, likeCount: 0 };
@@ -181,14 +227,19 @@ export default function WhatsGoodFeed({
         content: p.content || '',
         imageUrls: Array.isArray(p.imageUrls) ? p.imageUrls : (Array.isArray(p.images) ? p.images : []),
         authorName: p.author?.name || '',
+        company: p.brand || '',
         commentCount: 0,
         likeCount: 0,
       }));
       setPostsWithCounts(fallback);
       try {
         const brands = Array.from(new Set(fallback.map((p) => p.brand).filter(Boolean)));
-        const tags = Array.from(new Set(fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean)));
-        onFiltersChange?.({ brands, tags });
+        const allTags = fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean);
+        const tagCounts = allTags.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc; }, {});
+        const tags = Object.entries(tagCounts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k]) => k);
+        onFiltersChangeRef.current?.({ brands, tags, tagCounts });
       } catch (e) {
         console.error('WhatsGoodFeed: failed to compute fallback filters', { fallbackCount: Array.isArray(fallback) ? fallback.length : 0 }, e);
       }

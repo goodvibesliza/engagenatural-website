@@ -9,7 +9,7 @@ const VerificationPrompt = ({ navigate }) => {
         Verify your account to unlock all features in our community
       </p>
       <button 
-        onClick={() => navigate('/verification')}
+        onClick={() => navigate('/staff/verification')}
         className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
       >
         Verify Now

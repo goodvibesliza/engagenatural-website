@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import './App.css';
 
@@ -70,7 +70,10 @@ import EmulatorTestDashboard from './pages/EmulatorTestDashboard';
 import EmulatorDiagnosticPage from './pages/EmulatorDiagnosticPage';
 // Community (phone-first IA)
 import Community from './pages/Community';
+import CommunityDesktopShell from './layouts/CommunityDesktopShell';
+import DesktopLeftNav from './components/community/DesktopLeftNav';
 import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
+import VerificationPrompt from './components/community/components/VerificationPrompt';
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 import CommunityPostRedirect from './components/CommunityPostRedirect';
 import PostCompose from './pages/PostCompose.jsx';
@@ -87,6 +90,34 @@ const LoadingSpinner = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
   </div>
 );
+
+// LinkedIn-style Desktop Community Route Wrapper
+const CommunityLinkedInRoute = () => {
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    return (
+      <RoleGuard allowedRoles={['staff']}>
+        <CommunityDesktopShell
+          dataTestId="community-desktop-shell"
+          leftNav={<DesktopLeftNav />}
+          rightRail={<VerificationPrompt navigate={navigate} />}
+        >
+          <Community hideTopTabs />
+        </CommunityDesktopShell>
+      </RoleGuard>
+    );
+  }
+  return <Navigate to="/staff/community" replace />;
+};
 
 // ---------------------------------------------------------------------------
 // Protected Route – keeps returnUrl so users can be sent back after login
@@ -561,8 +592,8 @@ function App() {
           {/* Public Firebase Emulator Diagnostics (no auth) */}
           <Route path="/emulator-diagnostics" element={<EmulatorDiagnosticPage />} />
 
-          {/* Community Routes - Legacy redirects */}
-          <Route path="/community" element={<Navigate to="/staff/community" replace />} />
+          {/* Community Routes - LinkedIn-style desktop shell behind flag */}
+          <Route path="/community" element={<CommunityLinkedInRoute />} />
           <Route path="/community/whats-good" element={<Navigate to="/staff/community" replace />} />
           <Route path="/community/post/:postId" element={<CommunityPostRedirect />} />
 

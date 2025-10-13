@@ -38,7 +38,10 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
     : (Array.isArray(post?.commentIds) ? post.commentIds.length : 0);
   const liked = post?.likedByMe === true;
   const brand = post?.brand || 'General';
-  const title = post?.title || post?.author?.name || (brand ? `${brand} update` : 'Update');
+  const company = post?.company || '';
+  const isGenericCompany = !company || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(company));
+  const brandPillText = (!isGenericCompany && company) ? company : brand;
+  const title = post?.title || post?.author?.name || (brandPillText ? `${brandPillText} update` : 'Update');
   const snippet = post?.snippet || post?.content || '';
   const time = post?.timeAgo || formatRelativeTime(post?.createdAt);
   const hasTraining = !!post?.trainingId;
@@ -65,7 +68,7 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
   };
 
   const authorName = post?.authorName || post?.author?.name || '';
-  const authorPhotoURL = post?.authorPhotoURL || post?.author?.photoURL || '';
+  const authorPhotoURL = post?.authorPhotoURL || post?.author?.photoURL || post?.author?.profileImage || post?.author?.avatar || post?.author?.avatarUrl || post?.author?.image || '';
 
   return (
     <article
@@ -81,9 +84,9 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
         <div className="flex items-center gap-3">
           <span
             className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white"
-            aria-label={`Brand ${brand}`}
+            aria-label={`Brand ${brandPillText}`}
           >
-            {brand}
+            {brandPillText}
           </span>
           {(authorName || authorPhotoURL) && (
             <div className="flex items-center gap-2 text-xs text-gray-600" aria-label={`Posted by ${authorName || 'user'}`}>
@@ -95,6 +98,12 @@ export default function PostCard({ post, onLike, onComment, onViewTraining, onCa
                 </div>
               )}
               <span className="truncate max-w-[140px]" title={authorName}>{authorName}</span>
+              {!isGenericCompany && company && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span className="truncate max-w-[160px]" title={company}>{company}</span>
+                </>
+              )}
             </div>
           )}
         </div>
