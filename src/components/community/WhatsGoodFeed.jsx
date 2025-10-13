@@ -1,7 +1,7 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
@@ -184,8 +184,7 @@ export default function WhatsGoodFeed({
                     const userDoc = await getDoc(userRef);
                     if (userDoc.exists()) u = userDoc.data() || null;
                   } else if (post.userEmail) {
-                    const { getDocs, query, collection: coll, where: w, limit } = await import('firebase/firestore');
-                    const qUsers = query(coll(db, 'users'), w('email', '==', post.userEmail), limit(1));
+                    const qUsers = firestoreQuery(collection(db, 'users'), where('email', '==', post.userEmail), limit(1));
                     const snap = await getDocs(qUsers);
                     if (!snap.empty) u = (snap.docs[0].data() || null);
                   }
