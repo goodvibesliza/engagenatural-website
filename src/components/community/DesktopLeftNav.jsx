@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+// (Button should be visible to all users; auth not required here)
 
 export default function DesktopLeftNav() {
   const location = useLocation();
@@ -91,12 +92,12 @@ export default function DesktopLeftNav() {
             data-testid="desktop-left-search"
           />
         </form>
-        {/* New Post button under search */}
+        {/* New Post button under search (visible to all users) */}
         <div className="mt-3">
           <button
             type="button"
             onClick={() => navigate('/staff/community/post/new')}
-            className="w-full h-10 px-3 inline-flex items-center justify-center rounded-md border border-deep-moss bg-deep-moss text-white text-sm hover:bg-sage-dark"
+            className="w-full h-10 px-3 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-800 text-sm hover:bg-gray-50"
             data-testid="desktop-left-newpost"
           >
             New Post
