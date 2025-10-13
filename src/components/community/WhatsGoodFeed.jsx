@@ -175,7 +175,7 @@ export default function WhatsGoodFeed({
               let authorPhotoURL = post.authorPhotoURL;
               const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|what'?s good community|all|public|community)$/i.test(String(company).toLowerCase()) ||
                 (company && post.communityName && String(company).toLowerCase() === String(post.communityName).toLowerCase()) ||
-                (String(company).toLowerCase().includes('community'));
+                (/^\s*(the\s+)?community\s*$/i.test(String(company)));
               if ((isGeneric || !authorPhotoURL) && db) {
                 try {
                   let u = null;
