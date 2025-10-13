@@ -1,7 +1,7 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc, getDocs, limit } from 'firebase/firestore';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
@@ -111,7 +111,6 @@ export default function WhatsGoodFeed({
           return {
             id: d.id,
             userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
-            userEmail: data?.userEmail || data?.authorEmail || data?.author?.email || data?.email || null,
             communityId: data?.communityId || 'whats-good',
             communityName: data?.communityName || '',
             brand: data?.brandName || data?.communityName || '',
@@ -176,18 +175,12 @@ export default function WhatsGoodFeed({
               const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|what'?s good community|all|public|community)$/i.test(String(company).toLowerCase()) ||
                 (company && post.communityName && String(company).toLowerCase() === String(post.communityName).toLowerCase()) ||
                 (/^\s*(the\s+)?community\s*$/i.test(String(company)));
-              if ((isGeneric || !authorPhotoURL) && db) {
+              if ((isGeneric || !authorPhotoURL) && db && post.userId) {
                 try {
                   let u = null;
-                  if (post.userId) {
-                    const userRef = doc(db, 'users', post.userId);
-                    const userDoc = await getDoc(userRef);
-                    if (userDoc.exists()) u = userDoc.data() || null;
-                  } else if (post.userEmail) {
-                    const qUsers = firestoreQuery(collection(db, 'users'), where('email', '==', post.userEmail), limit(1));
-                    const snap = await getDocs(qUsers);
-                    if (!snap.empty) u = (snap.docs[0].data() || null);
-                  }
+                  const userRef = doc(db, 'users', post.userId);
+                  const userDoc = await getDoc(userRef);
+                  if (userDoc.exists()) u = userDoc.data() || null;
                   if (u) {
                     const profileCompany = u.storeName || u.retailerName || u.companyName || u.brandName || u.brandId || '';
                     if (profileCompany && isGeneric) {

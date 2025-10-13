@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
 
 // Auth context
@@ -557,14 +557,7 @@ function App() {
             {/* Community routes under staff layout */}
             <Route path="community" element={<Community />} />
             <Route path="community/post/new" element={<PostCompose />} />
-            <Route
-              path="community/post/:postId"
-              element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <PostDetail />
-                </Suspense>
-              }
-            />
+            <Route path="community/post/:postId" element={<PostDetail />} />
           </Route>
 
           {/* Staff Training Detail */}
