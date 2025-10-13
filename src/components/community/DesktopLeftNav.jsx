@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-// (Button should be visible to all users; auth not required here)
+import { useAuth } from '../../contexts/auth-context';
 
 export default function DesktopLeftNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const sp = new URLSearchParams(location.search);
   const tab = sp.get('tab') || 'whatsGood';
   const q = sp.get('q') || '';
@@ -12,6 +13,7 @@ export default function DesktopLeftNav() {
   const activeTags = useMemo(() => tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [], [tagsParam]);
   const [query, setQuery] = useState(q);
   const [tagCounts, setTagCounts] = useState({});
+  const isStaff = hasRole(['staff','verified_staff','brand_manager','super_admin']);
 
   useEffect(() => setQuery(q), [q]);
 
@@ -92,17 +94,19 @@ export default function DesktopLeftNav() {
             data-testid="desktop-left-search"
           />
         </form>
-        {/* New Post button under search (visible to all users) */}
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => navigate('/staff/community/post/new')}
-            className="w-full h-10 px-3 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-800 text-sm hover:bg-gray-50"
-            data-testid="desktop-left-newpost"
-          >
-            New Post
-          </button>
-        </div>
+        {/* New Post button under search (staff only) */}
+        {isStaff && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => navigate('/staff/community/post/new')}
+              className="w-full h-10 px-3 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-800 text-sm hover:bg-gray-50"
+              data-testid="desktop-left-newpost"
+            >
+              New Post
+            </button>
+          </div>
+        )}
         {(activeTags.length > 0 || (query || '').trim().length > 0) && (
           <div className="mt-2">
             <button
