@@ -91,6 +91,17 @@ export default function DesktopLeftNav() {
             data-testid="desktop-left-search"
           />
         </form>
+        {/* New Post button under search */}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => navigate('/staff/community/post/new')}
+            className="w-full h-10 px-3 inline-flex items-center justify-center rounded-md border border-deep-moss bg-deep-moss text-white text-sm hover:bg-sage-dark"
+            data-testid="desktop-left-newpost"
+          >
+            New Post
+          </button>
+        </div>
         {(activeTags.length > 0 || (query || '').trim().length > 0) && (
           <div className="mt-2">
             <button
