@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../styles/communityDesktop.css';
 
 /**
@@ -23,7 +23,16 @@ export default function DesktopLinkedInShell({ topBar = null, leftSidebar = null
   }, []);
 
   const showLeft = !!leftSidebar;
-  const showRight = true;
+  const [showRight, setShowRight] = useState(false);
+
+  // Gate right rail to >=1280px without SSR/hydration mismatch
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const update = () => setShowRight(window.innerWidth >= 1280);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   return (
     <div className={`en-cd-shell ${showLeft ? '' : 'is-noleft'}`} data-testid={dataTestId}>

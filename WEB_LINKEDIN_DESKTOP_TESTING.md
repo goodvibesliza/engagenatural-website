@@ -44,9 +44,9 @@ QA hooks (data-testid)
 
 Appendix — Additional routes (My Brands, Learning, Post Create/Detail)
 
-- At width 1440 with flag on, open `/staff/my-brands` and `/training`: header/left fixed; only center scrolls; right rail visible at ≥1280, hidden below.
+- At width 1440 with flag on, open `/staff/my-brands` and `/staff/learning`: header/left fixed; only center scrolls; right rail visible at ≥1280, hidden below.
 - Open `/staff/community/post/new` and a real `/staff/community/post/{id}`: same shell; deep link renders; center scroll only.
-- Left search visible and focusable; typing doesn’t break layout (no-op ok). Test id: `leftsearch-input`.
+- Left search visible and focusable; typing doesn’t break layout (no-op ok). Test ID: `leftsearch-input`.
 - Resize <1024: pages fall back to legacy responsive layout (shell not applied).
 
 QA hooks (pages)
