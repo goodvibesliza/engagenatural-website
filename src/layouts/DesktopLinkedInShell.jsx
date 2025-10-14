@@ -22,10 +22,11 @@ export default function DesktopLinkedInShell({ topBar = null, leftSidebar = null
     };
   }, []);
 
+  const showLeft = !!leftSidebar;
   const showRight = true;
 
   return (
-    <div className="en-cd-shell" data-testid={dataTestId}>
+    <div className={`en-cd-shell ${showLeft ? '' : 'is-noleft'}`} data-testid={dataTestId}>
       {/* Fixed Header */}
       <header className="en-cd-header" role="banner" aria-label="Top bar" data-testid="desktop-shell-header">
         <div className="en-cd-header-inner">
@@ -34,9 +35,11 @@ export default function DesktopLinkedInShell({ topBar = null, leftSidebar = null
       </header>
 
       {/* Fixed Left Sidebar */}
-      <nav className="en-cd-left" role="navigation" aria-label="Primary navigation" data-testid="desktop-shell-leftnav">
-        {leftSidebar}
-      </nav>
+      {showLeft && (
+        <nav className="en-cd-left" role="navigation" aria-label="Primary navigation" data-testid="desktop-shell-leftnav">
+          {leftSidebar}
+        </nav>
+      )}
 
       {/* Center scroller */}
       <main className="en-cd-center" role="main" aria-label="Main content" data-testid="desktop-shell-center">

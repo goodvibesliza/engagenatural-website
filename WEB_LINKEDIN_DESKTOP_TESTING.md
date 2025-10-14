@@ -67,7 +67,7 @@ Expectations
 - Clicking each item routes correctly and updates active state (aria-current="page"):
   - Notifications → `/staff/notifications`
   - My Brands → `/staff/my-brands`
-  - Learning → `/training`
+  - Learning → `/staff/learning`
 - Analytics: Dev console logs `topmenu_click` with `{ item, surface: 'community_desktop' }` on each click.
 - User menu: Click avatar (or focus then Enter) to open existing dropdown; keyboard accessible.
 - Resize below 1024px: Top menu hides and mobile/tablet layouts take over.

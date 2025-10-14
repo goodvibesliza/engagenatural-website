@@ -76,7 +76,7 @@ export default function TopMenuBarDesktop() {
           My Brands
         </NavLink>
         <NavLink
-          to="/training"
+          to="/staff/learning"
           className={itemClasses}
           data-testid="topbar-learning"
           aria-label="Learning"

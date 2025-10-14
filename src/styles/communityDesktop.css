@@ -103,6 +103,11 @@
   overscroll-behavior: contain; /* prevent body scroll on wheel */
 }
 
+/* When no left sidebar present, let center start at left edge */
+.en-cd-shell.is-noleft .en-cd-center {
+  left: 0;
+}
+
 /* Center width – fluid between 680px and 760px, centered */
 .en-cd-center-inner {
   width: clamp(680px, 58vw, 760px);
