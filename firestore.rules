@@ -63,8 +63,10 @@ service cloud.firestore {
     // Allow full access to user documents to unblock seeding/migration.
     // Tighten these rules once permissions are fully resolved.
     match /users/{uid} {
-      // Owner-only access to the user document (no public/unrestricted access)
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      // Read: any authenticated user (needed for community byline/avatar enrichment)
+      allow read: if request.auth != null;
+      // Write: owner-only
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
     // Allow per-user subcollections (e.g., drafts) for the owner
     match /users/{uid}/{document=**} {
@@ -159,25 +161,28 @@ service cloud.firestore {
           isVerifiedStaff(request.auth.uid) &&
           request.resource.data.visibility == 'public' &&
           request.resource.data.userId == request.auth.uid
+        ) ||
+        // NEW: Allow any signed-in user to post to What's Good (public, owner-only)
+        (
+          request.resource.data.visibility == 'public' &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.communityId == 'whats-good'
         )
       );
 
       // Updates:
       // - Super admin / brand managers: allowed
-      // - Owner: allowed, BUT if the owner is a verified staff member, they cannot
-      //   change communityId, visibility, or userId (prevents post-move/private toggles)
+      // - Owner: allowed, but may NOT change communityId, visibility, or userId
+      //   (prevents escalation by moving post to other communities or toggling visibility)
       allow update: if request.auth != null && (
         isSuperAdmin(request.auth.uid) ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
         (
-          resource.data.userId == request.auth.uid && (
-            !isVerifiedStaff(request.auth.uid) || (
-              request.resource.data.communityId == resource.data.communityId &&
-              request.resource.data.visibility == resource.data.visibility &&
-              request.resource.data.userId == resource.data.userId
-            )
-          )
+          resource.data.userId == request.auth.uid &&
+          request.resource.data.communityId == resource.data.communityId &&
+          request.resource.data.visibility == resource.data.visibility &&
+          request.resource.data.userId == resource.data.userId
         )
       );
 
@@ -186,6 +191,41 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
+
+    // ---------- verification_requests (user submits for staff review) ----------
+    match /verification_requests/{requestId} {
+      // Read: owner or staff reviewers (approved/loose brand managers) or super admin
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+
+      // Create: owner-only; force initial status to 'pending' and prevent spoofing reviewer fields
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        // If provided, status must be 'pending'
+        (!('status' in request.resource.data) || request.resource.data.status == 'pending') &&
+        // Disallow reviewer-controlled fields on create
+        !('reviewedBy' in request.resource.data) &&
+        !('rejectionReason' in request.resource.data) &&
+        !('approvedAt' in request.resource.data);
+
+      // Update: only reviewers may update; keep identity fields immutable
+      allow update: if request.auth != null && (
+        (isApprovedBrandManager(request.auth.uid) || isBrandManagerLoose(request.auth.uid) || isSuperAdmin(request.auth.uid)) &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.userEmail == resource.data.userEmail &&
+        request.resource.data.submittedAt == resource.data.submittedAt
+      );
+
+      // Delete: owner may withdraw only while pending; super admin always may
+      allow delete: if request.auth != null && (
+        (resource.data.userId == request.auth.uid && resource.data.status == 'pending') ||
         isSuperAdmin(request.auth.uid)
       );
     }

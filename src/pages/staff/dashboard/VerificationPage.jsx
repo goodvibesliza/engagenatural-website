@@ -273,7 +273,8 @@ export default function VerificationPage() {
 
               {!verificationPhoto ? (
                 <PhotoUploadComponent 
-                  onPhotoSelected={handlePhotoSelected}
+                  onPhotoCapture={handlePhotoSelected}
+                  onFileUpload={handlePhotoSelected}
                   className="mb-4"
                 />
               ) : (

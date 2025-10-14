@@ -1,11 +1,12 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
 import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
+import PostCardDesktopLinkedIn from './PostCardDesktopLinkedIn.jsx';
 import useIsMobile from '../../hooks/useIsMobile.js';
 import { getFlag } from '../../lib/featureFlags.js';
 import SkeletonPostCard from './SkeletonPostCard';
@@ -69,6 +70,7 @@ export default function WhatsGoodFeed({
   onFiltersChange,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, hasRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -77,6 +79,7 @@ export default function WhatsGoodFeed({
   const flag = getFlag('EN_MOBILE_FEED_SKIN');
   const mobileSkin = typeof flag === 'string' ? flag.toLowerCase() : '';
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  const desktopLinkedIn = !isMobile && (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin') && location.pathname.startsWith('/community');
 
   // Check if user is staff (can create posts)
   const isStaff = hasRole(['staff', 'verified_staff', 'brand_manager', 'super_admin']);
@@ -108,6 +111,8 @@ export default function WhatsGoodFeed({
           return {
             id: d.id,
             userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
+            communityId: data?.communityId || 'whats-good',
+            communityName: data?.communityName || '',
             brand: data?.brandName || data?.communityName || '',
             // Prefer explicit company/store/retailer from author/profile over generic community label
             company:
@@ -167,14 +172,17 @@ export default function WhatsGoodFeed({
             try {
               let company = post.company;
               let authorPhotoURL = post.authorPhotoURL;
-              const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|all|public)$/i.test(String(company));
+              const isGeneric = !company || !company.trim() || /^(whats-?good|whatsgood|what'?s good community|all|public|community)$/i.test(String(company).toLowerCase()) ||
+                (company && post.communityName && String(company).toLowerCase() === String(post.communityName).toLowerCase()) ||
+                (/^\s*(the\s+)?community\s*$/i.test(String(company)));
               if ((isGeneric || !authorPhotoURL) && db && post.userId) {
                 try {
+                  let u = null;
                   const userRef = doc(db, 'users', post.userId);
                   const userDoc = await getDoc(userRef);
-                  if (userDoc.exists()) {
-                    const u = userDoc.data() || {};
-                    const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                  if (userDoc.exists()) u = userDoc.data() || null;
+                  if (u) {
+                    const profileCompany = u.storeName || u.retailerName || u.companyName || u.brandName || u.brandId || '';
                     if (profileCompany && isGeneric) {
                       company = profileCompany;
                     } else if (!company || !company.trim()) {
@@ -455,7 +463,7 @@ export default function WhatsGoodFeed({
         </div>
       )}
       {filtered.map((post, idx) => {
-        const Card = useLinkedInMobileSkin ? PostCardMobileLinkedIn : PostCard;
+        const Card = desktopLinkedIn ? PostCardDesktopLinkedIn : (useLinkedInMobileSkin ? PostCardMobileLinkedIn : PostCard);
         return (
           <Card
             key={post.id}

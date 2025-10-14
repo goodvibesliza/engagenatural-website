@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
 
 // Auth context
@@ -74,7 +74,7 @@ import CommunityDesktopShell from './layouts/CommunityDesktopShell';
 import DesktopLeftNav from './components/community/DesktopLeftNav';
 import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
 import VerificationPrompt from './components/community/components/VerificationPrompt';
-const PostDetail = lazy(() => import('./pages/PostDetail'));
+import PostDetail from './pages/PostDetail';
 import CommunityPostRedirect from './components/CommunityPostRedirect';
 import PostCompose from './pages/PostCompose.jsx';
 
@@ -557,14 +557,7 @@ function App() {
             {/* Community routes under staff layout */}
             <Route path="community" element={<Community />} />
             <Route path="community/post/new" element={<PostCompose />} />
-            <Route
-              path="community/post/:postId"
-              element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <PostDetail />
-                </Suspense>
-              }
-            />
+            <Route path="community/post/:postId" element={<PostDetail />} />
           </Route>
 
           {/* Staff Training Detail */}
