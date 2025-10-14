@@ -139,6 +139,37 @@ pnpm run dev
   pnpm run normalize:firebase
   ```
 
+## 2025-10 Community Feed Updates (must read)
+
+Context: A series of fixes were made to stabilize community feeds and post detail routing. Future changes should follow these rules.
+
+- Firestore imports and queries
+  - Do NOT dynamically import Firestore modules in components.
+  - Import from `firebase/firestore` at the top only and prefer aliasing to avoid name clashes, but always source the app instance from `@/lib/firebase`.
+  - Never query `users` by email from the client. Enrich only by `users/{userId}`. If email matching is needed, move it to a callable Cloud Function.
+
+- Enrichment policy (performance)
+  - Avoid N-per-post lookups on the client. Preferred: enrich at write time when the post is created, or via a Cloud Function trigger. If client enrichment is unavoidable, batch/cached lookups by userId and gate behind a strict need check.
+
+- Generic company detection
+  - Treat the following as generic: `whats-good|whatsgood|what's good community|all|public|community` and the standalone word "community" (regex: `^\s*(the\s+)?community\s*$`).
+  - Do NOT mark multi-word brand names containing "community" (e.g., "Community Coffee") as generic.
+
+- UI behavior
+  - Desktop LinkedIn card: only render hero image when images exist (no placeholders).
+  - Left nav: "New Post" button is staff-only (roles: staff, verified_staff, brand_manager, super_admin).
+
+- Routing and code-splitting
+  - `PostDetail` is imported statically to avoid Netlify chunk fetch failures; do not lazy-load unless you also validate chunk loading in preview.
+  - Remove unnecessary `Suspense` wrappers when the target component is eagerly imported.
+
+- Files touched in this iteration
+  - `src/components/community/WhatsGoodFeed.jsx`: enrichment by userId only; strict generic-company check; top-level Firestore imports; desktop LinkedIn card selection.
+  - `src/components/community/PostCardDesktopLinkedIn.jsx`: hide generic company labels; no image placeholder.
+  - `src/components/community/DesktopLeftNav.jsx`: show "New Post" only for staff roles.
+  - `src/pages/PostDetail.jsx`: static import in routes; consistent byline logic.
+  - `src/App.jsx`: static import for `PostDetail`; removed `Suspense` wrapper and unused imports.
+
 ## Linting and Quality
 Run lint and address errors before merge:
 ```sh
