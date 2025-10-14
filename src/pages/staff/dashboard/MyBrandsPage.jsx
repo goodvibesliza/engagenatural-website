@@ -17,6 +17,7 @@ import {
 import { db } from '@/lib/firebase';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 
 export default function MyBrandsPage() {
   const { user } = useAuth();
@@ -680,7 +681,11 @@ export default function MyBrandsPage() {
     return (
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
-        leftSidebar={null}
+        leftSidebar={(
+          <div className="en-cd-left-inner">
+            <LeftSidebarSearch />
+          </div>
+        )}
         center={<CenterContent />}
         rightRail={rightRail}
       />
