@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import {
@@ -15,10 +15,20 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
+import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 
 export default function MyBrandsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -411,7 +421,14 @@ export default function MyBrandsPage() {
     return follows.some(follow => follow.brandId === brandId);
   };
 
-  return (
+  const RightRail = useMemo(() => (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  ), []);
+
+  const CenterContent = () => (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">My Brands</h1>
@@ -658,4 +675,18 @@ export default function MyBrandsPage() {
       )}
     </div>
   );
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    return (
+      <DesktopLinkedInShell
+        topBar={<TopMenuBarDesktop />}
+        leftSidebar={<LeftSidebarSearch />}
+        center={<CenterContent />}
+        rightRail={<RightRail />}
+      />
+    );
+  }
+
+  return <CenterContent />;
 }

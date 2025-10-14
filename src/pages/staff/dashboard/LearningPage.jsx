@@ -15,6 +15,9 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
+import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 
 // Training card component for reuse across sections
 const TrainingCard = ({
@@ -126,6 +129,13 @@ const TrainingCardSkeleton = () => (
 export default function LearningPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   
   // States for data
   const [trainings, setTrainings] = useState([]);
@@ -145,7 +155,7 @@ export default function LearningPage() {
   
   // If not staff, show friendly message
   if (user && user.role !== 'staff') {
-    return (
+    const CenterContent = () => (
       <div className="flex flex-col items-center justify-center h-64 text-center p-8">
         <span role="img" aria-label="lock" className="text-4xl mb-4">🔒</span>
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Staff Access Only</h2>
@@ -155,6 +165,24 @@ export default function LearningPage() {
         </p>
       </div>
     );
+    const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+    const RightRail = (
+      <>
+        <div className="en-cd-right-title">Right Rail</div>
+        <div className="en-cd-right-placeholder">(reserved)</div>
+      </>
+    );
+    if (flag === 'linkedin' && isDesktop) {
+      return (
+        <DesktopLinkedInShell
+          topBar={<TopMenuBarDesktop />}
+          leftSidebar={<LeftSidebarSearch />}
+          center={<CenterContent />}
+          rightRail={RightRail}
+        />
+      );
+    }
+    return <CenterContent />;
   }
   
   // Load trainings and progress
@@ -403,7 +431,14 @@ export default function LearningPage() {
   // Loading state
   const isLoading = loadingTrainings || loadingProgress;
   
-  return (
+  const RightRail = useMemo(() => (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  ), []);
+
+  const CenterContent = () => (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Learning Dashboard</h1>
@@ -554,4 +589,18 @@ export default function LearningPage() {
       </section>
     </div>
   );
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    return (
+      <DesktopLinkedInShell
+        topBar={<TopMenuBarDesktop />}
+        leftSidebar={<LeftSidebarSearch />}
+        center={<CenterContent />}
+        rightRail={<RightRail />}
+      />
+    );
+  }
+
+  return <CenterContent />;
 }
