@@ -267,12 +267,12 @@ export default function PostCompose() {
     }
   };
 
-  const RightRail = useMemo(() => (
+  const rightRail = (
     <>
       <div className="en-cd-right-title">Right Rail</div>
       <div className="en-cd-right-placeholder">(reserved)</div>
     </>
-  ), []);
+  );
 
   const CenterContent = () => (
     <div className="min-h-screen bg-cool-gray" data-testid="postcreate-center">
@@ -400,7 +400,7 @@ export default function PostCompose() {
         topBar={<TopMenuBarDesktop />}
         leftSidebar={<LeftSidebarSearch />}
         center={<CenterContent />}
-        rightRail={<RightRail />}
+        rightRail={rightRail}
       />
     );
   }

@@ -59,6 +59,14 @@ export default function PostDetail() {
     return `${first || ''}***`;
   };
 
+  // Static right rail content for desktop shell (no hooks to preserve order)
+  const rightRail = (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  );
+
   const handleImageError = (url) => {
     if (!url) return;
     setFailedImages((prev) => {
@@ -559,13 +567,6 @@ export default function PostDetail() {
     ? post.imageUrls.filter((u) => !!u && !failedImages.has(u))
     : [];
 
-  const RightRail = useMemo(() => (
-    <>
-      <div className="en-cd-right-title">Right Rail</div>
-      <div className="en-cd-right-placeholder">(reserved)</div>
-    </>
-  ), []);
-
   const CenterContent = () => (
     <div className="min-h-screen bg-cool-gray" data-testid="postdetail-center">
       <div className="max-w-2xl mx-auto px-4 py-4">
@@ -814,7 +815,7 @@ export default function PostDetail() {
         topBar={<TopMenuBarDesktop />}
         leftSidebar={<LeftSidebarSearch />}
         center={<CenterContent />}
-        rightRail={<RightRail />}
+        rightRail={rightRail}
       />
     );
   }

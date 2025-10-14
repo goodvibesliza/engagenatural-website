@@ -421,12 +421,12 @@ export default function MyBrandsPage() {
     return follows.some(follow => follow.brandId === brandId);
   };
 
-  const RightRail = useMemo(() => (
+  const rightRail = (
     <>
       <div className="en-cd-right-title">Right Rail</div>
       <div className="en-cd-right-placeholder">(reserved)</div>
     </>
-  ), []);
+  );
 
   const CenterContent = () => (
     <div className="space-y-6" data-testid="mybrands-center">
@@ -683,7 +683,7 @@ export default function MyBrandsPage() {
         topBar={<TopMenuBarDesktop />}
         leftSidebar={<LeftSidebarSearch />}
         center={<CenterContent />}
-        rightRail={<RightRail />}
+        rightRail={rightRail}
       />
     );
   }
