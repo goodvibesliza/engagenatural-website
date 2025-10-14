@@ -1,11 +1,14 @@
 // src/pages/PostCompose.jsx
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { filterPostContent } from '../ContentModeration';
 import { useAuth } from '../contexts/auth-context';
 import MediaUploader from '../components/media/MediaUploader';
+import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
+import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 
 /**
  * Post composition UI for creating a community post.
@@ -18,6 +21,13 @@ export default function PostCompose() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, hasRole } = useAuth();
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const headingRef = useRef(null);
   const [title, setTitle] = useState('');
@@ -257,7 +267,14 @@ export default function PostCompose() {
     }
   };
 
-  return (
+  const RightRail = useMemo(() => (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  ), []);
+
+  const CenterContent = () => (
     <div className="min-h-screen bg-cool-gray">
       <div className="max-w-2xl mx-auto px-4 py-4">
         <button
@@ -375,4 +392,18 @@ export default function PostCompose() {
       </div>
     </div>
   );
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    return (
+      <DesktopLinkedInShell
+        topBar={<TopMenuBarDesktop />}
+        leftSidebar={<LeftSidebarSearch />}
+        center={<CenterContent />}
+        rightRail={<RightRail />}
+      />
+    );
+  }
+
+  return <CenterContent />;
 }

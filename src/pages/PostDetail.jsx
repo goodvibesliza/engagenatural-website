@@ -1,5 +1,5 @@
 // src/pages/PostDetail.jsx
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
 import { PRO_STUBS } from '../components/community/ProFeed';
@@ -10,6 +10,9 @@ import { filterPostContent } from '../ContentModeration';
 import ErrorBanner from '../components/community/ErrorBanner';
 import { postOpen, postLike as analyticsPostLike, postComment as analyticsPostComment, postOpenTraining } from '../lib/analytics';
 import COPY from '../i18n/community.copy';
+import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
+import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 import {
   collection,
   doc,
@@ -28,6 +31,13 @@ export default function PostDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const headingRef = useRef(null);
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState(null);
@@ -549,7 +559,14 @@ export default function PostDetail() {
     ? post.imageUrls.filter((u) => !!u && !failedImages.has(u))
     : [];
 
-  return (
+  const RightRail = useMemo(() => (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  ), []);
+
+  const CenterContent = () => (
     <div className="min-h-screen bg-cool-gray">
       <div className="max-w-2xl mx-auto px-4 py-4">
         <button
@@ -789,4 +806,18 @@ export default function PostDetail() {
       </div>
     </div>
   );
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    return (
+      <DesktopLinkedInShell
+        topBar={<TopMenuBarDesktop />}
+        leftSidebar={<LeftSidebarSearch />}
+        center={<CenterContent />}
+        rightRail={<RightRail />}
+      />
+    );
+  }
+
+  return <CenterContent />;
 }
