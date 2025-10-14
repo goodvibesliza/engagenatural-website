@@ -9,7 +9,7 @@ const TabButton = ({ id, active, onClick, children }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`px-3 h-9 min-h-[36px] rounded-md text-sm border ${
+    className={`px-3 h-9 min-h-[36px] rounded-md text-sm border focus-visible:outline focus-visible:outline-2 focus-visible:outline-deep-moss focus-visible:outline-offset-2 ${
       active ? 'bg-oat-beige text-deep-moss border-deep-moss/30' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
     }`}
     aria-pressed={active ? 'true' : 'false'}
@@ -55,26 +55,24 @@ export default function NotificationsPage() {
   ), []);
 
   const CenterContent = () => (
-    <div className="min-h-screen bg-cool-gray" data-testid="notifications-center">
-      <div className="max-w-2xl mx-auto px-4 py-4">
-        {/* Tabs */}
-        <div className="flex items-center gap-2">
-          <TabButton id="all" active={tab === 'all'} onClick={() => { setTab('all'); try { track('notifications_tab_click', { tab: 'all' }); } catch {} }}>All</TabButton>
-          <TabButton id="mentions" active={tab === 'mentions'} onClick={() => { setTab('mentions'); try { track('notifications_tab_click', { tab: 'mentions' }); } catch {} }}>Mentions</TabButton>
-          <TabButton id="system" active={tab === 'system'} onClick={() => { setTab('system'); try { track('notifications_tab_click', { tab: 'system' }); } catch {} }}>System</TabButton>
-        </div>
+    <div className="space-y-6" data-testid="notifications-center">
+      {/* Tabs */}
+      <div className="flex items-center gap-2">
+        <TabButton id="all" active={tab === 'all'} onClick={() => { setTab('all'); try { track('notifications_tab_click', { tab: 'all' }); } catch {} }}>All</TabButton>
+        <TabButton id="mentions" active={tab === 'mentions'} onClick={() => { setTab('mentions'); try { track('notifications_tab_click', { tab: 'mentions' }); } catch {} }}>Mentions</TabButton>
+        <TabButton id="system" active={tab === 'system'} onClick={() => { setTab('system'); try { track('notifications_tab_click', { tab: 'system' }); } catch {} }}>System</TabButton>
+      </div>
 
-        <div className="mt-6 bg-white rounded-lg border border-gray-200">
-          {tab === 'all' && (
-            <EmptyState icon="✅" headline="You're all caught up." copy="No new notifications right now." />
-          )}
-          {tab === 'mentions' && (
-            <EmptyState icon="@" headline="No mentions yet." copy="When someone mentions you, you'll see it here." />
-          )}
-          {tab === 'system' && (
-            <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
-          )}
-        </div>
+      <div className="bg-white rounded-lg border border-gray-200">
+        {tab === 'all' && (
+          <EmptyState icon="✅" headline="You're all caught up." copy="No new notifications right now." />
+        )}
+        {tab === 'mentions' && (
+          <EmptyState icon="@" headline="No mentions yet." copy="When someone mentions you, you'll see it here." />
+        )}
+        {tab === 'system' && (
+          <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
+        )}
       </div>
     </div>
   );

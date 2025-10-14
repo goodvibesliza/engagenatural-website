@@ -542,7 +542,7 @@ export default function LearningPage() {
               <button
                 key={tag}
                 onClick={() => toggleTag(tag)}
-                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                className={`px-3 py-1 text-xs rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
                   selectedTags.has(tag)
                     ? 'bg-brand-primary text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

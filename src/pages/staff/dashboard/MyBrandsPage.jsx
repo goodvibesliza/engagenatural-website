@@ -486,7 +486,7 @@ export default function MyBrandsPage() {
                     <button
                       onClick={() => unfollowBrand(brand.id)}
                       disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center ${
+                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
                         pendingFollowIds.has(brand.id)
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
@@ -498,7 +498,7 @@ export default function MyBrandsPage() {
                     <button
                       onClick={() => followBrand(brand)}
                       disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center ${
+                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
                         pendingFollowIds.has(brand.id)
                           ? 'bg-brand-primary/50 cursor-not-allowed'
                           : 'bg-brand-primary hover:bg-brand-primary/90'
