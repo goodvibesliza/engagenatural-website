@@ -142,7 +142,7 @@ export default function LearningPage() {
   // page_view analytics when desktop shell is active
   useEffect(() => {
     if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
-      try { track('page_view', { page: 'learning', surface: 'community_desktop' }); } catch {}
+      try { track('page_view', { page: 'learning_desktop', surface: 'community_desktop' }); } catch {}
     }
   }, [isDesktop]);
   
@@ -175,7 +175,6 @@ export default function LearningPage() {
     const CenterContent = () => (
       <div className="flex flex-col items-center justify-center h-64 text-center p-8">
         <span role="img" aria-label="lock" className="text-4xl mb-4">🔒</span>
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">Staff Access Only</h2>
         <p className="text-gray-600 max-w-md">
           This learning dashboard is available exclusively to staff members.
           If you believe you should have access, please contact support.
@@ -187,7 +186,7 @@ export default function LearningPage() {
         <DesktopLinkedInShell
           topBar={<TopMenuBarDesktop />}
           pageTitle={"Learning"}
-          leftSidebar={<LeftSidebarSearch eventContext="learning" />}
+          leftSidebar={<LeftSidebarSearch eventContext="learning_desktop" />}
           center={<CenterContent />}
           rightRail={rightRail}
         />
@@ -444,12 +443,6 @@ export default function LearningPage() {
   
   const CenterContent = () => (
     <div className="space-y-8" data-testid="learning-center">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Learning Dashboard</h1>
-        <p className="text-gray-600 mt-1">
-          Continue your learning journey and discover new training content
-        </p>
-      </div>
 
       {/* Continue Learning Section */}
       <section className="space-y-4">
@@ -528,7 +521,7 @@ export default function LearningPage() {
           <h2 className="text-xl font-semibold text-gray-900">Discover</h2>
         </div>
         
-        {/* Search and filters */}
+        {/* Search and filters (center feature search retained) */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-grow">
             <input
@@ -599,7 +592,7 @@ export default function LearningPage() {
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
         pageTitle={"Learning"}
-        leftSidebar={<LeftSidebarSearch eventContext="learning" />}
+        leftSidebar={<LeftSidebarSearch eventContext="learning_desktop" />}
         center={<CenterContent />}
         rightRail={rightRail}
       />
