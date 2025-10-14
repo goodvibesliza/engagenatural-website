@@ -13,12 +13,13 @@ function itemClasses({ isActive }) {
 }
 
 export default function TopMenuBarDesktop() {
+  const communityRef = useRef(null);
   const notifRef = useRef(null);
   const brandsRef = useRef(null);
   const learningRef = useRef(null);
 
   const onKeyDown = useCallback((e) => {
-    const items = [notifRef, brandsRef, learningRef];
+    const items = [communityRef, notifRef, brandsRef, learningRef];
     const keys = ['ArrowLeft', 'ArrowRight'];
     if (!keys.includes(e.key)) return;
     e.preventDefault();
@@ -44,6 +45,21 @@ export default function TopMenuBarDesktop() {
 
       {/* Right: nav items + avatar */}
       <div className="flex items-center gap-3">
+        <NavLink
+          to="/staff/community"
+          className={itemClasses}
+          data-testid="topbar-community"
+          aria-label="Community"
+          ref={communityRef}
+          onClick={() => {
+            try { track('topmenu_click', { item: 'community', surface: 'community_desktop' }); } catch {}
+            // eslint-disable-next-line no-console
+            console.debug?.('topmenu_click', { item: 'community', surface: 'community_desktop' });
+          }}
+          end
+        >
+          Community
+        </NavLink>
         <NavLink
           to="/staff/notifications"
           className={itemClasses}

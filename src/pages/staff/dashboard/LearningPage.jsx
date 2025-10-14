@@ -18,6 +18,7 @@ import { db } from '@/lib/firebase';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
 import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
+import { track } from '@/lib/analytics';
 
 // Training card component for reuse across sections
 const TrainingCard = ({
@@ -137,6 +138,13 @@ export default function LearningPage() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // page_view analytics when desktop shell is active
+  useEffect(() => {
+    if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
+      try { track('page_view', { page: 'learning', surface: 'community_desktop' }); } catch {}
+    }
+  }, [isDesktop]);
   
   // States for data
   const [trainings, setTrainings] = useState([]);
@@ -178,7 +186,8 @@ export default function LearningPage() {
       return (
         <DesktopLinkedInShell
           topBar={<TopMenuBarDesktop />}
-          leftSidebar={<LeftSidebarSearch />}
+          pageTitle={"Learning"}
+          leftSidebar={<LeftSidebarSearch eventContext="learning" />}
           center={<CenterContent />}
           rightRail={rightRail}
         />
@@ -589,7 +598,8 @@ export default function LearningPage() {
     return (
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
-        leftSidebar={<LeftSidebarSearch />}
+        pageTitle={"Learning"}
+        leftSidebar={<LeftSidebarSearch eventContext="learning" />}
         center={<CenterContent />}
         rightRail={rightRail}
       />

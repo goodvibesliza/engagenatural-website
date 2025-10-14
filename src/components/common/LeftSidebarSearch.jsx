@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { track } from '@/lib/analytics';
 
-export default function LeftSidebarSearch() {
+export default function LeftSidebarSearch({ eventContext }) {
   const [value, setValue] = useState('');
   const onSubmit = (e) => {
     e.preventDefault();
@@ -11,7 +12,11 @@ export default function LeftSidebarSearch() {
       <input
         type="search"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          const v = e.target.value;
+          setValue(v);
+          try { track('leftsearch_input', { surface: 'community_desktop', context: eventContext || 'unknown', length: v.length }); } catch {}
+        }}
         placeholder="Search…"
         className="w-full h-10 px-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-deep-moss"
         data-testid="leftsearch-input"

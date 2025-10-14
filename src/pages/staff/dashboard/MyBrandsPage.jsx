@@ -18,6 +18,7 @@ import { db } from '@/lib/firebase';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
 import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
+import { track } from '@/lib/analytics';
 
 export default function MyBrandsPage() {
   const { user } = useAuth();
@@ -29,6 +30,13 @@ export default function MyBrandsPage() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // page_view analytics when desktop shell is active
+  useEffect(() => {
+    if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
+      try { track('page_view', { page: 'my_brands', surface: 'community_desktop' }); } catch {}
+    }
+  }, [isDesktop]);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -681,9 +689,10 @@ export default function MyBrandsPage() {
     return (
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
+        pageTitle={"My Brands"}
         leftSidebar={(
           <div className="en-cd-left-inner">
-            <LeftSidebarSearch />
+            <LeftSidebarSearch eventContext="my_brands" />
           </div>
         )}
         center={<CenterContent />}

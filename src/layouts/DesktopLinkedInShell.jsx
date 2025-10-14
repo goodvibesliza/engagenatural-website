@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import '../styles/communityDesktop.css';
+import LeftRail from './LeftRail.jsx';
 
 /**
  * DesktopLinkedInShell – fixed header + fixed left sidebar; center-only scroll.
@@ -10,7 +11,7 @@ import '../styles/communityDesktop.css';
  * - center: main route content (only this area scrolls)
  * - rightRail: optional right rail content
  */
-export default function DesktopLinkedInShell({ topBar = null, leftSidebar = null, center = null, rightRail = null, dataTestId }) {
+export default function DesktopLinkedInShell({ topBar = null, leftSidebar = null, center = null, rightRail = null, pageTitle = undefined, dataTestId }) {
   useEffect(() => {
     const prevHtml = document.documentElement.style.overflow;
     const prevBody = document.body.style.overflow;
@@ -46,7 +47,9 @@ export default function DesktopLinkedInShell({ topBar = null, leftSidebar = null
       {/* Fixed Left Sidebar */}
       {showLeft && (
         <nav className="en-cd-left" role="navigation" aria-label="Primary navigation" data-testid="desktop-shell-leftnav">
-          {leftSidebar}
+          <LeftRail pageTitle={pageTitle}>
+            {leftSidebar}
+          </LeftRail>
         </nav>
       )}
 
