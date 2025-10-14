@@ -275,7 +275,7 @@ export default function PostCompose() {
   ), []);
 
   const CenterContent = () => (
-    <div className="min-h-screen bg-cool-gray">
+    <div className="min-h-screen bg-cool-gray" data-testid="postcreate-center">
       <div className="max-w-2xl mx-auto px-4 py-4">
         <button
           onClick={() => navigate(-1)}

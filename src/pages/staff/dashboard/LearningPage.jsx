@@ -434,7 +434,7 @@ export default function LearningPage() {
   const isLoading = loadingTrainings || loadingProgress;
   
   const CenterContent = () => (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="learning-center">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Learning Dashboard</h1>
         <p className="text-gray-600 mt-1">
