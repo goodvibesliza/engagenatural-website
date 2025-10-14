@@ -129,10 +129,11 @@ const TrainingCardSkeleton = () => (
 export default function LearningPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -153,6 +154,14 @@ export default function LearningPage() {
   // Refs for cleanup
   const unsubscribeRefs = useRef({});
   
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  const rightRail = useMemo(() => (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  ), []);
+
   // If not staff, show friendly message
   if (user && user.role !== 'staff') {
     const CenterContent = () => (
@@ -165,20 +174,13 @@ export default function LearningPage() {
         </p>
       </div>
     );
-    const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
-    const RightRail = (
-      <>
-        <div className="en-cd-right-title">Right Rail</div>
-        <div className="en-cd-right-placeholder">(reserved)</div>
-      </>
-    );
     if (flag === 'linkedin' && isDesktop) {
       return (
         <DesktopLinkedInShell
           topBar={<TopMenuBarDesktop />}
           leftSidebar={<LeftSidebarSearch />}
           center={<CenterContent />}
-          rightRail={RightRail}
+          rightRail={rightRail}
         />
       );
     }
@@ -431,13 +433,6 @@ export default function LearningPage() {
   // Loading state
   const isLoading = loadingTrainings || loadingProgress;
   
-  const RightRail = useMemo(() => (
-    <>
-      <div className="en-cd-right-title">Right Rail</div>
-      <div className="en-cd-right-placeholder">(reserved)</div>
-    </>
-  ), []);
-
   const CenterContent = () => (
     <div className="space-y-8">
       <div>
@@ -590,14 +585,13 @@ export default function LearningPage() {
     </div>
   );
 
-  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
   if (flag === 'linkedin' && isDesktop) {
     return (
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
         leftSidebar={<LeftSidebarSearch />}
         center={<CenterContent />}
-        rightRail={<RightRail />}
+        rightRail={rightRail}
       />
     );
   }

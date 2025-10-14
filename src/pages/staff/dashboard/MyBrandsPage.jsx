@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import {
   collection,
@@ -21,11 +21,11 @@ import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 
 export default function MyBrandsPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
