@@ -34,7 +34,7 @@ export default function MyBrandsPage() {
   // page_view analytics when desktop shell is active
   useEffect(() => {
     if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
-      try { track('page_view', { page: 'my_brands', surface: 'community_desktop' }); } catch {}
+      try { track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' }); } catch {}
     }
   }, [isDesktop]);
   
@@ -438,26 +438,7 @@ export default function MyBrandsPage() {
 
   const CenterContent = () => (
     <div className="space-y-6" data-testid="mybrands-center">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Brands</h1>
-        <p className="text-gray-600 mt-1">
-          Find and explore brands, access challenges and exclusive content
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="relative">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search brands by name, category, or keyword..."
-          className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-        />
-        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-          <span role="img" aria-label="search">🔍</span>
-        </div>
-      </div>
+      {/* Title moved to left rail; search lives in left rail */}
 
       {/* Brands List Section */}
       <div className="space-y-4">
@@ -468,11 +449,11 @@ export default function MyBrandsPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-primary"></div>
           </div>
         ) : brands.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {brands.map(brand => (
               <div 
                 key={brand.id} 
-                className={`border rounded-lg p-4 ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
+                className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
               >
                 <div className="flex items-start">
                   {brand.logo ? (
@@ -500,12 +481,12 @@ export default function MyBrandsPage() {
                     )}
                   </div>
                 </div>
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex items-center justify-end gap-2">
                   {isFollowing(brand.id) ? (
                     <button
                       onClick={() => unfollowBrand(brand.id)}
                       disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 ${
+                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center ${
                         pendingFollowIds.has(brand.id)
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
@@ -517,7 +498,7 @@ export default function MyBrandsPage() {
                     <button
                       onClick={() => followBrand(brand)}
                       disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 ${
+                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center ${
                         pendingFollowIds.has(brand.id)
                           ? 'bg-brand-primary/50 cursor-not-allowed'
                           : 'bg-brand-primary hover:bg-brand-primary/90'
@@ -690,11 +671,7 @@ export default function MyBrandsPage() {
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
         pageTitle={"My Brands"}
-        leftSidebar={(
-          <div className="en-cd-left-inner">
-            <LeftSidebarSearch eventContext="my_brands" />
-          </div>
-        )}
+        leftSidebar={<LeftSidebarSearch eventContext="my_brands_desktop" />}
         center={<CenterContent />}
         rightRail={rightRail}
       />

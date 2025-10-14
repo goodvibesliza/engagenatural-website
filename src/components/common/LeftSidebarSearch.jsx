@@ -15,7 +15,22 @@ export default function LeftSidebarSearch({ eventContext }) {
         onChange={(e) => {
           const v = e.target.value;
           setValue(v);
-          try { track('leftsearch_input', { surface: 'community_desktop', context: eventContext || 'unknown', length: v.length }); } catch {}
+          try {
+            // Generic input interaction for existing dashboards
+            track('leftsearch_input', {
+              surface: 'community_desktop',
+              context: eventContext || 'unknown',
+              page: eventContext || undefined,
+              length: v.length,
+            });
+            // Explicit left rail search analytics for desktop shell pages
+            track('left_rail_search', {
+              page: eventContext || 'unknown',
+              action: 'left_rail_search',
+              surface: 'community_desktop',
+              length: v.length,
+            });
+          } catch {}
         }}
         placeholder="Search…"
         className="w-full h-10 px-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-deep-moss"
