@@ -25,6 +25,7 @@ export default function MyBrandsPage() {
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
     onResize();
     window.addEventListener('resize', onResize);
@@ -34,7 +35,7 @@ export default function MyBrandsPage() {
   // page_view analytics when desktop shell is active
   useEffect(() => {
     if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
-      try { track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' }); } catch {}
+      try { track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' }); } catch (err) { console.debug?.('track page_view failed (my_brands_desktop)', err); }
     }
   }, [isDesktop]);
   

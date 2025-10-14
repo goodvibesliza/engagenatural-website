@@ -133,6 +133,7 @@ export default function LearningPage() {
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
     onResize();
     window.addEventListener('resize', onResize);
@@ -142,7 +143,7 @@ export default function LearningPage() {
   // page_view analytics when desktop shell is active
   useEffect(() => {
     if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
-      try { track('page_view', { page: 'learning_desktop', surface: 'community_desktop' }); } catch {}
+      try { track('page_view', { page: 'learning_desktop', surface: 'community_desktop' }); } catch (err) { console.debug?.('track page_view failed (learning_desktop)', err); }
     }
   }, [isDesktop]);
   
