@@ -46,15 +46,15 @@ export default function TopMenuBarDesktop() {
       {/* Right: nav items + avatar */}
       <div className="flex items-center gap-3">
         <NavLink
-          to="/staff/community"
+          to="/community"
           className={itemClasses}
           data-testid="topbar-community"
           aria-label="Community"
           ref={communityRef}
           onClick={() => {
-            try { track('topmenu_click', { item: 'community', surface: 'community_desktop' }); } catch {}
+            try { track('topmenu_click', { label: 'Community', item: 'community', surface: 'community_desktop' }); } catch {}
             // eslint-disable-next-line no-console
-            console.debug?.('topmenu_click', { item: 'community', surface: 'community_desktop' });
+            console.debug?.('topmenu_click', { label: 'Community', item: 'community', surface: 'community_desktop' });
           }}
           end
         >
