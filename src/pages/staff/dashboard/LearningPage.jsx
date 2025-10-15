@@ -17,7 +17,7 @@ import {
 import { db } from '@/lib/firebase';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
-import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
+// Using a custom left-rail discover UI for this page
 import { track } from '@/lib/analytics';
 
 // Training card component for reuse across sections
@@ -442,7 +442,7 @@ export default function LearningPage() {
   // Loading state
   const isLoading = loadingTrainings || loadingProgress;
   
-  const CenterContent = () => (
+  const CenterContent = ({ showDiscover }) => (
     <div className="space-y-8" data-testid="learning-center">
 
       {/* Continue Learning Section */}
@@ -515,90 +515,92 @@ export default function LearningPage() {
         </div>
       </section>
 
-      {/* Discover Section */}
-      <section className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <span role="img" aria-label="sparkle">✨</span>
-          <h2 className="text-xl font-semibold text-gray-900">Discover</h2>
-        </div>
-        
-        {/* Search and filters (center feature search retained) */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-grow">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search trainings..."
-              className="w-full p-2 pl-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-            />
-            <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
-              <span role="img" aria-label="search" className="text-gray-400">🔍</span>
-            </div>
+      {/* Discover results in center (render only when requested) */}
+      {showDiscover && (
+        <section className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <span role="img" aria-label="sparkle">✨</span>
+            <h2 className="text-xl font-semibold text-gray-900">Discover</h2>
           </div>
-          
-          {/* Tag filters */}
-          <div className="flex flex-wrap gap-2 items-center">
-            {allTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`px-3 py-1 text-xs rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                  selectedTags.has(tag)
-                    ? 'bg-brand-primary text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {isLoading ? (
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3, 4].map(i => <TrainingCardSkeleton key={i} />)}
+              </div>
+            ) : filteredTrainings.length > 0 ? (
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {filteredTrainings.map(training => {
+                  const progress = progressMap[training.id];
+                  return (
+                    <TrainingCard
+                      key={training.id}
+                      training={training}
+                      progress={progress}
+                      onStart={() => handleStartTraining(training)}
+                      onComplete={() => handleCompleteTraining(training)}
+                      isPending={pendingTrainingIds.has(training.id)}
+                      onOpen={() => navigate(`/staff/trainings/${training.id}`)}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>No trainings match your search</p>
+                <p className="text-sm mt-1">Try adjusting your filters</p>
+              </div>
+            )}
           </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          {isLoading ? (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3, 4].map(i => <TrainingCardSkeleton key={i} />)}
-            </div>
-          ) : filteredTrainings.length > 0 ? (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {filteredTrainings.map(training => {
-                const progress = progressMap[training.id];
-                return (
-                  <TrainingCard
-                    key={training.id}
-                    training={training}
-                    progress={progress}
-                    onStart={() => handleStartTraining(training)}
-                    onComplete={() => handleCompleteTraining(training)}
-                    isPending={pendingTrainingIds.has(training.id)}
-                    onOpen={() => navigate(`/staff/trainings/${training.id}`)}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No trainings match your search</p>
-              <p className="text-sm mt-1">Try adjusting your filters</p>
-            </div>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 
   if (flag === 'linkedin' && isDesktop) {
+    const LeftDiscover = (
+      <div className="space-y-3" data-testid="learning-left-discover">
+        <div className="text-xs uppercase text-gray-500">Discover</div>
+        <div className="relative">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search trainings..."
+            className="w-full h-10 pl-8 pr-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          />
+          <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+            <span role="img" aria-label="search" className="text-gray-400">🔍</span>
+          </div>
+        </div>
+        {/* Keyword chips */}
+        <div className="flex flex-wrap gap-2">
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => toggleTag(tag)}
+              className={`px-2.5 py-1 text-[11px] rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                selectedTags.has(tag)
+                  ? 'bg-brand-primary text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title={`Filter by ${tag}`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
     return (
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
         pageTitle={"Learning"}
-        leftSidebar={<LeftSidebarSearch eventContext="learning_desktop" />}
-        center={<CenterContent />}
+        leftSidebar={LeftDiscover}
+        center={<CenterContent showDiscover />}
         rightRail={rightRail}
       />
     );
   }
-
-  return <CenterContent />;
+  // Non-desktop fallback keeps Discover in the center
+  return <CenterContent showDiscover />;
 }
