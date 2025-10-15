@@ -558,7 +558,7 @@ export default function LearningPage() {
     </div>
   );
 
-  const LeftDiscover = useMemo(() => (
+  const LeftDiscover = (
     <div className="space-y-3" data-testid="learning-left-discover">
       <div className="text-xs uppercase text-gray-500">Discover</div>
       <div className="relative">
@@ -591,7 +591,7 @@ export default function LearningPage() {
         ))}
       </div>
     </div>
-  ), [searchQuery, selectedTags, allTags, toggleTag]);
+  );
 
   if (shouldUseDesktopShell) {
     return (

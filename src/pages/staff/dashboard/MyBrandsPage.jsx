@@ -43,7 +43,6 @@ export default function MyBrandsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [selectedBrandId, setSelectedBrandId] = useState(null);
   const [selectedBrandName, setSelectedBrandName] = useState('');
   
@@ -64,7 +63,6 @@ export default function MyBrandsPage() {
   // Load initial brands and handle search
   useEffect(() => {
     const loadBrands = async () => {
-      setSearchLoading(true);
       try {
         const brandsQuery = query(
           collection(db, 'brands'),
@@ -113,7 +111,6 @@ export default function MyBrandsPage() {
           isExample: true
         }]);
       } finally {
-        setSearchLoading(false);
         setLoading(false);
       }
     };
