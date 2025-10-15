@@ -43,7 +43,7 @@ export default function NotificationsPage() {
   // page_view when shell active
   useEffect(() => {
     if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
-      try { track('page_view', { page: 'notifications_desktop', surface: 'community_desktop' }); } catch {}
+      try { track('page_view', { page: 'notifications_desktop', surface: 'community_desktop' }); } catch (err) { console.debug?.('track page_view failed (notifications_desktop)', err); }
     }
   }, [isDesktop]);
 
@@ -58,9 +58,9 @@ export default function NotificationsPage() {
     <div className="space-y-6" data-testid="notifications-center">
       {/* Tabs */}
       <div className="flex items-center gap-2">
-        <TabButton id="all" active={tab === 'all'} onClick={() => { setTab('all'); try { track('notifications_tab_click', { tab: 'all' }); } catch {} }}>All</TabButton>
-        <TabButton id="mentions" active={tab === 'mentions'} onClick={() => { setTab('mentions'); try { track('notifications_tab_click', { tab: 'mentions' }); } catch {} }}>Mentions</TabButton>
-        <TabButton id="system" active={tab === 'system'} onClick={() => { setTab('system'); try { track('notifications_tab_click', { tab: 'system' }); } catch {} }}>System</TabButton>
+        <TabButton id="all" active={tab === 'all'} onClick={() => { setTab('all'); try { track('notifications_tab_click', { tab: 'all' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'all' }, err); } }}>All</TabButton>
+        <TabButton id="mentions" active={tab === 'mentions'} onClick={() => { setTab('mentions'); try { track('notifications_tab_click', { tab: 'mentions' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'mentions' }, err); } }}>Mentions</TabButton>
+        <TabButton id="system" active={tab === 'system'} onClick={() => { setTab('system'); try { track('notifications_tab_click', { tab: 'system' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'system' }, err); } }}>System</TabButton>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200">

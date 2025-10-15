@@ -58,6 +58,9 @@ export default function MyBrandsPage() {
   const followsUnsubRef = useRef(null);
   const detailsUnsubRefs = useRef({});
 
+  // Top 3 followed for quick-pick buttons (always run hooks at top level)
+  const topFollowButtons = useMemo(() => (follows || []).slice(0, 3), [follows]);
+
   // Load initial brands and handle search
   useEffect(() => {
     const loadBrands = async () => {
@@ -737,7 +740,6 @@ export default function MyBrandsPage() {
 
   const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
   if (flag === 'linkedin' && isDesktop) {
-    const topFollowButtons = useMemo(() => (follows || []).slice(0, 3), [follows]);
     const LeftBrandsSearch = (
       <div className="space-y-3" data-testid="mybrands-left-search">
         <div className="text-xs uppercase text-gray-500">Search Available Brands</div>

@@ -17,6 +17,7 @@ import {
 import { db } from '@/lib/firebase';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 // Using a custom left-rail discover UI for this page
 import { track } from '@/lib/analytics';
 
@@ -164,6 +165,7 @@ export default function LearningPage() {
   const unsubscribeRefs = useRef({});
   
   const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  const shouldUseDesktopShell = flag === 'linkedin' && isDesktop;
   const rightRail = useMemo(() => (
     <>
       <div className="en-cd-right-title">Right Rail</div>
@@ -182,7 +184,7 @@ export default function LearningPage() {
         </p>
       </div>
     );
-    if (flag === 'linkedin' && isDesktop) {
+    if (shouldUseDesktopShell) {
       return (
         <DesktopLinkedInShell
           topBar={<TopMenuBarDesktop />}
@@ -556,41 +558,42 @@ export default function LearningPage() {
     </div>
   );
 
-  if (flag === 'linkedin' && isDesktop) {
-    const LeftDiscover = (
-      <div className="space-y-3" data-testid="learning-left-discover">
-        <div className="text-xs uppercase text-gray-500">Discover</div>
-        <div className="relative">
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search trainings..."
-            className="w-full h-10 pl-8 pr-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
-          />
-          <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
-            <span role="img" aria-label="search" className="text-gray-400">🔍</span>
-          </div>
-        </div>
-        {/* Keyword chips */}
-        <div className="flex flex-wrap gap-2">
-          {allTags.map(tag => (
-            <button
-              key={tag}
-              onClick={() => toggleTag(tag)}
-              className={`px-2.5 py-1 text-[11px] rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                selectedTags.has(tag)
-                  ? 'bg-brand-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title={`Filter by ${tag}`}
-            >
-              {tag}
-            </button>
-          ))}
+  const LeftDiscover = useMemo(() => (
+    <div className="space-y-3" data-testid="learning-left-discover">
+      <div className="text-xs uppercase text-gray-500">Discover</div>
+      <div className="relative">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search trainings..."
+          className="w-full h-10 pl-8 pr-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+        />
+        <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+          <span role="img" aria-label="search" className="text-gray-400">🔍</span>
         </div>
       </div>
-    );
+      {/* Keyword chips */}
+      <div className="flex flex-wrap gap-2">
+        {allTags.map(tag => (
+          <button
+            key={tag}
+            onClick={() => toggleTag(tag)}
+            className={`px-2.5 py-1 text-[11px] rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+              selectedTags.has(tag)
+                ? 'bg-brand-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title={`Filter by ${tag}`}
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
+    </div>
+  ), [searchQuery, selectedTags, allTags, toggleTag]);
+
+  if (shouldUseDesktopShell) {
     return (
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
