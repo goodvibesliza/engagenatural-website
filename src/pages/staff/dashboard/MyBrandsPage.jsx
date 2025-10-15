@@ -744,7 +744,7 @@ export default function MyBrandsPage() {
           <input
             type="search"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setSelectedBrandId(null); setSelectedBrandName(''); }}
             placeholder="Search Available Brands"
             className="w-full h-10 pl-8 pr-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
           />
@@ -753,7 +753,11 @@ export default function MyBrandsPage() {
           </div>
         </div>
         {topFollowButtons.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="pt-2">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3" data-testid="mybrands-left-topbrands-header">
+              New Content Available From These Top Brands:
+            </h2>
+            <div className="flex flex-wrap gap-2">
             {topFollowButtons.map((f) => (
               <button
                 key={f.brandId}
@@ -764,6 +768,7 @@ export default function MyBrandsPage() {
                 {f.brandName}
               </button>
             ))}
+            </div>
           </div>
         )}
       </div>
