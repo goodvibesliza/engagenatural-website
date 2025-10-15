@@ -496,7 +496,7 @@ export default function MyBrandsPage() {
                     {details?.communities?.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       <Link
-                        to={`/staff/community?brand=${encodeURIComponent(follow.brandName)}`}
+                        to={`/community?tab=whatsGood&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}`}
                         onClick={() => {
                           // Track community pill click
                           if (window.analytics?.track) {
@@ -527,7 +527,7 @@ export default function MyBrandsPage() {
                           {details.communities.map(community => (
                             <Link
                               key={community.id}
-                              to={`/community/${community.id}`}
+                              to={`/community?tab=whatsGood&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}`}
                               className="block text-sm px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-brand-primary"
                             >
                               {community.name || 'Unnamed Community'}
