@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import {
@@ -17,7 +17,7 @@ import {
 import { db } from '@/lib/firebase';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
-import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
+// Custom left-rail search for brands on this page
 import { track } from '@/lib/analytics';
 
 export default function MyBrandsPage() {
@@ -44,6 +44,8 @@ export default function MyBrandsPage() {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedBrandId, setSelectedBrandId] = useState(null);
+  const [selectedBrandName, setSelectedBrandName] = useState('');
   
   // Following state
   const [follows, setFollows] = useState([]);
@@ -439,92 +441,7 @@ export default function MyBrandsPage() {
 
   const CenterContent = () => (
     <div className="space-y-6" data-testid="mybrands-center">
-      {/* Title moved to left rail; search lives in left rail */}
-
-      {/* Brands List Section */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-800">Available Brands</h2>
-        
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-primary"></div>
-          </div>
-        ) : brands.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {brands.map(brand => (
-              <div 
-                key={brand.id} 
-                className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
-              >
-                <div className="flex items-start">
-                  {brand.logo ? (
-                    <img 
-                      src={brand.logo} 
-                      alt={`${brand.name} logo`} 
-                      className="w-12 h-12 object-contain rounded mr-3"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
-                      <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{brand.name}</h3>
-                    <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
-                    {brand.category && (
-                      <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                        {brand.category}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-end gap-2">
-                  {isFollowing(brand.id) ? (
-                    <button
-                      onClick={() => unfollowBrand(brand.id)}
-                      disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                        pendingFollowIds.has(brand.id)
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                      } rounded`}
-                    >
-                      {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => followBrand(brand)}
-                      disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                        pendingFollowIds.has(brand.id)
-                          ? 'bg-brand-primary/50 cursor-not-allowed'
-                          : 'bg-brand-primary hover:bg-brand-primary/90'
-                      } text-white rounded`}
-                    >
-                      {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-500">
-              No brands found matching your search
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Try a different search term or browse all brands
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Following Section */}
+      {/* Following Section first */}
       {follows.length > 0 && (
         <div className="space-y-4 mt-8">
           <h2 className="text-xl font-semibold text-gray-800">Following</h2>
@@ -648,6 +565,158 @@ export default function MyBrandsPage() {
         </div>
       )}
 
+      {/* Selected brand or available list */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-primary"></div>
+          </div>
+        ) : (
+          <>
+            {selectedBrandId ? (
+              (() => {
+                const fallback = { id: selectedBrandId, name: selectedBrandName, description: '', category: '', logo: '' };
+                const brand = brands.find(b => b.id === selectedBrandId) || fallback;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div 
+                      key={brand.id} 
+                      className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
+                    >
+                      <div className="flex items-start">
+                        {brand.logo ? (
+                          <img 
+                            src={brand.logo} 
+                            alt={`${brand.name} logo`} 
+                            className="w-12 h-12 object-contain rounded mr-3"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
+                            <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{brand.name}</h3>
+                          <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
+                          {brand.category && (
+                            <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                              {brand.category}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-end gap-2">
+                        {isFollowing(brand.id) ? (
+                          <button
+                            onClick={() => unfollowBrand(brand.id)}
+                            disabled={pendingFollowIds.has(brand.id)}
+                            className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                              pendingFollowIds.has(brand.id)
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                            } rounded`}
+                          >
+                            {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => followBrand(brand)}
+                            disabled={pendingFollowIds.has(brand.id)}
+                            className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                              pendingFollowIds.has(brand.id)
+                                ? 'bg-brand-primary/50 cursor-not-allowed'
+                                : 'bg-brand-primary hover:bg-brand-primary/90'
+                            } text-white rounded`}
+                          >
+                            {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : brands.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {brands.map(brand => (
+                  <div 
+                    key={brand.id} 
+                    className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
+                  >
+                    <div className="flex items-start">
+                      {brand.logo ? (
+                        <img 
+                          src={brand.logo} 
+                          alt={`${brand.name} logo`} 
+                          className="w-12 h-12 object-contain rounded mr-3"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
+                          <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{brand.name}</h3>
+                        <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
+                        {brand.category && (
+                          <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                            {brand.category}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      {isFollowing(brand.id) ? (
+                        <button
+                          onClick={() => unfollowBrand(brand.id)}
+                          disabled={pendingFollowIds.has(brand.id)}
+                          className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                            pendingFollowIds.has(brand.id)
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                          } rounded`}
+                        >
+                          {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => followBrand(brand)}
+                          disabled={pendingFollowIds.has(brand.id)}
+                          className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                            pendingFollowIds.has(brand.id)
+                              ? 'bg-brand-primary/50 cursor-not-allowed'
+                              : 'bg-brand-primary hover:bg-brand-primary/90'
+                          } text-white rounded`}
+                        >
+                          {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                <p className="text-gray-500">
+                  No brands found matching your search
+                </p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Try a different search term or browse all brands
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Challenges Section - show only if no follows */}
       {follows.length === 0 && (
         <div className="space-y-4 mt-8">
@@ -668,11 +737,43 @@ export default function MyBrandsPage() {
 
   const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
   if (flag === 'linkedin' && isDesktop) {
+    const topFollowButtons = useMemo(() => (follows || []).slice(0, 3), [follows]);
+    const LeftBrandsSearch = (
+      <div className="space-y-3" data-testid="mybrands-left-search">
+        <div className="text-xs uppercase text-gray-500">Search Available Brands</div>
+        <div className="relative">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Available Brands"
+            className="w-full h-10 pl-8 pr-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          />
+          <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+            <span role="img" aria-label="search" className="text-gray-400">🔍</span>
+          </div>
+        </div>
+        {topFollowButtons.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {topFollowButtons.map((f) => (
+              <button
+                key={f.brandId}
+                onClick={() => { setSelectedBrandId(f.brandId); setSelectedBrandName(f.brandName || 'Brand'); }}
+                className="px-2.5 py-1 text-[11px] rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2"
+                title={`Show ${f.brandName}`}
+              >
+                {f.brandName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
     return (
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
         pageTitle={"My Brands"}
-        leftSidebar={<LeftSidebarSearch eventContext="my_brands_desktop" />}
+        leftSidebar={LeftBrandsSearch}
         center={<CenterContent />}
         rightRail={rightRail}
       />
