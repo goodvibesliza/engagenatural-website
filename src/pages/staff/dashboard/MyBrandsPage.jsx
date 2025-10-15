@@ -41,7 +41,8 @@ export default function MyBrandsPage() {
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [brands, setBrands] = useState([]);
+  const [allBrands, setAllBrands] = useState([]);
+  const [displayBrands, setDisplayBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBrandId, setSelectedBrandId] = useState(null);
   const [selectedBrandName, setSelectedBrandName] = useState('');
@@ -61,6 +62,7 @@ export default function MyBrandsPage() {
   const topFollowButtons = useMemo(() => (follows || []).slice(0, 3), [follows]);
 
   // Load initial brands and handle search
+  // Load base brand list once; filtering happens client-side
   useEffect(() => {
     const loadBrands = async () => {
       try {
@@ -75,48 +77,67 @@ export default function MyBrandsPage() {
           id: doc.id,
           ...doc.data()
         }));
-        
-        // Filter by search query if provided
-        const filteredBrands = searchQuery 
-          ? brandsData.filter(brand => 
-              brand.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              brand.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              brand.description?.toLowerCase().includes(searchQuery.toLowerCase())
-            )
-          : brandsData;
-        
-        // Always ensure we have at least the example brand
-        const hasExampleBrand = filteredBrands.some(b => b.id === 'calm-well-co');
-        if (!hasExampleBrand) {
-          filteredBrands.push({
+        // Always ensure we have at least the example brand in the base set
+        const hasExampleBrand = brandsData.some(b => b.id === 'calm-well-co');
+        const base = hasExampleBrand ? brandsData : [
+          ...brandsData,
+          {
             id: 'calm-well-co',
             name: 'Calm Well Co',
             description: 'Natural wellness and CBD products',
             category: 'Wellness',
             logo: 'https://placehold.co/100x100/e5e5e5/666666?text=CWC',
             isExample: true
-          });
-        }
-        
-        setBrands(filteredBrands);
+          }
+        ];
+
+        setAllBrands(base);
+        setDisplayBrands(base);
       } catch (err) {
         console.error('Error loading brands:', err);
         // Fallback to example brand if error
-        setBrands([{
+        const fallback = [{
           id: 'calm-well-co',
           name: 'Calm Well Co',
           description: 'Natural wellness and CBD products',
           category: 'Wellness',
           logo: 'https://placehold.co/100x100/e5e5e5/666666?text=CWC',
           isExample: true
-        }]);
+        }];
+        setAllBrands(fallback);
+        setDisplayBrands(fallback);
       } finally {
         setLoading(false);
       }
     };
     
     loadBrands();
-  }, [searchQuery]);
+  }, []);
+
+  // Debounced client-side filter by name/category/keywords (case-insensitive)
+  useEffect(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    const timer = setTimeout(() => {
+      if (!q) {
+        setDisplayBrands(allBrands);
+        return;
+      }
+      const filtered = allBrands.filter((brand) => {
+        const name = (brand.name || '').toLowerCase();
+        const category = (brand.category || '').toLowerCase();
+        const keywords = Array.isArray(brand.keywords)
+          ? brand.keywords.join(' ').toLowerCase()
+          : (brand.keywords || '').toLowerCase();
+        // If nothing but name exists, fallback to name-only
+        const haystack = [name];
+        if (category) haystack.push(category);
+        if (keywords) haystack.push(keywords);
+        return haystack.some((h) => h.includes(q));
+      });
+      setDisplayBrands(filtered);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchQuery, allBrands]);
   
   // Subscribe to user's followed brands
   useEffect(() => {
@@ -576,7 +597,7 @@ export default function MyBrandsPage() {
             {selectedBrandId ? (
               (() => {
                 const fallback = { id: selectedBrandId, name: selectedBrandName, description: '', category: '', logo: '' };
-                const brand = brands.find(b => b.id === selectedBrandId) || fallback;
+                const brand = allBrands.find(b => b.id === selectedBrandId) || fallback;
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     <div 
@@ -640,9 +661,9 @@ export default function MyBrandsPage() {
                   </div>
                 );
               })()
-            ) : brands.length > 0 ? (
+            ) : displayBrands.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {brands.map(brand => (
+                {displayBrands.map(brand => (
                   <div 
                     key={brand.id} 
                     className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
@@ -704,13 +725,16 @@ export default function MyBrandsPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-                <p className="text-gray-500">
-                  No brands found matching your search
-                </p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Try a different search term or browse all brands
-                </p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center space-y-3">
+                <p className="text-gray-600">No brands match your search.</p>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
+                  data-testid="mybrands-clear-empty"
+                >
+                  Clear
+                </button>
               </div>
             )}
           </>
@@ -740,18 +764,40 @@ export default function MyBrandsPage() {
     const LeftBrandsSearch = (
       <div className="space-y-3" data-testid="mybrands-left-search">
         <div className="text-xs uppercase text-gray-500">Search Available Brands</div>
-        <div className="relative">
+        <form
+          className="relative"
+          onSubmit={(e) => {
+            e.preventDefault();
+            try {
+              const q = (searchQuery || '');
+              const results = (displayBrands || []).length;
+              track('my_brands_search', { q, results });
+            } catch (err) { console.debug?.('track my_brands_search submit failed', err); }
+          }}
+        >
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setSelectedBrandId(null); setSelectedBrandName(''); }}
             placeholder="Search Available Brands"
-            className="w-full h-10 pl-8 pr-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            className="w-full h-10 pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            aria-label="Search available brands"
           />
           <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
             <span role="img" aria-label="search" className="text-gray-400">🔍</span>
           </div>
-        </div>
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); try { track('my_brands_search', { q: '', results: (allBrands || []).length }); } catch (err) { console.debug?.('track my_brands_search clear failed', err); } }}
+              className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+              data-testid="mybrands-clear-x"
+            >
+              ×
+            </button>
+          )}
+        </form>
         {topFollowButtons.length > 0 && (
           <div className="pt-2">
             <h2 className="text-sm font-semibold text-gray-900 mb-3" data-testid="mybrands-left-topbrands-header">
