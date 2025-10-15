@@ -113,6 +113,7 @@
   height: calc(100vh - var(--community-topbar-h));
   overflow-y: auto; /* only center scrolls */
   overscroll-behavior: contain; /* prevent body scroll on wheel */
+  background: #fff; /* ensure white underlay beneath scrolling content */
 }
 
 /* When no left sidebar present, let center start at left edge */
