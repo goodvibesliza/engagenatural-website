@@ -90,12 +90,23 @@ export default function PostCompose() {
           }
         } catch {}
 
-        // 3) Always include What's Good
+        // 3) If arriving with brand context (from Brand tab), add a selectable Brand community option for verified staff
+        try {
+          const sp = new URLSearchParams(location.search);
+          const ctxBrandId = sp.get('brandId');
+          const ctxBrand = sp.get('brand');
+          const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+          if (isVerifiedStaff && ctxBrandId && !items.some((c) => c.id === `brand-${ctxBrandId}`)) {
+            items.push({ id: `brand-${ctxBrandId}`, name: `Brand: ${ctxBrand || 'Brand'}`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: ctxBrand || 'Brand' });
+          }
+        } catch {}
+
+        // 4) Always include What's Good
         if (!items.some((c) => c.id === 'whats-good')) {
           items.push({ id: 'whats-good', name: "What's Good", isActive: true, isPublic: true });
         }
 
-        // 4) Include Pro Feed for verified staff even if private/missing
+        // 5) Include Pro Feed for verified staff even if private/missing
         const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
         if (isVerifiedStaff && !items.some((c) => c.id === 'pro-feed')) {
           try {
@@ -121,7 +132,9 @@ export default function PostCompose() {
         const params = new URLSearchParams(location.search);
         const cid = params.get('communityId');
         const brandIdParam = params.get('brandId');
-        if (cid && items.some((c) => c.id === cid)) {
+        if (brandIdParam && items.some((c) => c.id === `brand-${brandIdParam}`)) {
+          setSelectedCommunityId(`brand-${brandIdParam}`);
+        } else if (cid && items.some((c) => c.id === cid)) {
           setSelectedCommunityId(cid);
         } else {
           setSelectedCommunityId('whats-good');
