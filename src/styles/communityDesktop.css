@@ -50,7 +50,19 @@
   z-index: 40;
 }
 .en-cd-left-inner {
-  padding: 12px 12px 16px;
+  padding: 16px 12px 16px;
+}
+.en-cd-left-head {
+  margin-bottom: 12px;
+}
+.en-cd-left-pagetitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .en-cd-left-title {
   font-size: 12px;
@@ -101,6 +113,12 @@
   height: calc(100vh - var(--community-topbar-h));
   overflow-y: auto; /* only center scrolls */
   overscroll-behavior: contain; /* prevent body scroll on wheel */
+  background: #fff; /* ensure white underlay beneath scrolling content */
+}
+
+/* When no left sidebar present, let center start at left edge */
+.en-cd-shell.is-noleft .en-cd-center {
+  left: 0;
 }
 
 /* Center width – fluid between 680px and 760px, centered */

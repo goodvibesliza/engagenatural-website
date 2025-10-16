@@ -199,10 +199,21 @@ export default function Community({ hideTopTabs = false }) {
     );
   }, [tab, query, selectedBrands, selectedTags, availableBrands, availableTags, useLinkedInMobileSkin, navigate]);
 
-  // Track tab view on mount and whenever the tab changes
+  // Track tab view on mount and whenever the tab changes, include referral + brandId when present
   useEffect(() => {
-    communityView({ feedType: tab });
-  }, [tab]);
+    try {
+      const sp = new URLSearchParams(location.search);
+      const via = sp.get('via') || undefined;
+      const brandId = sp.get('brandId') || undefined;
+      const payload = { feedType: tab };
+      if (via) payload.via = via;
+      if (brandId) payload.brandId = brandId;
+      communityView(payload);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.debug?.('communityView analytics failed', e);
+    }
+  }, [tab, location.search]);
 
   // flag handled above
 

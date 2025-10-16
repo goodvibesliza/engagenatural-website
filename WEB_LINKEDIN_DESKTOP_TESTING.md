@@ -42,6 +42,19 @@ QA hooks (data-testid)
 - Card (desktop LinkedIn): `desktop-linkedin-postcard`, `desktop-linkedin-avatar`, `desktop-linkedin-author-name`, `desktop-linkedin-company-time`, `desktop-linkedin-hero`.
 - Actions (desktop LinkedIn): `desktop-linkedin-action-like`, `desktop-linkedin-action-comment`, `desktop-linkedin-action-training`.
 
+Appendix — Additional Routes (My Brands, Learning, Post Create/Detail)
+
+- At width 1440 with flag on, open `/staff/my-brands` and `/staff/learning`: Header/left fixed; only center scrolls; right rail visible at ≥1280, hidden below.
+- Open `/staff/community/post/new` and a real `/staff/community/post/{id}`: Same shell; deep link renders; center scroll only.
+- Left search visible and focusable; typing doesn’t break layout (no-op ok). Test ID: `leftsearch-input`.
+- Resize to <1024: Pages fall back to legacy responsive layout (shell not applied).
+
+QA hooks (pages):
+- My Brands center container: `mybrands-center`.
+- Learning center container: `learning-center`.
+- Post Create center: `postcreate-center`.
+- Post Detail center: `postdetail-center`.
+
 ---
 
 Top Menu Bar (Desktop)
@@ -54,7 +67,7 @@ Expectations
 - Clicking each item routes correctly and updates active state (aria-current="page"):
   - Notifications → `/staff/notifications`
   - My Brands → `/staff/my-brands`
-  - Learning → `/training`
+  - Learning → `/staff/learning`
 - Analytics: Dev console logs `topmenu_click` with `{ item, surface: 'community_desktop' }` on each click.
 - User menu: Click avatar (or focus then Enter) to open existing dropdown; keyboard accessible.
 - Resize below 1024px: Top menu hides and mobile/tablet layouts take over.

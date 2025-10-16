@@ -63,6 +63,7 @@ import VerificationPage from './pages/staff/dashboard/VerificationPage.jsx';
 import CommunitiesPage from './pages/staff/dashboard/CommunitiesPage.jsx';
 import MyBrandsPage from './pages/staff/dashboard/MyBrandsPage.jsx';
 import LearningPage from './pages/staff/dashboard/LearningPage.jsx';
+import NotificationsPage from './pages/staff/dashboard/NotificationsPage.jsx';
 import RequireVerification from './pages/staff/dashboard/RequireVerification.jsx';
 
 // Emulator Components
@@ -553,6 +554,10 @@ function App() {
                   <LearningPage />
                 </RequireVerification>
               }
+            />
+            <Route
+              path="notifications"
+              element={<NotificationsPage />}
             />
             {/* Community routes under staff layout */}
             <Route path="community" element={<Community />} />

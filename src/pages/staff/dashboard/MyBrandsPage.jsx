@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import {
   collection,
@@ -15,16 +15,59 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
+import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+// Custom left-rail search for brands on this page
+import { track } from '@/lib/analytics';
 
 export default function MyBrandsPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [isDesktop, setIsDesktop] = useState(false);
+  const hasSentPageViewRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      const nextIsDesktop = window.innerWidth >= 1024;
+      setIsDesktop(nextIsDesktop);
+      // Also guard against duplicate page_view in resize path
+      if (
+        import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' &&
+        nextIsDesktop &&
+        !hasSentPageViewRef.current
+      ) {
+        try {
+          track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' });
+          hasSentPageViewRef.current = true;
+        } catch (err) { console.debug?.('track page_view failed (resize path, my_brands_desktop)', err); }
+      }
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // page_view analytics when desktop shell is active
+  useEffect(() => {
+    if (
+      import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' &&
+      isDesktop &&
+      !hasSentPageViewRef.current
+    ) {
+      try {
+        track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' });
+        hasSentPageViewRef.current = true;
+      } catch (err) { console.debug?.('track page_view failed (effect path, my_brands_desktop)', err); }
+    }
+  }, [isDesktop]);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [brands, setBrands] = useState([]);
+  const [allBrands, setAllBrands] = useState([]);
+  const [displayBrands, setDisplayBrands] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedBrandId, setSelectedBrandId] = useState(null);
+  const [selectedBrandName, setSelectedBrandName] = useState('');
   
   // Following state
   const [follows, setFollows] = useState([]);
@@ -37,10 +80,13 @@ export default function MyBrandsPage() {
   const followsUnsubRef = useRef(null);
   const detailsUnsubRefs = useRef({});
 
+  // Top 3 followed for quick-pick buttons (always run hooks at top level)
+  const topFollowButtons = useMemo(() => (follows || []).slice(0, 3), [follows]);
+
   // Load initial brands and handle search
+  // Load base brand list once; filtering happens client-side
   useEffect(() => {
     const loadBrands = async () => {
-      setSearchLoading(true);
       try {
         const brandsQuery = query(
           collection(db, 'brands'),
@@ -53,49 +99,67 @@ export default function MyBrandsPage() {
           id: doc.id,
           ...doc.data()
         }));
-        
-        // Filter by search query if provided
-        const filteredBrands = searchQuery 
-          ? brandsData.filter(brand => 
-              brand.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              brand.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              brand.description?.toLowerCase().includes(searchQuery.toLowerCase())
-            )
-          : brandsData;
-        
-        // Always ensure we have at least the example brand
-        const hasExampleBrand = filteredBrands.some(b => b.id === 'calm-well-co');
-        if (!hasExampleBrand) {
-          filteredBrands.push({
+        // Always ensure we have at least the example brand in the base set
+        const hasExampleBrand = brandsData.some(b => b.id === 'calm-well-co');
+        const base = hasExampleBrand ? brandsData : [
+          ...brandsData,
+          {
             id: 'calm-well-co',
             name: 'Calm Well Co',
             description: 'Natural wellness and CBD products',
             category: 'Wellness',
             logo: 'https://placehold.co/100x100/e5e5e5/666666?text=CWC',
             isExample: true
-          });
-        }
-        
-        setBrands(filteredBrands);
+          }
+        ];
+
+        setAllBrands(base);
+        setDisplayBrands(base);
       } catch (err) {
         console.error('Error loading brands:', err);
         // Fallback to example brand if error
-        setBrands([{
+        const fallback = [{
           id: 'calm-well-co',
           name: 'Calm Well Co',
           description: 'Natural wellness and CBD products',
           category: 'Wellness',
           logo: 'https://placehold.co/100x100/e5e5e5/666666?text=CWC',
           isExample: true
-        }]);
+        }];
+        setAllBrands(fallback);
+        setDisplayBrands(fallback);
       } finally {
-        setSearchLoading(false);
         setLoading(false);
       }
     };
     
     loadBrands();
-  }, [searchQuery]);
+  }, []);
+
+  // Debounced client-side filter by name/category/keywords (case-insensitive)
+  useEffect(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    const timer = setTimeout(() => {
+      if (!q) {
+        setDisplayBrands(allBrands);
+        return;
+      }
+      const filtered = allBrands.filter((brand) => {
+        const name = (brand.name || '').toLowerCase();
+        const category = (brand.category || '').toLowerCase();
+        const keywords = Array.isArray(brand.keywords)
+          ? brand.keywords.join(' ').toLowerCase()
+          : (brand.keywords || '').toLowerCase();
+        // If nothing but name exists, fallback to name-only
+        const haystack = [name];
+        if (category) haystack.push(category);
+        if (keywords) haystack.push(keywords);
+        return haystack.some((h) => h.includes(q));
+      });
+      setDisplayBrands(filtered);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchQuery, allBrands]);
   
   // Subscribe to user's followed brands
   useEffect(() => {
@@ -184,13 +248,16 @@ export default function MyBrandsPage() {
           return bDate - aDate;
         }).slice(0, 5);
 
-        setFollowingDetails((prev) => ({
-          ...prev,
-          [brandId]: {
-            ...prev[brandId],
-            communities: merged,
-          },
-        }));
+        setFollowingDetails((prev) => {
+          const prevBrand = prev?.[brandId] ?? {};
+          return {
+            ...prev,
+            [brandId]: {
+              ...prevBrand,
+              communities: merged,
+            },
+          };
+        });
       };
 
       // Top-level communities listener
@@ -249,13 +316,16 @@ export default function MyBrandsPage() {
             ...doc.data()
           }));
           
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              trainings: trainingsData
-            }
-          }));
+          setFollowingDetails(prev => {
+            const prevBrand = prev?.[brandId] ?? {};
+            return {
+              ...prev,
+              [brandId]: {
+                ...prevBrand,
+                trainings: trainingsData
+              }
+            };
+          });
         },
         (err) => {
           console.error(`Error loading trainings for ${brandId}:`, err);
@@ -277,25 +347,31 @@ export default function MyBrandsPage() {
             ...doc.data()
           }));
           
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              challenges: challengesData,
-              loading: false
-            }
-          }));
+          setFollowingDetails(prev => {
+            const prevBrand = prev?.[brandId] ?? {};
+            return {
+              ...prev,
+              [brandId]: {
+                ...prevBrand,
+                challenges: challengesData,
+                loading: false
+              }
+            };
+          });
         },
         (err) => {
           console.error(`Error loading challenges for ${brandId}:`, err);
           // Still mark as loaded even if there was an error
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              loading: false
-            }
-          }));
+          setFollowingDetails(prev => {
+            const prevBrand = prev?.[brandId] ?? {};
+            return {
+              ...prev,
+              [brandId]: {
+                ...prevBrand,
+                loading: false
+              }
+            };
+          });
         }
       );
     });
@@ -411,113 +487,16 @@ export default function MyBrandsPage() {
     return follows.some(follow => follow.brandId === brandId);
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Brands</h1>
-        <p className="text-gray-600 mt-1">
-          Find and explore brands, access challenges and exclusive content
-        </p>
-      </div>
+  const rightRail = (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  );
 
-      {/* Search Bar */}
-      <div className="relative">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search brands by name, category, or keyword..."
-          className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-        />
-        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-          <span role="img" aria-label="search">🔍</span>
-        </div>
-      </div>
-
-      {/* Brands List Section */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-800">Available Brands</h2>
-        
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-primary"></div>
-          </div>
-        ) : brands.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {brands.map(brand => (
-              <div 
-                key={brand.id} 
-                className={`border rounded-lg p-4 ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
-              >
-                <div className="flex items-start">
-                  {brand.logo ? (
-                    <img 
-                      src={brand.logo} 
-                      alt={`${brand.name} logo`} 
-                      className="w-12 h-12 object-contain rounded mr-3"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
-                      <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{brand.name}</h3>
-                    <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
-                    {brand.category && (
-                      <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                        {brand.category}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="mt-3 flex justify-end">
-                  {isFollowing(brand.id) ? (
-                    <button
-                      onClick={() => unfollowBrand(brand.id)}
-                      disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 ${
-                        pendingFollowIds.has(brand.id)
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                      } rounded`}
-                    >
-                      {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => followBrand(brand)}
-                      disabled={pendingFollowIds.has(brand.id)}
-                      className={`text-sm px-3 py-1.5 ${
-                        pendingFollowIds.has(brand.id)
-                          ? 'bg-brand-primary/50 cursor-not-allowed'
-                          : 'bg-brand-primary hover:bg-brand-primary/90'
-                      } text-white rounded`}
-                    >
-                      {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-500">
-              No brands found matching your search
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Try a different search term or browse all brands
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Following Section */}
+  const CenterContent = () => (
+    <div className="space-y-6" data-testid="mybrands-center">
+      {/* Following Section first */}
       {follows.length > 0 && (
         <div className="space-y-4 mt-8">
           <h2 className="text-xl font-semibold text-gray-800">Following</h2>
@@ -551,7 +530,7 @@ export default function MyBrandsPage() {
                     {details?.communities?.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       <Link
-                        to={`/staff/community?brand=${encodeURIComponent(follow.brandName)}`}
+                        to={`/community?tab=whatsGood&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}`}
                         onClick={() => {
                           // Track community pill click
                           if (window.analytics?.track) {
@@ -582,7 +561,7 @@ export default function MyBrandsPage() {
                           {details.communities.map(community => (
                             <Link
                               key={community.id}
-                              to={`/community/${community.id}`}
+                              to={`/community?tab=whatsGood&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}`}
                               className="block text-sm px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-brand-primary"
                             >
                               {community.name || 'Unnamed Community'}
@@ -641,6 +620,161 @@ export default function MyBrandsPage() {
         </div>
       )}
 
+      {/* Selected brand or available list */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-primary"></div>
+          </div>
+        ) : (
+          <>
+            {selectedBrandId ? (
+              (() => {
+                const fallback = { id: selectedBrandId, name: selectedBrandName, description: '', category: '', logo: '' };
+                const brand = allBrands.find(b => b.id === selectedBrandId) || fallback;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div 
+                      key={brand.id} 
+                      className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
+                    >
+                      <div className="flex items-start">
+                        {brand.logo ? (
+                          <img 
+                            src={brand.logo} 
+                            alt={`${brand.name} logo`} 
+                            className="w-12 h-12 object-contain rounded mr-3"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
+                            <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{brand.name}</h3>
+                          <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
+                          {brand.category && (
+                            <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                              {brand.category}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-end gap-2">
+                        {isFollowing(brand.id) ? (
+                          <button
+                            onClick={() => unfollowBrand(brand.id)}
+                            disabled={pendingFollowIds.has(brand.id)}
+                            className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                              pendingFollowIds.has(brand.id)
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                            } rounded`}
+                          >
+                            {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => followBrand(brand)}
+                            disabled={pendingFollowIds.has(brand.id)}
+                            className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                              pendingFollowIds.has(brand.id)
+                                ? 'bg-brand-primary/50 cursor-not-allowed'
+                                : 'bg-brand-primary hover:bg-brand-primary/90'
+                            } text-white rounded`}
+                          >
+                            {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : displayBrands.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {displayBrands.map(brand => (
+                  <div 
+                    key={brand.id} 
+                    className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
+                  >
+                    <div className="flex items-start">
+                      {brand.logo ? (
+                        <img 
+                          src={brand.logo} 
+                          alt={`${brand.name} logo`} 
+                          className="w-12 h-12 object-contain rounded mr-3"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
+                          <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{brand.name}</h3>
+                        <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
+                        {brand.category && (
+                          <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                            {brand.category}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      {isFollowing(brand.id) ? (
+                        <button
+                          onClick={() => unfollowBrand(brand.id)}
+                          disabled={pendingFollowIds.has(brand.id)}
+                          className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                            pendingFollowIds.has(brand.id)
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                          } rounded`}
+                        >
+                          {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => followBrand(brand)}
+                          disabled={pendingFollowIds.has(brand.id)}
+                          className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                            pendingFollowIds.has(brand.id)
+                              ? 'bg-brand-primary/50 cursor-not-allowed'
+                              : 'bg-brand-primary hover:bg-brand-primary/90'
+                          } text-white rounded`}
+                        >
+                          {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center space-y-3">
+                <p className="text-gray-600">No brands match your search.</p>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
+                  data-testid="mybrands-clear-empty"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Challenges Section - show only if no follows */}
       {follows.length === 0 && (
         <div className="space-y-4 mt-8">
@@ -658,4 +792,77 @@ export default function MyBrandsPage() {
       )}
     </div>
   );
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    const LeftBrandsSearch = (
+      <div className="space-y-3" data-testid="mybrands-left-search">
+        <div className="text-xs uppercase text-gray-500">Search Available Brands</div>
+        <form
+          className="relative"
+          onSubmit={(e) => {
+            e.preventDefault();
+            try {
+              const q = (searchQuery || '');
+              const results = (displayBrands || []).length;
+              track('my_brands_search', { q, results });
+            } catch (err) { console.debug?.('track my_brands_search submit failed', err); }
+          }}
+        >
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setSelectedBrandId(null); setSelectedBrandName(''); }}
+            placeholder="Search Available Brands"
+            className="w-full h-10 pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            aria-label="Search available brands"
+          />
+          <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+            <span role="img" aria-label="search" className="text-gray-400">🔍</span>
+          </div>
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); try { track('my_brands_search', { q: '', results: (allBrands || []).length }); } catch (err) { console.debug?.('track my_brands_search clear failed', err); } }}
+              className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+              data-testid="mybrands-clear-x"
+            >
+              ×
+            </button>
+          )}
+        </form>
+        {topFollowButtons.length > 0 && (
+          <div className="pt-2">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3" data-testid="mybrands-left-topbrands-header">
+              New Content Available From These Top Brands:
+            </h2>
+            <div className="flex flex-wrap gap-2">
+            {topFollowButtons.map((f) => (
+              <button
+                key={f.brandId}
+                onClick={() => { setSelectedBrandId(f.brandId); setSelectedBrandName(f.brandName || 'Brand'); }}
+                className="px-2.5 py-1 text-[11px] rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2"
+                title={`Show ${f.brandName}`}
+              >
+                {f.brandName}
+              </button>
+            ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+    return (
+      <DesktopLinkedInShell
+        topBar={<TopMenuBarDesktop />}
+        pageTitle={"My Brands"}
+        leftSidebar={LeftBrandsSearch}
+        center={<CenterContent />}
+        rightRail={rightRail}
+      />
+    );
+  }
+
+  return <CenterContent />;
 }
