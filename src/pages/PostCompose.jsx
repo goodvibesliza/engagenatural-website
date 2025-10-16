@@ -98,11 +98,13 @@ export default function PostCompose() {
           const sp = new URLSearchParams(location.search);
           const ctxBrandId = sp.get('brandId');
           const ctxBrand = sp.get('brand');
-          const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+          const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
           if (isVerifiedStaff && ctxBrandId && !items.some((c) => c.id === `brand-${ctxBrandId}`)) {
             items.push({ id: `brand-${ctxBrandId}`, name: `Brand: ${ctxBrand || 'Brand'}`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: ctxBrand || 'Brand' });
           }
-        } catch {}
+        } catch {
+          // ignore URL parsing errors in brand context; non-fatal
+        }
 
         // 4) Always include What's Good
         if (!items.some((c) => c.id === 'whats-good')) {
@@ -110,7 +112,7 @@ export default function PostCompose() {
         }
 
         // 5) Include Pro Feed for verified staff even if private/missing
-        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
         if (isVerifiedStaff && !items.some((c) => c.id === 'pro-feed')) {
           try {
             const proRef = doc(db, 'communities', 'pro-feed');
