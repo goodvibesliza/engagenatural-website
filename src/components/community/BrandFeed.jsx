@@ -11,7 +11,7 @@ import { getFlag } from '../../lib/featureFlags.js';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
 
-export default function BrandFeed({ brandId, brandName = 'Brand' }) {
+export default function BrandFeed({ brandId, brandName = 'Brand', onFiltersChange }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -81,6 +81,12 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
         }));
 
           setPosts(enriched);
+          // Surface filters upward so the left rail can reflect current brand/tags
+          try {
+            const brands = brandName ? [brandName] : [];
+            const tags = Array.from(new Set(enriched.flatMap(p => Array.isArray(p.tags) ? p.tags : []).filter(Boolean)));
+            onFiltersChange?.({ brands, tags, tagCounts: {} });
+          } catch {}
           setLoading(false);
         },
         (err) => {

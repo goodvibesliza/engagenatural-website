@@ -480,7 +480,11 @@ export default function Community({ hideTopTabs = false }) {
                 />
               </Suspense>
             ) : (
-              <BrandFeed brandId={brandContext.brandId} brandName={brandContext.brand || 'Brand'} />
+              <BrandFeed
+                brandId={brandContext.brandId}
+                brandName={brandContext.brand || 'Brand'}
+                onFiltersChange={handleFiltersChange}
+              />
             )}
           </section>
         </div>

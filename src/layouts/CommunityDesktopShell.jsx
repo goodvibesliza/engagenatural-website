@@ -26,6 +26,8 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
   const defaultLeft = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab') || 'whatsGood';
+    const brand = params.get('brand') || '';
+    const brandId = params.get('brandId') || '';
     const go = (nextTab) => {
       const p = new URLSearchParams(location.search);
       p.set('tab', nextTab);
@@ -58,6 +60,27 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
               Pro
             </a>
           </li>
+          {(brandId || brand) && (
+            <li>
+              <a
+                href={`/community?tab=brand${brandId ? `&brandId=${encodeURIComponent(brandId)}` : ''}${brand ? `&brand=${encodeURIComponent(brand)}` : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  const p = new URLSearchParams(location.search);
+                  p.set('tab', 'brand');
+                  if (brandId) p.set('brandId', brandId); else p.delete('brandId');
+                  if (brand) p.set('brand', brand); else p.delete('brand');
+                  navigate({ pathname: location.pathname, search: p.toString() });
+                }}
+                className={`en-cd-left-link ${tab === 'brand' ? 'is-active' : ''}`}
+                aria-current={tab === 'brand' ? 'page' : undefined}
+                data-testid="left-nav-brand"
+                title={brand ? `Brand: ${brand}` : 'Brand'}
+              >
+                {brand ? `Brand: ${brand}` : 'Brand'}
+              </a>
+            </li>
+          )}
         </ul>
       </div>
     );
