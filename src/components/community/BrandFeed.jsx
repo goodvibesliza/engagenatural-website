@@ -1,7 +1,7 @@
 // src/components/community/BrandFeed.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import PostCard from './PostCard';
 import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
@@ -51,6 +51,8 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
             createdAt: data?.createdAt,
             isBlocked: data?.isBlocked === true,
             needsReview: data?.needsReview === true,
+            commentCount: Number(data?.commentCount || 0),
+            likeCount: Number(data?.likeCount || 0),
           };
         });
 
@@ -66,17 +68,13 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
                   const u = userDoc.data() || {};
                   authorPhotoURL = u.profileImage || u.photoURL || '';
                 }
-              } catch {}
+              } catch (err) { console.debug?.('BrandFeed author lookup failed', err); }
             }
-            const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
-            const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
-            const [commentsSnap, likesSnap] = await Promise.all([
-              getCountFromServer(commentsQ),
-              getCountFromServer(likesQ)
-            ]);
-            return { ...post, authorPhotoURL, commentCount: commentsSnap.data().count || 0, likeCount: likesSnap.data().count || 0 };
-          } catch {
-            return { ...post, commentCount: 0, likeCount: 0 };
+            // Counts are read from denormalized fields on the post
+            return { ...post, authorPhotoURL };
+          } catch (err) {
+            console.debug?.('BrandFeed enrich failed', err);
+            return { ...post };
           }
         }));
 
@@ -87,7 +85,7 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
       setError('Failed to load brand posts.');
       setLoading(false);
     }
-    return () => { try { unsub(); } catch {} };
+    return () => { try { unsub(); } catch (err) { console.debug?.('BrandFeed unsubscribe failed', err); } };
   }, [db, brandId]);
 
   if (loading) {

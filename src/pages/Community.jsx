@@ -139,7 +139,9 @@ export default function Community({ hideTopTabs = false }) {
           const saved = localStorage.getItem('community.feed.selectedTab');
           if (saved === 'whatsGood' || saved === 'pro') def = saved;
         }
-      } catch {}
+      } catch (e) {
+        /* ignore localStorage read errors */
+      }
       sp.set('tab', def);
       navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
     }
@@ -167,7 +169,9 @@ export default function Community({ hideTopTabs = false }) {
       if (!brandContext.has && (tab === 'whatsGood' || tab === 'pro')) {
         localStorage.setItem('community.feed.selectedTab', tab);
       }
-    } catch {}
+    } catch (e) {
+      /* ignore localStorage write errors */
+    }
   }, [tab, brandContext.has]);
 
   // Broadcast tag statistics for shell left-nav (event-based wiring)
@@ -209,7 +213,7 @@ export default function Community({ hideTopTabs = false }) {
           <FeedTabs
             value={tab}
             onChange={(t) => {
-              try { track('community_tab_click', { group: 'feed', subtab: t }); } catch {}
+              try { track('community_tab_click', { group: 'feed', subtab: t }); } catch (e) { /* ignore analytics */ }
               setTab(t);
             }}
             brandTab={brandTab}
@@ -341,8 +345,9 @@ export default function Community({ hideTopTabs = false }) {
       });
       setIsFollowingBrand(true);
       const allowedRole = hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
-      setBrandTabAllowed((isVerified === true) && allowedRole);
-      try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch {}
+      const allow = (isVerified === true) && allowedRole && !!brandContext.brandId && brandContext.has;
+      setBrandTabAllowed(allow);
+      try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch (e) { /* ignore analytics */ }
     } catch (e) {
       // intentionally silent on follow failure
     }
@@ -361,7 +366,7 @@ export default function Community({ hideTopTabs = false }) {
               {isVerified !== true && (
                 <button
                   type="button"
-                  onClick={() => { try { track('community_cta_click', { type: 'verify', brandId: brandContext.brandId }); } catch {}; navigate('/staff/verification'); }}
+                  onClick={() => { try { track('community_cta_click', { type: 'verify', brandId: brandContext.brandId }); } catch (e) { /* ignore analytics */ } navigate('/staff/verification'); }}
                   className="px-3 py-1.5 text-sm bg-deep-moss text-white rounded hover:bg-sage-dark"
                 >
                   Verify me
