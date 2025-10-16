@@ -195,6 +195,43 @@ Typical fixes:
 - [ ] No remaining relative imports to `lib/firebase`
 - [ ] Netlify deploy preview passes
 
+## Analytics & PII Guidance (critical)
+
+Current state
+- `src/lib/analytics.js` is a thin wrapper that logs in development; no external analytics SDK is wired yet. This is good for now but risky once a vendor is added.
+- Several places include raw, stable identifiers (e.g., `user.uid`, `user_id`) in analytics payloads. Examples (non‑exhaustive; grep confirms multiple occurrences):
+  - `src/pages/brands/CommunityEditor.jsx`
+  - `src/pages/brands/CommunitiesList.jsx`
+  - `src/pages/staff/dashboard/MyBrandsPage.jsx`
+
+Risks
+- When a real analytics vendor is connected (GA4, Segment, etc.), sending raw PII (UID/email/phone) without consent/anonymization can create compliance issues.
+
+Policy (do this before enabling any vendor)
+- Do NOT send PII to analytics. Specifically, never include: `user_id`, `uid`, `email`, `phone` in event payloads.
+- Use one of the following instead:
+  1) Anonymous ID: Generate a stable, app‑scoped anonymous ID per device/session (e.g., UUID stored in localStorage), and send that instead of UID.
+  2) Hashed ID: If a stable user correlation is required, send a salted hash: `sha256(SALT + uid)`. Keep `SALT` in env (e.g., `VITE_ANALYTICS_SALT`) and rotate if needed. Never send the plaintext UID.
+- Consent gate: Track only non‑PII by default. Add an explicit consent flag (cookie/localStorage/state). Only after consent: allow anonymized or hashed identifiers.
+- Minimum viable payloads: Prefer event context (page, surface, action, label) over identity.
+
+Implementation plan
+1) Create helpers in `src/lib/analytics.js`:
+   - `getAnonymousId()` → returns a stable UUIDv4 stored in localStorage (`en_anon_id`).
+   - `getHashedId(uid)` → returns `sha256(SALT + uid)` if `VITE_ANALYTICS_SALT` is present; otherwise returns `undefined`.
+   - `shouldSendIdentity()` → returns `true` only when consent is recorded.
+2) Update all event builders to strip `user.uid`/`user_id`. If identity is needed and `shouldSendIdentity()` is true, add `anonymousId` or `hashedId` only.
+3) Repo‑wide sweep: replace any event payloads that include raw UID/email/phone.
+   - Grep: `user\.uid|user_id\s*:`
+4) Add unit/dev tests for analytics payload shape (no `uid`, `user_id`, `email`, `phone`).
+
+Notes for reviewers
+- Changes today updated `communityView` to accept `{ feedType, via, brandId }` and forward the full payload, and My Brands now de‑duplicates `page_view` on resize. Before enabling external analytics, complete the PII hardening above.
+
+Future‑proofing
+- Centralize all analytics event assembly in `src/lib/analytics.js`. Components should call small wrappers (e.g., `communityView`, `topMenuClick`) rather than constructing payloads inline.
+- Consider adding an ESLint rule or code mod to flag any `user.uid` usage inside analytics calls.
+
 ## Rollback
 If needed, revert the following commits on this branch:
 - <latest> – CommunitiesManager metrics and Refresh wiring
