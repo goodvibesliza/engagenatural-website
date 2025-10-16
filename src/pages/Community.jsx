@@ -151,6 +151,7 @@ export default function Community({ hideTopTabs = false }) {
   // When the UI tab changes, reflect it in URL to keep selection highlighted
   // Use a ref to avoid unnecessary navigations and safely include all deps
   const lastAppliedRef = useRef('');
+  const prevBrandAccessRef = useRef(false);
   useEffect(() => {
     const key = `${location.pathname}|${tab}`;
     if (lastAppliedRef.current === key) return;
@@ -329,15 +330,19 @@ export default function Community({ hideTopTabs = false }) {
     return () => { active = false; };
   }, [db, isVerified, hasRole, user?.uid, brandContext.has, brandContext.brandId]);
 
-  // Auto-select Brand tab when allowed and brand context present
+  // Auto-select Brand tab only when access transitions from false -> true
   useEffect(() => {
-    if (brandTabAllowed && brandContext.has && tab !== 'brand') {
+    const allowedNow = Boolean(brandTabAllowed && brandContext.has);
+    const allowedPrev = prevBrandAccessRef.current;
+    if (allowedNow && !allowedPrev) {
       setTab('brand');
       const sp = new URLSearchParams(location.search);
       sp.set('tab', 'brand');
       navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
     }
-  }, [brandTabAllowed, brandContext.has, tab, navigate, location.pathname, location.search]);
+    prevBrandAccessRef.current = allowedNow;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandTabAllowed, brandContext.has]);
 
   // Reset CTA dismissal when switching to a new brand context
   useEffect(() => {
