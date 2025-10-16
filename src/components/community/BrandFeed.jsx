@@ -94,7 +94,7 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
       setLoading(false);
     }
     return () => { try { unsub(); } catch (err) { console.debug?.('BrandFeed unsubscribe failed', err); } };
-  }, [db, brandId]);
+  }, [db, brandId, brandName]);
 
   if (loading) {
     return (

@@ -327,7 +327,7 @@ export default function Community({ hideTopTabs = false }) {
     };
     run();
     return () => { active = false; };
-  }, [isVerified, hasRole, user?.uid, brandContext.has, brandContext.brandId]);
+  }, [db, isVerified, hasRole, user?.uid, brandContext.has, brandContext.brandId]);
 
   // Auto-select Brand tab when allowed and brand context present
   useEffect(() => {
