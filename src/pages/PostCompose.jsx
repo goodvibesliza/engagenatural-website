@@ -120,10 +120,18 @@ export default function PostCompose() {
 
         const params = new URLSearchParams(location.search);
         const cid = params.get('communityId');
+        const brandIdParam = params.get('brandId');
+        const brandNameParam = params.get('brand');
         if (cid && items.some((c) => c.id === cid)) {
           setSelectedCommunityId(cid);
         } else {
           setSelectedCommunityId('whats-good');
+        }
+
+        // If brand context provided, keep it so created post is brand-scoped even if user profile lacks brand
+        if (brandIdParam) {
+          // store via ref-less local vars; used during submit when building the doc
+          // We piggyback on location.search later in handleSubmit.
         }
       } catch (err) {
         // Fallback: ensure both What's Good and Pro Feed appear for verified staff
@@ -219,6 +227,14 @@ export default function PostCompose() {
           brandId = u.brandId || u.brand?.id;
           brandName = u.brandName || u.brand?.name;
         }
+      } catch {}
+      // Fallback to brand context passed via URL (from Brand sub-tab)
+      try {
+        const sp = new URLSearchParams(location.search);
+        const qBrandId = sp.get('brandId');
+        const qBrand = sp.get('brand');
+        if (!brandId && qBrandId) brandId = qBrandId;
+        if (!brandName && qBrand) brandName = qBrand;
       } catch {}
       const tags = extractTags(title, moderatedBody);
       const ref = await addDoc(collection(db, 'community_posts'), {

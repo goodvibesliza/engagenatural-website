@@ -201,8 +201,8 @@ export default function Community({ hideTopTabs = false }) {
       const str = String(s || '');
       return str.length > n ? `${str.slice(0, n - 1)}…` : str;
     };
-    const brandTab = brandTabAllowed && brandContext.has && brandContext.brand
-      ? { show: true, label: `Brand: ${truncate(brandContext.brand, 20)}`, fullLabel: `Brand: ${brandContext.brand}` }
+    const brandTab = brandTabAllowed && brandContext.has
+      ? { show: true, label: `Brand: ${truncate(brandContext.brand || 'Brand', 20)}`, fullLabel: `Brand: ${brandContext.brand || 'Brand'}` }
       : { show: false };
     return (
       <div className="bg-white border-b border-gray-200">
@@ -226,7 +226,13 @@ export default function Community({ hideTopTabs = false }) {
               <div className="px-4 pt-3">
                 <button
                   type="button"
-                  onClick={() => navigate('/staff/community/post/new')}
+                  onClick={() => {
+                    if (tab === 'brand' && brandContext.brandId) {
+                      navigate(`/staff/community/post/new?brandId=${encodeURIComponent(brandContext.brandId)}&brand=${encodeURIComponent(brandContext.brand || 'Brand')}&via=brand_tab`);
+                    } else {
+                      navigate('/staff/community/post/new');
+                    }
+                  }}
                   className="mb-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
                 >
                   New Post
@@ -425,7 +431,13 @@ export default function Community({ hideTopTabs = false }) {
               />
               <button
                 type="button"
-                onClick={() => navigate('/staff/community/post/new')}
+                onClick={() => {
+                  if (tab === 'brand' && brandContext.brandId) {
+                    navigate(`/staff/community/post/new?brandId=${encodeURIComponent(brandContext.brandId)}&brand=${encodeURIComponent(brandContext.brand || 'Brand')}&via=brand_tab`);
+                  } else {
+                    navigate('/staff/community/post/new');
+                  }
+                }}
                 className="mt-3 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-brand-primary bg-brand-primary text-primary text-sm hover:opacity-90"
               >
                 New Post
