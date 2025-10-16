@@ -31,7 +31,9 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
         where('brandId', '==', brandId),
         orderBy('createdAt', 'desc')
       );
-      unsub = onSnapshot(q, async (snap) => {
+      unsub = onSnapshot(
+        q,
+        async (snap) => {
         const base = snap.docs.map((d) => {
           const data = d.data();
           const imgs = Array.isArray(data?.imageUrls)
@@ -78,9 +80,15 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
           }
         }));
 
-        setPosts(enriched);
-        setLoading(false);
-      });
+          setPosts(enriched);
+          setLoading(false);
+        },
+        (err) => {
+          console.debug?.('BrandFeed snapshot error', err);
+          setError('Failed to load brand posts. An index may be required.');
+          setLoading(false);
+        }
+      );
     } catch (e) {
       setError('Failed to load brand posts.');
       setLoading(false);
