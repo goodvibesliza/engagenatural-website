@@ -126,7 +126,9 @@ export default function DesktopLeftNav() {
               type="button"
               onClick={() => {
                 if (tab === 'brand' && brandId) {
-                  navigate(`/staff/community/post/new?brandId=${encodeURIComponent(brandId)}&brand=${encodeURIComponent(brand || 'Brand')}&via=brand_tab`);
+                  let url = `/staff/community/post/new?brandId=${encodeURIComponent(brandId)}&via=brand_tab`;
+                  if (brand) url += `&brand=${encodeURIComponent(brand)}`;
+                  navigate(url);
                 } else {
                   navigate('/staff/community/post/new');
                 }
