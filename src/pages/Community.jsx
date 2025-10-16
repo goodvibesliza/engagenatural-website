@@ -14,6 +14,9 @@ import SkeletonPostCard from '../components/community/SkeletonPostCard';
 import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied } from '../lib/analytics';
 import './community.css';
+import { useAuth } from '../contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Render the Community page with two feed tabs ("Whats Good" and "Pro"), filters, navigation, and lazy-loaded Pro content.
@@ -35,6 +38,12 @@ export default function Community({ hideTopTabs = false }) {
   const [tagCounts, setTagCounts] = useState({});
   const [availableBrands, setAvailableBrands] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
+  const { isVerified, hasRole, user } = useAuth();
+  const [brandContext, setBrandContext] = useState({ has: false, brand: '', brandId: '' });
+  const [isFollowingBrand, setIsFollowingBrand] = useState(false);
+  const [brandTabAllowed, setBrandTabAllowed] = useState(false);
+  const [ctaMsg, setCtaMsg] = useState('');
+  const [ctaDismissed, setCtaDismissed] = useState(false);
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
@@ -64,6 +73,7 @@ export default function Community({ hideTopTabs = false }) {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const brandParam = searchParams.get('brand');
+    const brandIdParam = searchParams.get('brandId');
     const qParam = searchParams.get('q') || '';
     const tagsParam = searchParams.get('tags') || '';
     const urlTags = tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -73,6 +83,9 @@ export default function Community({ hideTopTabs = false }) {
       setSelectedBrands([brandParam]);
       filterApplied({ brands: [brandParam], tags: [], query: '' });
     }
+
+    // Track brand context presence for conditional Brand tab
+    setBrandContext({ has: !!(brandParam || brandIdParam), brand: brandParam || '', brandId: brandIdParam || '' });
 
     if (qParam !== lastSyncedQueryRef.current) {
       setQuery(qParam);
@@ -85,6 +98,22 @@ export default function Community({ hideTopTabs = false }) {
     }
   }, [location.search, selectedBrands]);
 
+  // Router state fallback: allow navigation via state { brand, brandName, brandId, tab }
+  useEffect(() => {
+    // Only apply when no brand context provided via URL
+    if (brandContext.has) return;
+    const st = location.state || {};
+    const brandName = st.brandName || st.brand || '';
+    const brandId = st.brandId || '';
+    const tabState = st.tab || '';
+    if (!brandName && !brandId && !tabState) return;
+    const sp = new URLSearchParams(location.search);
+    if (brandName) sp.set('brand', brandName);
+    if (brandId) sp.set('brandId', brandId);
+    if (tabState) sp.set('tab', tabState);
+    navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+  }, [location.state, brandContext.has]);
+
   // Sync tab with URL (?tab=whatsGood|pro) to preserve deep linking and left-nav highlight
   useEffect(() => {
     const sp = new URLSearchParams(location.search);
@@ -93,13 +122,28 @@ export default function Community({ hideTopTabs = false }) {
       setTab('pro');
     } else if (t === 'whatsGood' && tab !== 'whatsGood') {
       setTab('whatsGood');
+    } else if (t === 'brand') {
+      if (brandTabAllowed && tab !== 'brand') {
+        setTab('brand');
+      } else if (!brandTabAllowed) {
+        // normalize to whatsGood if brand tab not allowed
+        sp.set('tab', 'whatsGood');
+        navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+      }
     } else if (!t) {
-      // default param for clarity
-      sp.set('tab', 'whatsGood');
+      // default param for clarity; restore last selection when no brand context
+      let def = 'whatsGood';
+      try {
+        if (!brandContext.has) {
+          const saved = localStorage.getItem('community.feed.selectedTab');
+          if (saved === 'whatsGood' || saved === 'pro') def = saved;
+        }
+      } catch {}
+      sp.set('tab', def);
       navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, brandTabAllowed, brandContext.has]);
 
   // When the UI tab changes, reflect it in URL to keep selection highlighted
   // Use a ref to avoid unnecessary navigations and safely include all deps
@@ -115,6 +159,15 @@ export default function Community({ hideTopTabs = false }) {
     }
     lastAppliedRef.current = key;
   }, [tab, navigate, location.pathname, location.search]);
+
+  // Persist last selected feed sub-tab when no brand context
+  useEffect(() => {
+    try {
+      if (!brandContext.has && (tab === 'whatsGood' || tab === 'pro')) {
+        localStorage.setItem('community.feed.selectedTab', tab);
+      }
+    } catch {}
+  }, [tab, brandContext.has]);
 
   // Broadcast tag statistics for shell left-nav (event-based wiring)
   useEffect(() => {
@@ -141,13 +194,20 @@ export default function Community({ hideTopTabs = false }) {
 
   const header = useMemo(() => {
     if (hideTopTabs) return null;
+    const truncate = (s, n = 20) => {
+      const str = String(s || '');
+      return str.length > n ? `${str.slice(0, n - 1)}…` : str;
+    };
+    const brandTab = brandTabAllowed && brandContext.has && brandContext.brand
+      ? { show: true, label: `Brand: ${truncate(brandContext.brand, 20)}`, fullLabel: `Brand: ${brandContext.brand}` }
+      : { show: false };
     return (
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 pt-3">
           <h1 className="text-2xl font-heading font-semibold text-deep-moss mb-3">
             Community
           </h1>
-          <FeedTabs value={tab} onChange={(t) => { setTab(t); }} />
+          <FeedTabs value={tab} onChange={(t) => { setTab(t); }} brandTab={brandTab} />
         </div>
         {/* Inline filters for mobile/tablet; hidden on desktop */}
         <div className="only-mobile">
@@ -197,7 +257,7 @@ export default function Community({ hideTopTabs = false }) {
         </div>
       </div>
     );
-  }, [tab, query, selectedBrands, selectedTags, availableBrands, availableTags, useLinkedInMobileSkin, navigate]);
+  }, [tab, query, selectedBrands, selectedTags, availableBrands, availableTags, useLinkedInMobileSkin, navigate, brandTabAllowed, brandContext.brand, brandContext.has]);
 
   // Track tab view on mount and whenever the tab changes, include referral + brandId when present
   useEffect(() => {
@@ -215,12 +275,115 @@ export default function Community({ hideTopTabs = false }) {
     }
   }, [tab, location.search]);
 
+  // Determine if Brand tab should be allowed based on verification + follow + brand context
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      try {
+        const allowedRole = hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        const verifiedStaff = (isVerified === true) && allowedRole;
+        let following = false;
+        if (verifiedStaff && user?.uid && brandContext.has && brandContext.brandId) {
+          if (db) {
+            const ref = doc(db, 'brand_follows', `${user.uid}_${brandContext.brandId}`);
+            const snap = await getDoc(ref);
+            following = snap.exists();
+          }
+        }
+        if (!active) return;
+        setIsFollowingBrand(following);
+        const allow = verifiedStaff && brandContext.has && !!brandContext.brandId && following;
+        setBrandTabAllowed(allow);
+        if (!allow && brandContext.has) {
+          if (!verifiedStaff) setCtaMsg('Brand feed is for verified staff.');
+          else if (!following) setCtaMsg('Follow this brand to view its feed.');
+          else setCtaMsg('');
+        } else {
+          setCtaMsg('');
+        }
+      } catch {
+        if (!active) return;
+        setBrandTabAllowed(false);
+      }
+    };
+    run();
+    return () => { active = false; };
+  }, [isVerified, hasRole, user?.uid, brandContext.has, brandContext.brandId]);
+
+  // Auto-select Brand tab when allowed and brand context present
+  useEffect(() => {
+    if (brandTabAllowed && brandContext.has && tab !== 'brand') {
+      setTab('brand');
+      const sp = new URLSearchParams(location.search);
+      sp.set('tab', 'brand');
+      navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+    }
+  }, [brandTabAllowed, brandContext.has]);
+
+  const handleFollowBrand = useCallback(async () => {
+    try {
+      if (!db || !user?.uid || !brandContext.brandId) return;
+      const followId = `${user.uid}_${brandContext.brandId}`;
+      await setDoc(doc(db, 'brand_follows', followId), {
+        brandId: brandContext.brandId,
+        brandName: brandContext.brand || 'Brand',
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+      setIsFollowingBrand(true);
+      setBrandTabAllowed(isVerified === true);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Community: follow brand failed', e);
+    }
+  }, [db, user?.uid, brandContext.brandId, brandContext.brand, isVerified]);
+
   // flag handled above
 
   return (
     <div className="min-h-screen bg-cool-gray" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       {header}
       <main className="max-w-5xl mx-auto px-4 py-6">
+        {brandContext.has && !brandTabAllowed && !ctaDismissed && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded p-3 text-amber-900">
+            <div className="text-sm font-medium">{ctaMsg || 'Brand feed unavailable.'}</div>
+            <div className="mt-2 flex flex-wrap gap-2 items-center">
+              {isVerified !== true && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/staff/verification')}
+                  className="px-3 py-1.5 text-sm bg-deep-moss text-white rounded hover:bg-sage-dark"
+                >
+                  Verify me
+                </button>
+              )}
+              {isVerified === true && !isFollowingBrand && (
+                <button
+                  type="button"
+                  onClick={handleFollowBrand}
+                  className="px-3 py-1.5 text-sm bg-brand-primary text-white rounded hover:bg-brand-primary/90"
+                >
+                  Follow {brandContext.brand || 'Brand'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate('/staff/dashboard/my-brands')}
+                className="px-3 py-1.5 text-sm underline"
+              >
+                Back to My Brands
+              </button>
+              <button
+                type="button"
+                onClick={() => setCtaDismissed(true)}
+                className="ml-auto px-2 py-1 text-xs text-amber-900/80 hover:text-amber-900"
+                aria-label="Dismiss notice"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         <div className="community-grid">
           {/* Desktop sidebar filters */}
           <aside className="only-desktop">
@@ -264,7 +427,7 @@ export default function Community({ hideTopTabs = false }) {
                 onStartPost={() => navigate('/staff/community/post/new')}
                 onFiltersChange={handleFiltersChange}
               />
-            ) : (
+            ) : tab === 'pro' ? (
               <Suspense
                 fallback={
                   <div className="community-cards">
@@ -284,6 +447,14 @@ export default function Community({ hideTopTabs = false }) {
                   onFiltersChange={handleFiltersChange}
                 />
               </Suspense>
+            ) : (
+              <WhatsGoodFeed
+                query={query}
+                selectedBrands={brandContext.brand ? [brandContext.brand] : []}
+                selectedTags={selectedTags}
+                onStartPost={() => navigate('/staff/community/post/new')}
+                onFiltersChange={handleFiltersChange}
+              />
             )}
           </section>
         </div>

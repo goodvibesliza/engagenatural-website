@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import COPY from '../../i18n/community.copy';
 
-const TabButton = ({ id, isActive, onSelect, children, controls, dataTestId }) => (
+const TabButton = ({ id, isActive, onSelect, children, controls, dataTestId, title }) => (
   <button
     id={id}
     role="tab"
@@ -11,6 +11,7 @@ const TabButton = ({ id, isActive, onSelect, children, controls, dataTestId }) =
     tabIndex={isActive ? 0 : -1}
     onClick={onSelect}
     data-testid={dataTestId}
+    title={title}
     className={`flex-1 text-center px-4 h-11 min-h-[44px] rounded-md font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
       isActive ? 'bg-white text-deep-moss shadow-sm ring-deep-moss/30' : 'text-warm-gray hover:text-deep-moss'
     }`}
@@ -20,15 +21,19 @@ const TabButton = ({ id, isActive, onSelect, children, controls, dataTestId }) =
   </button>
 );
 
-export default function FeedTabs({ value = 'whatsGood', onChange }) {
+export default function FeedTabs({ value = 'whatsGood', onChange, brandTab }) {
   const handleKey = useCallback(
     (e) => {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       e.preventDefault();
-      const next = value === 'whatsGood' ? 'pro' : 'whatsGood';
+      const tabs = ['whatsGood', 'pro'].concat(brandTab?.show ? ['brand'] : []);
+      const idx = tabs.indexOf(value);
+      if (idx === -1) return;
+      const delta = e.key === 'ArrowRight' ? 1 : -1;
+      const next = tabs[(idx + delta + tabs.length) % tabs.length];
       onChange?.(next);
     },
-    [value, onChange]
+    [value, onChange, brandTab?.show]
   );
 
   return (
@@ -56,6 +61,18 @@ export default function FeedTabs({ value = 'whatsGood', onChange }) {
       >
         {COPY.tabs.pro}
       </TabButton>
+      {brandTab?.show && (
+        <TabButton
+          id="tab-brand"
+          isActive={value === 'brand'}
+          onSelect={() => onChange?.('brand')}
+          controls="panel-brand"
+          dataTestId="tab-brand"
+          title={brandTab?.fullLabel || ''}
+        >
+          {brandTab?.label || ''}
+        </TabButton>
+      )}
     </div>
   );
 }
