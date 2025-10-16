@@ -42,8 +42,11 @@ export function track(eventName, payload = {}) {
   // No-op placeholder for real SDK wiring (e.g., GA4, Segment)
 }
 
-export function communityView({ feedType }) {
-  track('community_view', { feedType });
+export function communityView({ feedType, via, brandId }) {
+  const payload = { feedType };
+  if (via) payload.via = via;
+  if (brandId) payload.brandId = brandId;
+  track('community_view', payload);
 }
 
 export function postOpen({ postId, feedType = 'unknown' }) {

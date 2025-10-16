@@ -23,10 +23,25 @@ import { track } from '@/lib/analytics';
 export default function MyBrandsPage() {
   const { user } = useAuth();
   const [isDesktop, setIsDesktop] = useState(false);
+  const hasSentPageViewRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    const onResize = () => {
+      const nextIsDesktop = window.innerWidth >= 1024;
+      setIsDesktop(nextIsDesktop);
+      // Also guard against duplicate page_view in resize path
+      if (
+        import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' &&
+        nextIsDesktop &&
+        !hasSentPageViewRef.current
+      ) {
+        try {
+          track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' });
+          hasSentPageViewRef.current = true;
+        } catch (err) { console.debug?.('track page_view failed (resize path, my_brands_desktop)', err); }
+      }
+    };
     onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -34,8 +49,15 @@ export default function MyBrandsPage() {
 
   // page_view analytics when desktop shell is active
   useEffect(() => {
-    if (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' && isDesktop) {
-      try { track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' }); } catch (err) { console.debug?.('track page_view failed (my_brands_desktop)', err); }
+    if (
+      import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin' &&
+      isDesktop &&
+      !hasSentPageViewRef.current
+    ) {
+      try {
+        track('page_view', { page: 'my_brands_desktop', surface: 'community_desktop' });
+        hasSentPageViewRef.current = true;
+      } catch (err) { console.debug?.('track page_view failed (effect path, my_brands_desktop)', err); }
     }
   }, [isDesktop]);
   
@@ -226,13 +248,16 @@ export default function MyBrandsPage() {
           return bDate - aDate;
         }).slice(0, 5);
 
-        setFollowingDetails((prev) => ({
-          ...prev,
-          [brandId]: {
-            ...prev[brandId],
-            communities: merged,
-          },
-        }));
+        setFollowingDetails((prev) => {
+          const prevBrand = prev?.[brandId] ?? {};
+          return {
+            ...prev,
+            [brandId]: {
+              ...prevBrand,
+              communities: merged,
+            },
+          };
+        });
       };
 
       // Top-level communities listener
@@ -291,13 +316,16 @@ export default function MyBrandsPage() {
             ...doc.data()
           }));
           
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              trainings: trainingsData
-            }
-          }));
+          setFollowingDetails(prev => {
+            const prevBrand = prev?.[brandId] ?? {};
+            return {
+              ...prev,
+              [brandId]: {
+                ...prevBrand,
+                trainings: trainingsData
+              }
+            };
+          });
         },
         (err) => {
           console.error(`Error loading trainings for ${brandId}:`, err);
@@ -319,25 +347,31 @@ export default function MyBrandsPage() {
             ...doc.data()
           }));
           
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              challenges: challengesData,
-              loading: false
-            }
-          }));
+          setFollowingDetails(prev => {
+            const prevBrand = prev?.[brandId] ?? {};
+            return {
+              ...prev,
+              [brandId]: {
+                ...prevBrand,
+                challenges: challengesData,
+                loading: false
+              }
+            };
+          });
         },
         (err) => {
           console.error(`Error loading challenges for ${brandId}:`, err);
           // Still mark as loaded even if there was an error
-          setFollowingDetails(prev => ({
-            ...prev,
-            [brandId]: {
-              ...prev[brandId],
-              loading: false
-            }
-          }));
+          setFollowingDetails(prev => {
+            const prevBrand = prev?.[brandId] ?? {};
+            return {
+              ...prev,
+              [brandId]: {
+                ...prevBrand,
+                loading: false
+              }
+            };
+          });
         }
       );
     });
