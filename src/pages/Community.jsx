@@ -177,9 +177,7 @@ export default function Community({ hideTopTabs = false }) {
       const ev = new CustomEvent('communityTagStats', { detail });
       window.dispatchEvent(ev);
     } catch (e) {
-      // Best-effort broadcast; log for visibility and lint compliance
-      // eslint-disable-next-line no-console
-      console.error('Community: Failed to dispatch communityTagStats', e);
+      // Best-effort broadcast; intentionally silent on failure
     }
   }, [tagCounts]);
 
@@ -282,8 +280,7 @@ export default function Community({ hideTopTabs = false }) {
         communityView(payload);
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.debug?.('communityView analytics failed', e);
+      // intentionally silent on analytics failure
     }
   }, [tab, location.search]);
 
@@ -347,8 +344,7 @@ export default function Community({ hideTopTabs = false }) {
       setBrandTabAllowed((isVerified === true) && allowedRole);
       try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch {}
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('Community: follow brand failed', e);
+      // intentionally silent on follow failure
     }
   }, [db, user?.uid, brandContext.brandId, brandContext.brand, isVerified, hasRole]);
 
