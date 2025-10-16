@@ -89,7 +89,7 @@ export default function BrandFeed({ brandId, brandName = 'Brand' }) {
           setLoading(false);
         }
       );
-    } catch (e) {
+    } catch {
       setError('Failed to load brand posts.');
       setLoading(false);
     }

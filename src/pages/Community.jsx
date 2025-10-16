@@ -339,6 +339,11 @@ export default function Community({ hideTopTabs = false }) {
     }
   }, [brandTabAllowed, brandContext.has]);
 
+  // Reset CTA dismissal when switching to a new brand context
+  useEffect(() => {
+    setCtaDismissed(false);
+  }, [brandContext.brandId, brandContext.brand]);
+
   const handleFollowBrand = useCallback(async () => {
     try {
       if (!db || !user?.uid || !brandContext.brandId) return;
