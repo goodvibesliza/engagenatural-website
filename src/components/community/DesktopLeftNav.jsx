@@ -8,6 +8,8 @@ export default function DesktopLeftNav() {
   const { hasRole } = useAuth();
   const sp = new URLSearchParams(location.search);
   const tab = sp.get('tab') || 'whatsGood';
+  const brand = sp.get('brand') || '';
+  const brandId = sp.get('brandId') || '';
   const q = sp.get('q') || '';
   const tagsParam = sp.get('tags') || '';
   const activeTags = useMemo(() => tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [], [tagsParam]);
@@ -80,11 +82,34 @@ export default function DesktopLeftNav() {
             Pro
           </a>
         </li>
+        {(brandId || brand) && (
+          <li>
+            <a
+              href={`/community?tab=brand${brandId ? `&brandId=${encodeURIComponent(brandId)}` : ''}${brand ? `&brand=${encodeURIComponent(brand)}` : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const next = new URLSearchParams(location.search);
+                next.set('tab', 'brand');
+                if (brandId) next.set('brandId', brandId); else next.delete('brandId');
+                if (brand) next.set('brand', brand); else next.delete('brand');
+                navigate({ pathname: location.pathname, search: next.toString() });
+              }}
+              className={`en-cd-left-link ${tab === 'brand' ? 'is-active' : ''}`}
+              aria-current={tab === 'brand' ? 'page' : undefined}
+              data-testid="left-nav-brand"
+              title={brand ? `Brand: ${brand}` : 'Brand'}
+            >
+              {brand ? `Brand: ${brand}` : 'Brand'}
+            </a>
+          </li>
+        )}
       </ul>
 
       <div className="mt-4">
         <form onSubmit={onSubmit}>
           <input
+            id="desktop-left-search"
+            name="desktop_left_search"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -99,7 +124,13 @@ export default function DesktopLeftNav() {
           <div className="mt-3">
             <button
               type="button"
-              onClick={() => navigate('/staff/community/post/new')}
+              onClick={() => {
+                if (tab === 'brand' && brandId) {
+                  navigate(`/staff/community/post/new?brandId=${encodeURIComponent(brandId)}&brand=${encodeURIComponent(brand || 'Brand')}&via=brand_tab`);
+                } else {
+                  navigate('/staff/community/post/new');
+                }
+              }}
               className="w-full h-10 px-3 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-800 text-sm hover:bg-gray-50"
               data-testid="desktop-left-newpost"
             >
