@@ -88,7 +88,10 @@ export default function PostCompose() {
               }
             }
           }
-        } catch {}
+        } catch {
+          // ignore: defensive parsing of URLSearchParams from location.search
+          // parsing user-controlled query params is non-fatal; safe to continue
+        }
 
         // 3) If arriving with brand context (from Brand tab), add a selectable Brand community option for verified staff
         try {
