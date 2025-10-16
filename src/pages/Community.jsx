@@ -337,7 +337,7 @@ export default function Community({ hideTopTabs = false }) {
       sp.set('tab', 'brand');
       navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
     }
-  }, [brandTabAllowed, brandContext.has]);
+  }, [brandTabAllowed, brandContext.has, tab, navigate, location.pathname, location.search]);
 
   // Reset CTA dismissal when switching to a new brand context
   useEffect(() => {
@@ -362,7 +362,7 @@ export default function Community({ hideTopTabs = false }) {
     } catch {
       // intentionally silent on follow failure
     }
-  }, [db, user?.uid, brandContext.brandId, brandContext.brand, isVerified, hasRole]);
+  }, [db, user?.uid, brandContext.brandId, brandContext.brand, brandContext.has, isVerified, hasRole]);
 
   // flag handled above
 
