@@ -36,19 +36,20 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
           const arr = JSON.parse(cached);
           if (Array.isArray(arr)) setFollowedBrands(arr);
         }
-      } catch {}
+      } catch (err) { console.debug?.('CommunityDesktopShell cache read failed', err); }
       if (!db || !user?.uid) return;
       const qf = query(collection(db, 'brand_follows'), where('userId', '==', user.uid));
       unsub = onSnapshot(qf, (snap) => {
         const items = snap.docs.map(d => ({ brandId: d.data()?.brandId, brandName: d.data()?.brandName || 'Brand' }))
           .filter(x => !!x.brandId);
         setFollowedBrands(items);
-        try { localStorage.setItem('en.followedBrandCommunities', JSON.stringify(items)); } catch {}
-      }, () => setFollowedBrands([]));
-    } catch {
+        try { localStorage.setItem('en.followedBrandCommunities', JSON.stringify(items)); } catch (err) { console.debug?.('CommunityDesktopShell cache write failed', err); }
+      }, (err) => { console.error?.('CommunityDesktopShell onSnapshot error', err); setFollowedBrands([]); });
+    } catch (err) {
+      console.error?.('CommunityDesktopShell subscription error', err);
       setFollowedBrands([]);
     }
-    return () => { try { unsub(); } catch {} };
+    return () => { try { if (typeof unsub === 'function') unsub(); } catch (err) { console.debug?.('CommunityDesktopShell unsubscribe failed', err); } };
   }, [db, user?.uid]);
 
   const defaultHeader = useMemo(() => (
@@ -58,7 +59,6 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
   const defaultLeft = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab') || 'whatsGood';
-    const brand = params.get('brand') || '';
     const brandId = params.get('brandId') || '';
     const go = (nextTab) => {
       const p = new URLSearchParams(location.search);

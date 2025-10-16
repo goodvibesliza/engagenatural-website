@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query as firestoreQuery, where } from 'firebase/firestore';
 import { track } from '../../lib/analytics';
 
 export default function DesktopLeftNav() {
@@ -45,7 +45,7 @@ export default function DesktopLeftNav() {
       } catch { /* ignore cache read errors */ }
 
       if (!db || !user?.uid) return;
-      const qf = query(collection(db, 'brand_follows'), where('userId', '==', user.uid));
+      const qf = firestoreQuery(collection(db, 'brand_follows'), where('userId', '==', user.uid));
       unsub = onSnapshot(qf, (snap) => {
         const items = snap.docs.map((d) => {
           const data = d.data() || {};

@@ -90,7 +90,9 @@ export default function BrandFeed({ brandId, brandName = 'Brand', communityId, o
             const brands = brandName ? [brandName] : [];
             const tags = Array.from(new Set(enriched.flatMap(p => Array.isArray(p.tags) ? p.tags : []).filter(Boolean)));
             onFiltersChange?.({ brands, tags, tagCounts: {} });
-          } catch {}
+          } catch (err) {
+            console.debug?.('BrandFeed: failed to derive filters', err);
+          }
           setLoading(false);
         },
         (err) => {

@@ -536,8 +536,7 @@ export default function MyBrandsPage() {
                           if (window.analytics?.track) {
                             window.analytics.track('Community Filter Applied', {
                               brand: follow.brandName,
-                              source: 'my_brands_pill',
-                              user_id: user?.uid
+                              source: 'my_brands_pill'
                             });
                           }
                         }}
