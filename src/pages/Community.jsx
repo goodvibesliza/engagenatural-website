@@ -5,6 +5,7 @@ import { getFlag } from '../lib/featureFlags.js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FeedTabs from '../components/community/FeedTabs';
 import WhatsGoodFeed from '../components/community/WhatsGoodFeed';
+import BrandFeed from '../components/community/BrandFeed.jsx';
 import { PRO_STUBS } from '../components/community/ProFeed';
 const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
@@ -12,7 +13,7 @@ import ComposerMobile from '../components/community/mobile/ComposerMobile.jsx';
 import FilterBarMobileCompact from '../components/community/mobile/FilterBarMobileCompact.jsx';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
 import UserDropdownMenu from '../components/UserDropdownMenu';
-import { communityView, filterApplied } from '../lib/analytics';
+import { communityView, filterApplied, track } from '../lib/analytics';
 import './community.css';
 import { useAuth } from '../contexts/auth-context';
 import { db } from '@/lib/firebase';
@@ -207,7 +208,14 @@ export default function Community({ hideTopTabs = false }) {
           <h1 className="text-2xl font-heading font-semibold text-deep-moss mb-3">
             Community
           </h1>
-          <FeedTabs value={tab} onChange={(t) => { setTab(t); }} brandTab={brandTab} />
+          <FeedTabs
+            value={tab}
+            onChange={(t) => {
+              try { track('community_tab_click', { group: 'feed', subtab: t }); } catch {}
+              setTab(t);
+            }}
+            brandTab={brandTab}
+          />
         </div>
         {/* Inline filters for mobile/tablet; hidden on desktop */}
         <div className="only-mobile">
@@ -268,7 +276,11 @@ export default function Community({ hideTopTabs = false }) {
       const payload = { feedType: tab };
       if (via) payload.via = via;
       if (brandId) payload.brandId = brandId;
-      communityView(payload);
+      if (tab === 'brand' && brandId) {
+        communityView({ feedType: 'feed', via: via || 'unknown', brandId, subtab: 'brand' });
+      } else {
+        communityView(payload);
+      }
     } catch (e) {
       // eslint-disable-next-line no-console
       console.debug?.('communityView analytics failed', e);
@@ -331,12 +343,14 @@ export default function Community({ hideTopTabs = false }) {
         createdAt: serverTimestamp(),
       });
       setIsFollowingBrand(true);
-      setBrandTabAllowed(isVerified === true);
+      const allowedRole = hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+      setBrandTabAllowed((isVerified === true) && allowedRole);
+      try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch {}
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn('Community: follow brand failed', e);
     }
-  }, [db, user?.uid, brandContext.brandId, brandContext.brand, isVerified]);
+  }, [db, user?.uid, brandContext.brandId, brandContext.brand, isVerified, hasRole]);
 
   // flag handled above
 
@@ -351,7 +365,7 @@ export default function Community({ hideTopTabs = false }) {
               {isVerified !== true && (
                 <button
                   type="button"
-                  onClick={() => navigate('/staff/verification')}
+                  onClick={() => { try { track('community_cta_click', { type: 'verify', brandId: brandContext.brandId }); } catch {}; navigate('/staff/verification'); }}
                   className="px-3 py-1.5 text-sm bg-deep-moss text-white rounded hover:bg-sage-dark"
                 >
                   Verify me
@@ -448,13 +462,7 @@ export default function Community({ hideTopTabs = false }) {
                 />
               </Suspense>
             ) : (
-              <WhatsGoodFeed
-                query={query}
-                selectedBrands={brandContext.brand ? [brandContext.brand] : []}
-                selectedTags={selectedTags}
-                onStartPost={() => navigate('/staff/community/post/new')}
-                onFiltersChange={handleFiltersChange}
-              />
+              <BrandFeed brandId={brandContext.brandId} brandName={brandContext.brand || 'Brand'} />
             )}
           </section>
         </div>

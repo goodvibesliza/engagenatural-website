@@ -1,0 +1,136 @@
+// src/components/community/BrandFeed.jsx
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import PostCard from './PostCard';
+import PostCardMobileLinkedIn from './mobile/PostCardMobileLinkedIn.jsx';
+import PostCardDesktopLinkedIn from './PostCardDesktopLinkedIn.jsx';
+import useIsMobile from '../../hooks/useIsMobile.js';
+import { getFlag } from '../../lib/featureFlags.js';
+import SkeletonPostCard from './SkeletonPostCard';
+import ErrorBanner from './ErrorBanner';
+
+export default function BrandFeed({ brandId, brandName = 'Brand' }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [posts, setPosts] = useState([]);
+  const isMobile = useIsMobile();
+  const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
+  const desktopLinkedIn = !isMobile && (import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT === 'linkedin') && location.pathname.startsWith('/community');
+
+  useEffect(() => {
+    let unsub = () => {};
+    try {
+      if (!db || !brandId) throw new Error('No Firestore or brandId');
+      const q = firestoreQuery(
+        collection(db, 'community_posts'),
+        where('visibility', '==', 'public'),
+        where('brandId', '==', brandId),
+        orderBy('createdAt', 'desc')
+      );
+      unsub = onSnapshot(q, async (snap) => {
+        const base = snap.docs.map((d) => {
+          const data = d.data();
+          const imgs = Array.isArray(data?.imageUrls)
+            ? data.imageUrls
+            : (Array.isArray(data?.images) ? data.images : []);
+          return {
+            id: d.id,
+            userId: data?.userId || data?.authorId || data?.author?.uid || data?.author?.id || null,
+            title: data?.title || 'Untitled',
+            snippet: (data?.body || '').slice(0, 200),
+            content: data?.body || '',
+            imageUrls: imgs,
+            tags: Array.isArray(data?.tags) ? data.tags : [],
+            authorName: data?.authorName || data?.author?.name || '',
+            authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || data?.author?.avatar || data?.author?.avatarUrl || data?.author?.image || '',
+            brand: data?.brandName || brandName,
+            createdAt: data?.createdAt,
+            isBlocked: data?.isBlocked === true,
+            needsReview: data?.needsReview === true,
+          };
+        });
+
+        const visible = base.filter(p => !p.isBlocked && !p.needsReview);
+        const enriched = await Promise.all(visible.map(async (post) => {
+          try {
+            let authorPhotoURL = post.authorPhotoURL;
+            if (!authorPhotoURL && db && post.userId) {
+              try {
+                const userRef = doc(db, 'users', post.userId);
+                const userDoc = await getDoc(userRef);
+                if (userDoc.exists()) {
+                  const u = userDoc.data() || {};
+                  authorPhotoURL = u.profileImage || u.photoURL || '';
+                }
+              } catch {}
+            }
+            const commentsQ = firestoreQuery(collection(db, 'community_comments'), where('postId', '==', post.id));
+            const likesQ = firestoreQuery(collection(db, 'post_likes'), where('postId', '==', post.id));
+            const [commentsSnap, likesSnap] = await Promise.all([
+              getCountFromServer(commentsQ),
+              getCountFromServer(likesQ)
+            ]);
+            return { ...post, authorPhotoURL, commentCount: commentsSnap.data().count || 0, likeCount: likesSnap.data().count || 0 };
+          } catch {
+            return { ...post, commentCount: 0, likeCount: 0 };
+          }
+        }));
+
+        setPosts(enriched);
+        setLoading(false);
+      });
+    } catch (e) {
+      setError('Failed to load brand posts.');
+      setLoading(false);
+    }
+    return () => { try { unsub(); } catch {} };
+  }, [db, brandId]);
+
+  if (loading) {
+    return (
+      <div id="panel-brand" role="tabpanel" aria-labelledby="tab-brand" className="community-cards">
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+      </div>
+    );
+  }
+
+  if (!posts.length) {
+    return (
+      <div id="panel-brand" role="tabpanel" aria-labelledby="tab-brand" className="space-y-3 text-center py-10">
+        {error && (
+          <div className="max-w-md mx-auto">
+            <ErrorBanner message={error} onDismiss={() => {}} />
+          </div>
+        )}
+        <div className="text-gray-900 font-medium">{`No recent posts from ${brandName} yet.`}</div>
+        <button
+          type="button"
+          onClick={() => navigate('/staff/dashboard/my-brands')}
+          className="mt-2 inline-flex items-center justify-center px-4 h-11 min-h-[44px] rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50"
+        >
+          View All Brands
+        </button>
+      </div>
+    );
+  }
+
+  const Card = isMobile && mobileSkin === 'linkedin' ? PostCardMobileLinkedIn : (desktopLinkedIn ? PostCardDesktopLinkedIn : PostCard);
+
+  return (
+    <div id="panel-brand" role="tabpanel" aria-labelledby="tab-brand" className="community-cards">
+      {posts.map((post) => (
+        <Card
+          key={post.id}
+          post={post}
+          onCardClick={() => navigate(`/community/post/${post.id}`)}
+        />
+      ))}
+    </div>
+  );
+}
