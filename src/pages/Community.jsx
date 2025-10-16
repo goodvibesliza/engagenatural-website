@@ -139,7 +139,7 @@ export default function Community({ hideTopTabs = false }) {
           const saved = localStorage.getItem('community.feed.selectedTab');
           if (saved === 'whatsGood' || saved === 'pro') def = saved;
         }
-      } catch (e) {
+      } catch {
         /* ignore localStorage read errors */
       }
       sp.set('tab', def);
@@ -169,7 +169,7 @@ export default function Community({ hideTopTabs = false }) {
       if (!brandContext.has && (tab === 'whatsGood' || tab === 'pro')) {
         localStorage.setItem('community.feed.selectedTab', tab);
       }
-    } catch (e) {
+    } catch {
       /* ignore localStorage write errors */
     }
   }, [tab, brandContext.has]);
@@ -180,7 +180,7 @@ export default function Community({ hideTopTabs = false }) {
       const detail = { tagCounts };
       const ev = new CustomEvent('communityTagStats', { detail });
       window.dispatchEvent(ev);
-    } catch (e) {
+    } catch {
       // Best-effort broadcast; intentionally silent on failure
     }
   }, [tagCounts]);
@@ -213,7 +213,7 @@ export default function Community({ hideTopTabs = false }) {
           <FeedTabs
             value={tab}
             onChange={(t) => {
-              try { track('community_tab_click', { group: 'feed', subtab: t }); } catch (e) { /* ignore analytics */ }
+              try { track('community_tab_click', { group: 'feed', subtab: t }); } catch { /* ignore analytics */ }
               setTab(t);
             }}
             brandTab={brandTab}
@@ -289,7 +289,7 @@ export default function Community({ hideTopTabs = false }) {
       } else {
         communityView(payload);
       }
-    } catch (e) {
+    } catch {
       // intentionally silent on analytics failure
     }
   }, [tab, location.search]);
@@ -358,8 +358,8 @@ export default function Community({ hideTopTabs = false }) {
       const allowedRole = hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
       const allow = (isVerified === true) && allowedRole && !!brandContext.brandId && brandContext.has;
       setBrandTabAllowed(allow);
-      try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch (e) { /* ignore analytics */ }
-    } catch (e) {
+      try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch { /* ignore analytics */ }
+    } catch {
       // intentionally silent on follow failure
     }
   }, [db, user?.uid, brandContext.brandId, brandContext.brand, isVerified, hasRole]);
@@ -377,7 +377,7 @@ export default function Community({ hideTopTabs = false }) {
               {isVerified !== true && (
                 <button
                   type="button"
-                  onClick={() => { try { track('community_cta_click', { type: 'verify', brandId: brandContext.brandId }); } catch (e) { /* ignore analytics */ } navigate('/staff/verification'); }}
+                  onClick={() => { try { track('community_cta_click', { type: 'verify', brandId: brandContext.brandId }); } catch { /* ignore analytics */ } navigate('/staff/verification'); }}
                   className="px-3 py-1.5 text-sm bg-deep-moss text-white rounded hover:bg-sage-dark"
                 >
                   Verify me
