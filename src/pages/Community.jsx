@@ -40,7 +40,7 @@ export default function Community({ hideTopTabs = false }) {
   const [availableBrands, setAvailableBrands] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const { isVerified, hasRole, user } = useAuth();
-  const [brandContext, setBrandContext] = useState({ has: false, brand: '', brandId: '' });
+  const [brandContext, setBrandContext] = useState({ has: false, brand: '', brandId: '', communityId: '' });
   const [isFollowingBrand, setIsFollowingBrand] = useState(false);
   const [brandTabAllowed, setBrandTabAllowed] = useState(false);
   const [ctaMsg, setCtaMsg] = useState('');
@@ -73,8 +73,9 @@ export default function Community({ hideTopTabs = false }) {
   // URL parameter support: read initial brand filter from ?brand=brandName
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    const brandParam = searchParams.get('brand');
+    const brandParam = searchParams.get('brandName') || searchParams.get('brand');
     const brandIdParam = searchParams.get('brandId');
+    const communityIdParam = searchParams.get('communityId') || '';
     const qParam = searchParams.get('q') || '';
     const tagsParam = searchParams.get('tags') || '';
     const urlTags = tagsParam ? tagsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -86,7 +87,7 @@ export default function Community({ hideTopTabs = false }) {
     }
 
     // Track brand context presence for conditional Brand tab
-    setBrandContext({ has: !!(brandParam || brandIdParam), brand: brandParam || '', brandId: brandIdParam || '' });
+    setBrandContext({ has: !!(brandParam || brandIdParam), brand: brandParam || '', brandId: brandIdParam || '', communityId: communityIdParam });
 
     if (qParam !== lastSyncedQueryRef.current) {
       setQuery(qParam);
@@ -106,11 +107,13 @@ export default function Community({ hideTopTabs = false }) {
     const st = location.state || {};
     const brandName = st.brandName || st.brand || '';
     const brandId = st.brandId || '';
+    const communityId = st.communityId || '';
     const tabState = st.tab || '';
     if (!brandName && !brandId && !tabState) return;
     const sp = new URLSearchParams(location.search);
     if (brandName) sp.set('brand', brandName);
     if (brandId) sp.set('brandId', brandId);
+    if (communityId) sp.set('communityId', communityId);
     if (tabState) sp.set('tab', tabState);
     navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
   }, [location.state, brandContext.has]);
@@ -123,7 +126,7 @@ export default function Community({ hideTopTabs = false }) {
       setTab('pro');
     } else if (t === 'whatsGood' && tab !== 'whatsGood') {
       setTab('whatsGood');
-    } else if (t === 'brand') {
+    } else if (t === 'brand' || t === 'feed') {
       if (brandTabAllowed && tab !== 'brand') {
         setTab('brand');
       } else if (!brandTabAllowed) {
@@ -282,11 +285,12 @@ export default function Community({ hideTopTabs = false }) {
       const sp = new URLSearchParams(location.search);
       const via = sp.get('via') || undefined;
       const brandId = sp.get('brandId') || undefined;
+      const communityId = sp.get('communityId') || undefined;
       const payload = { feedType: tab };
       if (via) payload.via = via;
       if (brandId) payload.brandId = brandId;
       if (tab === 'brand' && brandId) {
-        communityView({ feedType: 'feed', via: via || 'unknown', brandId, subtab: 'brand' });
+        communityView({ feedType: 'feed', via: via || 'unknown', brandId, ...(communityId ? { communityId } : {}), subtab: 'brand' });
       } else {
         communityView(payload);
       }
@@ -488,6 +492,7 @@ export default function Community({ hideTopTabs = false }) {
               <BrandFeed
                 brandId={brandContext.brandId}
                 brandName={brandContext.brand || 'Brand'}
+                communityId={brandContext.communityId || ''}
                 onFiltersChange={handleFiltersChange}
               />
             )}

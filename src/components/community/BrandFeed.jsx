@@ -11,7 +11,7 @@ import { getFlag } from '../../lib/featureFlags.js';
 import SkeletonPostCard from './SkeletonPostCard';
 import ErrorBanner from './ErrorBanner';
 
-export default function BrandFeed({ brandId, brandName = 'Brand', onFiltersChange }) {
+export default function BrandFeed({ brandId, brandName = 'Brand', communityId, onFiltersChange }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -25,12 +25,16 @@ export default function BrandFeed({ brandId, brandName = 'Brand', onFiltersChang
     let unsub = () => {};
     try {
       if (!db || !brandId) throw new Error('No Firestore or brandId');
-      const q = firestoreQuery(
+      const base = [
         collection(db, 'community_posts'),
         where('visibility', '==', 'public'),
         where('brandId', '==', brandId),
-        orderBy('createdAt', 'desc')
-      );
+      ];
+      if (communityId) {
+        base.push(where('communityId', '==', communityId));
+      }
+      base.push(orderBy('createdAt', 'desc'));
+      const q = firestoreQuery(...base);
       unsub = onSnapshot(
         q,
         async (snap) => {
@@ -100,7 +104,7 @@ export default function BrandFeed({ brandId, brandName = 'Brand', onFiltersChang
       setLoading(false);
     }
     return () => { try { unsub(); } catch (err) { console.debug?.('BrandFeed unsubscribe failed', err); } };
-  }, [db, brandId, brandName]);
+  }, [db, brandId, brandName, communityId]);
 
   if (loading) {
     return (
@@ -120,7 +124,7 @@ export default function BrandFeed({ brandId, brandName = 'Brand', onFiltersChang
             <ErrorBanner message={error} onDismiss={() => {}} />
           </div>
         )}
-        <div className="text-gray-900 font-medium">{`No recent posts from ${brandName} yet.`}</div>
+        <div className="text-gray-900 font-medium">{`No posts yet from ${brandName}.`}</div>
         <button
           type="button"
           onClick={() => navigate('/staff/dashboard/my-brands')}

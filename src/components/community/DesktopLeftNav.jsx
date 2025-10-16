@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { track } from '../../lib/analytics';
 
 export default function DesktopLeftNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const sp = new URLSearchParams(location.search);
   const tab = sp.get('tab') || 'whatsGood';
   const brand = sp.get('brand') || '';
@@ -16,6 +19,7 @@ export default function DesktopLeftNav() {
   const [query, setQuery] = useState(q);
   const [tagCounts, setTagCounts] = useState({});
   const isStaff = hasRole(['staff','verified_staff','brand_manager','super_admin']);
+  const [followedBrands, setFollowedBrands] = useState([]);
 
   useEffect(() => setQuery(q), [q]);
 
@@ -26,6 +30,37 @@ export default function DesktopLeftNav() {
     window.addEventListener('communityTagStats', onStats);
     return () => window.removeEventListener('communityTagStats', onStats);
   }, []);
+
+  // Subscribe to followed brands to persist Brand entries in left rail
+  useEffect(() => {
+    let unsub = () => {};
+    try {
+      // Hydrate from cache to reduce flicker
+      try {
+        const cached = localStorage.getItem('en.followedBrandCommunities');
+        if (cached) {
+          const arr = JSON.parse(cached);
+          if (Array.isArray(arr)) setFollowedBrands(arr);
+        }
+      } catch { /* ignore cache read errors */ }
+
+      if (!db || !user?.uid) return;
+      const qf = query(collection(db, 'brand_follows'), where('userId', '==', user.uid));
+      unsub = onSnapshot(qf, (snap) => {
+        const items = snap.docs.map((d) => {
+          const data = d.data() || {};
+          return { brandId: data.brandId, brandName: data.brandName || 'Brand' };
+        }).filter((x) => !!x.brandId);
+        setFollowedBrands(items);
+        try { localStorage.setItem('en.followedBrandCommunities', JSON.stringify(items)); } catch { /* ignore cache write */ }
+      }, () => {
+        setFollowedBrands([]);
+      });
+    } catch {
+      setFollowedBrands([]);
+    }
+    return () => { try { unsub(); } catch { /* noop */ } };
+  }, [db, user?.uid]);
 
   const goTab = (nextTab) => {
     const next = new URLSearchParams(location.search);
@@ -82,25 +117,38 @@ export default function DesktopLeftNav() {
             Pro
           </a>
         </li>
-        {(brandId || brand) && (
-          <li>
-            <a
-              href={`/community?tab=brand${brandId ? `&brandId=${encodeURIComponent(brandId)}` : ''}${brand ? `&brand=${encodeURIComponent(brand)}` : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
-                const next = new URLSearchParams(location.search);
-                next.set('tab', 'brand');
-                if (brandId) next.set('brandId', brandId); else next.delete('brandId');
-                if (brand) next.set('brand', brand); else next.delete('brand');
-                navigate({ pathname: location.pathname, search: next.toString() });
-              }}
-              className={`en-cd-left-link ${tab === 'brand' ? 'is-active' : ''}`}
-              aria-current={tab === 'brand' ? 'page' : undefined}
-              data-testid="left-nav-brand"
-              title={brand ? `Brand: ${brand}` : 'Brand'}
-            >
-              {brand ? `Brand: ${brand}` : 'Brand'}
-            </a>
+        {followedBrands.length > 0 && (
+          <li className="mt-3">
+            <div className="en-cd-left-title">Brands</div>
+            <ul role="list" className="en-cd-left-menu">
+              {followedBrands.map((b) => {
+                const active = tab === 'brand' && brandId === b.brandId;
+                const label = b.brandName || 'Brand';
+                return (
+                  <li key={b.brandId}>
+                    <a
+                      href={`/community?tab=brand&brandId=${encodeURIComponent(b.brandId)}&brand=${encodeURIComponent(label)}&via=left_rail`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        try { track('community_leftrail_click', { brandId: b.brandId }); } catch { /* ignore */ }
+                        const next = new URLSearchParams(location.search);
+                        next.set('tab', 'brand');
+                        next.set('brandId', b.brandId);
+                        next.set('brand', label);
+                        navigate({ pathname: location.pathname, search: next.toString() });
+                      }}
+                      className={`en-cd-left-link ${active ? 'is-active' : ''}`}
+                      aria-current={active ? 'page' : undefined}
+                      title={`Brand: ${label}`}
+                      style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
+                      data-testid={`left-nav-brand-${b.brandId}`}
+                    >
+                      <span className="truncate" style={{ maxWidth: 200 }}>{`Brand: ${label}`}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
           </li>
         )}
       </ul>
