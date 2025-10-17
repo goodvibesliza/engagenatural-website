@@ -31,6 +31,19 @@ export default function PostCompose() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  const goCommunityHome = () => {
+    try {
+      const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+      if (flag === 'linkedin' && isDesktop) {
+        navigate('/community');
+      } else {
+        navigate('/staff/community');
+      }
+    } catch {
+      navigate('/staff/community');
+    }
+  };
+
   const headingRef = useRef(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -101,10 +114,11 @@ export default function PostCompose() {
           const ctxBrandId = sp.get('brandId');
           const ctxBrand = sp.get('brand');
           if (isVerifiedStaff && ctxBrandId && !items.some((c) => c.id === `brand-${ctxBrandId}`)) {
-            items.push({ id: `brand-${ctxBrandId}`, name: `Brand: ${ctxBrand || 'Brand'}`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: ctxBrand || 'Brand' });
+            items.push({ id: `brand-${ctxBrandId}`, name: `${ctxBrand || 'Brand'}`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: ctxBrand || 'Brand' });
           }
-        } catch {
-          // ignore URL parsing errors in brand context; non-fatal
+        } catch (err) {
+          // Non-fatal: URL parsing failure when deriving brand context for compose
+          console.debug?.('PostCompose: brand context parse failed', err);
         }
 
         // 4) Always include What's Good
@@ -238,7 +252,9 @@ export default function PostCompose() {
           brandId = u.brandId || u.brand?.id;
           brandName = u.brandName || u.brand?.name;
         }
-      } catch {}
+      } catch (err) {
+        console.debug?.('PostCompose: failed to load user profile for brand metadata', err);
+      }
       // Fallback to brand context passed via URL (from Brand sub-tab)
       try {
         const sp = new URLSearchParams(location.search);
@@ -246,8 +262,9 @@ export default function PostCompose() {
         const qBrand = sp.get('brand');
         if (!brandId && qBrandId) brandId = qBrandId;
         if (!brandName && qBrand) brandName = qBrand;
-      } catch {
-        // intentionally ignoring errors from URLSearchParams parsing
+      } catch (err) {
+        // Best-effort brand context fallback; safe to ignore
+        console.debug?.('PostCompose: URL brand context parse failed', err);
       }
       const tags = extractTags(title, moderatedBody);
       const ref = await addDoc(collection(db, 'community_posts'), {
@@ -277,8 +294,9 @@ export default function PostCompose() {
         try {
           const moderation = await filterPostContent({ content: rawBody });
           moderatedBody = moderation?.content ?? rawBody;
-        } catch {
+        } catch (err2) {
           // leave moderatedBody as raw fallback
+          console.debug?.('PostCompose: moderation retry failed', err2);
         }
       }
       const rawCid = selectedCommunityId || 'whats-good';
@@ -316,7 +334,14 @@ export default function PostCompose() {
           ← Back
         </button>
 
-        <form onSubmit={handleSubmit} className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            // Prevent global keyboard shortcuts from interfering while typing
+            e.stopPropagation();
+          }}
+          className="mt-4 bg-white rounded-lg border border-gray-200 p-4"
+        >
           <header className="flex items-start justify-between gap-3">
             <h1 className="text-lg font-semibold text-gray-900">New Post</h1>
           </header>
@@ -377,7 +402,7 @@ export default function PostCompose() {
           <div className="hidden sm:flex justify-end gap-2 mt-4">
             <button
               type="button"
-              onClick={() => navigate('/staff/community')}
+              onClick={goCommunityHome}
               className="px-4 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
             >
               Cancel
@@ -402,7 +427,7 @@ export default function PostCompose() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/staff/community')}
+            onClick={goCommunityHome}
             className="flex-1 px-4 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
           >
             Cancel

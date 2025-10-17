@@ -41,6 +41,19 @@ export default function PostDetail() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  const goCommunityHome = () => {
+    try {
+      const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+      if (flag === 'linkedin' && isDesktop) {
+        navigate('/community');
+      } else {
+        navigate('/staff/community');
+      }
+    } catch {
+      navigate('/staff/community');
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState(null);
   const [likeIds, setLikeIds] = useState([]); // derive counts from arrays
@@ -412,7 +425,7 @@ export default function PostDetail() {
       // delete post
       batch.delete(d2(db, 'community_posts', post.id));
       await batch.commit();
-      navigate('/staff/community');
+      goCommunityHome();
     } catch (e) {
       console.error('PostDetail: failed to delete post', { postId: post?.id, userId: user?.uid }, e);
       if (typeof window !== 'undefined' && typeof window.alert === 'function') {
@@ -550,7 +563,7 @@ export default function PostDetail() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         <button
-          onClick={() => navigate('/staff/community')}
+          onClick={goCommunityHome}
           className="text-sm text-gray-600 hover:text-gray-800"
         >
           ← Back to community

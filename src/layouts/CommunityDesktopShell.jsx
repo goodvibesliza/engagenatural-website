@@ -105,7 +105,7 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
                         href={`/community?tab=brand&brandId=${encodeURIComponent(b.brandId)}&brand=${encodeURIComponent(label)}&via=left_rail`}
                         onClick={(e) => {
                           e.preventDefault();
-                          try { track('community_leftrail_click', { brandId: b.brandId }); } catch {}
+                          try { track('community_leftrail_click', { brandId: b.brandId }); } catch (err) { console.error?.('tracking error', err); }
                           const p = new URLSearchParams(location.search);
                           p.set('tab', 'brand');
                           p.set('brandId', b.brandId);

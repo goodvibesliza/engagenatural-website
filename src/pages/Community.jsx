@@ -142,8 +142,8 @@ export default function Community({ hideTopTabs = false }) {
           const saved = localStorage.getItem('community.feed.selectedTab');
           if (saved === 'whatsGood' || saved === 'pro') def = saved;
         }
-      } catch {
-        /* ignore localStorage read errors */
+      } catch (err) {
+        console.debug?.('Community: localStorage read failed', err);
       }
       sp.set('tab', def);
       navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
@@ -173,8 +173,8 @@ export default function Community({ hideTopTabs = false }) {
       if (!brandContext.has && (tab === 'whatsGood' || tab === 'pro')) {
         localStorage.setItem('community.feed.selectedTab', tab);
       }
-    } catch {
-      /* ignore localStorage write errors */
+    } catch (err) {
+      console.debug?.('Community: localStorage write failed', err);
     }
   }, [tab, brandContext.has]);
 
@@ -184,8 +184,8 @@ export default function Community({ hideTopTabs = false }) {
       const detail = { tagCounts };
       const ev = new CustomEvent('communityTagStats', { detail });
       window.dispatchEvent(ev);
-    } catch {
-      // Best-effort broadcast; intentionally silent on failure
+    } catch (err) {
+      console.debug?.('Community: tagStats broadcast failed', err);
     }
   }, [tagCounts]);
 
@@ -217,7 +217,7 @@ export default function Community({ hideTopTabs = false }) {
           <FeedTabs
             value={tab}
             onChange={(t) => {
-              try { track('community_tab_click', { group: 'feed', subtab: t }); } catch { /* ignore analytics */ }
+              try { track('community_tab_click', { group: 'feed', subtab: t }); } catch (err) { console.debug?.('Community: tab click track failed', err); }
               setTab(t);
             }}
             brandTab={brandTab}
@@ -294,8 +294,8 @@ export default function Community({ hideTopTabs = false }) {
       } else {
         communityView(payload);
       }
-    } catch {
-      // intentionally silent on analytics failure
+    } catch (err) {
+      console.debug?.('Community: analytics view track failed', err);
     }
   }, [tab, location.search]);
 
@@ -367,9 +367,9 @@ export default function Community({ hideTopTabs = false }) {
       const allowedRole = hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
       const allow = (isVerified === true) && allowedRole && !!brandContext.brandId && brandContext.has;
       setBrandTabAllowed(allow);
-      try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch { /* ignore analytics */ }
-    } catch {
-      // intentionally silent on follow failure
+      try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch (err) { console.debug?.('Community: CTA track failed', err); }
+    } catch (err) {
+      console.debug?.('Community: followBrand failed', err);
     }
   }, [db, user?.uid, brandContext.brandId, brandContext.brand, brandContext.has, isVerified, hasRole]);
 
