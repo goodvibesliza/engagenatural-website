@@ -206,7 +206,7 @@ export default function Community({ hideTopTabs = false }) {
       return str.length > n ? `${str.slice(0, n - 1)}…` : str;
     };
     const brandTab = brandTabAllowed && brandContext.has
-      ? { show: true, label: `Brand: ${truncate(brandContext.brand || 'Brand', 20)}`, fullLabel: `Brand: ${brandContext.brand || 'Brand'}` }
+      ? { show: true, label: `${truncate(brandContext.brand || 'Brand', 20)}`, fullLabel: `${brandContext.brand || 'Brand'}` }
       : { show: false };
     return (
       <div className="bg-white border-b border-gray-200">

@@ -51,6 +51,7 @@ export default function BrandFeed({ brandId, brandName = 'Brand', communityId, o
             content: data?.body || '',
             imageUrls: imgs,
             tags: Array.isArray(data?.tags) ? data.tags : [],
+            communityId: data?.communityId || '',
             authorName: data?.authorName || data?.author?.name || '',
             authorPhotoURL: data?.authorPhotoURL || data?.author?.photoURL || data?.author?.profileImage || data?.author?.avatar || data?.author?.avatarUrl || data?.author?.image || '',
             brand: data?.brandName || brandName,
@@ -63,7 +64,8 @@ export default function BrandFeed({ brandId, brandName = 'Brand', communityId, o
         });
 
         const visible = base.filter(p => !p.isBlocked && !p.needsReview);
-        const enriched = await Promise.all(visible.map(async (post) => {
+        const narrowed = communityId ? visible : visible.filter(p => p.communityId && p.communityId !== 'whats-good');
+        const enriched = await Promise.all(narrowed.map(async (post) => {
           try {
             let authorPhotoURL = post.authorPhotoURL;
             if (!authorPhotoURL && db && post.userId) {

@@ -114,11 +114,11 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
                         }}
                         className={`en-cd-left-link ${active ? 'is-active' : ''}`}
                         aria-current={active ? 'page' : undefined}
-                        title={`Brand: ${label}`}
+                        title={label}
                         style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
                         data-testid={`left-nav-brand-${b.brandId}`}
                       >
-                        <span className="truncate" style={{ maxWidth: 200 }}>{`Brand: ${label}`}</span>
+                        <span className="truncate" style={{ maxWidth: 200 }}>{label}</span>
                       </a>
                     </li>
                   );
