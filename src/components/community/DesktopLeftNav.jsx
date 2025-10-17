@@ -132,7 +132,7 @@ export default function DesktopLeftNav() {
                       href={`/community?tab=brand&brandId=${encodeURIComponent(b.brandId)}&brand=${encodeURIComponent(label)}&via=left_rail`}
                       onClick={(e) => {
                         e.preventDefault();
-                        try { track('community_leftrail_click', { brandId: b.brandId }); } catch { /* ignore */ }
+                        try { track('community_leftrail_click', { brandId: b.brandId }); } catch (err) { console.debug?.('DesktopLeftNav track leftrail click failed', err); }
                         const next = new URLSearchParams(location.search);
                         next.set('tab', 'brand');
                         next.set('brandId', b.brandId);

@@ -56,6 +56,8 @@ export default function PostCompose() {
   // Load available communities and set initial selection from URL (?communityId=...)
   useEffect(() => {
     const loadCommunities = async () => {
+      // Compute once and reuse across all branches
+      const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
       try {
         // 1) Public, active communities
         const pubQ = query(
@@ -98,7 +100,6 @@ export default function PostCompose() {
           const sp = new URLSearchParams(location.search);
           const ctxBrandId = sp.get('brandId');
           const ctxBrand = sp.get('brand');
-          const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
           if (isVerifiedStaff && ctxBrandId && !items.some((c) => c.id === `brand-${ctxBrandId}`)) {
             items.push({ id: `brand-${ctxBrandId}`, name: `Brand: ${ctxBrand || 'Brand'}`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: ctxBrand || 'Brand' });
           }
@@ -112,7 +113,6 @@ export default function PostCompose() {
         }
 
         // 5) Include Pro Feed for verified staff even if private/missing
-        const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
         if (isVerifiedStaff && !items.some((c) => c.id === 'pro-feed')) {
           try {
             const proRef = doc(db, 'communities', 'pro-feed');
@@ -145,9 +145,9 @@ export default function PostCompose() {
           setSelectedCommunityId('whats-good');
         }
       } catch (err) {
+        console.error?.('PostCompose: failed to load communities; applying fallback', err);
         // Fallback: ensure both What's Good and Pro Feed appear for verified staff
         const fallback = [{ id: 'whats-good', name: "What's Good" }];
-        const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
         if (isVerifiedStaff) fallback.push({ id: 'pro-feed', name: 'Pro Feed' });
         setCommunities(fallback);
         const params = new URLSearchParams(location.search);
