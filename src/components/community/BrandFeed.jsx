@@ -123,7 +123,7 @@ export default function BrandFeed({ brandId, brandName = 'Brand', communityId, o
       <div id="panel-brand" role="tabpanel" aria-labelledby="tab-brand" className="space-y-3 text-center py-10">
         {error && (
           <div className="max-w-md mx-auto">
-            <ErrorBanner message={error} onDismiss={() => {}} />
+            <ErrorBanner message={error} onDismiss={() => setError('')} />
           </div>
         )}
         <div className="text-gray-900 font-medium">{`No posts yet from ${brandName}.`}</div>

@@ -42,7 +42,7 @@ export default function DesktopLeftNav() {
           const arr = JSON.parse(cached);
           if (Array.isArray(arr)) setFollowedBrands(arr);
         }
-      } catch { /* ignore cache read errors */ }
+      } catch (err) { console.debug?.('DesktopLeftNav cache read failed', err); }
 
       if (!db || !user?.uid) return;
       const qf = firestoreQuery(collection(db, 'brand_follows'), where('userId', '==', user.uid));
@@ -52,14 +52,16 @@ export default function DesktopLeftNav() {
           return { brandId: data.brandId, brandName: data.brandName || 'Brand' };
         }).filter((x) => !!x.brandId);
         setFollowedBrands(items);
-        try { localStorage.setItem('en.followedBrandCommunities', JSON.stringify(items)); } catch { /* ignore cache write */ }
-      }, () => {
+        try { localStorage.setItem('en.followedBrandCommunities', JSON.stringify(items)); } catch (err) { console.debug?.('DesktopLeftNav cache write failed', err); }
+      }, (err) => {
+        console.debug?.('DesktopLeftNav onSnapshot error', err);
         setFollowedBrands([]);
       });
-    } catch {
+    } catch (err) {
+      console.debug?.('DesktopLeftNav subscription error', err);
       setFollowedBrands([]);
     }
-    return () => { try { unsub(); } catch { /* noop */ } };
+    return () => { try { if (typeof unsub === 'function') unsub(); } catch (err) { console.debug?.('DesktopLeftNav unsubscribe failed', err); } };
   }, [db, user?.uid]);
 
   const goTab = (nextTab) => {

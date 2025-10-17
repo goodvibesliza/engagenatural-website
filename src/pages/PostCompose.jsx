@@ -88,9 +88,9 @@ export default function PostCompose() {
               }
             }
           }
-        } catch {
-          // ignore: defensive parsing of URLSearchParams from location.search
-          // parsing user-controlled query params is non-fatal; safe to continue
+        } catch (err) {
+          // Non-fatal Firestore/read error while loading user's brand communities
+          console.debug?.('PostCompose: failed to load user brand communities', err);
         }
 
         // 3) If arriving with brand context (from Brand tab), add a selectable Brand community option for verified staff
@@ -147,7 +147,7 @@ export default function PostCompose() {
       } catch (err) {
         // Fallback: ensure both What's Good and Pro Feed appear for verified staff
         const fallback = [{ id: 'whats-good', name: "What's Good" }];
-        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
         if (isVerifiedStaff) fallback.push({ id: 'pro-feed', name: 'Pro Feed' });
         setCommunities(fallback);
         const params = new URLSearchParams(location.search);
