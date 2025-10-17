@@ -275,7 +275,10 @@ export default function PostCompose() {
         communityName: cname,
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
-        authorName: user?.name || user?.displayName || user?.email || 'Staff',
+        authorName:
+          user?.name ||
+          user?.displayName ||
+          (user?.email ? `${user.email.split('@')[0]?.[0] || ''}***` : 'Staff'),
         authorPhotoURL: user?.profileImage || user?.photoURL || null,
         authorRole: user?.role || 'staff',
         images: Array.isArray(images) ? images : [],
