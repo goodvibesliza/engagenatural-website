@@ -339,13 +339,6 @@ export default function PostCompose() {
 
         <form
           onSubmit={handleSubmit}
-          onKeyDown={(e) => {
-            // Allow normal typing; only stop global shortcuts (cmd/ctrl/alt) and Escape
-            const isShortcut = e.ctrlKey || e.metaKey || e.altKey;
-            if (isShortcut || e.key === 'Escape') {
-              e.stopPropagation();
-            }
-          }}
           className="mt-4 bg-white rounded-lg border border-gray-200 p-4"
         >
           <header className="flex items-start justify-between gap-3">
