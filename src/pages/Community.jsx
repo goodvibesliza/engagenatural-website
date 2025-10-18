@@ -153,6 +153,20 @@ export default function Community({ hideTopTabs = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, brandTabAllowed, brandContext.has]);
 
+  // Canonicalize URL for non-brand tabs: strip brand-scoped params when tab !== 'brand'
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const t = sp.get('tab');
+    if (t === 'brand') return;
+    let changed = false;
+    for (const key of ['brand', 'brandId', 'communityId', 'via']) {
+      if (sp.has(key)) { sp.delete(key); changed = true; }
+    }
+    if (changed) {
+      navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate]);
+
   // When the UI tab changes, reflect it in URL to keep selection highlighted
   // Use a ref to avoid unnecessary navigations and safely include all deps
   const lastAppliedRef = useRef('');
