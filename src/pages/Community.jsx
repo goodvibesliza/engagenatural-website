@@ -84,6 +84,9 @@ export default function Community({ hideTopTabs = false }) {
     if (brandParam && !selectedBrands.includes(brandParam)) {
       setSelectedBrands([brandParam]);
       filterApplied({ brands: [brandParam], tags: [], query: '' });
+    } else if (!brandParam && selectedBrands.length) {
+      // Clear stale brand filter when URL no longer specifies a brand
+      setSelectedBrands([]);
     }
 
     // Track brand context presence for conditional Brand tab
