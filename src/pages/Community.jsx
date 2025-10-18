@@ -103,23 +103,22 @@ export default function Community({ hideTopTabs = false }) {
     }
   }, [location.search, selectedBrands]);
 
-  // Router state fallback: allow navigation via state { brand, brandName, brandId, tab }
+  // Router state fallback: only restore brand context from state when tab=brand is explicitly requested
   useEffect(() => {
-    // Only apply when no brand context provided via URL
     if (brandContext.has) return;
+    const sp = new URLSearchParams(location.search);
+    const t = sp.get('tab');
+    if (t !== 'brand') return; // do not inject brand params for other tabs
     const st = location.state || {};
     const brandName = st.brandName || st.brand || '';
     const brandId = st.brandId || '';
     const communityId = st.communityId || '';
-    const tabState = st.tab || '';
-    if (!brandName && !brandId && !tabState) return;
-    const sp = new URLSearchParams(location.search);
+    if (!brandName && !brandId) return;
     if (brandName) sp.set('brand', brandName);
     if (brandId) sp.set('brandId', brandId);
     if (communityId) sp.set('communityId', communityId);
-    if (tabState) sp.set('tab', tabState);
     navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
-  }, [location.state, brandContext.has]);
+  }, [location.state, brandContext.has, location.search, location.pathname, navigate]);
 
   // Sync tab with URL (?tab=whatsGood|pro) to preserve deep linking and left-nav highlight
   useEffect(() => {
@@ -319,7 +318,12 @@ export default function Community({ hideTopTabs = false }) {
         }
         if (!active) return;
         setIsFollowingBrand(following);
-        const allow = verifiedStaff && brandContext.has && !!brandContext.brandId && following;
+        // Re-evaluate role gate at this point instead of reusing allowedRole
+        const allow = (isVerified === true)
+          && !!hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin'])
+          && brandContext.has
+          && !!brandContext.brandId
+          && !!following;
         setBrandTabAllowed(allow);
         if (!allow && brandContext.has) {
           if (!verifiedStaff) setCtaMsg('Brand feed is for verified staff.');
