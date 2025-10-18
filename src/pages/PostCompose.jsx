@@ -326,7 +326,7 @@ export default function PostCompose() {
     </>
   );
 
-  const CenterContent = () => (
+  const centerContent = (
     <div className="min-h-screen bg-cool-gray" data-testid="postcreate-center">
       <div className="max-w-2xl mx-auto px-4 py-4">
         <button
@@ -454,11 +454,11 @@ export default function PostCompose() {
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
         leftSidebar={<LeftSidebarSearch />}
-        center={<CenterContent />}
+        center={centerContent}
         rightRail={rightRail}
       />
     );
   }
 
-  return <CenterContent />;
+  return centerContent;
 }
