@@ -108,7 +108,32 @@ export default function PostCompose() {
           console.debug?.('PostCompose: failed to load user brand communities', err);
         }
 
-        // NOTE: Do not synthesize brand communities from URL params. Selection must be from validated communities.
+        // Optionally include a validated brand pseudo-community from URL for convenience (not auto-selected)
+        try {
+          const sp = new URLSearchParams(location.search);
+          const ctxBrandId = sp.get('brandId');
+          const ctxBrand = sp.get('brand');
+          if (isVerifiedStaff && ctxBrandId && !items.some((c) => c.id === `brand:${ctxBrandId}`)) {
+            let label = ctxBrand || 'Brand';
+            let ok = false;
+            try {
+              const bRef = doc(db, 'brands', ctxBrandId);
+              const bDoc = await getDoc(bRef);
+              if (bDoc.exists()) {
+                const data = bDoc.data() || {};
+                label = data.name || data.displayName || label;
+                ok = true;
+              }
+            } catch (err) {
+              console.debug?.('PostCompose: brand validation failed for dropdown option', err);
+            }
+            if (ok) {
+              items.push({ id: `brand:${ctxBrandId}`, name: `${label} Feed`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: label, isSynthetic: true });
+            }
+          }
+        } catch (err) {
+          console.debug?.('PostCompose: brand URL parse failed for dropdown option', err);
+        }
 
         // 4) Always include What's Good
         if (!items.some((c) => c.id === 'whats-good')) {

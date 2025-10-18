@@ -64,7 +64,9 @@ export default function BrandFeed({ brandId, brandName = 'Brand', communityId, o
         });
 
         const visible = base.filter(p => !p.isBlocked && !p.needsReview);
-        const narrowed = communityId ? visible : visible.filter(p => p.communityId && p.communityId !== 'whats-good');
+        const narrowed = communityId
+          ? visible.filter(p => (p.communityId || '') === communityId)
+          : visible; // Show all brand posts across communities, including What's Good
         const enriched = await Promise.all(narrowed.map(async (post) => {
           try {
             let authorPhotoURL = post.authorPhotoURL;
