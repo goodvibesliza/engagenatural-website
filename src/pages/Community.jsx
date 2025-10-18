@@ -389,7 +389,7 @@ export default function Community({ hideTopTabs = false }) {
               {isVerified !== true && (
                 <button
                   type="button"
-                  onClick={() => { try { track('community_cta_click', { type: 'verify', brandId: brandContext.brandId }); } catch { /* ignore analytics */ } navigate('/staff/verification'); }}
+                  onClick={() => { try { track('community_cta_click', { type: 'verify', brandId: brandContext.brandId }); } catch (err) { console.debug?.('Community: analytics track failed', err); } navigate('/staff/verification'); }}
                   className="px-3 py-1.5 text-sm bg-deep-moss text-white rounded hover:bg-sage-dark"
                 >
                   Verify me

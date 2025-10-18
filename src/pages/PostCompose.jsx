@@ -108,18 +108,7 @@ export default function PostCompose() {
           console.debug?.('PostCompose: failed to load user brand communities', err);
         }
 
-        // 3) If arriving with brand context (from Brand tab), add a selectable Brand community option for verified staff
-        try {
-          const sp = new URLSearchParams(location.search);
-          const ctxBrandId = sp.get('brandId');
-          const ctxBrand = sp.get('brand');
-          if (isVerifiedStaff && ctxBrandId && !items.some((c) => c.id === `brand-${ctxBrandId}`)) {
-            items.push({ id: `brand-${ctxBrandId}`, name: `${ctxBrand || 'Brand'}`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: ctxBrand || 'Brand' });
-          }
-        } catch (err) {
-          // Non-fatal: URL parsing failure when deriving brand context for compose
-          console.debug?.('PostCompose: brand context parse failed', err);
-        }
+        // NOTE: Do not synthesize brand communities from URL params. Selection must be from validated communities.
 
         // 4) Always include What's Good
         if (!items.some((c) => c.id === 'whats-good')) {
@@ -150,10 +139,7 @@ export default function PostCompose() {
 
         const params = new URLSearchParams(location.search);
         const cid = params.get('communityId');
-        const brandIdParam = params.get('brandId');
-        if (brandIdParam && items.some((c) => c.id === `brand-${brandIdParam}`)) {
-          setSelectedCommunityId(`brand-${brandIdParam}`);
-        } else if (cid && items.some((c) => c.id === cid)) {
+        if (cid && items.some((c) => c.id === cid)) {
           setSelectedCommunityId(cid);
         } else {
           setSelectedCommunityId('whats-good');
@@ -242,20 +228,11 @@ export default function PostCompose() {
       const rawCid = selectedCommunityId || 'whats-good';
       const cid = rawCid.replaceAll('_', '-');
       const cname = (communities.find((c) => c.id === rawCid)?.name) || "What's Good";
-      // Resolve brand context without accepting URL params. Prefer selected community's brand linkage;
-      // otherwise, only allow profile-derived brand for verified staff.
+      // Resolve brand context with server validation first; never trust client-only data or URL params.
       let brandId; let brandName;
       try {
-        // 1) From selected community (client-side)
-        const sel = communities.find((c) => c.id === rawCid);
-        if (sel?.brandId) {
-          brandId = sel.brandId;
-          brandName = sel.brandName || sel.name || undefined;
-        } else if (rawCid.startsWith('brand-')) {
-          brandId = rawCid.slice('brand-'.length);
-          brandName = sel?.brandName || sel?.name || undefined;
-        } else if (db && rawCid && rawCid !== 'whats-good' && rawCid !== 'pro-feed') {
-          // 2) Server-side validation: check community doc for brand association
+        if (db && rawCid && rawCid !== 'whats-good' && rawCid !== 'pro-feed') {
+          // 1) Server-side validation: check community doc for brand association
           try {
             const cRef = doc(db, 'communities', rawCid);
             const cDoc = await getDoc(cRef);
@@ -271,7 +248,7 @@ export default function PostCompose() {
           }
         }
 
-        // 3) Profile fallback only for verified staff
+        // 2) Profile fallback only for verified staff
         if (!brandId && isVerified === true && hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r))) {
           try {
             const userRef = doc(db, 'users', user.uid);
@@ -281,6 +258,21 @@ export default function PostCompose() {
             brandName = u.brandName || u.brand?.name;
           } catch (err) {
             console.debug?.('PostCompose: failed to load verified staff profile brand', err);
+          }
+        }
+
+        // 3) Extra validation: ensure brand doc exists when a brandId is present
+        if (brandId && db) {
+          try {
+            const bRef = doc(db, 'brands', brandId);
+            const bDoc = await getDoc(bRef);
+            if (!bDoc.exists()) {
+              console.debug?.('PostCompose: brand doc not found, dropping brandId', { brandId });
+              brandId = undefined;
+              brandName = undefined;
+            }
+          } catch (err) {
+            console.debug?.('PostCompose: brand existence check failed', err);
           }
         }
       } catch (err) {
