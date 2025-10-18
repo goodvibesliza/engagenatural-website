@@ -280,7 +280,7 @@ export default function Community({ hideTopTabs = false }) {
         </div>
       </div>
     );
-  }, [hideTopTabs, tab, query, selectedBrands, selectedTags, availableBrands, availableTags, useLinkedInMobileSkin, navigate, brandTabAllowed, brandContext.brand, brandContext.has]);
+  }, [hideTopTabs, tab, query, selectedBrands, selectedTags, availableBrands, availableTags, useLinkedInMobileSkin, navigate, brandTabAllowed, brandContext.brand, brandContext.has, brandContext.brandId]);
 
   // Track tab view on mount and whenever the tab changes, include referral + brandId when present
   useEffect(() => {

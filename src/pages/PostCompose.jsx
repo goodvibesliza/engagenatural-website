@@ -20,7 +20,7 @@ import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 export default function PostCompose() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, isVerified } = useAuth();
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
@@ -242,29 +242,49 @@ export default function PostCompose() {
       const rawCid = selectedCommunityId || 'whats-good';
       const cid = rawCid.replaceAll('_', '-');
       const cname = (communities.find((c) => c.id === rawCid)?.name) || "What's Good";
-      // Load user profile for brand metadata
+      // Resolve brand context without accepting URL params. Prefer selected community's brand linkage;
+      // otherwise, only allow profile-derived brand for verified staff.
       let brandId; let brandName;
       try {
-        if (db && user?.uid) {
-          const userRef = doc(db, 'users', user.uid);
-          const profile = await getDoc(userRef);
-          const u = profile.exists() ? (profile.data() || {}) : {};
-          brandId = u.brandId || u.brand?.id;
-          brandName = u.brandName || u.brand?.name;
+        // 1) From selected community (client-side)
+        const sel = communities.find((c) => c.id === rawCid);
+        if (sel?.brandId) {
+          brandId = sel.brandId;
+          brandName = sel.brandName || sel.name || undefined;
+        } else if (rawCid.startsWith('brand-')) {
+          brandId = rawCid.slice('brand-'.length);
+          brandName = sel?.brandName || sel?.name || undefined;
+        } else if (db && rawCid && rawCid !== 'whats-good' && rawCid !== 'pro-feed') {
+          // 2) Server-side validation: check community doc for brand association
+          try {
+            const cRef = doc(db, 'communities', rawCid);
+            const cDoc = await getDoc(cRef);
+            if (cDoc.exists()) {
+              const c = cDoc.data() || {};
+              if (c.brandId) {
+                brandId = c.brandId;
+                brandName = c.brandName || c.name || undefined;
+              }
+            }
+          } catch (err) {
+            console.debug?.('PostCompose: community brand validation failed', err);
+          }
+        }
+
+        // 3) Profile fallback only for verified staff
+        if (!brandId && isVerified === true && hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r))) {
+          try {
+            const userRef = doc(db, 'users', user.uid);
+            const profile = await getDoc(userRef);
+            const u = profile.exists() ? (profile.data() || {}) : {};
+            brandId = u.brandId || u.brand?.id;
+            brandName = u.brandName || u.brand?.name;
+          } catch (err) {
+            console.debug?.('PostCompose: failed to load verified staff profile brand', err);
+          }
         }
       } catch (err) {
-        console.debug?.('PostCompose: failed to load user profile for brand metadata', err);
-      }
-      // Fallback to brand context passed via URL (from Brand sub-tab)
-      try {
-        const sp = new URLSearchParams(location.search);
-        const qBrandId = sp.get('brandId');
-        const qBrand = sp.get('brand');
-        if (!brandId && qBrandId) brandId = qBrandId;
-        if (!brandName && qBrand) brandName = qBrand;
-      } catch (err) {
-        // Best-effort brand context fallback; safe to ignore
-        console.debug?.('PostCompose: URL brand context parse failed', err);
+        console.debug?.('PostCompose: brand resolution failed', err);
       }
       const tags = extractTags(title, moderatedBody);
       const ref = await addDoc(collection(db, 'community_posts'), {
@@ -283,7 +303,7 @@ export default function PostCompose() {
         authorRole: user?.role || 'staff',
         images: Array.isArray(images) ? images : [],
         ...(brandId ? { brandId } : {}),
-        ...(brandName ? { brandName } : {}),
+        ...(brandId && brandName ? { brandName } : {}),
         ...(tags.length ? { tags } : {}),
         needsReview,
         isBlocked,
