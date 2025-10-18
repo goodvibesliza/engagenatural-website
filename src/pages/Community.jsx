@@ -129,12 +129,9 @@ export default function Community({ hideTopTabs = false }) {
     } else if (t === 'whatsGood' && tab !== 'whatsGood') {
       setTab('whatsGood');
     } else if (t === 'brand' || t === 'feed') {
-      if (brandTabAllowed && tab !== 'brand') {
+      if (tab !== 'brand') {
+        // Honor tab=brand in the URL immediately; permission UI (CTA) will handle gating
         setTab('brand');
-      } else if (!brandTabAllowed) {
-        // normalize to whatsGood if brand tab not allowed
-        sp.set('tab', 'whatsGood');
-        navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
       }
     } else if (!t) {
       // default param for clarity; restore last selection when no brand context
@@ -151,7 +148,7 @@ export default function Community({ hideTopTabs = false }) {
       navigate({ pathname: location.pathname, search: sp.toString() }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search, brandTabAllowed, brandContext.has]);
+  }, [location.search, brandContext.has]);
 
   // Canonicalize URL for non-brand tabs: strip brand-scoped params when tab !== 'brand'
   useEffect(() => {
