@@ -320,7 +320,7 @@ export default function Community({ hideTopTabs = false }) {
     let active = true;
     const run = async () => {
       try {
-        const allowedRole = hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        const allowedRole = ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some((r) => hasRole?.(r));
         const verifiedStaff = (isVerified === true) && allowedRole;
         let following = false;
         if (verifiedStaff && user?.uid && brandContext.has && brandContext.brandId) {
@@ -334,7 +334,7 @@ export default function Community({ hideTopTabs = false }) {
         setIsFollowingBrand(following);
         // Re-evaluate role gate at this point instead of reusing allowedRole
         const allow = (isVerified === true)
-          && !!hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin'])
+          && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some((r) => hasRole?.(r))
           && brandContext.has
           && !!brandContext.brandId
           && !!following;
@@ -385,7 +385,7 @@ export default function Community({ hideTopTabs = false }) {
         createdAt: serverTimestamp(),
       });
       setIsFollowingBrand(true);
-      const allowedRole = hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+      const allowedRole = ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some((r) => hasRole?.(r));
       const allow = (isVerified === true) && allowedRole && !!brandContext.brandId && brandContext.has;
       setBrandTabAllowed(allow);
       try { track('community_cta_click', { type: 'follow', brandId: brandContext.brandId }); } catch (err) { console.debug?.('Community: CTA track failed', err); }
