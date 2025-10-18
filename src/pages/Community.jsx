@@ -156,7 +156,7 @@ export default function Community({ hideTopTabs = false }) {
     const t = sp.get('tab');
     if (t === 'brand') return;
     let changed = false;
-    for (const key of ['brand', 'brandId', 'communityId', 'via']) {
+    for (const key of ['brand', 'communityId']) {
       if (sp.has(key)) { sp.delete(key); changed = true; }
     }
     if (changed) {
