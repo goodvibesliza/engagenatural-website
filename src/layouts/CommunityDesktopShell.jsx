@@ -63,6 +63,13 @@ export default function CommunityDesktopShell({ children, headerContent = null, 
     const go = (nextTab) => {
       const p = new URLSearchParams(location.search);
       p.set('tab', nextTab);
+      // Clear brand-scoped params when switching to non-brand tabs to avoid stale filters
+      if (nextTab === 'whatsGood' || nextTab === 'pro') {
+        p.delete('brand');
+        p.delete('brandId');
+        p.delete('communityId');
+        p.delete('via');
+      }
       navigate({ pathname: location.pathname, search: p.toString() });
     };
     return (
