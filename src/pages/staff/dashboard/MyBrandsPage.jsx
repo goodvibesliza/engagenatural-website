@@ -17,6 +17,7 @@ import {
 import { db } from '@/lib/firebase';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import BrandTile from '@/components/brands/BrandTile.jsx';
 // Custom left-rail search for brands on this page
 import { track } from '@/lib/analytics';
 
@@ -24,6 +25,7 @@ export default function MyBrandsPage() {
   const { user } = useAuth();
   const [isDesktop, setIsDesktop] = useState(false);
   const hasSentPageViewRef = useRef(false);
+  const lastSectionRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -60,6 +62,15 @@ export default function MyBrandsPage() {
       } catch (err) { console.debug?.('track page_view failed (effect path, my_brands_desktop)', err); }
     }
   }, [isDesktop]);
+
+  // Section view analytics when search toggles between empty/non-empty
+  useEffect(() => {
+    const section = (searchQuery || '').trim() ? 'search_results' : 'following';
+    if (lastSectionRef.current !== section) {
+      try { track('section_view', { page: 'my_brands', section }); } catch {}
+      lastSectionRef.current = section;
+    }
+  }, [searchQuery]);
   
   // Search state
   const STORAGE_KEY = 'en.search.myBrands';
@@ -537,299 +548,158 @@ export default function MyBrandsPage() {
 
   const CenterContent = () => (
     <div className="space-y-6" data-testid="mybrands-center">
-      {/* Following Section first */}
-      {follows.length > 0 && (
-        <div className="space-y-4 mt-8">
-          <h2 className="text-xl font-semibold text-gray-800">Following</h2>
-          
-          {follows.map(follow => {
-            const details = followingDetails[follow.brandId];
-            return (
-              <div key={follow.brandId} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium">{follow.brandName}</h3>
-                  <button
-                    onClick={() => unfollowBrand(follow.brandId)}
-                    disabled={pendingFollowIds.has(follow.brandId)}
-                    className={`text-xs px-2 py-1 ${
-                      pendingFollowIds.has(follow.brandId)
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-gray-600 hover:text-gray-800'
-                    }`}
-                  >
-                    {pendingFollowIds.has(follow.brandId) ? 'Processing...' : 'Unfollow'}
-                  </button>
+      {/* Sections: Search Results (when q) then Following */}
+      {(() => {
+        const q = (searchQuery || '').trim();
+
+        // Helper: format last update
+        const toDate = (ts) => (ts?.toDate ? ts.toDate() : (ts?.seconds ? new Date(ts.seconds * 1000) : (ts ? new Date(ts) : null)));
+        const formatLastUpdate = (brand) => {
+          const d = toDate(brand.lastUpdated) || toDate(brand.updatedAt) || toDate(brand.createdAt);
+          if (!d) return 'No recent updates';
+          const now = new Date();
+          const diff = now - d;
+          const oneDay = 24 * 60 * 60 * 1000;
+          if (diff < oneDay) return 'Updated today';
+          return `Updated ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        };
+
+        // Build Search Results from all brands when q present
+        let searchResults = [];
+        if (q) {
+          const ql = q.toLowerCase();
+          searchResults = (allBrands || []).filter((brand) => {
+            const name = (brand.name || '').toLowerCase();
+            const category = (brand.category || '').toLowerCase();
+            const keywords = Array.isArray(brand.keywords) ? brand.keywords.join(' ').toLowerCase() : (brand.keywords || '').toLowerCase();
+            return name.includes(ql) || category.includes(ql) || keywords.includes(ql);
+          }).map((b) => {
+            const name = (b.name || '').toLowerCase();
+            const category = (b.category || '').toLowerCase();
+            const keywords = Array.isArray(b.keywords) ? b.keywords.join(' ').toLowerCase() : (b.keywords || '').toLowerCase();
+            const score = (name.includes(ql) ? 2 : 0) + ((category.includes(ql) || keywords.includes(ql)) ? 1 : 0);
+            return { brand: b, score };
+          }).sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            const an = (a.brand.name || '').toLowerCase();
+            const bn = (b.brand.name || '').toLowerCase();
+            return an.localeCompare(bn);
+          }).map(x => x.brand);
+        }
+
+        // Following brands grid (dedupe if searching)
+        const followedIds = new Set((follows || []).map(f => f.brandId));
+        const searchIds = new Set((searchResults || []).map(b => b.id));
+        const followingGridBrands = (allBrands || [])
+          .filter(b => followedIds.has(b.id))
+          .filter(b => !q || !searchIds.has(b.id))
+          .sort((a, b) => {
+            const ad = toDate(a.lastUpdated) || toDate(a.updatedAt) || toDate(a.createdAt) || new Date(0);
+            const bd = toDate(b.lastUpdated) || toDate(b.updatedAt) || toDate(b.createdAt) || new Date(0);
+            if (bd - ad !== 0) return bd - ad; // recent first
+            return (a.name || '').localeCompare(b.name || '');
+          });
+
+        return (
+          <>
+            {q && (
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
+                  <div className="text-sm text-gray-500">{searchResults.length} result{searchResults.length === 1 ? '' : 's'}</div>
                 </div>
-                
-                {details?.loading ? (
-                  <div className="flex justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-brand-primary"></div>
+                {searchResults.length > 0 ? (
+                  <div className="grid grid-cols-1 min-[900px]:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {searchResults.map((brand) => (
+                      <BrandTile
+                        key={brand.id}
+                        brand={brand}
+                        isFollowing={isFollowing(brand.id)}
+                        lastUpdateLabel={formatLastUpdate(brand)}
+                        onToggleFollow={(b) => isFollowing(b.id) ? unfollowBrand(b.id) : followBrand(b)}
+                        onOpen={(b) => {
+                          // navigate to brand feed
+                          const label = b.name || 'Brand';
+                          const p = new URLSearchParams();
+                          p.set('tab', 'brand');
+                          p.set('brandId', b.id);
+                          p.set('brand', label);
+                          p.set('via', 'my_brands_tile');
+                          window.location.assign(`/community?${p.toString()}`);
+                        }}
+                      />
+                    ))}
                   </div>
                 ) : (
-                  <div>
-                    {/* Community Pills */}
-                    {details?.communities?.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <Link
-                        to={`/community?tab=brand&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}${(details?.communities?.[0]?.id) ? `&communityId=${encodeURIComponent(details.communities[0].id)}` : ''}`}
-                        onClick={() => {
-                          // Track community pill click
-                          if (window.analytics?.track) {
-                            window.analytics.track('Community Filter Applied', {
-                              brand: follow.brandName,
-                              source: 'my_brands_pill'
-                            });
-                          }
-                        }}
-                        className="inline-flex items-center px-3 py-1 bg-brand-primary text-white text-sm rounded-full hover:bg-brand-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
-                        title={`View ${follow.brandName} community posts`}
-                      >
-                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
-                        </svg>
-                        Community
-                      </Link>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Communities */}
-                    <div className="border border-gray-100 rounded p-3">
-                      <h4 className="font-medium mb-2">Communities</h4>
-                      {details?.communities?.length > 0 ? (
-                        <div className="space-y-2">
-                          {details.communities.map(community => (
-                            <Link
-                              key={community.id}
-                              to={`/community?tab=brand&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}&communityId=${encodeURIComponent(community.id)}`}
-                              className="block text-sm px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-brand-primary"
-                            >
-                              {community.name || 'Unnamed Community'}
-                            </Link>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">No communities available</p>
-                      )}
-                    </div>
-                    
-                    {/* Learning */}
-                    <div className="border border-gray-100 rounded p-3">
-                      <h4 className="font-medium mb-2">Learning</h4>
-                      {details?.trainings?.length > 0 ? (
-                        <div className="space-y-2">
-                          {details.trainings.map(training => (
-                            <Link
-                              key={training.id}
-                              to={`/staff/trainings/${training.id}`}
-                              className="block text-sm px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-brand-primary"
-                            >
-                              {training.title || 'Unnamed Training'}
-                            </Link>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">No trainings available</p>
-                      )}
-                    </div>
-                    
-                    {/* Challenges */}
-                    <div className="border border-gray-100 rounded p-3">
-                      <h4 className="font-medium mb-2">Challenges</h4>
-                      {details?.challenges?.length > 0 ? (
-                        <div className="space-y-2">
-                          {details.challenges.map(challenge => (
-                            <div
-                              key={challenge.id}
-                              className="text-sm px-3 py-2 bg-gray-50 rounded"
-                            >
-                              {challenge.title || 'Unnamed Challenge'}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">No challenges available</p>
-                      )}
-                    </div>
-                  </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center space-y-3">
+                    <p className="text-gray-600">No brands match your search.</p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
+                      data-testid="mybrands-clear-empty"
+                    >
+                      Clear
+                    </button>
                   </div>
                 )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+              </section>
+            )}
 
-      {/* Selected brand or available list */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-primary"></div>
-          </div>
-        ) : (
-          <>
-            {selectedBrandId ? (
-              (() => {
-                const fallback = { id: selectedBrandId, name: selectedBrandName, description: '', category: '', logo: '' };
-                const brand = allBrands.find(b => b.id === selectedBrandId) || fallback;
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    <div 
-                      key={brand.id} 
-                      className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
-                    >
-                      <div className="flex items-start">
-                        {brand.logo ? (
-                          <img 
-                            src={brand.logo} 
-                            alt={`${brand.name} logo`} 
-                            className="w-12 h-12 object-contain rounded mr-3"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
-                            <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{brand.name}</h3>
-                          <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
-                          {brand.category && (
-                            <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                              {brand.category}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-center justify-end gap-2">
-                        {isFollowing(brand.id) ? (
-                          <button
-                            onClick={() => unfollowBrand(brand.id)}
-                            disabled={pendingFollowIds.has(brand.id)}
-                            className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                              pendingFollowIds.has(brand.id)
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                            } rounded`}
-                          >
-                            {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => followBrand(brand)}
-                            disabled={pendingFollowIds.has(brand.id)}
-                            className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                              pendingFollowIds.has(brand.id)
-                                ? 'bg-brand-primary/50 cursor-not-allowed'
-                                : 'bg-brand-primary hover:bg-brand-primary/90'
-                            } text-white rounded`}
-                          >
-                            {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : displayBrands.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {displayBrands.map(brand => (
-                  <div 
-                    key={brand.id} 
-                    className={`border rounded-lg p-4 flex flex-col justify-between h-full ${brand.id === 'calm-well-co' ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200'}`}
-                  >
-                    <div className="flex items-start">
-                      {brand.logo ? (
-                        <img 
-                          src={brand.logo} 
-                          alt={`${brand.name} logo`} 
-                          className="w-12 h-12 object-contain rounded mr-3"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = 'https://placehold.co/48x48/e5e5e5/666666?text=Logo';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-3">
-                          <span className="text-gray-500 text-xs">{brand.name?.substring(0, 2) || 'BR'}</span>
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{brand.name}</h3>
-                        <p className="text-sm text-gray-600 line-clamp-2">{brand.description || 'No description available'}</p>
-                        {brand.category && (
-                          <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                            {brand.category}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-end gap-2">
-                      {isFollowing(brand.id) ? (
-                        <button
-                          onClick={() => unfollowBrand(brand.id)}
-                          disabled={pendingFollowIds.has(brand.id)}
-                          className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                            pendingFollowIds.has(brand.id)
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                          } rounded`}
-                        >
-                          {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Unfollow'}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => followBrand(brand)}
-                          disabled={pendingFollowIds.has(brand.id)}
-                          className={`text-sm px-3 py-1.5 min-w-[96px] text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
-                            pendingFollowIds.has(brand.id)
-                              ? 'bg-brand-primary/50 cursor-not-allowed'
-                              : 'bg-brand-primary hover:bg-brand-primary/90'
-                          } text-white rounded`}
-                        >
-                          {pendingFollowIds.has(brand.id) ? 'Processing...' : 'Follow'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+            {/* Following section */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">Following</h2>
+                <div className="text-sm text-gray-500">{followingGridBrands.length} brand{followingGridBrands.length === 1 ? '' : 's'}</div>
               </div>
-            ) : (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center space-y-3">
-                <p className="text-gray-600">No brands match your search.</p>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
-                  data-testid="mybrands-clear-empty"
-                >
-                  Clear
-                </button>
+              {followingGridBrands.length > 0 ? (
+                <div className="grid grid-cols-1 min-[900px]:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {followingGridBrands.map((brand) => (
+                    <BrandTile
+                      key={brand.id}
+                      brand={brand}
+                      isFollowing={true}
+                      lastUpdateLabel={formatLastUpdate(brand)}
+                      onToggleFollow={() => unfollowBrand(brand.id)}
+                      onOpen={(b) => {
+                        const label = b.name || 'Brand';
+                        const p = new URLSearchParams();
+                        p.set('tab', 'brand');
+                        p.set('brandId', b.id);
+                        p.set('brand', label);
+                        p.set('via', 'my_brands_tile');
+                        window.location.assign(`/community?${p.toString()}`);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center space-y-3">
+                  <p className="text-gray-600">You're not following any brands yet.</p>
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); setSearchQuery(''); }}
+                    className="text-brand-primary hover:underline"
+                  >
+                    Explore brands
+                  </a>
+                </div>
+              )}
+            </section>
+
+            {/* Optional: Challenges section only when no follows and no search */}
+            {!q && follows.length === 0 && (
+              <div className="space-y-4 mt-4">
+                <h2 className="text-xl font-semibold text-gray-800">Brand Challenges</h2>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                  <p className="text-gray-500">Complete challenges to earn points and advance your career</p>
+                  <p className="text-sm text-gray-400 mt-2">Follow brands to see their challenges here</p>
+                </div>
               </div>
             )}
           </>
-        )}
-      </div>
-
-      {/* Challenges Section - show only if no follows */}
-      {follows.length === 0 && (
-        <div className="space-y-4 mt-8">
-          <h2 className="text-xl font-semibold text-gray-800">Brand Challenges</h2>
-          
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-500">
-              Complete challenges to earn points and advance your career
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Follow brands to see their challenges here
-            </p>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 
