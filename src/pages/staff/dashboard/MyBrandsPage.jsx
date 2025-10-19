@@ -135,9 +135,7 @@ export default function MyBrandsPage() {
           } else {
             setDisplayBrands(base);
           }
-        } catch {
-          setDisplayBrands(base);
-        }
+        } catch (err) { void err; setDisplayBrands(base); }
       } catch (err) {
         console.error('Error loading brands:', err);
         // Fallback to example brand if error
@@ -157,9 +155,7 @@ export default function MyBrandsPage() {
           } else {
             setDisplayBrands(fallback);
           }
-        } catch {
-          setDisplayBrands(fallback);
-        }
+        } catch (err) { void err; setDisplayBrands(fallback); }
       } finally {
         setLoading(false);
       }
