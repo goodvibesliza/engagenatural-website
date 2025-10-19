@@ -62,6 +62,7 @@ export default function MyBrandsPage() {
   }, [isDesktop]);
   
   // Search state
+  const STORAGE_KEY = 'en.search.myBrands';
   const [searchQuery, setSearchQuery] = useState('');
   const [allBrands, setAllBrands] = useState([]);
   const [displayBrands, setDisplayBrands] = useState([]);
@@ -114,7 +115,18 @@ export default function MyBrandsPage() {
         ];
 
         setAllBrands(base);
-        setDisplayBrands(base);
+        // If we have a stored query, apply filtered view after load
+        try {
+          const stored = (localStorage.getItem(STORAGE_KEY) || '').trim();
+          if (stored) {
+            setSearchQuery(stored);
+            // display will be set by the debounced filter below
+          } else {
+            setDisplayBrands(base);
+          }
+        } catch {
+          setDisplayBrands(base);
+        }
       } catch (err) {
         console.error('Error loading brands:', err);
         // Fallback to example brand if error
@@ -127,7 +139,16 @@ export default function MyBrandsPage() {
           isExample: true
         }];
         setAllBrands(fallback);
-        setDisplayBrands(fallback);
+        try {
+          const stored = (localStorage.getItem(STORAGE_KEY) || '').trim();
+          if (stored) {
+            setSearchQuery(stored);
+          } else {
+            setDisplayBrands(fallback);
+          }
+        } catch {
+          setDisplayBrands(fallback);
+        }
       } finally {
         setLoading(false);
       }
@@ -138,10 +159,14 @@ export default function MyBrandsPage() {
 
   // Debounced client-side filter by name/category/keywords (case-insensitive)
   useEffect(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
+    const qRaw = (searchQuery || '').trim();
+    const q = qRaw.toLowerCase();
+    // persist per-page
+    try { localStorage.setItem(STORAGE_KEY, qRaw); } catch {}
     const timer = setTimeout(() => {
       if (!q) {
         setDisplayBrands(allBrands);
+        try { track('search_change', { page: 'my_brands', q: '', resultsCount: (allBrands || []).length }); } catch {}
         return;
       }
       const filtered = allBrands.filter((brand) => {
@@ -150,14 +175,16 @@ export default function MyBrandsPage() {
         const keywords = Array.isArray(brand.keywords)
           ? brand.keywords.join(' ').toLowerCase()
           : (brand.keywords || '').toLowerCase();
-        // If nothing but name exists, fallback to name-only
         const haystack = [name];
         if (category) haystack.push(category);
         if (keywords) haystack.push(keywords);
-        return haystack.some((h) => h.includes(q));
+        // Multi-word queries should still match substrings in concatenated string
+        const combined = haystack.join(' ');
+        return combined.includes(q);
       });
       setDisplayBrands(filtered);
-    }, 150);
+      try { track('search_change', { page: 'my_brands', q: qRaw, resultsCount: (filtered || []).length }); } catch {}
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery, allBrands]);
   
@@ -796,7 +823,7 @@ export default function MyBrandsPage() {
   if (flag === 'linkedin' && isDesktop) {
     const LeftBrandsSearch = (
       <div className="space-y-3" data-testid="mybrands-left-search">
-        <div className="text-xs uppercase text-gray-500">Search Available Brands</div>
+        <label htmlFor="mybrands-left-rail-search" className="block text-xs uppercase text-gray-500">Search brands</label>
         <form
           className="relative"
           onSubmit={(e) => {
@@ -804,17 +831,30 @@ export default function MyBrandsPage() {
             try {
               const q = (searchQuery || '');
               const results = (displayBrands || []).length;
-              track('my_brands_search', { q, results });
+              // Prevent route reload; analytics handled on change
+              track('search_change', { page: 'my_brands', q, resultsCount: results });
             } catch (err) { console.debug?.('track my_brands_search submit failed', err); }
           }}
         >
           <input
+            id="mybrands-left-rail-search"
             type="search"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setSelectedBrandId(null); setSelectedBrandName(''); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                setSearchQuery('');
+                try { track('search_clear', { page: 'my_brands' }); } catch {}
+              }
+              if (e.key === 'Enter') {
+                // prevent accidental form submit/route reload
+                e.preventDefault();
+              }
+            }}
             placeholder="Search Available Brands"
-            className="w-full h-10 pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
-            aria-label="Search available brands"
+            className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            aria-label="Search brands"
           />
           <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
             <span role="img" aria-label="search" className="text-gray-400">🔍</span>
@@ -822,7 +862,7 @@ export default function MyBrandsPage() {
           {searchQuery && (
             <button
               type="button"
-              onClick={() => { setSearchQuery(''); try { track('my_brands_search', { q: '', results: (allBrands || []).length }); } catch (err) { console.debug?.('track my_brands_search clear failed', err); } }}
+              onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'my_brands' }); } catch {} }}
               className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
               aria-label="Clear search"
               data-testid="mybrands-clear-x"
@@ -831,6 +871,9 @@ export default function MyBrandsPage() {
             </button>
           )}
         </form>
+        {loading && (
+          <p className="text-[11px] text-gray-500">Loading…</p>
+        )}
         {topFollowButtons.length > 0 && (
           <div className="pt-2">
             <h2 className="text-sm font-semibold text-gray-900 mb-3" data-testid="mybrands-left-topbrands-header">

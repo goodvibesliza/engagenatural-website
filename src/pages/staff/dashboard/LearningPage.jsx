@@ -132,6 +132,7 @@ export default function LearningPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isDesktop, setIsDesktop] = useState(false);
+  const STORAGE_KEY = 'en.search.learning';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -156,6 +157,7 @@ export default function LearningPage() {
   
   // States for filtering
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState(new Set());
   
   // Track pending operations
@@ -269,6 +271,22 @@ export default function LearningPage() {
       });
     };
   }, [user]);
+
+  // Hydrate saved search on mount
+  useEffect(() => {
+    try {
+      const stored = (localStorage.getItem(STORAGE_KEY) || '').trim();
+      if (stored) setSearchQuery(stored);
+    } catch {}
+  }, []);
+
+  // Debounce search input by 300ms and persist
+  useEffect(() => {
+    const raw = (searchQuery || '').trim();
+    try { localStorage.setItem(STORAGE_KEY, raw); } catch {}
+    const t = setTimeout(() => setDebouncedQuery(raw), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   
   // Extract all unique tags from trainings
   const allTags = useMemo(() => {
@@ -283,19 +301,26 @@ export default function LearningPage() {
   
   // Filter trainings based on search and tags
   const filteredTrainings = useMemo(() => {
+    const q = (debouncedQuery || '').toLowerCase();
     return trainings.filter(training => {
-      // Search by title
-      const matchesSearch = !searchQuery || 
-        (training.title && training.title.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+      // Build concatenated haystack per item
+      const title = (training.title || '').toLowerCase();
+      const tags = Array.isArray(training.modules) ? training.modules.join(' ').toLowerCase() : '';
+      const brandName = (training.brandName || '').toLowerCase();
+      const skillLevel = (training.skillLevel || training.category || '').toLowerCase();
+      const haystack = `${title} ${tags} ${brandName} ${skillLevel}`.trim();
+      const matchesSearch = !q || haystack.includes(q);
       // Filter by selected tags (if any)
-      const matchesTags = selectedTags.size === 0 || 
-        (Array.isArray(training.modules) && 
-         training.modules.some(tag => selectedTags.has(tag)));
-      
+      const matchesTags = selectedTags.size === 0 ||
+        (Array.isArray(training.modules) && training.modules.some(tag => selectedTags.has(tag)));
       return matchesSearch && matchesTags;
     });
-  }, [trainings, searchQuery, selectedTags]);
+  }, [trainings, debouncedQuery, selectedTags]);
+
+  // Analytics: search_change on change (debounced)
+  useEffect(() => {
+    try { track('search_change', { page: 'learning', q: debouncedQuery, resultsCount: filteredTrainings.length }); } catch {}
+  }, [debouncedQuery, filteredTrainings.length]);
   
   // Split trainings into continue and completed
   const continueTrainings = useMemo(() => {
@@ -547,9 +572,16 @@ export default function LearningPage() {
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>No trainings match your search</p>
-                <p className="text-sm mt-1">Try adjusting your filters</p>
+              <div className="text-center py-8 text-gray-600 space-y-3">
+                <p>No learning items match your search.</p>
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch {} }}
+                  className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
+                  data-testid="learning-clear-empty"
+                >
+                  Clear
+                </button>
               </div>
             )}
           </div>
@@ -560,19 +592,43 @@ export default function LearningPage() {
 
   const LeftDiscover = (
     <div className="space-y-3" data-testid="learning-left-discover">
-      <div className="text-xs uppercase text-gray-500">Discover</div>
-      <div className="relative">
+      <label htmlFor="learning-left-rail-search" className="block text-xs uppercase text-gray-500">Search learning modules</label>
+      <form className="relative" onSubmit={(e) => e.preventDefault()}>
         <input
+          id="learning-left-rail-search"
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setSearchQuery('');
+              try { track('search_clear', { page: 'learning' }); } catch {}
+            }
+            if (e.key === 'Enter') e.preventDefault();
+          }}
           placeholder="Search trainings..."
-          className="w-full h-10 pl-8 pr-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          aria-label="Search learning modules"
         />
         <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
           <span role="img" aria-label="search" className="text-gray-400">🔍</span>
         </div>
-      </div>
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch {} }}
+            className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+            aria-label="Clear search"
+            data-testid="learning-clear-x"
+          >
+            ×
+          </button>
+        )}
+      </form>
+      {loadingTrainings && (
+        <p className="text-[11px] text-gray-500">Loading…</p>
+      )}
       {/* Keyword chips */}
       <div className="flex flex-wrap gap-2">
         {allTags.map(tag => (
