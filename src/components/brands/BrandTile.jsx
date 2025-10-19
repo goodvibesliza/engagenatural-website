@@ -11,7 +11,7 @@ export default function BrandTile({
   if (!brand) return null;
   const name = brand.name || brand.displayName || 'Brand';
   const handleOpen = () => {
-    try { track('brand_tile_click', { brandId: brand.id }); } catch {}
+    try { track('brand_tile_click', { brandId: brand.id }); } catch (err) { void err; }
     onOpen?.(brand);
   };
 
@@ -48,7 +48,7 @@ export default function BrandTile({
             aria-label={`${isFollowing ? 'Unfollow' : 'Follow'} ${name}`}
             onClick={(e) => {
               e.stopPropagation();
-              try { track('brand_follow_toggle', { brandId: brand.id, action: isFollowing ? 'unfollow' : 'follow', via: 'brand_tile' }); } catch {}
+              try { track('brand_follow_toggle', { brandId: brand.id, action: isFollowing ? 'unfollow' : 'follow', via: 'brand_tile' }); } catch (err) { console.error('brand_follow_toggle tracking failed', err); }
               onToggleFollow?.(brand);
             }}
             className={`text-sm px-3 py-1.5 min-w-[96px] rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${

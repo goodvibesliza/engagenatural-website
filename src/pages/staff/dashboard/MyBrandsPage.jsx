@@ -62,15 +62,6 @@ export default function MyBrandsPage() {
       } catch (err) { console.debug?.('track page_view failed (effect path, my_brands_desktop)', err); }
     }
   }, [isDesktop]);
-
-  // Section view analytics when search toggles between empty/non-empty
-  useEffect(() => {
-    const section = (searchQuery || '').trim() ? 'search_results' : 'following';
-    if (lastSectionRef.current !== section) {
-      try { track('section_view', { page: 'my_brands', section }); } catch {}
-      lastSectionRef.current = section;
-    }
-  }, [searchQuery]);
   
   // Search state
   const STORAGE_KEY = 'en.search.myBrands';
@@ -80,6 +71,15 @@ export default function MyBrandsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedBrandId, setSelectedBrandId] = useState(null);
   const [selectedBrandName, setSelectedBrandName] = useState('');
+  
+  // Section view analytics when search toggles between empty/non-empty
+  useEffect(() => {
+    const section = (searchQuery || '').trim() ? 'search_results' : 'following';
+    if (lastSectionRef.current !== section) {
+      try { track('section_view', { page: 'my_brands', section }); } catch (err) { void err; }
+      lastSectionRef.current = section;
+    }
+  }, [searchQuery]);
   
   // Following state
   const [follows, setFollows] = useState([]);
@@ -187,11 +187,11 @@ export default function MyBrandsPage() {
     const qRaw = (searchQuery || '').trim();
     const q = qRaw.toLowerCase();
     // persist per-page
-    try { localStorage.setItem(STORAGE_KEY, qRaw); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, qRaw); } catch (err) { void err; }
     const timer = setTimeout(() => {
       if (!q) {
         setDisplayBrands(allBrands);
-        try { track('search_change', { page: 'my_brands', q: '', resultsCount: (allBrands || []).length }); } catch {}
+        try { track('search_change', { page: 'my_brands', q: '', resultsCount: (allBrands || []).length }); } catch (err) { void err; }
         return;
       }
       const filtered = allBrands.filter((brand) => {
@@ -208,7 +208,7 @@ export default function MyBrandsPage() {
         return combined.includes(q);
       });
       setDisplayBrands(filtered);
-      try { track('search_change', { page: 'my_brands', q: qRaw, resultsCount: (filtered || []).length }); } catch {}
+      try { track('search_change', { page: 'my_brands', q: qRaw, resultsCount: (filtered || []).length }); } catch (err) { void err; }
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery, allBrands]);
@@ -729,7 +729,7 @@ export default function MyBrandsPage() {
               if (e.key === 'Escape') {
                 e.stopPropagation();
                 setSearchQuery('');
-                try { track('search_clear', { page: 'my_brands' }); } catch {}
+                try { track('search_clear', { page: 'my_brands' }); } catch (err) { void err; }
               }
               if (e.key === 'Enter') {
                 // prevent accidental form submit/route reload
@@ -746,7 +746,7 @@ export default function MyBrandsPage() {
           {searchQuery && (
             <button
               type="button"
-              onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'my_brands' }); } catch {} }}
+              onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'my_brands' }); } catch (err) { void err; } }}
               className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
               aria-label="Clear search"
               data-testid="mybrands-clear-x"

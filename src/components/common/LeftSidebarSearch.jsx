@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { track } from '@/lib/analytics';
 
 // Shared left-rail search input with per-page persistence and events
 export default function LeftSidebarSearch({
@@ -15,6 +14,8 @@ export default function LeftSidebarSearch({
     if (path.includes('/community')) return 'community';
     return 'unknown';
   }, [path]);
+  const pageRef = useRef(page);
+  useEffect(() => { pageRef.current = page; }, [page]);
   const storageKey = useMemo(() => {
     if (page === 'my_brands') return 'en.search.myBrands';
     if (page === 'learning') return 'en.search.learning';
@@ -30,8 +31,8 @@ export default function LeftSidebarSearch({
       const stored = (localStorage.getItem(storageKey) || '').trim();
       setValue(stored);
       // Fire an initial change for pages to hydrate their filtered view
-      window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page, q: stored } }));
-    } catch {}
+      window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page: pageRef.current, q: stored } }));
+    } catch (err) { void err; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
@@ -40,8 +41,7 @@ export default function LeftSidebarSearch({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       try {
-        window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page, q: qRaw } }));
-        track('search_change', { page, q: qRaw });
+        window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page: pageRef.current, q: qRaw } }));
       } catch (err) { void err; }
     }, 300);
   });
@@ -66,15 +66,15 @@ export default function LeftSidebarSearch({
           onChange={(e) => {
             const v = e.target.value;
             setValue(v);
-            try { localStorage.setItem(storageKey, v); } catch {}
+            try { localStorage.setItem(storageKey, v); } catch (err) { void err; }
             debounced.current?.(v);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.stopPropagation();
               setValue('');
-              try { localStorage.setItem(storageKey, ''); } catch {}
-              try { window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page, q: '' } })); track('search_clear', { page }); } catch {}
+              try { localStorage.setItem(storageKey, ''); } catch (err) { void err; }
+              try { window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page: pageRef.current, q: '' } })); } catch (err) { void err; }
             }
             if (e.key === 'Enter') e.preventDefault();
           }}
@@ -91,8 +91,8 @@ export default function LeftSidebarSearch({
             type="button"
             onClick={() => {
               setValue('');
-              try { localStorage.setItem(storageKey, ''); } catch {}
-              try { window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page, q: '' } })); track('search_clear', { page }); } catch {}
+              try { localStorage.setItem(storageKey, ''); } catch (err) { void err; }
+              try { window.dispatchEvent(new CustomEvent('en:leftsearch', { detail: { page: pageRef.current, q: '' } })); } catch (err) { void err; }
             }}
             className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
             aria-label="Clear search"

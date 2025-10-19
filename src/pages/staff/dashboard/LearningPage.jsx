@@ -255,7 +255,7 @@ export default function LearningPage() {
     try {
       const stored = (localStorage.getItem(STORAGE_KEY) || '').trim();
       if (stored) setSearchQuery(stored);
-    } catch {}
+    } catch (err) { /* no-op */ }
   }, [user]);
 
   // Listen to left-rail search events (desktop shell; guarded by role)
@@ -275,7 +275,7 @@ export default function LearningPage() {
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
     const raw = (searchQuery || '').trim();
-    try { localStorage.setItem(STORAGE_KEY, raw); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, raw); } catch (err) { /* no-op */ }
     const t = setTimeout(() => setDebouncedQuery(raw), 300);
     return () => clearTimeout(t);
   }, [searchQuery, user]);
@@ -312,7 +312,7 @@ export default function LearningPage() {
   // Analytics: search_change on change (debounced; guarded by role)
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
-    try { track('search_change', { page: 'learning', q: debouncedQuery, resultsCount: filteredTrainings.length }); } catch {}
+    try { track('search_change', { page: 'learning', q: debouncedQuery, resultsCount: filteredTrainings.length }); } catch (err) { /* no-op */ }
   }, [debouncedQuery, filteredTrainings.length, user]);
   
   // Split trainings into continue and completed
@@ -569,7 +569,7 @@ export default function LearningPage() {
                 <p>No learning items match your search.</p>
                 <button
                   type="button"
-                  onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch {} }}
+                  onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
                   className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
                   data-testid="learning-clear-empty"
                 >
@@ -596,7 +596,7 @@ export default function LearningPage() {
             if (e.key === 'Escape') {
               e.stopPropagation();
               setSearchQuery('');
-              try { track('search_clear', { page: 'learning' }); } catch {}
+              try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ }
             }
             if (e.key === 'Enter') e.preventDefault();
           }}
@@ -610,7 +610,7 @@ export default function LearningPage() {
         {searchQuery && (
           <button
             type="button"
-            onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch {} }}
+            onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
             className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
             aria-label="Clear search"
             data-testid="learning-clear-x"
