@@ -599,13 +599,13 @@ export default function MyBrandsPage() {
         return (
           <>
             {q && (
-              <section className="space-y-4">
+              <section className="space-y-4 mt-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
                   <div className="text-sm text-gray-500">{searchResults.length} result{searchResults.length === 1 ? '' : 's'}</div>
                 </div>
                 {searchResults.length > 0 ? (
-                  <div className="grid grid-cols-1 min-[900px]:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-y-5 min-[900px]:grid-cols-2 min-[900px]:gap-x-6 min-[900px]:gap-y-6 xl:grid-cols-3">
                     {searchResults.map((brand) => (
                       <BrandTile
                         key={brand.id}
@@ -643,13 +643,13 @@ export default function MyBrandsPage() {
             )}
 
             {/* Following section */}
-            <section className="space-y-4">
+            <section className="space-y-4 mt-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">Following</h2>
                 <div className="text-sm text-gray-500">{followingGridBrands.length} brand{followingGridBrands.length === 1 ? '' : 's'}</div>
               </div>
               {followingGridBrands.length > 0 ? (
-                <div className="grid grid-cols-1 min-[900px]:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-y-5 min-[900px]:grid-cols-2 min-[900px]:gap-x-6 min-[900px]:gap-y-6 xl:grid-cols-3">
                   {followingGridBrands.map((brand) => (
                     <BrandTile
                       key={brand.id}
