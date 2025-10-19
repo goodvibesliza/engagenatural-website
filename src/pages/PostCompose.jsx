@@ -20,7 +20,7 @@ import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 export default function PostCompose() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, isVerified } = useAuth();
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
@@ -30,6 +30,19 @@ export default function PostCompose() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  const goCommunityHome = () => {
+    try {
+      const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+      if (flag === 'linkedin' && isDesktop) {
+        navigate('/community');
+      } else {
+        navigate('/staff/community');
+      }
+    } catch {
+      navigate('/staff/community');
+    }
+  };
 
   const headingRef = useRef(null);
   const [title, setTitle] = useState('');
@@ -56,6 +69,8 @@ export default function PostCompose() {
   // Load available communities and set initial selection from URL (?communityId=...)
   useEffect(() => {
     const loadCommunities = async () => {
+      // Compute once and reuse across all branches
+      const isVerifiedStaff = hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r));
       try {
         // 1) Public, active communities
         const pubQ = query(
@@ -88,15 +103,44 @@ export default function PostCompose() {
               }
             }
           }
-        } catch {}
+        } catch (err) {
+          // Non-fatal Firestore/read error while loading user's brand communities
+          console.debug?.('PostCompose: failed to load user brand communities', err);
+        }
 
-        // 3) Always include What's Good
+        // Optionally include a validated brand pseudo-community from URL for convenience (not auto-selected)
+        try {
+          const sp = new URLSearchParams(location.search);
+          const ctxBrandId = sp.get('brandId');
+          const ctxBrand = sp.get('brand');
+          if (isVerifiedStaff && ctxBrandId && !items.some((c) => c.id === `brand:${ctxBrandId}`)) {
+            let label = ctxBrand || 'Brand';
+            let ok = false;
+            try {
+              const bRef = doc(db, 'brands', ctxBrandId);
+              const bDoc = await getDoc(bRef);
+              if (bDoc.exists()) {
+                const data = bDoc.data() || {};
+                label = data.name || data.displayName || label;
+                ok = true;
+              }
+            } catch (err) {
+              console.debug?.('PostCompose: brand validation failed for dropdown option', err);
+            }
+            if (ok) {
+              items.push({ id: `brand:${ctxBrandId}`, name: `${label} Feed`, isActive: true, isPublic: false, brandId: ctxBrandId, brandName: label, isSynthetic: true });
+            }
+          }
+        } catch (err) {
+          console.debug?.('PostCompose: brand URL parse failed for dropdown option', err);
+        }
+
+        // 4) Always include What's Good
         if (!items.some((c) => c.id === 'whats-good')) {
           items.push({ id: 'whats-good', name: "What's Good", isActive: true, isPublic: true });
         }
 
-        // 4) Include Pro Feed for verified staff even if private/missing
-        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
+        // 5) Include Pro Feed for verified staff even if private/missing
         if (isVerifiedStaff && !items.some((c) => c.id === 'pro-feed')) {
           try {
             const proRef = doc(db, 'communities', 'pro-feed');
@@ -126,9 +170,9 @@ export default function PostCompose() {
           setSelectedCommunityId('whats-good');
         }
       } catch (err) {
+        console.error?.('PostCompose: failed to load communities; applying fallback', err);
         // Fallback: ensure both What's Good and Pro Feed appear for verified staff
         const fallback = [{ id: 'whats-good', name: "What's Good" }];
-        const isVerifiedStaff = hasRole && hasRole(['verified_staff', 'staff', 'brand_manager', 'super_admin']);
         if (isVerifiedStaff) fallback.push({ id: 'pro-feed', name: 'Pro Feed' });
         setCommunities(fallback);
         const params = new URLSearchParams(location.search);
@@ -209,17 +253,56 @@ export default function PostCompose() {
       const rawCid = selectedCommunityId || 'whats-good';
       const cid = rawCid.replaceAll('_', '-');
       const cname = (communities.find((c) => c.id === rawCid)?.name) || "What's Good";
-      // Load user profile for brand metadata
+      // Resolve brand context with server validation first; never trust client-only data or URL params.
       let brandId; let brandName;
       try {
-        if (db && user?.uid) {
-          const userRef = doc(db, 'users', user.uid);
-          const profile = await getDoc(userRef);
-          const u = profile.exists() ? (profile.data() || {}) : {};
-          brandId = u.brandId || u.brand?.id;
-          brandName = u.brandName || u.brand?.name;
+        if (db && rawCid && rawCid !== 'whats-good' && rawCid !== 'pro-feed') {
+          // 1) Server-side validation: check community doc for brand association
+          try {
+            const cRef = doc(db, 'communities', rawCid);
+            const cDoc = await getDoc(cRef);
+            if (cDoc.exists()) {
+              const c = cDoc.data() || {};
+              if (c.brandId) {
+                brandId = c.brandId;
+                brandName = c.brandName || c.name || undefined;
+              }
+            }
+          } catch (err) {
+            console.debug?.('PostCompose: community brand validation failed', err);
+          }
         }
-      } catch {}
+
+        // 2) Profile fallback only for verified staff
+        if (!brandId && isVerified === true && hasRole && ['verified_staff', 'staff', 'brand_manager', 'super_admin'].some(r => hasRole(r))) {
+          try {
+            const userRef = doc(db, 'users', user.uid);
+            const profile = await getDoc(userRef);
+            const u = profile.exists() ? (profile.data() || {}) : {};
+            brandId = u.brandId || u.brand?.id;
+            brandName = u.brandName || u.brand?.name;
+          } catch (err) {
+            console.debug?.('PostCompose: failed to load verified staff profile brand', err);
+          }
+        }
+
+        // 3) Extra validation: ensure brand doc exists when a brandId is present
+        if (brandId && db) {
+          try {
+            const bRef = doc(db, 'brands', brandId);
+            const bDoc = await getDoc(bRef);
+            if (!bDoc.exists()) {
+              console.debug?.('PostCompose: brand doc not found, dropping brandId', { brandId });
+              brandId = undefined;
+              brandName = undefined;
+            }
+          } catch (err) {
+            console.debug?.('PostCompose: brand existence check failed', err);
+          }
+        }
+      } catch (err) {
+        console.debug?.('PostCompose: brand resolution failed', err);
+      }
       const tags = extractTags(title, moderatedBody);
       const ref = await addDoc(collection(db, 'community_posts'), {
         title: title.trim(),
@@ -229,12 +312,15 @@ export default function PostCompose() {
         communityName: cname,
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
-        authorName: user?.name || user?.displayName || user?.email || 'Staff',
+        authorName:
+          user?.name ||
+          user?.displayName ||
+          (user?.email ? `${user.email.split('@')[0]?.[0] || ''}***` : 'Staff'),
         authorPhotoURL: user?.profileImage || user?.photoURL || null,
         authorRole: user?.role || 'staff',
         images: Array.isArray(images) ? images : [],
         ...(brandId ? { brandId } : {}),
-        ...(brandName ? { brandName } : {}),
+        ...(brandId && brandName ? { brandName } : {}),
         ...(tags.length ? { tags } : {}),
         needsReview,
         isBlocked,
@@ -248,8 +334,9 @@ export default function PostCompose() {
         try {
           const moderation = await filterPostContent({ content: rawBody });
           moderatedBody = moderation?.content ?? rawBody;
-        } catch {
+        } catch (err2) {
           // leave moderatedBody as raw fallback
+          console.debug?.('PostCompose: moderation retry failed', err2);
         }
       }
       const rawCid = selectedCommunityId || 'whats-good';
@@ -276,7 +363,7 @@ export default function PostCompose() {
     </>
   );
 
-  const CenterContent = () => (
+  const centerContent = (
     <div className="min-h-screen bg-cool-gray" data-testid="postcreate-center">
       <div className="max-w-2xl mx-auto px-4 py-4">
         <button
@@ -287,7 +374,10 @@ export default function PostCompose() {
           ← Back
         </button>
 
-        <form onSubmit={handleSubmit} className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 bg-white rounded-lg border border-gray-200 p-4"
+        >
           <header className="flex items-start justify-between gap-3">
             <h1 className="text-lg font-semibold text-gray-900">New Post</h1>
           </header>
@@ -348,7 +438,7 @@ export default function PostCompose() {
           <div className="hidden sm:flex justify-end gap-2 mt-4">
             <button
               type="button"
-              onClick={() => navigate('/staff/community')}
+              onClick={goCommunityHome}
               className="px-4 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
             >
               Cancel
@@ -373,7 +463,7 @@ export default function PostCompose() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/staff/community')}
+            onClick={goCommunityHome}
             className="flex-1 px-4 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
           >
             Cancel
@@ -401,11 +491,11 @@ export default function PostCompose() {
       <DesktopLinkedInShell
         topBar={<TopMenuBarDesktop />}
         leftSidebar={<LeftSidebarSearch />}
-        center={<CenterContent />}
+        center={centerContent}
         rightRail={rightRail}
       />
     );
   }
 
-  return <CenterContent />;
+  return centerContent;
 }

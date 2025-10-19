@@ -36,6 +36,8 @@ export default function LeftSidebarSearch({ eventContext }) {
   return (
     <form onSubmit={onSubmit} className="mb-3" role="search" aria-label="Left sidebar search">
       <input
+        id="left-rail-search"
+        name="left_rail_search"
         type="search"
         value={value}
         onChange={(e) => {

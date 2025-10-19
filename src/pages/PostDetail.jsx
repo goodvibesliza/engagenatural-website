@@ -22,6 +22,11 @@ import {
   orderBy,
   query,
   where,
+  writeBatch,
+  deleteDoc,
+  setDoc,
+  addDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 const GENERIC_COMPANY_REGEX = /^(whats-?good|whatsgood|all|public|pro feed)$/i;
@@ -40,6 +45,19 @@ export default function PostDetail() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  const goCommunityHome = () => {
+    try {
+      const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+      if (flag === 'linkedin' && isDesktop) {
+        navigate('/community');
+      } else {
+        navigate('/staff/community');
+      }
+    } catch {
+      navigate('/staff/community');
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState(null);
@@ -365,13 +383,11 @@ export default function PostDetail() {
         if (likeDoc.exists()) {
           // currently liked on server
           if (!intendedNext) {
-            const { deleteDoc } = await import('firebase/firestore');
             await deleteDoc(likeRef);
           }
         } else {
           // not liked on server
           if (intendedNext) {
-            const { setDoc, serverTimestamp } = await import('firebase/firestore');
             await setDoc(likeRef, { postId: post.id, userId: user.uid, createdAt: serverTimestamp() });
           }
         }
@@ -399,20 +415,19 @@ export default function PostDetail() {
     try {
       if (!post || !user?.uid || post.userId !== user.uid) return;
       if (!window.confirm('Delete this post and its likes/comments? This cannot be undone.')) return;
-      const { writeBatch, collection: coll, query: q2, where: w2, getDocs: gd2, doc: d2 } = await import('firebase/firestore');
       const batch = writeBatch(db);
       // delete likes
-      const likesQ = q2(coll(db, 'post_likes'), w2('postId', '==', post.id));
-      const likesSnap = await gd2(likesQ);
+      const likesQ = query(collection(db, 'post_likes'), where('postId', '==', post.id));
+      const likesSnap = await getDocs(likesQ);
       likesSnap.forEach((docSnap) => batch.delete(docSnap.ref));
       // delete comments
-      const cmtsQ = q2(coll(db, 'community_comments'), w2('postId', '==', post.id));
-      const cmtsSnap = await gd2(cmtsQ);
+      const cmtsQ = query(collection(db, 'community_comments'), where('postId', '==', post.id));
+      const cmtsSnap = await getDocs(cmtsQ);
       cmtsSnap.forEach((docSnap) => batch.delete(docSnap.ref));
       // delete post
-      batch.delete(d2(db, 'community_posts', post.id));
+      batch.delete(doc(db, 'community_posts', post.id));
       await batch.commit();
-      navigate('/staff/community');
+      goCommunityHome();
     } catch (e) {
       console.error('PostDetail: failed to delete post', { postId: post?.id, userId: user?.uid }, e);
       if (typeof window !== 'undefined' && typeof window.alert === 'function') {
@@ -427,8 +442,7 @@ export default function PostDetail() {
     try {
       if (!cmt?.id || !user?.uid || cmt.userId !== user.uid) return;
       if (!window.confirm('Delete this comment?')) return;
-      const { doc: d2, deleteDoc: del2 } = await import('firebase/firestore');
-      await del2(d2(db, 'community_comments', cmt.id));
+      await deleteDoc(doc(db, 'community_comments', cmt.id));
       setComments((prev) => prev.filter((c) => c.id !== cmt.id));
       setTimeout(() => {
         if (typeof window.refreshWhatsGoodComments === 'function') {
@@ -481,7 +495,6 @@ export default function PostDetail() {
       return;
     }
     try {
-      const { addDoc, serverTimestamp } = await import('firebase/firestore');
       const ref = await addDoc(collection(db, 'community_comments'), {
         postId: post.id,
         communityId: post.communityId || 'whats-good',
@@ -514,7 +527,6 @@ export default function PostDetail() {
     if (!cmt || cmt.status !== 'error') return;
     setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'pending' } : c)));
     try {
-      const { addDoc, serverTimestamp } = await import('firebase/firestore');
       const ref = await addDoc(collection(db, 'community_comments'), {
         postId: post.id,
         communityId: post.communityId || 'whats-good',
@@ -550,7 +562,7 @@ export default function PostDetail() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         <button
-          onClick={() => navigate('/staff/community')}
+          onClick={goCommunityHome}
           className="text-sm text-gray-600 hover:text-gray-800"
         >
           ← Back to community

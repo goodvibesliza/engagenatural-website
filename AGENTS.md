@@ -164,6 +164,15 @@ Context: A series of fixes were made to stabilize community feeds and post detai
   - Remove unnecessary `Suspense` wrappers when the target component is eagerly imported.
   - My Brands → Community deep-link: From /staff/my-brands, brand entries now navigate to `/community?tab=whats-good&brand=<BrandName>&via=my_brands_link&brandId=<brandId>`. The Community page reads `brand` to apply brand filter and includes `via`/`brandId` in `community_view` analytics payload.
 
+- Community routing, tabs, and analytics (policy)
+  - Tab sync honors `tab=brand` immediately; do not demote to `whatsGood` while permissions load. Permission CTA handles gating.
+  - Router-state fallback only restores brand params when `tab=brand` is explicitly requested. No state reinjection on other tabs.
+  - Canonicalization on non‑brand tabs: strip only `brand` and `communityId`; preserve `via` and `brandId` so analytics sees deep‑link source.
+  - Left rail/nav: when switching away from Brand to What’s Good/Pro, ensure brand‑scoped URL params are cleared per above policy.
+  - Role checks: never pass arrays to `hasRole`. Use `['verified_staff','staff','brand_manager','super_admin'].some(r => hasRole?.(r))`.
+  - PostCompose: use `user?.uid` in effect deps; remove synthetic brand dropdown items; if URL has `brandId`, auto‑select an existing community with that `brandId` (verified staff only). Brand association is always validated server‑side at submit.
+  - BrandFeed: when no specific `communityId` is selected, include all brand posts (don’t exclude What’s Good).
+
 - Files touched in this iteration
   - `src/components/community/WhatsGoodFeed.jsx`: enrichment by userId only; strict generic-company check; top-level Firestore imports; desktop LinkedIn card selection.
   - `src/components/community/PostCardDesktopLinkedIn.jsx`: hide generic company labels; no image placeholder.

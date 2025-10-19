@@ -1,7 +1,7 @@
 // src/components/community/WhatsGoodFeed.jsx
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc } from 'firebase/firestore';
+import { collection, query as firestoreQuery, where, orderBy, onSnapshot, getCountFromServer, doc, getDoc, deleteDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
 import PostCard from './PostCard';
@@ -102,7 +102,9 @@ export default function WhatsGoodFeed({
         where('communityId', '==', 'whats-good'),
         orderBy('createdAt', 'desc')
       );
-      unsub = onSnapshot(q, async (snap) => {
+      unsub = onSnapshot(
+        q,
+        async (snap) => {
         const base = snap.docs.map((d) => {
           const data = d.data();
           const imgs = Array.isArray(data?.imageUrls)
@@ -223,6 +225,34 @@ export default function WhatsGoodFeed({
 
         if (!cancelled) setPostsWithCounts(enriched);
         if (!cancelled) setLoading(false);
+      }, (err) => {
+        console.warn('WhatsGoodFeed onSnapshot error:', err);
+        setError('Failed to load live posts. An index may be required.');
+        // Fallback to stubs to avoid empty experience
+        const fallback = WHATS_GOOD_STUBS.map((p) => ({
+          ...p,
+          title: p.title || 'Untitled',
+          snippet: (p.content || '').slice(0, 200),
+          content: p.content || '',
+          imageUrls: Array.isArray(p.imageUrls) ? p.imageUrls : (Array.isArray(p.images) ? p.images : []),
+          authorName: p.author?.name || '',
+          company: p.brand || '',
+          commentCount: 0,
+          likeCount: 0,
+        }));
+        setPostsWithCounts(fallback);
+        try {
+          const brands = Array.from(new Set(fallback.map((p) => p.brand).filter(Boolean)));
+          const allTags = fallback.flatMap((p) => (Array.isArray(p.tags) ? p.tags : [])).filter(Boolean);
+          const tagCounts = allTags.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc; }, {});
+          const tags = Object.entries(tagCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k]) => k);
+          onFiltersChangeRef.current?.({ brands, tags, tagCounts });
+        } catch (e) {
+          console.error('WhatsGoodFeed: failed to compute fallback filters', e);
+        }
+        setLoading(false);
       });
     } catch (err) {
       console.warn('WhatsGoodFeed subscription failed:', err);
@@ -386,12 +416,10 @@ export default function WhatsGoodFeed({
         
         if (likeDoc.exists()) {
           // Unlike
-          const { deleteDoc } = await import('firebase/firestore');
           await deleteDoc(likeRef);
           console.log('Unliked post:', post.id);
         } else {
           // Like
-          const { setDoc, serverTimestamp } = await import('firebase/firestore');
           await setDoc(likeRef, {
             postId: post.id,
             userId: user.uid,

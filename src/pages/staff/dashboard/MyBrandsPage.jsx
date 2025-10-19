@@ -530,14 +530,13 @@ export default function MyBrandsPage() {
                     {details?.communities?.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       <Link
-                        to={`/community?tab=whatsGood&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}`}
+                        to={`/community?tab=brand&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}${(details?.communities?.[0]?.id) ? `&communityId=${encodeURIComponent(details.communities[0].id)}` : ''}`}
                         onClick={() => {
                           // Track community pill click
                           if (window.analytics?.track) {
                             window.analytics.track('Community Filter Applied', {
                               brand: follow.brandName,
-                              source: 'my_brands_pill',
-                              user_id: user?.uid
+                              source: 'my_brands_pill'
                             });
                           }
                         }}
@@ -561,7 +560,7 @@ export default function MyBrandsPage() {
                           {details.communities.map(community => (
                             <Link
                               key={community.id}
-                              to={`/community?tab=whatsGood&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}`}
+                              to={`/community?tab=brand&brand=${encodeURIComponent(follow.brandName)}&via=my_brands_link${follow.brandId ? `&brandId=${encodeURIComponent(follow.brandId)}` : ''}&communityId=${encodeURIComponent(community.id)}`}
                               className="block text-sm px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-brand-primary"
                             >
                               {community.name || 'Unnamed Community'}

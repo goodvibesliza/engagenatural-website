@@ -88,7 +88,9 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         where('communityId', '==', 'pro-feed'),
         orderBy('createdAt', 'desc')
       );
-      unsub = onSnapshot(q, async (snap) => {
+      unsub = onSnapshot(
+        q,
+        async (snap) => {
         const base = snap.docs.map((d) => {
           const data = d.data();
           const imgs = Array.isArray(data?.imageUrls)
@@ -202,6 +204,22 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
         }));
 
         setPosts(enriched);
+        setLoading(false);
+      }, (err) => {
+        console.warn('ProFeed onSnapshot error:', err);
+        setError('Failed to load Pro Feed. An index may be required.');
+        setPosts(PRO_STUBS.map(p => ({
+          id: p.id,
+          brand: p.brand || 'Pro Feed',
+          title: p.title || 'Untitled',
+          snippet: (p.content || '').slice(0, 200),
+          content: p.content || '',
+          tags: Array.isArray(p.tags) ? p.tags : [],
+          authorName: p.author?.name || '',
+          likeCount: 0,
+          commentCount: 0,
+          createdAt: null,
+        })));
         setLoading(false);
       });
     } catch (e) {
