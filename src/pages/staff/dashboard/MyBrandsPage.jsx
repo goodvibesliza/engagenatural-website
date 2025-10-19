@@ -157,6 +157,20 @@ export default function MyBrandsPage() {
     loadBrands();
   }, []);
 
+  // Listen to left-rail search events (desktop shell)
+  useEffect(() => {
+    const handler = (e) => {
+      const detail = e?.detail || {};
+      if (detail.page === 'my_brands') {
+        setSearchQuery(detail.q || '');
+        setSelectedBrandId(null);
+        setSelectedBrandName('');
+      }
+    };
+    window.addEventListener('en:leftsearch', handler);
+    return () => window.removeEventListener('en:leftsearch', handler);
+  }, []);
+
   // Debounced client-side filter by name/category/keywords (case-insensitive)
   useEffect(() => {
     const qRaw = (searchQuery || '').trim();

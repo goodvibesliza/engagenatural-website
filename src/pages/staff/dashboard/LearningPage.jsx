@@ -280,6 +280,18 @@ export default function LearningPage() {
     } catch {}
   }, []);
 
+  // Listen to left-rail search events (desktop shell)
+  useEffect(() => {
+    const handler = (e) => {
+      const detail = e?.detail || {};
+      if (detail.page === 'learning') {
+        setSearchQuery(detail.q || '');
+      }
+    };
+    window.addEventListener('en:leftsearch', handler);
+    return () => window.removeEventListener('en:leftsearch', handler);
+  }, []);
+
   // Debounce search input by 300ms and persist
   useEffect(() => {
     const raw = (searchQuery || '').trim();
