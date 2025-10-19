@@ -175,34 +175,11 @@ export default function LearningPage() {
     </>
   ), []);
 
-  // If not staff, show friendly message
-  if (user && user.role !== 'staff') {
-    const CenterContent = () => (
-      <div className="flex flex-col items-center justify-center h-64 text-center p-8">
-        <span role="img" aria-label="lock" className="text-4xl mb-4">🔒</span>
-        <p className="text-gray-600 max-w-md">
-          This learning dashboard is available exclusively to staff members.
-          If you believe you should have access, please contact support.
-        </p>
-      </div>
-    );
-    if (shouldUseDesktopShell) {
-      return (
-        <DesktopLinkedInShell
-          topBar={<TopMenuBarDesktop />}
-          pageTitle={"Learning"}
-          leftSidebar={<LeftSidebarSearch eventContext="learning_desktop" />}
-          center={<CenterContent />}
-          rightRail={rightRail}
-        />
-      );
-    }
-    return <CenterContent />;
-  }
+  // NOTE: Do not return early here; Hooks below must run unconditionally.
   
-  // Load trainings and progress
+  // Load trainings and progress (guarded by role)
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid || user.role !== 'staff') return;
     
     // Clean up previous subscriptions
     Object.values(unsubscribeRefs.current).forEach(unsub => {
@@ -272,16 +249,18 @@ export default function LearningPage() {
     };
   }, [user]);
 
-  // Hydrate saved search on mount
+  // Hydrate saved search on mount (guarded by role)
   useEffect(() => {
+    if (!user || user.role !== 'staff') return;
     try {
       const stored = (localStorage.getItem(STORAGE_KEY) || '').trim();
       if (stored) setSearchQuery(stored);
     } catch {}
-  }, []);
+  }, [user]);
 
-  // Listen to left-rail search events (desktop shell)
+  // Listen to left-rail search events (desktop shell; guarded by role)
   useEffect(() => {
+    if (!user || user.role !== 'staff') return;
     const handler = (e) => {
       const detail = e?.detail || {};
       if (detail.page === 'learning') {
@@ -290,15 +269,16 @@ export default function LearningPage() {
     };
     window.addEventListener('en:leftsearch', handler);
     return () => window.removeEventListener('en:leftsearch', handler);
-  }, []);
+  }, [user]);
 
-  // Debounce search input by 300ms and persist
+  // Debounce search input by 300ms and persist (guarded by role)
   useEffect(() => {
+    if (!user || user.role !== 'staff') return;
     const raw = (searchQuery || '').trim();
     try { localStorage.setItem(STORAGE_KEY, raw); } catch {}
     const t = setTimeout(() => setDebouncedQuery(raw), 300);
     return () => clearTimeout(t);
-  }, [searchQuery]);
+  }, [searchQuery, user]);
   
   // Extract all unique tags from trainings
   const allTags = useMemo(() => {
@@ -329,10 +309,11 @@ export default function LearningPage() {
     });
   }, [trainings, debouncedQuery, selectedTags]);
 
-  // Analytics: search_change on change (debounced)
+  // Analytics: search_change on change (debounced; guarded by role)
   useEffect(() => {
+    if (!user || user.role !== 'staff') return;
     try { track('search_change', { page: 'learning', q: debouncedQuery, resultsCount: filteredTrainings.length }); } catch {}
-  }, [debouncedQuery, filteredTrainings.length]);
+  }, [debouncedQuery, filteredTrainings.length, user]);
   
   // Split trainings into continue and completed
   const continueTrainings = useMemo(() => {
@@ -660,6 +641,31 @@ export default function LearningPage() {
       </div>
     </div>
   );
+
+  // If not staff, show friendly message (after all hooks)
+  if (user && user.role !== 'staff') {
+    const CenterContentLocked = () => (
+      <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+        <span role="img" aria-label="lock" className="text-4xl mb-4">🔒</span>
+        <p className="text-gray-600 max-w-md">
+          This learning dashboard is available exclusively to staff members.
+          If you believe you should have access, please contact support.
+        </p>
+      </div>
+    );
+    if (shouldUseDesktopShell) {
+      return (
+        <DesktopLinkedInShell
+          topBar={<TopMenuBarDesktop />}
+          pageTitle={"Learning"}
+          leftSidebar={<LeftSidebarSearch />}
+          center={<CenterContentLocked />}
+          rightRail={rightRail}
+        />
+      );
+    }
+    return <CenterContentLocked />;
+  }
 
   if (shouldUseDesktopShell) {
     return (
