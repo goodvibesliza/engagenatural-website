@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './App.css';
 
@@ -122,6 +122,12 @@ const CommunityLinkedInRoute = () => {
       <Community hideTopTabs />
     </RoleGuard>
   );
+};
+
+// Redirect helper to preserve dynamic :postId when moving from /staff/community/post/:postId → /community/post/:postId
+const StaffCommunityPostRedirect = () => {
+  const { postId } = useParams();
+  return <Navigate to={`/community/post/${postId}`} replace />;
 };
 
 // ---------------------------------------------------------------------------
@@ -566,7 +572,7 @@ function App() {
             {/* Community routes under staff layout */}
             <Route path="community" element={<Navigate to="/community" replace />} />
             <Route path="community/post/new" element={<PostCompose />} />
-            <Route path="community/post/:postId" element={<Navigate to="/community/post/:postId" replace />} />
+            <Route path="community/post/:postId" element={<StaffCommunityPostRedirect />} />
           </Route>
 
           {/* Staff Training Detail */}
