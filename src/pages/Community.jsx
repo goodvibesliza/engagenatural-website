@@ -304,17 +304,6 @@ export default function Community({ hideTopTabs = false }) {
             brandTab={brandTab}
           />
         </div>
-        {/* Mobile community switcher chips - shown only on mobile ≤900px */}
-        {isMobile && (
-          <div className="only-mobile border-b border-gray-200">
-            <CommunityChipScroller
-              selectedBrandId={brandContext.brandId}
-              onBrandSelect={handleChipBrandSelect}
-              onMoreClick={() => setShowCommunitySheet(true)}
-              className=""
-            />
-          </div>
-        )}
         {/* Inline filters for mobile/tablet; hidden on desktop */}
         <div className="only-mobile">
           {!useLinkedInMobileSkin && (
@@ -475,6 +464,18 @@ export default function Community({ hideTopTabs = false }) {
   return (
     <div className="min-h-screen bg-cool-gray" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       {header}
+      
+      {/* Mobile community switcher chips - always shown on mobile regardless of hideTopTabs */}
+      {isMobile && (
+        <div className="bg-white border-b border-gray-200">
+          <CommunityChipScroller
+            selectedBrandId={brandContext.brandId}
+            onBrandSelect={handleChipBrandSelect}
+            onMoreClick={() => setShowCommunitySheet(true)}
+          />
+        </div>
+      )}
+      
       <main className={`max-w-5xl mx-auto px-4 py-6 ${isMobile ? 'pb-[80px]' : ''}`}>
         {brandContext.has && !brandTabAllowed && !ctaDismissed && (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded p-3 text-amber-900">

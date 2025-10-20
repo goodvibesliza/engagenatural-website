@@ -15,7 +15,7 @@ export default function CommunityChipScroller({
   onMoreClick,
   className = ''
 }) {
-  const { user, isVerified } = useAuth();
+  const { user } = useAuth();
   const [followedBrands, setFollowedBrands] = useState([]);
   const [loading, setLoading] = useState(true);
 
