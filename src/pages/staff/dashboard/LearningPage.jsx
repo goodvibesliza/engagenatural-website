@@ -133,6 +133,7 @@ export default function LearningPage() {
   const navigate = useNavigate();
   const [isDesktop, setIsDesktop] = useState(false);
   const STORAGE_KEY = 'en.search.learning';
+  const lastSectionRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -309,11 +310,45 @@ export default function LearningPage() {
     });
   }, [trainings, debouncedQuery, selectedTags]);
 
+  // Search Results with relevance sort (title match > tags/brand), then title asc
+  const searchResults = useMemo(() => {
+    const q = (debouncedQuery || '').trim().toLowerCase();
+    if (!q) return [];
+    return filteredTrainings
+      .map(t => {
+        const title = (t.title || '').toLowerCase();
+        const tags = Array.isArray(t.modules) ? t.modules.join(' ').toLowerCase() : '';
+        const brandName = (t.brandName || '').toLowerCase();
+        const inTitle = title.includes(q) ? 2 : 0;
+        const inOther = (tags.includes(q) || brandName.includes(q)) ? 1 : 0;
+        return { t, score: inTitle + inOther };
+      })
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const at = (a.t.title || '').toLowerCase();
+        const bt = (b.t.title || '').toLowerCase();
+        return at.localeCompare(bt);
+      })
+      .map(x => x.t);
+  }, [debouncedQuery, filteredTrainings]);
+
   // Analytics: search_change on change (debounced; guarded by role)
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
-    try { track('search_change', { page: 'learning', q: debouncedQuery, resultsCount: filteredTrainings.length }); } catch (err) { /* no-op */ }
-  }, [debouncedQuery, filteredTrainings.length, user]);
+    try { track('search_change', { page: 'learning', q: debouncedQuery, resultsCount: searchResults.length }); } catch (err) { /* no-op */ }
+  }, [debouncedQuery, searchResults.length, user]);
+
+  // Section view analytics: search_results appears/disappears
+  useEffect(() => {
+    if (!user || user.role !== 'staff') return;
+    const section = (debouncedQuery || '').trim() ? 'search_results' : 'lists';
+    if (lastSectionRef.current !== section) {
+      if (section === 'search_results') {
+        try { track('section_view', { page: 'learning', section: 'search_results' }); } catch (err) { /* no-op */ }
+      }
+      lastSectionRef.current = section;
+    }
+  }, [debouncedQuery, user]);
   
   // Split trainings into continue and completed
   const continueTrainings = useMemo(() => {
@@ -334,6 +369,13 @@ export default function LearningPage() {
     
     return result;
   }, [trainings, progressMap]);
+
+  // Dedupe underlying lists when searching
+  const searchIds = useMemo(() => new Set(searchResults.map(t => t.id)), [searchResults]);
+  const continueTrainingsDedup = useMemo(() => {
+    if (!debouncedQuery) return continueTrainings;
+    return continueTrainings.filter(t => !searchIds.has(t.id));
+  }, [debouncedQuery, continueTrainings, searchIds]);
   
   // Get completed trainings
   const completedTrainings = useMemo(() => {
@@ -359,6 +401,11 @@ export default function LearningPage() {
       return dateB - dateA;
     });
   }, [trainings, progressMap]);
+
+  const completedTrainingsDedup = useMemo(() => {
+    if (!debouncedQuery) return completedTrainings;
+    return completedTrainings.filter(t => !searchIds.has(t.id));
+  }, [debouncedQuery, completedTrainings, searchIds]);
   
   // Toggle tag selection
   const toggleTag = (tag) => {
@@ -465,6 +512,46 @@ export default function LearningPage() {
   const CenterContent = ({ showDiscover }) => (
     <div className="space-y-8" data-testid="learning-center">
 
+      {/* Search Results */}
+      {debouncedQuery && (
+        <section className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
+            <div className="text-sm text-gray-500">{searchResults.length} result{searchResults.length === 1 ? '' : 's'}</div>
+          </div>
+          {searchResults.length > 0 ? (
+            <div className="grid gap-4 grid-cols-1 min-[900px]:grid-cols-2 xl:grid-cols-3 min-[900px]:gap-x-6 min-[900px]:gap-y-6">
+              {searchResults.map(training => {
+                const progress = progressMap[training.id];
+                return (
+                  <TrainingCard
+                    key={training.id}
+                    training={training}
+                    progress={progress}
+                    onStart={() => handleStartTraining(training)}
+                    onComplete={() => handleCompleteTraining(training)}
+                    isPending={pendingTrainingIds.has(training.id)}
+                    onOpen={() => navigate(`/staff/trainings/${training.id}`)}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-600 space-y-3">
+              <p>No learning items match your search.</p>
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+                className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
+                data-testid="learning-clear-empty-top"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Continue Learning Section */}
       <section className="space-y-4">
         <div className="flex items-center space-x-2">
@@ -477,9 +564,9 @@ export default function LearningPage() {
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map(i => <TrainingCardSkeleton key={i} />)}
             </div>
-          ) : continueTrainings.length > 0 ? (
+          ) : continueTrainingsDedup.length > 0 ? (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {continueTrainings.map(training => (
+              {continueTrainingsDedup.map(training => (
                 <TrainingCard
                   key={training.id}
                   training={training}
@@ -512,9 +599,9 @@ export default function LearningPage() {
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2].map(i => <TrainingCardSkeleton key={i} />)}
             </div>
-          ) : completedTrainings.length > 0 ? (
+          ) : completedTrainingsDedup.length > 0 ? (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {completedTrainings.map(training => (
+              {completedTrainingsDedup.map(training => (
                 <TrainingCard
                   key={training.id}
                   training={training}
@@ -547,9 +634,9 @@ export default function LearningPage() {
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3, 4].map(i => <TrainingCardSkeleton key={i} />)}
               </div>
-            ) : filteredTrainings.length > 0 ? (
+            ) : (debouncedQuery ? filteredTrainings.filter(t => !searchIds.has(t.id)) : filteredTrainings).length > 0 ? (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {filteredTrainings.map(training => {
+                {(debouncedQuery ? filteredTrainings.filter(t => !searchIds.has(t.id)) : filteredTrainings).map(training => {
                   const progress = progressMap[training.id];
                   return (
                     <TrainingCard
