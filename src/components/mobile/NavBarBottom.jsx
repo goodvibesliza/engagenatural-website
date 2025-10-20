@@ -28,7 +28,7 @@ export default function NavBarBottom() {
 
   const active = {
     brands: pathname.startsWith('/staff/my-brands'),
-    home: pathname.startsWith('/staff/community') || pathname.startsWith('/community'),
+    home: pathname.startsWith('/community'),
     learning: pathname.startsWith('/staff/learning') || pathname.startsWith('/staff/trainings')
   }
 
@@ -36,7 +36,7 @@ export default function NavBarBottom() {
   const searchPage = useMemo(() => {
     if (pathname.startsWith('/staff/my-brands')) return 'my_brands'
     if (pathname.startsWith('/staff/learning') || pathname.startsWith('/staff/trainings')) return 'learning'
-    if (pathname.startsWith('/staff/community') || pathname.startsWith('/community')) return 'community'
+    if (pathname.startsWith('/community')) return 'community'
     return 'unknown'
   }, [pathname])
 
@@ -55,7 +55,7 @@ export default function NavBarBottom() {
     >
       <div className="max-w-5xl mx-auto grid grid-cols-4">
         <Item
-          to="/staff/community"
+          to="/community"
           icon={Home}
           label="Home"
           testId="bottomnav-home"

@@ -76,7 +76,7 @@ import DesktopLeftNav from './components/community/DesktopLeftNav';
 import EnhancedCommunityPage from './components/community/EnhancedCommunityPage';
 import VerificationPrompt from './components/community/components/VerificationPrompt';
 import PostDetail from './pages/PostDetail';
-import CommunityPostRedirect from './components/CommunityPostRedirect';
+// import CommunityPostRedirect from './components/CommunityPostRedirect';
 import PostCompose from './pages/PostCompose.jsx';
 
 // Dev-only debug card (renders nothing in production)
@@ -117,7 +117,11 @@ const CommunityLinkedInRoute = () => {
       </RoleGuard>
     );
   }
-  return <Navigate to="/staff/community" replace />;
+  return (
+    <RoleGuard allowedRoles={['staff']}>
+      <Community hideTopTabs />
+    </RoleGuard>
+  );
 };
 
 // ---------------------------------------------------------------------------
@@ -560,9 +564,9 @@ function App() {
               element={<NotificationsPage />}
             />
             {/* Community routes under staff layout */}
-            <Route path="community" element={<Community />} />
+            <Route path="community" element={<Navigate to="/community" replace />} />
             <Route path="community/post/new" element={<PostCompose />} />
-            <Route path="community/post/:postId" element={<PostDetail />} />
+            <Route path="community/post/:postId" element={<Navigate to="/community/post/:postId" replace />} />
           </Route>
 
           {/* Staff Training Detail */}
@@ -592,8 +596,15 @@ function App() {
 
           {/* Community Routes - LinkedIn-style desktop shell behind flag */}
           <Route path="/community" element={<CommunityLinkedInRoute />} />
-          <Route path="/community/whats-good" element={<Navigate to="/staff/community" replace />} />
-          <Route path="/community/post/:postId" element={<CommunityPostRedirect />} />
+          <Route path="/community/whats-good" element={<Navigate to="/community" replace />} />
+          <Route 
+            path="/community/post/:postId" 
+            element={
+              <RoleGuard allowedRoles={['staff']}>
+                <PostDetail />
+              </RoleGuard>
+            } 
+          />
 
           {/* Legacy Community Feed route removed */}
 

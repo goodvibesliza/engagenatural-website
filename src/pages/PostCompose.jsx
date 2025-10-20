@@ -37,10 +37,10 @@ export default function PostCompose() {
       if (flag === 'linkedin' && isDesktop) {
         navigate('/community');
       } else {
-        navigate('/staff/community');
+        navigate('/community');
       }
     } catch {
-      navigate('/staff/community');
+      navigate('/community');
     }
   };
 
@@ -216,7 +216,7 @@ export default function PostCompose() {
           communityId: cid,
           communityName: cname,
         };
-        navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
+        navigate(`/community/post/${draft.id}`, { state: { draft } });
         return;
       }
       if (needsReview) {
@@ -230,7 +230,7 @@ export default function PostCompose() {
           communityId: cid,
           communityName: cname,
         };
-        navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
+        navigate(`/community/post/${draft.id}`, { state: { draft } });
         return;
       }
 
@@ -245,7 +245,7 @@ export default function PostCompose() {
           communityId: cid,
           communityName: cname,
         };
-        navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
+        navigate(`/community/post/${draft.id}`, { state: { draft } });
         return;
       }
       // Create a public post in the selected community (fallback to 'whats-good' when none is selected)
@@ -327,7 +327,7 @@ export default function PostCompose() {
         moderationFlags,
         moderation: moderationMeta,
       });
-      navigate(`/staff/community/post/${ref.id}`);
+      navigate(`/community/post/${ref.id}`);
     } catch (e) {
       // On failure, still allow users to preview their content as a draft
       if (moderatedBody === rawBody) {
@@ -350,7 +350,7 @@ export default function PostCompose() {
         communityName: cname,
         error: e?.message || 'unknown',
       };
-      navigate(`/staff/community/post/${draft.id}`, { state: { draft } });
+      navigate(`/community/post/${draft.id}`, { state: { draft } });
     } finally {
       setSubmitting(false);
     }
