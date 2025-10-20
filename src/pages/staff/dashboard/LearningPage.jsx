@@ -250,12 +250,23 @@ export default function LearningPage() {
     };
   }, [user]);
 
-  // Hydrate saved search on mount (guarded by role)
+  // Hydrate saved search (q + tags) on mount (guarded by role)
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
     try {
-      const stored = (localStorage.getItem(STORAGE_KEY) || '').trim();
-      if (stored) setSearchQuery(stored);
+      const raw = localStorage.getItem(STORAGE_KEY) || '';
+      if (!raw) return;
+      let parsed = null;
+      try { parsed = JSON.parse(raw); } catch (_) { /* backward compat: was plain string */ }
+      if (parsed && typeof parsed === 'object') {
+        const q = (parsed.q || '').trim();
+        const tags = Array.isArray(parsed.tags) ? parsed.tags : [];
+        if (q) setSearchQuery(q);
+        if (tags.length) setSelectedTags(new Set(tags));
+      } else {
+        const q = raw.trim();
+        if (q) setSearchQuery(q);
+      }
     } catch (err) { /* no-op */ }
   }, [user]);
 
@@ -272,14 +283,21 @@ export default function LearningPage() {
     return () => window.removeEventListener('en:leftsearch', handler);
   }, [user]);
 
-  // Debounce search input by 300ms and persist (guarded by role)
+  // Debounce text input by 300ms (guarded by role)
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
     const raw = (searchQuery || '').trim();
-    try { localStorage.setItem(STORAGE_KEY, raw); } catch (err) { /* no-op */ }
     const t = setTimeout(() => setDebouncedQuery(raw), 300);
     return () => clearTimeout(t);
   }, [searchQuery, user]);
+
+  // Persist unified search state (q + tags)
+  useEffect(() => {
+    if (!user || user.role !== 'staff') return;
+    const q = (searchQuery || '').trim();
+    const tags = Array.from(selectedTags);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ q, tags })); } catch (err) { /* no-op */ }
+  }, [searchQuery, selectedTags, user]);
   
   // Extract all unique tags from trainings
   const allTags = useMemo(() => {
@@ -292,7 +310,7 @@ export default function LearningPage() {
     return Array.from(tagSet).sort();
   }, [trainings]);
   
-  // Filter trainings based on search and tags
+  // Filter trainings based on unified search (q + tags)
   const filteredTrainings = useMemo(() => {
     const q = (debouncedQuery || '').toLowerCase();
     return trainings.filter(training => {
@@ -310,19 +328,26 @@ export default function LearningPage() {
     });
   }, [trainings, debouncedQuery, selectedTags]);
 
-  // Search Results with relevance sort (title match > tags/brand), then title asc
+  // Active when q or tags are set
+  const searchActive = useMemo(() => {
+    return (debouncedQuery || '').trim().length > 0 || selectedTags.size > 0;
+  }, [debouncedQuery, selectedTags]);
+
+  // Search Results with relevance sort (title match > tags/brand), then title asc.
+  // Works for q-only, tags-only, or both.
   const searchResults = useMemo(() => {
     const q = (debouncedQuery || '').trim().toLowerCase();
-    if (!q) return [];
-    return filteredTrainings
-      .map(t => {
-        const title = (t.title || '').toLowerCase();
-        const tags = Array.isArray(t.modules) ? t.modules.join(' ').toLowerCase() : '';
-        const brandName = (t.brandName || '').toLowerCase();
-        const inTitle = title.includes(q) ? 2 : 0;
-        const inOther = (tags.includes(q) || brandName.includes(q)) ? 1 : 0;
-        return { t, score: inTitle + inOther };
-      })
+    if (!searchActive) return [];
+    const arr = filteredTrainings.map(t => {
+      if (!q) return { t, score: 0 }; // tags-only: keep title asc
+      const title = (t.title || '').toLowerCase();
+      const tags = Array.isArray(t.modules) ? t.modules.join(' ').toLowerCase() : '';
+      const brandName = (t.brandName || '').toLowerCase();
+      const inTitle = title.includes(q) ? 2 : 0;
+      const inOther = (tags.includes(q) || brandName.includes(q)) ? 1 : 0;
+      return { t, score: inTitle + inOther };
+    });
+    return arr
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         const at = (a.t.title || '').toLowerCase();
@@ -330,25 +355,25 @@ export default function LearningPage() {
         return at.localeCompare(bt);
       })
       .map(x => x.t);
-  }, [debouncedQuery, filteredTrainings]);
+  }, [debouncedQuery, filteredTrainings, searchActive]);
 
   // Analytics: search_change on change (debounced; guarded by role)
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
-    try { track('search_change', { page: 'learning', q: debouncedQuery, resultsCount: searchResults.length }); } catch (err) { /* no-op */ }
-  }, [debouncedQuery, searchResults.length, user]);
+    try { track('search_change', { page: 'learning', q: debouncedQuery, tagsCount: selectedTags.size, resultsCount: searchResults.length }); } catch (err) { /* no-op */ }
+  }, [debouncedQuery, selectedTags.size, searchResults.length, user]);
 
   // Section view analytics: search_results appears/disappears
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
-    const section = (debouncedQuery || '').trim() ? 'search_results' : 'lists';
+    const section = searchActive ? 'search_results' : 'lists';
     if (lastSectionRef.current !== section) {
       if (section === 'search_results') {
-        try { track('section_view', { page: 'learning', section: 'search_results' }); } catch (err) { /* no-op */ }
+        try { track('section_view', { page: 'learning', section: 'search_results', resultsCount: searchResults.length }); } catch (err) { /* no-op */ }
       }
       lastSectionRef.current = section;
     }
-  }, [debouncedQuery, user]);
+  }, [searchActive, searchResults.length, user]);
   
   // Split trainings into continue and completed
   const continueTrainings = useMemo(() => {
@@ -373,9 +398,9 @@ export default function LearningPage() {
   // Dedupe underlying lists when searching
   const searchIds = useMemo(() => new Set(searchResults.map(t => t.id)), [searchResults]);
   const continueTrainingsDedup = useMemo(() => {
-    if (!debouncedQuery) return continueTrainings;
+    if (!searchActive) return continueTrainings;
     return continueTrainings.filter(t => !searchIds.has(t.id));
-  }, [debouncedQuery, continueTrainings, searchIds]);
+  }, [searchActive, continueTrainings, searchIds]);
   
   // Get completed trainings
   const completedTrainings = useMemo(() => {
@@ -403,9 +428,9 @@ export default function LearningPage() {
   }, [trainings, progressMap]);
 
   const completedTrainingsDedup = useMemo(() => {
-    if (!debouncedQuery) return completedTrainings;
+    if (!searchActive) return completedTrainings;
     return completedTrainings.filter(t => !searchIds.has(t.id));
-  }, [debouncedQuery, completedTrainings, searchIds]);
+  }, [searchActive, completedTrainings, searchIds]);
   
   // Toggle tag selection
   const toggleTag = (tag) => {
@@ -513,11 +538,22 @@ export default function LearningPage() {
     <div className="space-y-8" data-testid="learning-center">
 
       {/* Search Results */}
-      {debouncedQuery && (
+      {searchActive && (
         <section className="space-y-4 mt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
-            <div className="text-sm text-gray-500">{searchResults.length} result{searchResults.length === 1 ? '' : 's'}</div>
+            <div className="text-sm text-gray-500 flex items-center gap-3">
+              <span>{searchResults.length} result{searchResults.length === 1 ? '' : 's'}</span>
+              {selectedTags.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedTags(new Set())}
+                  className="text-xs text-brand-primary hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
           </div>
           {searchResults.length > 0 ? (
             <div className="grid gap-4 grid-cols-1 min-[900px]:grid-cols-2 xl:grid-cols-3 min-[900px]:gap-x-6 min-[900px]:gap-y-6">
@@ -625,18 +661,14 @@ export default function LearningPage() {
       {/* Discover results in center (render only when requested) */}
       {showDiscover && (
         <section className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <span role="img" aria-label="sparkle">✨</span>
-            <h2 className="text-xl font-semibold text-gray-900">Discover</h2>
-          </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             {isLoading ? (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3, 4].map(i => <TrainingCardSkeleton key={i} />)}
               </div>
-            ) : (debouncedQuery ? filteredTrainings.filter(t => !searchIds.has(t.id)) : filteredTrainings).length > 0 ? (
+            ) : (searchActive ? filteredTrainings.filter(t => !searchIds.has(t.id)) : filteredTrainings).length > 0 ? (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {(debouncedQuery ? filteredTrainings.filter(t => !searchIds.has(t.id)) : filteredTrainings).map(training => {
+                {(searchActive ? filteredTrainings.filter(t => !searchIds.has(t.id)) : filteredTrainings).map(training => {
                   const progress = progressMap[training.id];
                   return (
                     <TrainingCard
