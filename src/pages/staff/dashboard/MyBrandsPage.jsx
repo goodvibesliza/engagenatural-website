@@ -557,7 +557,9 @@ export default function MyBrandsPage() {
 
   // Mobile search overlay
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [animateIn, setAnimateIn] = useState(false);
   const mobileInputRef = useRef(null);
+  const panelRef = useRef(null);
   useEffect(() => {
     const handler = (e) => {
       if (e?.detail?.page && e.detail.page !== 'my_brands') return;
@@ -569,14 +571,58 @@ export default function MyBrandsPage() {
     return () => window.removeEventListener('en:openMobileSearch', handler);
   }, []);
 
+  // Animate panel slide-up and lock body scroll while open; handle back button
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      // Lock body scroll
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      // Animate in on next frame
+      requestAnimationFrame(() => setAnimateIn(true));
+      // Push history state to close on back
+      const onPop = () => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } };
+      const state = { enMobileSearch: true };
+      try { history.pushState(state, ''); window.addEventListener('popstate', onPop, { once: true }); } catch (err) { void err; }
+      return () => {
+        // Cleanup
+        document.body.style.overflow = prev;
+        setAnimateIn(false);
+        try { window.removeEventListener('popstate', onPop); } catch (err) { void err; }
+      };
+    }
+  }, [mobileSearchOpen]);
+
+  // Focus trap inside panel
+  const onKeyDownTrap = (e) => {
+    if (e.key !== 'Tab') return;
+    const root = panelRef.current;
+    if (!root) return;
+    const focusables = root.querySelectorAll('a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])');
+    const items = Array.from(focusables).filter(el => !el.hasAttribute('disabled'));
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
+
   const CenterContent = () => (
     <div className="space-y-6" data-testid="mybrands-center">
       {/* Mobile Search Overlay */}
       {mobileSearchOpen && (
         <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } }}>
           <div
-            className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-4 shadow-lg"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+            role="dialog"
+            aria-label="Search"
+            ref={panelRef}
+            onKeyDown={onKeyDownTrap}
+            className={`fixed left-0 right-0 bg-white rounded-t-2xl p-4 shadow-lg transition-transform duration-200 ease-out ${animateIn ? 'translate-y-0' : 'translate-y-full'}`}
+            style={{
+              bottom: 'calc(env(safe-area-inset-bottom) + 60px)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">

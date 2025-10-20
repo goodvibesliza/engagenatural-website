@@ -721,7 +721,10 @@ export default function LearningPage() {
   // Mobile search overlay component for Learning (full-screen drawer with chips)
   const MobileSearchOverlay = () => {
     const [open, setOpen] = useState(false);
+    const [animateIn, setAnimateIn] = useState(false);
     const inputRef = useRef(null);
+    const panelRef = useRef(null);
+
     useEffect(() => {
       const handler = (e) => {
         if (e?.detail?.page && e.detail.page !== 'learning') return;
@@ -732,12 +735,56 @@ export default function LearningPage() {
       window.addEventListener('en:openMobileSearch', handler);
       return () => window.removeEventListener('en:openMobileSearch', handler);
     }, []);
+
+    // Lock scroll, animate, and handle back button
+    useEffect(() => {
+      if (!open) return;
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      requestAnimationFrame(() => setAnimateIn(true));
+      const onPop = () => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } };
+      const state = { enMobileSearchLearning: true };
+      try { history.pushState(state, ''); window.addEventListener('popstate', onPop, { once: true }); } catch { /* no-op */ }
+      return () => {
+        document.body.style.overflow = prev;
+        setAnimateIn(false);
+        try { window.removeEventListener('popstate', onPop); } catch { /* no-op */ }
+      };
+    }, [open]);
+
+    // Focus trap inside panel
+    const onKeyDownTrap = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(false);
+        try { track('search_close', { page: 'learning' }); } catch { /* no-op */ }
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const root = panelRef.current;
+      if (!root) return;
+      const focusables = root.querySelectorAll('a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])');
+      const items = Array.from(focusables).filter(el => !el.hasAttribute('disabled'));
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
     if (!open) return null;
     return (
       <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } }}>
         <div
-          className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-4 shadow-lg"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+          role="dialog"
+          aria-label="Search"
+          ref={panelRef}
+          onKeyDown={onKeyDownTrap}
+          className={`fixed left-0 right-0 bg-white rounded-t-2xl p-4 shadow-lg transition-transform duration-200 ease-out ${animateIn ? 'translate-y-0' : 'translate-y-full'}`}
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 60px)' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-3">
@@ -757,7 +804,6 @@ export default function LearningPage() {
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } } }}
               placeholder="Search trainings..."
               className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
               aria-label="Search learning modules"
