@@ -863,6 +863,10 @@ export default function MyBrandsPage() {
             {topFollowButtons.map((f) => (
               <button
                 key={f.brandId}
+                onClick={() => {
+                  setSearchQuery(f.brandName || '');
+                  try { track('search_quickpick', { page: 'my_brands', brandId: f.brandId }); } catch (err) { void err; }
+                }}
                 className="px-2.5 py-1 text-[11px] rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2"
                 title={`Show ${f.brandName}`}
               >

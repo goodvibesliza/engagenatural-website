@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { Store, BookOpen, Home, Search as SearchIcon } from 'lucide-react'
 
@@ -28,9 +28,22 @@ export default function NavBarBottom() {
 
   const active = {
     brands: pathname.startsWith('/staff/my-brands'),
-    home: pathname.startsWith('/staff/community') || pathname === '/community',
+    home: pathname.startsWith('/staff/community') || pathname.startsWith('/community'),
     learning: pathname.startsWith('/staff/learning') || pathname.startsWith('/staff/trainings')
   }
+
+  // Single source of truth for search page mapping (align with LeftSidebarSearch)
+  const searchPage = useMemo(() => {
+    if (pathname.startsWith('/staff/my-brands')) return 'my_brands'
+    if (pathname.startsWith('/staff/learning') || pathname.startsWith('/staff/trainings')) return 'learning'
+    if (pathname.startsWith('/staff/community') || pathname.startsWith('/community')) return 'community'
+    return 'unknown'
+  }, [pathname])
+
+  const searchAriaLabel =
+    searchPage === 'my_brands' ? 'Search My Brands' :
+    searchPage === 'learning'  ? 'Search Learning'  :
+                                 'Search Community'
 
   return (
     <nav
@@ -42,7 +55,7 @@ export default function NavBarBottom() {
     >
       <div className="max-w-5xl mx-auto grid grid-cols-4">
         <Item
-          to="/community"
+          to="/staff/community"
           icon={Home}
           label="Home"
           testId="bottomnav-home"
@@ -66,17 +79,16 @@ export default function NavBarBottom() {
         <button
           type="button"
           onClick={() => {
-            const page = pathname.startsWith('/staff/my-brands')
-              ? 'my_brands'
-              : (pathname.startsWith('/staff/learning') ? 'learning' : 'community');
-            try { window.dispatchEvent(new CustomEvent('en:openMobileSearch', { detail: { page } })); } catch { /* no-op */ }
+            try {
+              window.dispatchEvent(new CustomEvent('en:openMobileSearch', { detail: { page: searchPage } }))
+            } catch { /* no-op */ }
           }}
           className="flex-1 flex flex-col items-center justify-center min-h-[60px] py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
-          aria-label="Search"
+          aria-label={searchAriaLabel}
           data-testid="bottomnav-search"
         >
           <SearchIcon size={24} aria-hidden className={'text-warm-gray'} />
-          <span className={`text-[11px] mt-0.5 text-warm-gray`}>Search</span>
+          <span className="text-[11px] mt-0.5 text-warm-gray">Search</span>
         </button>
       </div>
     </nav>

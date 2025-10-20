@@ -857,7 +857,7 @@ export default function LearningPage() {
             if (e.key === 'Escape') {
               e.stopPropagation();
               setSearchQuery('');
-              try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ }
+              try { track('search_clear', { page: 'learning' }); } catch { /* no-op */ }
             }
             if (e.key === 'Enter') e.preventDefault();
           }}
