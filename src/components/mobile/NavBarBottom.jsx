@@ -69,7 +69,7 @@ export default function NavBarBottom() {
             const page = pathname.startsWith('/staff/my-brands')
               ? 'my_brands'
               : (pathname.startsWith('/staff/learning') ? 'learning' : 'community');
-            try { window.dispatchEvent(new CustomEvent('en:openMobileSearch', { detail: { page } })); } catch (err) { /* no-op */ }
+            try { window.dispatchEvent(new CustomEvent('en:openMobileSearch', { detail: { page } })); } catch { /* no-op */ }
           }}
           className="flex-1 flex flex-col items-center justify-center min-h-[60px] py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
           aria-label="Search"

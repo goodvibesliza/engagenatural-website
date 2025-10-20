@@ -262,7 +262,7 @@ export default function LearningPage() {
       const raw = localStorage.getItem(STORAGE_KEY) || '';
       if (!raw) return;
       let parsed = null;
-      try { parsed = JSON.parse(raw); } catch (_) { /* backward compat: was plain string */ }
+      try { parsed = JSON.parse(raw); } catch { /* backward compat: was plain string */ }
       if (parsed && typeof parsed === 'object') {
         const q = (parsed.q || '').trim();
         const tags = Array.isArray(parsed.tags) ? parsed.tags : [];
@@ -272,7 +272,7 @@ export default function LearningPage() {
         const q = raw.trim();
         if (q) setSearchQuery(q);
       }
-    } catch (err) { /* no-op */ }
+    } catch { /* no-op */ }
   }, [user]);
 
   // Listen to left-rail search events (desktop shell; guarded by role)
@@ -301,7 +301,7 @@ export default function LearningPage() {
     if (!user || user.role !== 'staff') return;
     const q = (searchQuery || '').trim();
     const tags = Array.from(selectedTags);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ q, tags })); } catch (err) { /* no-op */ }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ q, tags })); } catch { /* no-op */ }
   }, [searchQuery, selectedTags, user]);
   
   // Extract all unique tags from trainings
@@ -371,7 +371,7 @@ export default function LearningPage() {
   // Analytics: search_change on change (debounced; guarded by role)
   useEffect(() => {
     if (!user || user.role !== 'staff') return;
-    try { track('search_change', { page: 'learning', q: debouncedQuery, tagsCount: selectedTags.size, resultsCount: searchResults.length }); } catch (err) { /* no-op */ }
+    try { track('search_change', { page: 'learning', q: debouncedQuery, tagsCount: selectedTags.size, resultsCount: searchResults.length }); } catch { /* no-op */ }
   }, [debouncedQuery, selectedTags.size, searchResults.length, user]);
 
   // Section view analytics: search_results appears/disappears
@@ -380,7 +380,7 @@ export default function LearningPage() {
     const section = searchActive ? 'search_results' : 'lists';
     if (lastSectionRef.current !== section) {
       if (section === 'search_results') {
-        try { track('section_view', { page: 'learning', section: 'search_results', resultsCount: searchResults.length }); } catch (err) { /* no-op */ }
+        try { track('section_view', { page: 'learning', section: 'search_results', resultsCount: searchResults.length }); } catch { /* no-op */ }
       }
       lastSectionRef.current = section;
     }
@@ -593,7 +593,7 @@ export default function LearningPage() {
               <p>No learning items match your search.</p>
               <button
                 type="button"
-                onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+                onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch { /* no-op */ } }}
                 className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
                 data-testid="learning-clear-empty-top"
               >
@@ -704,7 +704,7 @@ export default function LearningPage() {
                 <p>No learning items match your search.</p>
                 <button
                   type="button"
-                  onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+                  onClick={() => { setSearchQuery(''); setSelectedTags(new Set()); try { track('search_clear', { page: 'learning' }); } catch { /* no-op */ } }}
                   className="inline-flex items-center px-3 h-9 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50"
                   data-testid="learning-clear-empty"
                 >
@@ -726,7 +726,7 @@ export default function LearningPage() {
       const handler = (e) => {
         if (e?.detail?.page && e.detail.page !== 'learning') return;
         setOpen(true);
-        try { track('search_open', { page: 'learning' }); } catch (err) { /* no-op */ }
+        try { track('search_open', { page: 'learning' }); } catch { /* no-op */ }
         setTimeout(() => inputRef.current?.focus(), 0);
       };
       window.addEventListener('en:openMobileSearch', handler);
@@ -734,7 +734,7 @@ export default function LearningPage() {
     }, []);
     if (!open) return null;
     return (
-      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch (err) { /* no-op */ } }}>
+      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } }}>
         <div
           className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-4 shadow-lg"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
@@ -744,7 +744,7 @@ export default function LearningPage() {
             <h2 className="text-base font-semibold">Search</h2>
             <button
               type="button"
-              onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+              onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } }}
               className="text-gray-500 hover:text-gray-700"
               aria-label="Close search"
             >
@@ -757,7 +757,7 @@ export default function LearningPage() {
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); try { track('search_close', { page: 'learning' }); } catch (err) { /* no-op */ } } }}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } } }}
               placeholder="Search trainings..."
               className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
               aria-label="Search learning modules"
@@ -768,7 +768,7 @@ export default function LearningPage() {
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+                onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch { /* no-op */ } }}
                 className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
                 aria-label="Clear search"
               >
@@ -825,7 +825,7 @@ export default function LearningPage() {
         {searchQuery && (
           <button
             type="button"
-            onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+            onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch { /* no-op */ } }}
             className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
             aria-label="Clear search"
             data-testid="learning-clear-x"

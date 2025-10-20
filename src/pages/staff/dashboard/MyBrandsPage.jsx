@@ -562,7 +562,7 @@ export default function MyBrandsPage() {
     const handler = (e) => {
       if (e?.detail?.page && e.detail.page !== 'my_brands') return;
       setMobileSearchOpen(true);
-      try { track('search_open', { page: 'my_brands' }); } catch (err) { /* no-op */ }
+      try { track('search_open', { page: 'my_brands' }); } catch (err) { void err; }
       setTimeout(() => mobileInputRef.current?.focus(), 0);
     };
     window.addEventListener('en:openMobileSearch', handler);
@@ -573,7 +573,7 @@ export default function MyBrandsPage() {
     <div className="space-y-6" data-testid="mybrands-center">
       {/* Mobile Search Overlay */}
       {mobileSearchOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { /* no-op */ } }}>
+        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } }}>
           <div
             className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-4 shadow-lg"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
@@ -583,7 +583,7 @@ export default function MyBrandsPage() {
               <h2 className="text-base font-semibold">Search</h2>
               <button
                 type="button"
-                onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { /* no-op */ } }}
+                onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } }}
                 className="text-gray-500 hover:text-gray-700"
                 aria-label="Close search"
               >
@@ -596,7 +596,7 @@ export default function MyBrandsPage() {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { /* no-op */ } } }}
+                onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } } }}
                 placeholder="Search Available Brands"
                 className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
                 aria-label="Search brands"
@@ -607,7 +607,7 @@ export default function MyBrandsPage() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'my_brands' }); } catch (err) { /* no-op */ } }}
+                  onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'my_brands' }); } catch (err) { void err; } }}
                   className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
                   aria-label="Clear search"
                 >
