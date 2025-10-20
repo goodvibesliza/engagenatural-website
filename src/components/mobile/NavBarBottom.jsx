@@ -47,7 +47,7 @@ export default function NavBarBottom() {
 
   return (
     <nav
-      className="mobile-bottom-nav fixed bottom-0 inset-x-0 z-50 border-t border-gray-200 bg-white"
+      className="mobile-bottom-nav fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       role="navigation"
       aria-label="Primary"

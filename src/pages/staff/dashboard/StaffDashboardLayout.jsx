@@ -123,8 +123,8 @@ export default function StaffDashboardLayout() {
         </div>
       </div>
 
-      {/* Fixed bottom nav (mobile, LinkedIn skin only) */}
-      {useLinkedInMobileSkin && (
+      {/* Fixed bottom nav (mobile, always shown on app pages) */}
+      {isMobile && (
         <NavBarBottom />
       )}
     </div>

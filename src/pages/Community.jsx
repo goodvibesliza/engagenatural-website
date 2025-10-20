@@ -13,6 +13,7 @@ import ComposerMobile from '../components/community/mobile/ComposerMobile.jsx';
 import FilterBarMobileCompact from '../components/community/mobile/FilterBarMobileCompact.jsx';
 import CommunityChipScroller from '../components/community/mobile/CommunityChipScroller.jsx';
 import ChooseCommunitySheet from '../components/community/mobile/ChooseCommunitySheet.jsx';
+import NavBarBottom from '../components/mobile/NavBarBottom.jsx';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
 import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied, track } from '../lib/analytics';
@@ -474,7 +475,7 @@ export default function Community({ hideTopTabs = false }) {
   return (
     <div className="min-h-screen bg-cool-gray" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       {header}
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className={`max-w-5xl mx-auto px-4 py-6 ${isMobile ? 'pb-[80px]' : ''}`}>
         {brandContext.has && !brandTabAllowed && !ctaDismissed && (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded p-3 text-amber-900">
             <div className="text-sm font-medium">{ctaMsg || 'Brand feed unavailable.'}</div>
@@ -605,6 +606,9 @@ export default function Community({ hideTopTabs = false }) {
           currentBrandId={brandContext.brandId}
         />
       )}
+      
+      {/* Mobile Bottom Nav - always visible on mobile (≤900px) */}
+      {isMobile && <NavBarBottom />}
     </div>
   );
 }
