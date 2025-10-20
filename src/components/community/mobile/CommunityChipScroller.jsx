@@ -19,12 +19,32 @@ export default function CommunityChipScroller({
   const [followedBrands, setFollowedBrands] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch followed brands in real-time
+  // Fetch followed brands in real-time (with localStorage cache like desktop)
   useEffect(() => {
     if (!user?.uid || !db) {
       setFollowedBrands([]);
       setLoading(false);
       return;
+    }
+
+    // Hydrate from cache first to reduce flicker
+    try {
+      const cached = localStorage.getItem('en.followedBrandCommunities');
+      if (cached) {
+        const arr = JSON.parse(cached);
+        if (Array.isArray(arr)) {
+          // Map desktop cache format to mobile format
+          const mobileBrands = arr.map(item => ({
+            id: item.brandId,
+            name: item.brandName || 'Brand',
+            communityId: item.communityId || ''
+          }));
+          setFollowedBrands(mobileBrands);
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.debug('CommunityChipScroller: cache read failed', err);
     }
 
     setLoading(true);
@@ -43,6 +63,18 @@ export default function CommunityChipScroller({
         }));
         setFollowedBrands(brands);
         setLoading(false);
+        
+        // Update cache in desktop format for consistency
+        try {
+          const cacheData = brands.map(b => ({
+            brandId: b.id,
+            brandName: b.name,
+            communityId: b.communityId
+          }));
+          localStorage.setItem('en.followedBrandCommunities', JSON.stringify(cacheData));
+        } catch (err) {
+          console.debug('CommunityChipScroller: cache write failed', err);
+        }
       },
       (error) => {
         console.error('CommunityChipScroller: fetch failed', error);

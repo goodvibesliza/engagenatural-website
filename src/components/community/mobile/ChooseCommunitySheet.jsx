@@ -23,12 +23,33 @@ export default function ChooseCommunitySheet({
   const sheetRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  // Fetch followed brands
+  // Fetch followed brands (with localStorage cache like desktop/chips)
   useEffect(() => {
     if (!user?.uid || !db) {
       setFollowedBrands([]);
       setLoading(false);
       return;
+    }
+
+    // Hydrate from cache first to reduce flicker
+    try {
+      const cached = localStorage.getItem('en.followedBrandCommunities');
+      if (cached) {
+        const arr = JSON.parse(cached);
+        if (Array.isArray(arr)) {
+          // Map desktop cache format to mobile format
+          const mobileBrands = arr.map(item => ({
+            id: item.brandId,
+            name: item.brandName || 'Brand',
+            communityId: item.communityId || '',
+            updatedAt: null // Cache doesn't have timestamps
+          }));
+          setFollowedBrands(mobileBrands);
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.debug('ChooseCommunitySheet: cache read failed', err);
     }
 
     setLoading(true);
@@ -55,6 +76,18 @@ export default function ChooseCommunitySheet({
         });
         setFollowedBrands(brands);
         setLoading(false);
+        
+        // Update cache in desktop format for consistency
+        try {
+          const cacheData = brands.map(b => ({
+            brandId: b.id,
+            brandName: b.name,
+            communityId: b.communityId
+          }));
+          localStorage.setItem('en.followedBrandCommunities', JSON.stringify(cacheData));
+        } catch (err) {
+          console.debug('ChooseCommunitySheet: cache write failed', err);
+        }
       },
       (error) => {
         console.error('ChooseCommunitySheet: fetch failed', error);
