@@ -69,8 +69,7 @@ export default function MyBrandsPage() {
   const [allBrands, setAllBrands] = useState([]);
   const [displayBrands, setDisplayBrands] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBrandId, setSelectedBrandId] = useState(null);
-  const [selectedBrandName, setSelectedBrandName] = useState('');
+  
   
   // Section view analytics when search toggles between empty/non-empty
   useEffect(() => {
@@ -170,8 +169,6 @@ export default function MyBrandsPage() {
       const detail = e?.detail || {};
       if (detail.page === 'my_brands') {
         setSearchQuery(detail.q || '');
-        setSelectedBrandId(null);
-        setSelectedBrandName('');
       }
     };
     window.addEventListener('en:leftsearch', handler);
@@ -202,7 +199,23 @@ export default function MyBrandsPage() {
         // Multi-word queries should still match substrings in concatenated string
         const combined = haystack.join(' ');
         return combined.includes(q);
-      });
+      })
+      // Relevance score: title match > category/keywords; then name ASC
+      .map((b) => {
+        const name = (b.name || '').toLowerCase();
+        const category = (b.category || '').toLowerCase();
+        const keywords = Array.isArray(b.keywords) ? b.keywords.join(' ').toLowerCase() : (b.keywords || '').toLowerCase();
+        const score = (name.includes(q) ? 2 : 0) + ((category.includes(q) || keywords.includes(q)) ? 1 : 0);
+        return { b, score };
+      })
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const an = (a.b.name || '').toLowerCase();
+        const bn = (b.b.name || '').toLowerCase();
+        return an.localeCompare(bn);
+      })
+      .map(x => x.b);
+
       setDisplayBrands(filtered);
       try { track('search_change', { page: 'my_brands', q: qRaw, resultsCount: (filtered || []).length }); } catch (err) { void err; }
     }, 300);
@@ -560,28 +573,8 @@ export default function MyBrandsPage() {
           return `Updated ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
         };
 
-        // Build Search Results from all brands when q present
-        let searchResults = [];
-        if (q) {
-          const ql = q.toLowerCase();
-          searchResults = (allBrands || []).filter((brand) => {
-            const name = (brand.name || '').toLowerCase();
-            const category = (brand.category || '').toLowerCase();
-            const keywords = Array.isArray(brand.keywords) ? brand.keywords.join(' ').toLowerCase() : (brand.keywords || '').toLowerCase();
-            return name.includes(ql) || category.includes(ql) || keywords.includes(ql);
-          }).map((b) => {
-            const name = (b.name || '').toLowerCase();
-            const category = (b.category || '').toLowerCase();
-            const keywords = Array.isArray(b.keywords) ? b.keywords.join(' ').toLowerCase() : (b.keywords || '').toLowerCase();
-            const score = (name.includes(ql) ? 2 : 0) + ((category.includes(ql) || keywords.includes(ql)) ? 1 : 0);
-            return { brand: b, score };
-          }).sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score;
-            const an = (a.brand.name || '').toLowerCase();
-            const bn = (b.brand.name || '').toLowerCase();
-            return an.localeCompare(bn);
-          }).map(x => x.brand);
-        }
+        // Use debounced, relevance-sorted results from displayBrands
+        const searchResults = q ? (displayBrands || []) : [];
 
         // Following brands grid (dedupe if searching)
         const followedIds = new Set((follows || []).map(f => f.brandId));
@@ -720,7 +713,7 @@ export default function MyBrandsPage() {
             id="mybrands-left-rail-search"
             type="search"
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setSelectedBrandId(null); setSelectedBrandName(''); }}
+            onChange={(e) => { setSearchQuery(e.target.value); }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.stopPropagation();
@@ -763,7 +756,6 @@ export default function MyBrandsPage() {
             {topFollowButtons.map((f) => (
               <button
                 key={f.brandId}
-                onClick={() => { setSelectedBrandId(f.brandId); setSelectedBrandName(f.brandName || 'Brand'); }}
                 className="px-2.5 py-1 text-[11px] rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2"
                 title={`Show ${f.brandName}`}
               >
