@@ -137,6 +137,7 @@ export default function LearningPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isDesktop, setIsDesktop] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const STORAGE_KEY = 'en.search.learning';
   const lastSectionRef = useRef(null);
 
@@ -550,7 +551,7 @@ export default function LearningPage() {
 
       {/* Mobile Search Overlay */}
       {isDesktop === false && (
-        <MobileSearchOverlay />
+        <MobileSearchOverlay open={mobileSearchOpen} setOpen={setMobileSearchOpen} />
       )}
 
       {/* Search Results */}
@@ -719,8 +720,19 @@ export default function LearningPage() {
   );
 
   // Mobile search overlay component for Learning (full-screen drawer with chips)
-  const MobileSearchOverlay = () => {
-    const [open, setOpen] = useState(false);
+  // Listen for global open event at page-level to avoid remount issues
+  useEffect(() => {
+    const handler = (e) => {
+      if (e?.detail?.page && e.detail.page !== 'learning') return;
+      setMobileSearchOpen(true);
+      try { track('search_open', { page: 'learning' }); } catch { /* no-op */ }
+      setTimeout(() => document.querySelector('#learning-mobile-input')?.focus(), 0);
+    };
+    window.addEventListener('en:openMobileSearch', handler);
+    return () => window.removeEventListener('en:openMobileSearch', handler);
+  }, []);
+
+  const MobileSearchOverlay = ({ open, setOpen }) => {
     const [animateIn, setAnimateIn] = useState(false);
     const inputRef = useRef(null);
     const panelRef = useRef(null);
