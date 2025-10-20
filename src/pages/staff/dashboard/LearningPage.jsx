@@ -59,18 +59,23 @@ const TrainingCard = ({
         <p className="text-sm text-gray-600 mb-2 line-clamp-2">{training.description || 'No description available'}</p>
         
         {/* Tags */}
-        {training.modules && training.modules.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {training.modules.map((tag, idx) => (
+        {(() => {
+          const tagsArr = Array.isArray(training.tags)
+            ? training.tags
+            : (Array.isArray(training.modules) ? training.modules : []);
+          return tagsArr.length > 0 ? (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tagsArr.map((tag, idx) => (
               <span 
                 key={idx} 
                 className="inline-block bg-gray-100 text-xs text-gray-600 px-2 py-0.5 rounded"
               >
                 {tag}
               </span>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : null;
+        })()}
       </div>
       
       <div className="flex justify-between items-center mt-4">
@@ -303,9 +308,10 @@ export default function LearningPage() {
   const allTags = useMemo(() => {
     const tagSet = new Set();
     trainings.forEach(training => {
-      if (Array.isArray(training.modules)) {
-        training.modules.forEach(tag => tagSet.add(tag));
-      }
+      const tagsArr = Array.isArray(training.tags)
+        ? training.tags
+        : (Array.isArray(training.modules) ? training.modules : []);
+      tagsArr.forEach(tag => tagSet.add(tag));
     });
     return Array.from(tagSet).sort();
   }, [trainings]);
@@ -316,14 +322,16 @@ export default function LearningPage() {
     return trainings.filter(training => {
       // Build concatenated haystack per item
       const title = (training.title || '').toLowerCase();
-      const tags = Array.isArray(training.modules) ? training.modules.join(' ').toLowerCase() : '';
-      const brandName = (training.brandName || '').toLowerCase();
+      const tagsArr = Array.isArray(training.tags)
+        ? training.tags
+        : (Array.isArray(training.modules) ? training.modules : []);
+      const tags = tagsArr.join(' ').toLowerCase();
+      const brandName = (training.brandName || training.brand || training.brandId || '').toString().toLowerCase();
       const skillLevel = (training.skillLevel || training.category || '').toLowerCase();
       const haystack = `${title} ${tags} ${brandName} ${skillLevel}`.trim();
       const matchesSearch = !q || haystack.includes(q);
-      // Filter by selected tags (if any)
-      const matchesTags = selectedTags.size === 0 ||
-        (Array.isArray(training.modules) && training.modules.some(tag => selectedTags.has(tag)));
+      // Filter by selected tags (if any) — OR semantics across selected tags
+      const matchesTags = selectedTags.size === 0 || tagsArr.some(tag => selectedTags.has(tag));
       return matchesSearch && matchesTags;
     });
   }, [trainings, debouncedQuery, selectedTags]);
@@ -341,8 +349,11 @@ export default function LearningPage() {
     const arr = filteredTrainings.map(t => {
       if (!q) return { t, score: 0 }; // tags-only: keep title asc
       const title = (t.title || '').toLowerCase();
-      const tags = Array.isArray(t.modules) ? t.modules.join(' ').toLowerCase() : '';
-      const brandName = (t.brandName || '').toLowerCase();
+      const tagsArr = Array.isArray(t.tags)
+        ? t.tags
+        : (Array.isArray(t.modules) ? t.modules : []);
+      const tags = tagsArr.join(' ').toLowerCase();
+      const brandName = (t.brandName || t.brand || t.brandId || '').toString().toLowerCase();
       const inTitle = title.includes(q) ? 2 : 0;
       const inOther = (tags.includes(q) || brandName.includes(q)) ? 1 : 0;
       return { t, score: inTitle + inOther };
