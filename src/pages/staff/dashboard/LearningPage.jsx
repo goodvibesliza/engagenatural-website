@@ -737,22 +737,13 @@ export default function LearningPage() {
     const inputRef = useRef(null);
     const panelRef = useRef(null);
 
-    useEffect(() => {
-      const handler = (e) => {
-        if (e?.detail?.page && e.detail.page !== 'learning') return;
-        setOpen(true);
-        try { track('search_open', { page: 'learning' }); } catch { /* no-op */ }
-        setTimeout(() => inputRef.current?.focus(), 0);
-      };
-      window.addEventListener('en:openMobileSearch', handler);
-      return () => window.removeEventListener('en:openMobileSearch', handler);
-    }, []);
-
     // Lock scroll, animate, and handle back button
     useEffect(() => {
       if (!open) return;
       const prev = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
+      // Focus input on open
+      setTimeout(() => inputRef.current?.focus(), 0);
       requestAnimationFrame(() => setAnimateIn(true));
       const onPop = () => {
         setOpen(false);
@@ -794,7 +785,7 @@ export default function LearningPage() {
 
     if (!open) return null;
     return (
-      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } try { setTimeout(() => document.querySelector('[data-testid=\"bottomnav-search\"]')?.focus(), 0); } catch { /* no-op */ } }}>
+      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } try { setTimeout(() => document.querySelector('[data-testid="bottomnav-search"]')?.focus(), 0); } catch { /* no-op */ } }}>
         <div
           role="dialog"
           aria-label="Search"
@@ -808,7 +799,7 @@ export default function LearningPage() {
             <h2 className="text-base font-semibold">Search</h2>
             <button
               type="button"
-              onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } try { setTimeout(() => document.querySelector('[data-testid=\"bottomnav-search\"]')?.focus(), 0); } catch { /* no-op */ } }}
+              onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } try { setTimeout(() => document.querySelector('[data-testid="bottomnav-search"]')?.focus(), 0); } catch { /* no-op */ } }}
               className="text-gray-500 hover:text-gray-700"
               aria-label="Close search"
             >

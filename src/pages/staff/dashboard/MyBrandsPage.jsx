@@ -625,7 +625,7 @@ export default function MyBrandsPage() {
     <div className="space-y-6" data-testid="mybrands-center">
       {/* Mobile Search Overlay */}
       {mobileSearchOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } try { setTimeout(() => document.querySelector('[data-testid=\"bottomnav-search\"]')?.focus(), 0); } catch (err) { void err; } }}>
+        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } try { setTimeout(() => document.querySelector('[data-testid="bottomnav-search"]')?.focus(), 0); } catch (err) { void err; } }}>
           <div
             role="dialog"
             aria-label="Search"
@@ -641,7 +641,7 @@ export default function MyBrandsPage() {
               <h2 className="text-base font-semibold">Search</h2>
               <button
                 type="button"
-                onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } try { setTimeout(() => document.querySelector('[data-testid=\"bottomnav-search\"]')?.focus(), 0); } catch (err) { void err; } }}
+                onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } try { setTimeout(() => document.querySelector('[data-testid="bottomnav-search"]')?.focus(), 0); } catch (err) { void err; } }}
                 className="text-gray-500 hover:text-gray-700"
                 aria-label="Close search"
               >
@@ -654,7 +654,7 @@ export default function MyBrandsPage() {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } try { setTimeout(() => document.querySelector('[data-testid=\"bottomnav-search\"]')?.focus(), 0); } catch (err) { void err; } } }}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { void err; } try { setTimeout(() => document.querySelector('[data-testid="bottomnav-search"]')?.focus(), 0); } catch (err) { void err; } } }}
                 placeholder="Search Available Brands"
                 className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
                 aria-label="Search brands"
