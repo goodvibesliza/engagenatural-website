@@ -555,8 +555,69 @@ export default function MyBrandsPage() {
     </>
   );
 
+  // Mobile search overlay
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const mobileInputRef = useRef(null);
+  useEffect(() => {
+    const handler = (e) => {
+      if (e?.detail?.page && e.detail.page !== 'my_brands') return;
+      setMobileSearchOpen(true);
+      try { track('search_open', { page: 'my_brands' }); } catch (err) { /* no-op */ }
+      setTimeout(() => mobileInputRef.current?.focus(), 0);
+    };
+    window.addEventListener('en:openMobileSearch', handler);
+    return () => window.removeEventListener('en:openMobileSearch', handler);
+  }, []);
+
   const CenterContent = () => (
     <div className="space-y-6" data-testid="mybrands-center">
+      {/* Mobile Search Overlay */}
+      {mobileSearchOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { /* no-op */ } }}>
+          <div
+            className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-4 shadow-lg"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold">Search</h2>
+              <button
+                type="button"
+                onClick={() => { setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { /* no-op */ } }}
+                className="text-gray-500 hover:text-gray-700"
+                aria-label="Close search"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                ref={mobileInputRef}
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMobileSearchOpen(false); try { track('search_close', { page: 'my_brands' }); } catch (err) { /* no-op */ } } }}
+                placeholder="Search Available Brands"
+                className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                aria-label="Search brands"
+              />
+              <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+                <span role="img" aria-label="search" className="text-gray-400">🔍</span>
+              </div>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'my_brands' }); } catch (err) { /* no-op */ } }}
+                  className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Sections: Search Results (when q) then Following */}
       {(() => {
         const q = (searchQuery || '').trim();
@@ -598,7 +659,7 @@ export default function MyBrandsPage() {
                   <div className="text-sm text-gray-500">{searchResults.length} result{searchResults.length === 1 ? '' : 's'}</div>
                 </div>
                 {searchResults.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-y-5 min-[900px]:grid-cols-2 min-[900px]:gap-x-6 min-[900px]:gap-y-6 xl:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-y-4 min-[900px]:grid-cols-2 min-[900px]:gap-x-6 min-[900px]:gap-y-6 xl:grid-cols-3">
                     {searchResults.map((brand) => (
                       <BrandTile
                         key={brand.id}
@@ -642,7 +703,7 @@ export default function MyBrandsPage() {
                 <div className="text-sm text-gray-500">{followingGridBrands.length} brand{followingGridBrands.length === 1 ? '' : 's'}</div>
               </div>
               {followingGridBrands.length > 0 ? (
-                <div className="grid grid-cols-1 gap-y-5 min-[900px]:grid-cols-2 min-[900px]:gap-x-6 min-[900px]:gap-y-6 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-y-4 min-[900px]:grid-cols-2 min-[900px]:gap-x-6 min-[900px]:gap-y-6 xl:grid-cols-3">
                   {followingGridBrands.map((brand) => (
                     <BrandTile
                       key={brand.id}

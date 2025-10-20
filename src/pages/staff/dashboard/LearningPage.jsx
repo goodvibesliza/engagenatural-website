@@ -537,6 +537,11 @@ export default function LearningPage() {
   const CenterContent = ({ showDiscover }) => (
     <div className="space-y-8" data-testid="learning-center">
 
+      {/* Mobile Search Overlay */}
+      {isDesktop === false && (
+        <MobileSearchOverlay />
+      )}
+
       {/* Search Results */}
       {searchActive && (
         <section className="space-y-4 mt-6">
@@ -701,6 +706,86 @@ export default function LearningPage() {
       )}
     </div>
   );
+
+  // Mobile search overlay component for Learning (full-screen drawer with chips)
+  const MobileSearchOverlay = () => {
+    const [open, setOpen] = useState(false);
+    const inputRef = useRef(null);
+    useEffect(() => {
+      const handler = (e) => {
+        if (e?.detail?.page && e.detail.page !== 'learning') return;
+        setOpen(true);
+        try { track('search_open', { page: 'learning' }); } catch (err) { /* no-op */ }
+        setTimeout(() => inputRef.current?.focus(), 0);
+      };
+      window.addEventListener('en:openMobileSearch', handler);
+      return () => window.removeEventListener('en:openMobileSearch', handler);
+    }, []);
+    if (!open) return null;
+    return (
+      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch (err) { /* no-op */ } }}>
+        <div
+          className="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl p-4 shadow-lg"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold">Search</h2>
+            <button
+              type="button"
+              onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+              className="text-gray-500 hover:text-gray-700"
+              aria-label="Close search"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="relative mb-3">
+            <input
+              ref={inputRef}
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); try { track('search_close', { page: 'learning' }); } catch (err) { /* no-op */ } } }}
+              placeholder="Search trainings..."
+              className="w-full h-11 min-h-[44px] pl-8 pr-8 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              aria-label="Search learning modules"
+            />
+            <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+              <span role="img" aria-label="search" className="text-gray-400">🔍</span>
+            </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); try { track('search_clear', { page: 'learning' }); } catch (err) { /* no-op */ } }}
+                className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {/* Keyword chips inside overlay */}
+          <div className="flex flex-wrap gap-2">
+            {allTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={`px-2.5 py-1 text-[11px] rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary focus-visible:outline-offset-2 ${
+                  selectedTags.has(tag)
+                    ? 'bg-brand-primary text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title={`Filter by ${tag}`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const LeftDiscover = (
     <div className="space-y-3" data-testid="learning-left-discover">

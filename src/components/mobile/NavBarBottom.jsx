@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Store, Bell, Users, BookOpen } from 'lucide-react'
+import { Store, BookOpen, Home, Search as SearchIcon } from 'lucide-react'
 
 function Item({ to, icon, label, testId, isActive }) {
   const IconComp = icon
@@ -9,12 +9,12 @@ function Item({ to, icon, label, testId, isActive }) {
       to={to}
       aria-current={isActive ? 'page' : undefined}
       className={
-        'flex-1 flex flex-col items-center justify-center min-h-[56px] py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary'
+        'flex-1 flex flex-col items-center justify-center min-h-[60px] py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary'
       }
       data-testid={testId}
     >
       <IconComp
-        size={22}
+        size={24}
         aria-hidden
         className={isActive ? 'text-deep-moss' : 'text-warm-gray'}
       />
@@ -28,8 +28,7 @@ export default function NavBarBottom() {
 
   const active = {
     brands: pathname.startsWith('/staff/my-brands'),
-    notifications: pathname.startsWith('/staff/notifications'),
-    communities: pathname.startsWith('/staff/community') || pathname === '/community',
+    home: pathname.startsWith('/staff/community') || pathname === '/community',
     learning: pathname.startsWith('/staff/learning') || pathname.startsWith('/staff/trainings')
   }
 
@@ -43,25 +42,18 @@ export default function NavBarBottom() {
     >
       <div className="max-w-5xl mx-auto grid grid-cols-4">
         <Item
+          to="/community"
+          icon={Home}
+          label="Home"
+          testId="bottomnav-home"
+          isActive={active.home}
+        />
+        <Item
           to="/staff/my-brands"
           icon={Store}
           label="My Brands"
           testId="bottomnav-mybrands"
           isActive={active.brands}
-        />
-        <Item
-          to="/staff/notifications"
-          icon={Bell}
-          label="Notifications"
-          testId="bottomnav-notifications"
-          isActive={active.notifications}
-        />
-        <Item
-          to="/staff/community?tab=whats-good"
-          icon={Users}
-          label="Communities"
-          testId="bottomnav-communities"
-          isActive={active.communities}
         />
         <Item
           to="/staff/learning"
@@ -70,6 +62,22 @@ export default function NavBarBottom() {
           testId="bottomnav-learning"
           isActive={active.learning}
         />
+        {/* Search button opens page-local search overlay via custom event */}
+        <button
+          type="button"
+          onClick={() => {
+            const page = pathname.startsWith('/staff/my-brands')
+              ? 'my_brands'
+              : (pathname.startsWith('/staff/learning') ? 'learning' : 'community');
+            try { window.dispatchEvent(new CustomEvent('en:openMobileSearch', { detail: { page } })); } catch (err) { /* no-op */ }
+          }}
+          className="flex-1 flex flex-col items-center justify-center min-h-[60px] py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-primary"
+          aria-label="Search"
+          data-testid="bottomnav-search"
+        >
+          <SearchIcon size={24} aria-hidden className={'text-warm-gray'} />
+          <span className={`text-[11px] mt-0.5 text-warm-gray`}>Search</span>
+        </button>
       </div>
     </nav>
   )
