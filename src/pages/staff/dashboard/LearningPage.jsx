@@ -742,7 +742,11 @@ export default function LearningPage() {
       const prev = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       requestAnimationFrame(() => setAnimateIn(true));
-      const onPop = () => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } };
+      const onPop = () => {
+        setOpen(false);
+        try { track('search_close', { page: 'learning' }); } catch { /* no-op */ }
+        try { setTimeout(() => document.querySelector('[data-testid="bottomnav-search"]')?.focus(), 0); } catch { /* no-op */ }
+      };
       const state = { enMobileSearchLearning: true };
       try { history.pushState(state, ''); window.addEventListener('popstate', onPop, { once: true }); } catch { /* no-op */ }
       return () => {
@@ -758,6 +762,7 @@ export default function LearningPage() {
         e.stopPropagation();
         setOpen(false);
         try { track('search_close', { page: 'learning' }); } catch { /* no-op */ }
+        try { setTimeout(() => document.querySelector('[data-testid="bottomnav-search"]')?.focus(), 0); } catch { /* no-op */ }
         return;
       }
       if (e.key !== 'Tab') return;
@@ -777,21 +782,21 @@ export default function LearningPage() {
 
     if (!open) return null;
     return (
-      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } }}>
+      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } try { setTimeout(() => document.querySelector('[data-testid=\"bottomnav-search\"]')?.focus(), 0); } catch { /* no-op */ } }}>
         <div
           role="dialog"
           aria-label="Search"
           ref={panelRef}
           onKeyDown={onKeyDownTrap}
           className={`fixed left-0 right-0 bg-white rounded-t-2xl p-4 shadow-lg transition-transform duration-200 ease-out ${animateIn ? 'translate-y-0' : 'translate-y-full'}`}
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 60px)' }}
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 60px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold">Search</h2>
             <button
               type="button"
-              onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } }}
+              onClick={() => { setOpen(false); try { track('search_close', { page: 'learning' }); } catch { /* no-op */ } try { setTimeout(() => document.querySelector('[data-testid=\"bottomnav-search\"]')?.focus(), 0); } catch { /* no-op */ } }}
               className="text-gray-500 hover:text-gray-700"
               aria-label="Close search"
             >

@@ -5,6 +5,8 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  root: __dirname,
+  appType: 'spa',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -19,6 +21,7 @@ export default defineConfig({
     open: true
   },
   build: {
+    outDir: 'dist',
     sourcemap: true,
     commonjsOptions: {
       transformMixedEsModules: true, // Better handling for mixed modules
