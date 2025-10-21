@@ -61,11 +61,14 @@ export default function NotificationsPage() {
   ), []);
 
   const communityActivity = useMemo(() => {
-    const map = {};
+    const arr = [];
     for (const c of allCommunities || []) {
-      map[c.id] = { id: c.id, name: c.name, count: Number(unreadCounts?.[c.id] || 0) };
+      const communityId = c.communityId || '';
+      const count = Number(unreadCounts?.[communityId] || 0);
+      if (!communityId || count <= 0) continue;
+      arr.push({ key: `${c.id}|${communityId}`, brandId: c.id, communityId, name: c.name, count });
     }
-    return Object.values(map).filter(x => x.count > 0).sort((a,b) => b.count - a.count);
+    return arr.sort((a,b) => b.count - a.count);
   }, [allCommunities, unreadCounts]);
 
   const CenterContent = () => (
@@ -94,13 +97,13 @@ export default function NotificationsPage() {
         ) : (
           <ul role="list" className="divide-y divide-gray-100">
             {communityActivity.map((item) => (
-              <li key={item.id}>
+              <li key={item.key}>
                 <button
                   type="button"
                   onClick={() => {
-                    try { track('notification_open', { communityId: item.id }); } catch {}
-                    try { markAsRead(item.id); } catch {}
-                    navigate(`/community?tab=brand&brandId=${encodeURIComponent(item.id)}&via=notifications`);
+                    try { track('notification_open', { communityId: item.communityId, brandId: item.brandId }); } catch (err) { console.debug?.('NotificationsPage: track open failed', err); }
+                    try { markAsRead(item.communityId); } catch (err) { console.debug?.('NotificationsPage: markAsRead failed', err); }
+                    navigate(`/community?tab=brand&brandId=${encodeURIComponent(item.brandId)}&communityId=${encodeURIComponent(item.communityId)}&via=notifications`, { state: { brandId: item.brandId, communityId: item.communityId, brand: item.name, brandName: item.name } });
                   }}
                   className="w-full text-left px-4 py-3 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-deep-moss"
                 >

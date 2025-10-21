@@ -20,6 +20,7 @@ import { communityView, filterApplied, track } from '../lib/analytics';
 import './community.css';
 import { useAuth } from '../contexts/auth-context';
 import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
+import useNotificationsStore from '@/hooks/useNotificationsStore';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -52,7 +53,8 @@ export default function Community({ hideTopTabs = false }) {
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
-  const { markVisited, markAsRead } = useCommunitySwitcher();
+  const { markVisited: markVisitedLocal } = useCommunitySwitcher();
+  const { markVisited, markAsRead } = useNotificationsStore();
   
   // Mobile community switcher state
   const [showCommunitySheet, setShowCommunitySheet] = useState(false);
@@ -286,7 +288,9 @@ export default function Community({ hideTopTabs = false }) {
   // When visiting a community, update lastVisited
   useEffect(() => {
     if (brandContext?.communityId) {
-      try { markVisited(brandContext.communityId); } catch {}
+      try { markVisited(brandContext.communityId); } catch (err) { console.debug?.('Community: markVisited failed', err); }
+      // Keep local switcher state in sync for ordering
+      try { markVisitedLocal(brandContext.communityId); } catch (err) { console.debug?.('Community: local markVisited failed', err); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandContext?.communityId]);
@@ -294,7 +298,7 @@ export default function Community({ hideTopTabs = false }) {
   // When feed opens or tab changes to brand, clear unread for that community
   useEffect(() => {
     if (tab === 'brand' && brandContext?.communityId) {
-      try { markAsRead(brandContext.communityId); } catch {}
+      try { markAsRead(brandContext.communityId); } catch (err) { console.debug?.('Community: markAsRead failed', err); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, brandContext?.communityId]);

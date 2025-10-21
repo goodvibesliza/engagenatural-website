@@ -37,7 +37,7 @@ export default function DesktopLeftNav() {
   // Source brands from Community Switcher (already caches and subscribes)
   useEffect(() => {
     try {
-      const items = (allCommunities || []).map(c => ({ brandId: c.id, brandName: c.name }));
+      const items = (allCommunities || []).map(c => ({ brandId: c.id, brandName: c.name, communityId: c.communityId }));
       setFollowedBrands(items);
     } catch {
       setFollowedBrands([]);
@@ -106,14 +106,14 @@ export default function DesktopLeftNav() {
               {followedBrands.map((b) => {
                 const active = tab === 'brand' && brandId === b.brandId;
                 const label = b.brandName || 'Brand';
-                const unread = Number(unreadCounts?.[b.brandId] || 0) > 0;
-                const pinned = isPinned?.(b.brandId);
+                const unread = Number(unreadCounts?.[b.communityId] || 0) > 0;
+                const pinned = isPinned?.(b.communityId);
                 return (
-                  <li key={b.brandId}>
+                  <li key={`${b.brandId}|${b.communityId || 'na'}`}>
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
                         <a
-                          href={`/community?tab=brand&brandId=${encodeURIComponent(b.brandId)}&brand=${encodeURIComponent(label)}&via=left_rail`}
+                          href={`/community?tab=brand&brandId=${encodeURIComponent(b.brandId)}&brand=${encodeURIComponent(label)}${b.communityId ? `&communityId=${encodeURIComponent(b.communityId)}` : ''}&via=left_rail`}
                           onClick={(e) => {
                             e.preventDefault();
                             try { track('community_leftrail_click', { brandId: b.brandId }); } catch (err) { console.debug?.('DesktopLeftNav track leftrail click failed', err); }
@@ -121,8 +121,9 @@ export default function DesktopLeftNav() {
                             next.set('tab', 'brand');
                             next.set('brandId', b.brandId);
                             next.set('brand', label);
+                            if (b.communityId) next.set('communityId', b.communityId); else next.delete('communityId');
                             navigate({ pathname: location.pathname, search: next.toString() });
-                            try { markAsRead?.(b.brandId); } catch {}
+                            try { markAsRead?.(b.communityId); } catch (err) { console.debug?.('DesktopLeftNav markAsRead failed', err); }
                           }}
                           className={`en-cd-left-link ${active ? 'is-active' : ''}`}
                           aria-current={active ? 'page' : undefined}
@@ -138,7 +139,7 @@ export default function DesktopLeftNav() {
                         </a>
                       </ContextMenuTrigger>
                       <ContextMenuContent>
-                        <ContextMenuItem onClick={() => togglePin?.(b.brandId)}>
+                        <ContextMenuItem onClick={() => togglePin?.(b.communityId)}>
                           {pinned ? 'Unpin' : 'Pin to top'}
                         </ContextMenuItem>
                       </ContextMenuContent>

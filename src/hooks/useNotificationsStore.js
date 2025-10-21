@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { track } from '@/lib/analytics';
 
 /**
@@ -23,7 +23,9 @@ export default function useNotificationsStore() {
     if (!db || !user?.uid) return () => {};
     try {
       if (typeof unsubRef.current === 'function') unsubRef.current();
-    } catch {}
+    } catch (err) {
+      console.debug?.('useNotificationsStore: subscribe cleanup failed', err);
+    }
 
     const col = collection(db, 'notifications', user.uid, 'community');
     const unsub = onSnapshot(
@@ -42,7 +44,7 @@ export default function useNotificationsStore() {
     );
     unsubRef.current = unsub;
     return () => {
-      try { unsub(); } catch {}
+      try { unsub(); } catch (err) { console.debug?.('useNotificationsStore: unsubscribe failed', err); }
       if (unsubRef.current === unsub) unsubRef.current = null;
     };
   }, [db, user?.uid]);
@@ -54,7 +56,7 @@ export default function useNotificationsStore() {
       return;
     }
     const off = subscribeToUpdates();
-    return () => { try { off?.(); } catch {} };
+    return () => { try { off?.(); } catch (err) { console.debug?.('useNotificationsStore: off() failed', err); } };
   }, [user?.uid, subscribeToUpdates]);
 
   const markAsRead = useCallback(async (communityId) => {
@@ -67,35 +69,53 @@ export default function useNotificationsStore() {
         { merge: true }
       );
       try { track('community_mark_read', { communityId }); } catch {}
-    } catch {}
+    } catch (err) {
+      console.debug?.('useNotificationsStore: markAsRead failed', err);
+    }
   }, [db, user?.uid]);
 
   const markVisited = useCallback(async (communityId) => {
     if (!db || !user?.uid || !communityId) return;
     try {
-      await setDoc(
-        doc(db, 'users', user.uid, 'preferences', 'community'),
-        { lastVisited: { [communityId]: serverTimestamp() } },
-        { merge: true }
-      );
-      try { track('community_mark_visited', { communityId }); } catch {}
-    } catch {}
+      const prefRef = doc(db, 'users', user.uid, 'preferences', 'community');
+      try {
+        await updateDoc(prefRef, { [`lastVisited.${communityId}`]: serverTimestamp(), updatedAt: serverTimestamp() });
+      } catch (innerErr) {
+        // Fallback when doc doesn't exist yet
+        await setDoc(
+          prefRef,
+          { lastVisited: { [communityId]: serverTimestamp() }, updatedAt: serverTimestamp() },
+          { merge: true }
+        );
+      }
+      try { track('community_mark_visited', { communityId }); } catch (err) { console.debug?.('useNotificationsStore: track visited failed', err); }
+    } catch (err) {
+      console.debug?.('useNotificationsStore: markVisited failed', err);
+    }
   }, [db, user?.uid]);
 
   const markAllAsRead = useCallback(async () => {
     if (!db || !user?.uid) return;
     const ids = Object.keys(unreadCounts || {});
     try {
-      for (const id of ids) {
-        setUnreadCounts((prev) => ({ ...prev, [id]: 0 }));
-        await setDoc(
+      // Optimistically zero out all counts in one state update
+      setUnreadCounts((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = 0;
+        return next;
+      });
+      // Batch writes in parallel
+      await Promise.all(
+        ids.map((id) => setDoc(
           doc(db, 'notifications', user.uid, 'community', id),
           { unreadCount: 0, lastUpdated: serverTimestamp() },
           { merge: true }
-        );
-      }
-      try { track('notification_mark_all_read', {}); } catch {}
-    } catch {}
+        ))
+      );
+      try { track('notification_mark_all_read', {}); } catch (err) { console.debug?.('useNotificationsStore: track mark_all failed', err); }
+    } catch (err) {
+      console.debug?.('useNotificationsStore: markAllAsRead failed', err);
+    }
   }, [db, user?.uid, unreadCounts]);
 
   const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((a, b) => a + (Number(b) || 0), 0), [unreadCounts]);
