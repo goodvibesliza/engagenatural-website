@@ -317,12 +317,12 @@ function ProFeedContent({ query = '', search = '', brand = 'All', selectedBrands
 
   const handleComment = (post) => {
     console.log('Comment on pro post:', post.id);
-    navigate(`/staff/community/post/${post.id}`);
+    navigate(`/community/post/${post.id}`);
   };
 
   const handleCardClick = (post) => {
     console.log('Pro card clicked for post:', post.id);
-    navigate(`/staff/community/post/${post.id}`);
+    navigate(`/community/post/${post.id}`);
   };
 
   const handleViewTraining = (trainingId, post) => {

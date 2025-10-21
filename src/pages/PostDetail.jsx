@@ -52,10 +52,10 @@ export default function PostDetail() {
       if (flag === 'linkedin' && isDesktop) {
         navigate('/community');
       } else {
-        navigate('/staff/community');
+        navigate('/community');
       }
     } catch {
-      navigate('/staff/community');
+      navigate('/community');
     }
   };
 

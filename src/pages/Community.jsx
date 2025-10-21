@@ -11,6 +11,9 @@ const ProFeed = lazy(() => import('../components/community/ProFeed'));
 import FilterBar from '../components/community/FilterBar';
 import ComposerMobile from '../components/community/mobile/ComposerMobile.jsx';
 import FilterBarMobileCompact from '../components/community/mobile/FilterBarMobileCompact.jsx';
+import CommunityChipScroller from '../components/community/mobile/CommunityChipScroller.jsx';
+import ChooseCommunitySheet from '../components/community/mobile/ChooseCommunitySheet.jsx';
+import NavBarBottom from '../components/mobile/NavBarBottom.jsx';
 import SkeletonPostCard from '../components/community/SkeletonPostCard';
 import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied, track } from '../lib/analytics';
@@ -48,6 +51,9 @@ export default function Community({ hideTopTabs = false }) {
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  
+  // Mobile community switcher state
+  const [showCommunitySheet, setShowCommunitySheet] = useState(false);
 
   // Refs to avoid stale closures when syncing from URL params
   const lastSyncedQueryRef = useRef('');
@@ -211,6 +217,69 @@ export default function Community({ hideTopTabs = false }) {
       setAvailableTags(tags);
     }
   }, [tab]);
+
+  // Handler for mobile community switcher chip selection
+  const handleChipBrandSelect = useCallback((brandId, brandName, communityId) => {
+    if (!brandId) {
+      // "All" selected - clear brand context and restore last selected tab
+      setBrandContext({ has: false, brand: '', brandId: '', communityId: '' });
+      try {
+        const lastTab = localStorage.getItem('community.feed.selectedTab') || 'whatsGood';
+        setTab(lastTab === 'pro' ? 'pro' : 'whatsGood');
+      } catch (err) {
+        console.debug?.('Community: localStorage read failed', err);
+        setTab('whatsGood');
+      }
+      navigate('/community');
+      try {
+        localStorage.removeItem('en.community.mobile.lastBrandId');
+      } catch (err) {
+        console.debug?.('Community: localStorage clear failed', err);
+      }
+    } else {
+      // Brand selected - set brand context and navigate
+      setBrandContext({ has: true, brand: brandName || 'Brand', brandId, communityId });
+      setTab('brand');
+      navigate(`/community?tab=feed&brandId=${encodeURIComponent(brandId)}&brandName=${encodeURIComponent(brandName || 'Brand')}${communityId ? `&communityId=${encodeURIComponent(communityId)}` : ''}`);
+      // Persist in localStorage
+      try {
+        localStorage.setItem('en.community.mobile.lastBrandId', brandId);
+      } catch (err) {
+        console.debug?.('Community: localStorage write failed', err);
+      }
+      // Track analytics
+      try {
+        track('community_view', {
+          tab: 'feed',
+          subtab: 'brand',
+          brandId,
+          via: 'mobile_switcher'
+        });
+      } catch (err) {
+        console.debug?.('Community: track failed', err);
+      }
+    }
+  }, [navigate]);
+
+  // Restore last selected brand on mobile mount
+  useEffect(() => {
+    if (!isMobile || brandContext.has) return;
+    try {
+      const lastBrandId = localStorage.getItem('en.community.mobile.lastBrandId');
+      const params = new URLSearchParams(location.search);
+      const urlBrandId = params.get('brandId');
+      
+      // Only restore if no URL params override
+      if (lastBrandId && !urlBrandId && user?.uid) {
+        // TODO: Fetch brand name from brand_follows or brands collection
+        // For now, just set the ID and let the BrandFeed component handle it
+        setBrandContext({ has: true, brandId: lastBrandId, brand: '', communityId: '' });
+        setTab('brand');
+      }
+    } catch (err) {
+      console.debug?.('Community: localStorage read failed', err);
+    }
+  }, [isMobile, brandContext.has, location.search, user?.uid]);
 
   const header = useMemo(() => {
     if (hideTopTabs) return null;
@@ -396,7 +465,19 @@ export default function Community({ hideTopTabs = false }) {
   return (
     <div className="min-h-screen bg-cool-gray" data-mobile-skin={useLinkedInMobileSkin ? 'linkedin' : undefined}>
       {header}
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      
+      {/* Mobile community switcher chips - always shown on mobile regardless of hideTopTabs */}
+      {isMobile && (
+        <div className="bg-white border-b border-gray-200">
+          <CommunityChipScroller
+            selectedBrandId={brandContext.brandId}
+            onBrandSelect={handleChipBrandSelect}
+            onMoreClick={() => setShowCommunitySheet(true)}
+          />
+        </div>
+      )}
+      
+      <main className={`max-w-5xl mx-auto px-4 py-6 ${isMobile ? 'pb-[80px]' : ''}`}>
         {brandContext.has && !brandTabAllowed && !ctaDismissed && (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded p-3 text-amber-900">
             <div className="text-sm font-medium">{ctaMsg || 'Brand feed unavailable.'}</div>
@@ -517,6 +598,19 @@ export default function Community({ hideTopTabs = false }) {
           </section>
         </div>
       </main>
+      
+      {/* Choose Community Sheet - mobile only */}
+      {isMobile && (
+        <ChooseCommunitySheet
+          isOpen={showCommunitySheet}
+          onClose={() => setShowCommunitySheet(false)}
+          onSelect={handleChipBrandSelect}
+          currentBrandId={brandContext.brandId}
+        />
+      )}
+      
+      {/* Mobile Bottom Nav - always visible on mobile (≤900px) */}
+      {isMobile && <NavBarBottom />}
     </div>
   );
 }

@@ -49,8 +49,8 @@ export default function StaffDashboardLayout() {
         style={showCommunityTopBar ? { paddingTop: 56 } : undefined}
       >
         <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar - Vertical on desktop, Horizontal on mobile */}
-          <div className="md:w-64 flex-shrink-0">
+          {/* Sidebar - hidden on mobile for LinkedIn skin */}
+          <div className={`md:w-64 flex-shrink-0 ${useLinkedInMobileSkin ? 'hidden min-[900px]:block' : ''}`}>
             <nav className="bg-white shadow rounded-lg p-4">
               <ul className="flex flex-row md:flex-col space-y-0 space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto md:overflow-x-visible">
                 <li>
@@ -123,8 +123,8 @@ export default function StaffDashboardLayout() {
         </div>
       </div>
 
-      {/* Fixed bottom nav (mobile, LinkedIn skin only) */}
-      {useLinkedInMobileSkin && (
+      {/* Fixed bottom nav (mobile, always shown on app pages) */}
+      {isMobile && (
         <NavBarBottom />
       )}
     </div>

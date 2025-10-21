@@ -18,9 +18,24 @@ function timeAgo(ts) {
 }
 
 export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, onViewTraining, onCardClick, dataTestId }) {
-  const name = post.author || post.authorName || post.brand || 'User'
-  const avatarUrl = post.authorAvatar || post.photoURL || null
-  const byline = `${name} · ${timeAgo(post.timestamp || post.createdAt)}`
+  // Extract author name with fallback chain
+  const authorName = post.authorName || post.author?.name || post.brand || 'User'
+  
+  // Extract author photo URL with comprehensive fallback chain
+  const authorPhotoURL = post.authorPhotoURL || post.author?.photoURL || post.author?.profileImage || post.author?.avatar || post.author?.avatarUrl || post.author?.image || post.photoURL || post.authorAvatar || null
+  
+  // Extract company/brand for byline
+  const company = post.company || ''
+  const brand = post.brand || 'General'
+  const isGenericCompany = !company || /^(whats-?good|whatsgood|all|public|pro feed)$/i.test(String(company))
+  const brandOrCompany = (!isGenericCompany && company) ? company : brand
+  
+  // Build byline with company/brand and timestamp
+  const timestamp = timeAgo(post.timestamp || post.createdAt)
+  const byline = brandOrCompany && brandOrCompany !== authorName
+    ? `${brandOrCompany} · ${timestamp}`
+    : timestamp
+
   const content = post.content || post.title || ''
 
   const handleCardActivate = () => {
@@ -46,14 +61,14 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-sm font-semibold text-gray-700" aria-hidden="true">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          {authorPhotoURL ? (
+            <img src={authorPhotoURL} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span>{name?.charAt(0)?.toUpperCase?.() || 'U'}</span>
+            <span>{authorName?.charAt(0)?.toUpperCase?.() || 'U'}</span>
           )}
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
+          <div className="text-sm font-medium text-gray-900 truncate">{authorName}</div>
           <div className="text-xs text-gray-500 truncate" aria-label="Byline">{byline}</div>
         </div>
       </div>
@@ -68,7 +83,7 @@ export default function PostCardMobileLinkedIn({ post = {}, onLike, onComment, o
         <div className="mt-2 mb-2">
           <img 
             src={post.imageUrls[0]} 
-            alt={post.imageAlt || (name ? `Image shared by ${name}` : 'Posted image')} 
+            alt={post.imageAlt || (authorName ? `Image shared by ${authorName}` : 'Posted image')} 
             className="w-full rounded-lg object-cover" 
           />
         </div>
