@@ -19,6 +19,16 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog';
 
+/**
+ * Render the staff verification queue UI for reviewing and managing verification requests.
+ *
+ * Subscribes to the Firestore 'verification_requests' collection and presents a searchable,
+ * status-filterable table of requests. Exposes actions in a detail dialog to approve, reject,
+ * or request more information; those actions update the corresponding user and request
+ * documents in Firestore and update component state to reflect changes.
+ *
+ * @returns {JSX.Element} The verification queue UI component.
+ */
 export default function VerifyStaff() {
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
@@ -466,6 +476,14 @@ export default function VerifyStaff() {
   );
 }
 
+/**
+ * Render a labeled value pair for display in detail views.
+ * @param {{label: string, value: any, mono?: boolean}} props
+ * @param {string} props.label - The label text shown above the value.
+ * @param {any} props.value - The value to display; if falsy, displays '—'.
+ * @param {boolean} [props.mono] - When true, render the value using a monospaced font.
+ * @returns {JSX.Element} The rendered element containing the label and value.
+ */
 function Field({ label, value, mono }) {
   return (
     <div>
