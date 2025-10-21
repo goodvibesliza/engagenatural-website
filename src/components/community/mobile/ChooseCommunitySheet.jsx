@@ -36,6 +36,21 @@ export default function ChooseCommunitySheet({
     return community.name.toLowerCase().includes(query);
   });
 
+  // Define handleClose first so it can be used in useEffect dependency
+  const handleClose = useCallback(() => {
+    setAnimateIn(false);
+    setTimeout(() => {
+      onClose?.();
+      setSearchQuery('');
+    }, 200);
+
+    try {
+      track('community_sheet_close', {});
+    } catch (err) {
+      console.debug('ChooseCommunitySheet: track failed', err);
+    }
+  }, [onClose]);
+
   // Handle open/close animations and body scroll lock
   useEffect(() => {
     if (!isOpen) {
@@ -70,20 +85,6 @@ export default function ChooseCommunitySheet({
       setAnimateIn(false);
     };
   }, [isOpen, handleClose]);
-
-  const handleClose = useCallback(() => {
-    setAnimateIn(false);
-    setTimeout(() => {
-      onClose?.();
-      setSearchQuery('');
-    }, 200);
-
-    try {
-      track('community_sheet_close', {});
-    } catch (err) {
-      console.debug('ChooseCommunitySheet: track failed', err);
-    }
-  }, [onClose]);
 
   const handleSelect = useCallback((community) => {
     onSelect?.(community.id, community.name, community.communityId);
