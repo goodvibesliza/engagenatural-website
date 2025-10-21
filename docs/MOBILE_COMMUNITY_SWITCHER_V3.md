@@ -29,7 +29,8 @@ Communities are automatically sorted by:
 - Scrolls at **25px/second** (~0.42px per frame @ 60fps)
 - Pauses for **1 second** at each edge, then reverses direction
 - Stops immediately on user touch/scroll/mouse interaction
-- Disabled when keyboard open or overlay/dialog active
+- Paused when any input/textarea has focus (document-level focus tracking)
+- Disabled when overlay/dialog active
 - Smooth `scroll-behavior: smooth`
 
 ### 5. Visual Polish
@@ -70,6 +71,8 @@ Communities are automatically sorted by:
 
 **Features**:
 - Auto-scroll carousel with requestAnimationFrame
+- Input focus tracking to pause auto-scroll during typing
+- SPA navigation using react-router-dom (no full-page reloads)
 - Unread badges (8px dot, top-right)
 - Pin accent ring (gold, 2px)
 - Fade-edge gradients

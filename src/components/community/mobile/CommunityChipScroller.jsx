@@ -1,5 +1,6 @@
 // src/components/community/mobile/CommunityChipScroller.jsx
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
 import { track } from '@/lib/analytics';
 
@@ -13,6 +14,7 @@ export default function CommunityChipScroller({
   onMoreClick,
   className = ''
 }) {
+  const navigate = useNavigate();
   const {
     allCommunities,
     isPinned,
@@ -23,9 +25,44 @@ export default function CommunityChipScroller({
 
   const scrollRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const autoScrollTimer = useRef(null);
   const autoScrollFrame = useRef(null);
   const lastUserInteraction = useRef(Date.now());
+
+  // Track input focus state to pause auto-scroll during typing
+  useEffect(() => {
+    const handleFocusIn = (e) => {
+      // Check if focused element is an input, textarea, or contenteditable
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable
+      ) {
+        setIsInputFocused(true);
+      }
+    };
+
+    const handleFocusOut = (e) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable
+      ) {
+        setIsInputFocused(false);
+      }
+    };
+
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
 
   // Auto-scroll carousel logic
   useEffect(() => {
@@ -106,11 +143,10 @@ export default function CommunityChipScroller({
 
       // Start new 5s timer
       autoScrollTimer.current = setTimeout(() => {
-        // Check if keyboard is open or overlay active
-        const keyboardOpen = window.visualViewport && window.visualViewport.height < window.innerHeight * 0.75;
+        // Check if input is focused or overlay active
         const hasOverlay = document.querySelector('[role="dialog"]');
         
-        if (!keyboardOpen && !hasOverlay) {
+        if (!isInputFocused && !hasOverlay) {
           startAutoScroll();
         }
       }, 5000);
@@ -227,8 +263,8 @@ export default function CommunityChipScroller({
             } catch (err) {
               console.debug('CommunityChipScroller: track failed', err);
             }
-            // Navigate to Pro Feed tab
-            window.location.href = '/community?tab=pro';
+            // Navigate to Pro Feed tab using SPA navigation
+            navigate('/community?tab=pro');
           }}
           className="shrink-0 px-4 h-11 min-h-[44px] rounded-full text-sm font-medium transition-all whitespace-nowrap relative bg-gray-100 text-gray-700 hover:bg-gray-200"
         >
