@@ -15,25 +15,53 @@ async function getMessagingInstance() {
 }
 
 export async function requestPermissionAndToken(user) {
+  // Fast-fail on unsupported environments
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[push] Notifications or ServiceWorker not supported in this browser');
+    return { token: null, permission: 'denied' };
+  }
+
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    const err = new Error('permission-denied');
-    err.code = 'permission-denied';
     return { token: null, permission };
   }
+
   const messaging = await getMessagingInstance();
   if (!messaging) return { token: null, permission };
-  const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-  const token = await getToken(messaging, vapidKey ? { vapidKey } : undefined);
-  if (token && user?.uid) {
-    try {
-      await setDoc(doc(db, 'users', user.uid, 'fcmTokens', token), {
-        createdAt: serverTimestamp(),
-        userAgent: navigator.userAgent || 'unknown',
-      }, { merge: true });
-    } catch {}
+
+  // Ensure the FCM service worker is registered and ready
+  let swReg = null;
+  try {
+    swReg = (await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js'))
+      || (await navigator.serviceWorker.register('/firebase-messaging-sw.js'));
+  } catch (e) {
+    console.error('[push] service worker registration failed', e);
+    return { token: null, permission };
   }
-  return { token, permission };
+
+  const vapidKey = (import.meta?.env && import.meta.env.VITE_FIREBASE_VAPID_KEY) || '';
+  if (!vapidKey) {
+    console.error('[push] Missing VITE_FIREBASE_VAPID_KEY env var. Cannot get FCM token.');
+    return { token: null, permission };
+  }
+
+  try {
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
+    if (token && user?.uid) {
+      try {
+        await setDoc(doc(db, 'users', user.uid, 'fcmTokens', token), {
+          createdAt: serverTimestamp(),
+          userAgent: navigator.userAgent || 'unknown',
+        }, { merge: true });
+      } catch (e) {
+        console.debug('[push] failed to persist token (ignored)', e);
+      }
+    }
+    return { token, permission };
+  } catch (e) {
+    console.error('[push] getToken failed', e);
+    return { token: null, permission };
+  }
 }
 
 export async function subscribeTopics(token, topics = []) {
@@ -41,7 +69,9 @@ export async function subscribeTopics(token, topics = []) {
   try {
     const call = httpsCallable(functions, 'subscribeToTopics');
     await call({ token, topics });
-  } catch {}
+  } catch (e) {
+    console.debug('[push] subscribeTopics failed (ignored)', e);
+  }
 }
 
 export async function unsubscribeTopics(token, topics = []) {
@@ -49,7 +79,9 @@ export async function unsubscribeTopics(token, topics = []) {
   try {
     const call = httpsCallable(functions, 'unsubscribeFromTopics');
     await call({ token, topics });
-  } catch {}
+  } catch (e) {
+    console.debug('[push] unsubscribeTopics failed (ignored)', e);
+  }
 }
 
 export async function onForegroundMessage(handler) {
