@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 /**
  * netlify-setup.js
  * 
@@ -124,7 +125,7 @@ function fixImports() {
 }
 
 // Execute the import fixing function
-const importsFixed = fixImports();
+const _importsFixed = fixImports();
 
 // Exit with success
 console.log('🎉 Netlify setup completed successfully!');

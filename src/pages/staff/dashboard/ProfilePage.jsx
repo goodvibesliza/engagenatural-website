@@ -497,7 +497,7 @@ export default function ProfilePage() {
                       if (!pushEnabled) {
                         const { permission } = await requestPermissionAndToken(user);
                         if (permission !== 'granted') {
-                          try { toast?.error?.('Push notifications are disabled in your browser.'); } catch {}
+                          toast?.error?.('Push notifications are disabled in your browser.');
                           return;
                         }
                       }

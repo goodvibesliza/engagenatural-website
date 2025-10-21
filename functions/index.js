@@ -19,14 +19,27 @@ export const subscribeToTopics = functions.https.onCall(async (data, context) =>
   if (!token || !Array.isArray(topics) || topics.length === 0 || topics.some((t) => !isAllowedTopic(t))) {
     throw new functions.https.HttpsError('invalid-argument', 'Invalid token/topics.');
   }
-  for (const topic of topics) {
-    try {
-      await admin.messaging().subscribeToTopic(token, topic);
-    } catch (err) {
-      functions.logger?.warn?.('subscribeToTopic failed', { topic, err: String(err) });
-    }
+  // Verify token belongs to caller
+  const uid = context.auth.uid;
+  const docRef = admin.firestore().doc(`users/${uid}/pushTokens/${token}`);
+  const doc = await docRef.get();
+  if (!doc.exists) {
+    throw new functions.https.HttpsError('permission-denied', 'Token not registered to this user.');
   }
-  return { ok: true };
+  // Dedupe and parallelize
+  const unique = Array.from(new Set(topics));
+  const results = await Promise.all(
+    unique.map(async (topic) => {
+      try {
+        await admin.messaging().subscribeToTopic(token, topic);
+        return { topic, ok: true };
+      } catch (err) {
+        functions.logger?.warn?.('subscribeToTopic failed', { topic, err: String(err) });
+        return { topic, ok: false, error: String(err) };
+      }
+    })
+  );
+  return { ok: results.every((r) => r.ok), results };
 });
 
 // Callable to unsubscribe a token from multiple topics
@@ -36,14 +49,27 @@ export const unsubscribeFromTopics = functions.https.onCall(async (data, context
   if (!token || !Array.isArray(topics) || topics.length === 0 || topics.some((t) => !isAllowedTopic(t))) {
     throw new functions.https.HttpsError('invalid-argument', 'Invalid token/topics.');
   }
-  for (const topic of topics) {
-    try {
-      await admin.messaging().unsubscribeFromTopic(token, topic);
-    } catch (err) {
-      functions.logger?.warn?.('unsubscribeFromTopic failed', { topic, err: String(err) });
-    }
+  // Verify token belongs to caller
+  const uid = context.auth.uid;
+  const docRef = admin.firestore().doc(`users/${uid}/pushTokens/${token}`);
+  const doc = await docRef.get();
+  if (!doc.exists) {
+    throw new functions.https.HttpsError('permission-denied', 'Token not registered to this user.');
   }
-  return { ok: true };
+  // Dedupe and parallelize
+  const unique = Array.from(new Set(topics));
+  const results = await Promise.all(
+    unique.map(async (topic) => {
+      try {
+        await admin.messaging().unsubscribeFromTopic(token, topic);
+        return { topic, ok: true };
+      } catch (err) {
+        functions.logger?.warn?.('unsubscribeFromTopic failed', { topic, err: String(err) });
+        return { topic, ok: false, error: String(err) };
+      }
+    })
+  );
+  return { ok: results.every((r) => r.ok), results };
 });
 
 // Manual push trigger for testing
@@ -86,17 +112,29 @@ export const sendCommunityPush = functions.firestore
     const title = data.title || 'Community';
     const summary = data.summary || '';
     const communityId = context.params.id;
+    // Sanitize topic and build a web-friendly payload
+    const safeCommunityId = String(communityId || '').replace(/[^A-Za-z0-9_-]/g, '-');
+    const topic = `community_${safeCommunityId}`;
+    if (!isAllowedTopic(topic)) return;
     const payload = {
+      topic,
       notification: {
         title: `New post in ${title}`,
         body: summary || 'Check out the latest update!',
-        click_action: `/community?communityId=${communityId}`,
       },
-      topic: `community_${communityId}`,
+      webpush: {
+        fcmOptions: {
+          link: `/community?communityId=${safeCommunityId}&postId=${context.params.postId}`,
+        },
+      },
+      data: {
+        communityId: safeCommunityId,
+        postId: String(context.params.postId || ''),
+      },
     };
     try {
       await admin.messaging().send(payload);
-    } catch (e) {
+    } catch {
       // swallow errors to avoid retry storms
     }
   });
