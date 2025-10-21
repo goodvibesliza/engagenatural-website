@@ -31,7 +31,7 @@ export default function ChooseCommunitySheet({
       return;
     }
 
-    // Hydrate from cache first to reduce flicker
+    // Hydrate from cache first to reduce flicker (stay in loading state until Firestore confirms)
     try {
       const cached = localStorage.getItem('en.followedBrandCommunities');
       if (cached) {
@@ -45,14 +45,12 @@ export default function ChooseCommunitySheet({
             updatedAt: null // Cache doesn't have timestamps
           }));
           setFollowedBrands(mobileBrands);
-          setLoading(false);
+          // Keep loading=true until Firestore callback
         }
       }
     } catch (err) {
       console.debug('ChooseCommunitySheet: cache read failed', err);
     }
-
-    setLoading(true);
     const q = query(
       collection(db, 'brand_follows'),
       where('userId', '==', user.uid)

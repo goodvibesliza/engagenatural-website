@@ -227,6 +227,7 @@ export default function Community({ hideTopTabs = false }) {
         const lastTab = localStorage.getItem('community.feed.selectedTab') || 'whatsGood';
         setTab(lastTab === 'pro' ? 'pro' : 'whatsGood');
       } catch (err) {
+        console.debug?.('Community: localStorage read failed', err);
         setTab('whatsGood');
       }
       navigate('/community');
