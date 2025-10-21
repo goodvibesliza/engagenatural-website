@@ -25,6 +25,8 @@ export default function VerifyStaff() {
   const [selected, setSelected] = useState(null);
   const [zoomPhoto, setZoomPhoto] = useState(false);
   const [zoomCode, setZoomCode] = useState(false);
+  const [requestingInfo, setRequestingInfo] = useState(false);
+  const [requestInfoMsg, setRequestInfoMsg] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'verification_requests'), orderBy('submittedAt', 'desc'));
@@ -93,6 +95,20 @@ export default function VerifyStaff() {
         status: 'rejected',
         reviewedAt: serverTimestamp(),
       });
+    } catch {}
+  }
+
+  async function requestInfo(v) {
+    if (!v?.id) return;
+    try {
+      await updateDoc(doc(db, 'verification_requests', v.id), {
+        status: 'needs_info',
+        infoRequestedAt: serverTimestamp(),
+        infoRequestMessage: requestInfoMsg || '',
+      });
+      setRequestingInfo(false);
+      setRequestInfoMsg('');
+      setSelected(null);
     } catch {}
   }
 
@@ -178,7 +194,7 @@ export default function VerifyStaff() {
         </table>
       </div>
 
-      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setZoomPhoto(false); setZoomCode(false); } }}>
+      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setZoomPhoto(false); setZoomCode(false); setRequestingInfo(false); setRequestInfoMsg(''); } }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Verification Detail</DialogTitle>
@@ -234,8 +250,15 @@ export default function VerifyStaff() {
                 >
                   Close
                 </button>
-                {selected.status === 'pending' && (
+                {selected.status === 'pending' && !requestingInfo && (
                   <>
+                    <button
+                      type="button"
+                      onClick={() => setRequestingInfo(true)}
+                      className="rounded bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+                    >
+                      Request Info
+                    </button>
                     <button
                       type="button"
                       onClick={() => approve(selected)}
@@ -251,6 +274,35 @@ export default function VerifyStaff() {
                       Reject
                     </button>
                   </>
+                )}
+
+                {selected.status === 'pending' && requestingInfo && (
+                  <div className="w-full">
+                    <div className="mb-2 text-sm font-medium text-gray-700">Message to applicant (optional)</div>
+                    <textarea
+                      value={requestInfoMsg}
+                      onChange={(e) => setRequestInfoMsg(e.target.value)}
+                      rows={3}
+                      className="w-full rounded border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                      placeholder="Please provide a clearer photo showing the code and your name tag..."
+                    />
+                    <div className="mt-2 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setRequestingInfo(false); setRequestInfoMsg(''); }}
+                        className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requestInfo(selected)}
+                        className="rounded bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
+                      >
+                        Send Request
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
