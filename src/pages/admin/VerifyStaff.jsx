@@ -29,36 +29,50 @@ export default function VerifyStaff() {
   const [requestingInfo, setRequestingInfo] = useState(false);
   const [requestInfoMsg, setRequestInfoMsg] = useState('');
   const [storeInfo, setStoreInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
     const q = query(collection(db, 'verification_requests'), orderBy('submittedAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      const rows = snap.docs.map((d) => {
-        const v = d.data();
-        return {
-          id: d.id,
-          applicantUid: v.userId || v.applicantUid || '',
-          applicantName: v.userName || v.applicantName || 'Unknown',
-          applicantEmail: v.userEmail || v.applicantEmail || '',
-          storeId: v.storeId || '',
-          storeName: v.storeName || '',
-          storeAddress: v.storeAddress || '',
-          photoUrl: v.photoURL || v.photoUrl || '',
-          codeImageUrl: v.codeImageUrl || '',
-          submittedCodeText: v.submittedCodeText || v.verificationCode || '',
-          status: v.status || 'pending',
-          submittedAt: v.submittedAt?.toDate ? v.submittedAt.toDate() : (v.submittedAt ? new Date(v.submittedAt) : null),
-          autoScore: typeof v.autoScore === 'number' ? v.autoScore : null,
-          reasons: Array.isArray(v.reasons) ? v.reasons : [],
-          distance_m: typeof v.distance_m === 'number' ? v.distance_m : null,
-          photoRedactedUrl: v.photoRedactedUrl || '',
-          gps: v.gps || null,
-          locSource: v.locSource || null,
-          locDenied: !!v.locDenied,
-        };
-      });
-      setItems(rows);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const rows = snap.docs.map((d) => {
+          const v = d.data();
+          return {
+            id: d.id,
+            applicantUid: v.userId || v.applicantUid || '',
+            applicantName: v.userName || v.applicantName || 'Unknown',
+            applicantEmail: v.userEmail || v.applicantEmail || '',
+            storeId: v.storeId || '',
+            storeName: v.storeName || '',
+            storeAddress: v.storeAddress || '',
+            photoUrl: v.photoURL || v.photoUrl || '',
+            codeImageUrl: v.codeImageUrl || '',
+            submittedCodeText: v.submittedCodeText || v.verificationCode || '',
+            status: v.status || 'pending',
+            submittedAt: v.submittedAt?.toDate ? v.submittedAt.toDate() : (v.submittedAt ? new Date(v.submittedAt) : null),
+            autoScore: typeof v.autoScore === 'number' ? v.autoScore : null,
+            reasons: Array.isArray(v.reasons) ? v.reasons : [],
+            distance_m: typeof v.distance_m === 'number' ? v.distance_m : null,
+            photoRedactedUrl: v.photoRedactedUrl || '',
+            gps: v.gps || null,
+            locSource: v.locSource || null,
+            locDenied: !!v.locDenied,
+          };
+        });
+        setItems(rows);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Failed to fetch verification requests:', err);
+        setLoadError('Failed to load verification requests. Please refresh the page.');
+        setLoading(false);
+      }
+    );
     return () => unsub();
   }, []);
 
@@ -90,34 +104,54 @@ export default function VerifyStaff() {
 
   async function approve(v) {
     if (!v?.applicantUid) return;
-    // Preserve existing business logic: update the user doc as before
-    await updateDoc(doc(db, 'users', v.applicantUid), {
-      verified: true,
-      verificationStatus: 'approved',
-      updatedAt: serverTimestamp(),
-    });
-    // Also reflect status on the request document for UI consistency (non-breaking)
+    if (processing) return;
+    if (!confirm(`Approve verification for ${v.applicantName || 'this user'}?`)) return;
+    setProcessing(true);
     try {
+      // Update user document
+      await updateDoc(doc(db, 'users', v.applicantUid), {
+        verified: true,
+        verificationStatus: 'approved',
+        updatedAt: serverTimestamp(),
+      });
+      // Reflect status on the request document for UI consistency
       await updateDoc(doc(db, 'verification_requests', v.id), {
         status: 'approved',
         reviewedAt: serverTimestamp(),
       });
-    } catch {}
+      setSelected(null);
+      alert('Verification approved.');
+    } catch (err) {
+      console.error('Failed to approve verification:', err);
+      alert('Failed to approve verification. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
   }
 
   async function reject(v) {
     if (!v?.applicantUid) return;
-    await updateDoc(doc(db, 'users', v.applicantUid), {
-      verified: false,
-      verificationStatus: 'rejected',
-      updatedAt: serverTimestamp(),
-    });
+    if (processing) return;
+    if (!confirm(`Reject verification for ${v.applicantName || 'this user'}?`)) return;
+    setProcessing(true);
     try {
+      await updateDoc(doc(db, 'users', v.applicantUid), {
+        verified: false,
+        verificationStatus: 'rejected',
+        updatedAt: serverTimestamp(),
+      });
       await updateDoc(doc(db, 'verification_requests', v.id), {
         status: 'rejected',
         reviewedAt: serverTimestamp(),
       });
-    } catch {}
+      setSelected(null);
+      alert('Verification rejected.');
+    } catch (error) {
+      console.error('Failed to reject verification:', error);
+      alert('Failed to reject verification. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
   }
 
   async function requestInfo(v) {
@@ -183,8 +217,23 @@ export default function VerifyStaff() {
               const reasons = v.reasons || [];
               const rosterBadge = reasons.includes('ROSTER_EMAIL_MATCH') ? 'email' : (reasons.includes('ROSTER_NAME_MATCH') ? 'name' : 'none');
               const geoBadge = v.distance_m == null ? 'nogps' : (v.distance_m <= 200 ? 'match' : v.distance_m <= 800 ? 'near' : 'far');
+              const openRow = () => { setSelected(v); setZoomPhoto(false); setZoomCode(false); };
+              const onRowKey = (e) => {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                  e.preventDefault();
+                  openRow();
+                }
+              };
               return (
-                <tr key={v.id} className="cursor-pointer hover:bg-gray-50" onClick={() => { setSelected(v); setZoomPhoto(false); setZoomCode(false); }}>
+                <tr
+                  key={v.id}
+                  className="cursor-pointer hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                  onClick={openRow}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open details for ${v.applicantName}`}
+                  onKeyDown={onRowKey}
+                >
                   <td className="px-4 py-3 font-medium text-gray-900">{v.applicantName}</td>
                   <td className="px-4 py-3 text-gray-700">{v.applicantEmail || '—'}</td>
                   <td className="px-4 py-3 text-gray-700">{v.storeName || '—'}</td>
@@ -226,9 +275,19 @@ export default function VerifyStaff() {
                 </tr>
               );
             })}
-            {filtered.length === 0 && (
+            {loading && (
               <tr>
-                <td className="px-4 py-8 text-center text-gray-500" colSpan={8}>No verification requests found</td>
+                <td className="px-4 py-8 text-center text-gray-500" colSpan={11}>Loading verification requests...</td>
+              </tr>
+            )}
+            {loadError && (
+              <tr>
+                <td className="px-4 py-8 text-center text-red-600" colSpan={11}>{loadError}</td>
+              </tr>
+            )}
+            {!loading && !loadError && filtered.length === 0 && (
+              <tr>
+                <td className="px-4 py-8 text-center text-gray-500" colSpan={11}>No verification requests found</td>
               </tr>
             )}
           </tbody>
@@ -251,7 +310,11 @@ export default function VerifyStaff() {
                       src={selected.photoRedactedUrl || selected.photoUrl}
                       alt={`Photo of ${selected.applicantName}`}
                       onClick={() => setZoomPhoto((z) => !z)}
-                      className={`w-full rounded border object-contain ${zoomPhoto ? 'max-h-[80vh] cursor-zoom-out' : 'max-h-96 cursor-zoom-in'}`}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); setZoomPhoto((z) => !z); } }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Toggle zoom of photo for ${selected.applicantName}`}
+                      className={`w-full rounded border object-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${zoomPhoto ? 'max-h-[80vh] cursor-zoom-out' : 'max-h-96 cursor-zoom-in'}`}
                     />
                   ) : (
                     <div className="rounded bg-gray-100 p-3 text-sm text-gray-600">No photo</div>
@@ -264,7 +327,11 @@ export default function VerifyStaff() {
                       src={selected.codeImageUrl || selected.photoUrl}
                       alt={`Code image for ${selected.applicantName}`}
                       onClick={() => setZoomCode((z) => !z)}
-                      className={`w-full rounded border object-contain ${zoomCode ? 'max-h-[80vh] cursor-zoom-out' : 'max-h-96 cursor-zoom-in'}`}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); setZoomCode((z) => !z); } }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Toggle zoom of code image for ${selected.applicantName}`}
+                      className={`w-full rounded border object-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${zoomCode ? 'max-h-[80vh] cursor-zoom-out' : 'max-h-96 cursor-zoom-in'}`}
                     />
                   ) : (
                     <span className="inline-flex rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">No code image</span>
@@ -346,16 +413,18 @@ export default function VerifyStaff() {
                     <button
                       type="button"
                       onClick={() => approve(selected)}
-                      className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                      disabled={processing}
+                      className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Approve
+                      {processing ? 'Processing…' : 'Approve'}
                     </button>
                     <button
                       type="button"
                       onClick={() => reject(selected)}
-                      className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                      disabled={processing}
+                      className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Reject
+                      {processing ? 'Processing…' : 'Reject'}
                     </button>
                   </>
                 )}
