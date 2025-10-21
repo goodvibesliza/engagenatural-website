@@ -19,7 +19,7 @@ export default function usePushTopics() {
       if (pushEnabled) {
         const { token, permission } = await requestPermissionAndToken(user);
         if (permission !== 'granted') {
-          try { track('push_permission_denied', {}); } catch {}
+          try { track('push_permission_denied', {}); } catch (e) { console.debug('analytics: push_permission_denied failed (ignored)', e); }
           return;
         }
         tokenRef.current = token;

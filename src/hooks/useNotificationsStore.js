@@ -18,7 +18,7 @@ import { track } from '@/lib/analytics';
  * users/{uid}/preferences/community => { lastVisited: { [communityId]: TS } }
  */
 export default function useNotificationsStore() {
-  const { user } = useAuth();
+  const { user } = useAuth() || {};
   const [unreadCounts, setUnreadCounts] = useState({});
   const [pushEnabled, setPushEnabledState] = useState(false);
   const unsubRef = useRef(null);
