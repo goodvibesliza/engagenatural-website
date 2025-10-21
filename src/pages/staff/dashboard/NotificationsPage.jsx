@@ -31,6 +31,13 @@ const EmptyState = ({ icon, headline, copy }) => (
   </div>
 );
 
+/**
+ * Render the notifications page UI, showing tabs, community activity, mentions, and system updates, and switch to the desktop shell layout when the desktop feed flag is active.
+ *
+ * Computes per-community activity from available communities and unread counts, exposes controls to mark items or all notifications as read, and navigates to community feeds when activity items are opened.
+ *
+ * @returns {JSX.Element} The notifications page React element (center content or the desktop shell with side rails when applicable).
+ */
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { unreadCounts, markAsRead, markAllAsRead } = useNotificationsStore();

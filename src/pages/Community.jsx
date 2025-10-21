@@ -25,13 +25,13 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 /**
- * Render the Community page with two feed tabs ("Whats Good" and "Pro"), filters, navigation, and lazy-loaded Pro content.
+ * Render the Community page UI with selectable feed tabs, filters, brand context, and analytics.
  *
- * Renders a header with the tab selector and mobile controls, a desktop sticky sidebar containing a New Post button and FilterBar,
- * and either the WhatsGoodFeed or a lazily loaded ProFeed based on the active tab. Synchronizes available filter options from child feeds,
- * initializes Pro filters from PRO_STUBS when the Pro tab is active, supports deep links to a specific post via location.state.focusPostId,
- * and records feed view analytics when the active tab changes.
+ * The component displays "Whats Good" and "Pro" feeds (with Pro loaded lazily), supports brand-scoped feeds with gating,
+ * synchronizes filters and URL params, supports deep links to individual posts, and emits view/interaction analytics.
  *
+ * @param {Object} props - Component props.
+ * @param {boolean} [props.hideTopTabs=false] - If true, hide the top tab/header area (used for embedding the page without tabs).
  * @returns {JSX.Element} The Community page component.
  */
 export default function Community({ hideTopTabs = false }) {

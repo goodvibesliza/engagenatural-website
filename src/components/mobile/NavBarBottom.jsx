@@ -3,6 +3,17 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { Store, BookOpen, Home, Bell, Search as SearchIcon } from 'lucide-react'
 import useNotificationsStore from '@/hooks/useNotificationsStore'
 
+/**
+ * Render a bottom navigation item linking to a route with an icon, label, and optional numeric badge.
+ * @param {Object} props
+ * @param {string} props.to - Destination route path for the navigation item.
+ * @param {import('react').ComponentType|import('react').ElementType} props.icon - Icon component to render.
+ * @param {string} props.label - Visible label text shown below the icon.
+ * @param {string} props.testId - Value applied to `data-testid` for testing.
+ * @param {boolean} props.isActive - When true, marks the item as active (affects `aria-current` and styling).
+ * @param {number} props.badge - Numeric badge to display when greater than zero.
+ * @returns {JSX.Element} The NavLink element representing the navigation item.
+ */
 function Item({ to, icon, label, testId, isActive, badge }) {
   const IconComp = icon
   return (
@@ -34,6 +45,13 @@ function Item({ to, icon, label, testId, isActive, badge }) {
   )
 }
 
+/**
+ * Render the mobile bottom navigation bar with Home, Updates (badge-supported), My Brands, Learning, and a Search action.
+ *
+ * Highlights the active section based on the current pathname, shows the total unread count on the Updates item, and dispatches a custom 'en:openMobileSearch' event with { page } when the Search button is pressed.
+ *
+ * @returns {JSX.Element} The bottom navigation React element.
+ */
 export default function NavBarBottom() {
   const { pathname } = useLocation()
   const { totalUnread } = useNotificationsStore()
