@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/auth-context';
 import { db, storage } from '@/lib/firebase';
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, serverTimestamp, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import PhotoUploadComponent from '../PhotoVerify';
+import { Link } from 'react-router-dom';
 
 /**
  * Render the Verification Center UI and manage photo- and code-based verification flows, including metadata collection, optional geolocation, photo upload, and submitting verification requests to the backend.
@@ -22,6 +23,23 @@ export default function VerificationPage() {
   const [metadata, setMetadata] = useState({});
   const [geolocationStatus, setGeolocationStatus] = useState('');
   const [deviceLoc, setDeviceLoc] = useState(null);
+  const [storeInfo, setStoreInfo] = useState({ storeLoc: null, storeAddressText: '' });
+
+  // Load user's saved store location so we can show CTA/link here
+  useEffect(() => {
+    (async () => {
+      if (!user?.uid) return;
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (snap.exists()) {
+          const d = snap.data();
+          setStoreInfo({ storeLoc: d.storeLoc || null, storeAddressText: d.storeAddressText || '' });
+        }
+      } catch (e) {
+        // non-blocking
+      }
+    })();
+  }, [user?.uid]);
 
   // Brand verification codes/sources
   const brandSources = [
@@ -269,6 +287,36 @@ export default function VerificationPage() {
 
         {(!user?.verificationStatus || user?.verificationStatus === 'not_submitted' || user?.verificationStatus === 'rejected') && (
           <div className="space-y-6">
+            {/* Store Location prompt (so users coming from /community can find it) */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Store Location</div>
+                  {storeInfo.storeLoc?.lat != null ? (
+                    <div className="mt-1 text-sm text-gray-700">
+                      Saved at: {storeInfo.storeAddressText || '—'}
+                      <div className="text-xs text-gray-600">Lat: {storeInfo.storeLoc.lat}, Lng: {storeInfo.storeLoc.lng}</div>
+                      <a
+                        href={`https://maps.google.com/?q=${storeInfo.storeLoc.lat},${storeInfo.storeLoc.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                      >
+                        Open in Google Maps
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-sm text-gray-700">Save your store location once to help us verify in-store photos.</div>
+                  )}
+                </div>
+                <Link
+                  to="/staff/profile/store-location"
+                  className="shrink-0 rounded bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-primary/90"
+                >
+                  {storeInfo.storeLoc?.lat != null ? 'Edit' : 'Set Store Location'}
+                </Link>
+              </div>
+            </div>
             {/* Photo Verification */}
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Photo Verification</h3>
