@@ -88,16 +88,16 @@ export default function VerifyStaff() {
 
   useEffect(() => {
     (async () => {
-      if (selected?.storeId) {
+      if (selected?.applicantUid) {
         try {
-          const s = await getDoc(doc(db, 'stores', selected.storeId));
+          const s = await getDoc(doc(db, 'users', selected.applicantUid));
           setStoreInfo(s.exists() ? s.data() : null);
         } catch { setStoreInfo(null); }
       } else {
         setStoreInfo(null);
       }
     })();
-  }, [selected?.storeId]);
+  }, [selected?.applicantUid]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -226,7 +226,7 @@ export default function VerifyStaff() {
               const img = v.photoRedactedUrl || v.photoUrl || '';
               const reasons = v.reasons || [];
               const rosterBadge = reasons.includes('ROSTER_EMAIL_MATCH') ? 'email' : (reasons.includes('ROSTER_NAME_MATCH') ? 'name' : 'none');
-              const geoBadge = v.distance_m == null ? 'nogps' : (v.distance_m <= 200 ? 'match' : v.distance_m <= 800 ? 'near' : 'far');
+              const geoBadge = v.distance_m == null ? 'nogps' : (v.distance_m <= 250 ? 'match' : v.distance_m <= 800 ? 'near' : 'far');
               const openRow = () => { setSelected(v); setZoomPhoto(false); setZoomCode(false); };
               const onRowKey = (e) => {
                 if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
@@ -365,17 +365,26 @@ export default function VerifyStaff() {
                 <div className="rounded border p-3">
                   <div className="text-sm font-medium mb-2">Store</div>
                   <div className="text-sm text-gray-700">{storeInfo?.storeName || selected.storeName || '—'}</div>
-                  <div className="text-xs text-gray-600">ID: {selected.storeId || '—'}</div>
-                  <div className="text-xs text-gray-600">Lat/Lng: {storeInfo?.lat ?? '—'}, {storeInfo?.lng ?? '—'}</div>
-                  {storeInfo?.address && <div className="text-xs text-gray-600">{storeInfo.address}</div>}
+                  <div className="text-xs text-gray-600">Address: {storeInfo?.storeAddressText || '—'}</div>
+                  <div className="text-xs text-gray-600">Lat/Lng: {storeInfo?.storeLoc?.lat ?? '—'}, {storeInfo?.storeLoc?.lng ?? '—'}</div>
+                  {storeInfo?.storeLoc?.lat != null && (
+                    <a
+                      href={`https://maps.google.com/?q=${storeInfo.storeLoc.lat},${storeInfo.storeLoc.lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                    >
+                      Store on Google Maps
+                    </a>
+                  )}
                 </div>
                 <div className="rounded border p-3">
                   <div className="text-sm font-medium mb-2">GPS</div>
-                  <div className="text-sm text-gray-700">Lat/Lng: {selected.gps?.lat ?? '—'}, {selected.gps?.lng ?? '—'}</div>
+                  <div className="text-sm text-gray-700">Lat/Lng: {(selected.deviceLoc?.lat ?? selected.gps?.lat) ?? '—'}, {(selected.deviceLoc?.lng ?? selected.gps?.lng) ?? '—'}</div>
                   <div className="text-sm text-gray-700">Distance: {selected.distance_m != null ? `${selected.distance_m} m` : '—'}</div>
-                  {selected.gps?.lat && (
+                  {(selected.deviceLoc?.lat ?? selected.gps?.lat) && (
                     <a
-                      href={`https://maps.google.com/?q=${selected.gps.lat},${selected.gps.lng}`}
+                      href={`https://maps.google.com/?q=${(selected.deviceLoc?.lat ?? selected.gps?.lat)},${(selected.deviceLoc?.lng ?? selected.gps?.lng)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-1 inline-block text-xs text-blue-600 hover:underline"

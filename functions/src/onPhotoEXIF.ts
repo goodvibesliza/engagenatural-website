@@ -70,16 +70,16 @@ export const onPhotoEXIF = functions.storage
     }
 
     if (matchedDoc) {
+      const hasGps = !!(gpsLat && gpsLng);
       const update: any = {
-        hasGps: !!(gpsLat && gpsLng),
+        exif: hasGps ? { hasGps: true, lat: gpsLat, lng: gpsLng } : { hasGps: false },
+        hasGps, // backward compat
         exifParsedAt: admin.firestore.FieldValue.serverTimestamp(),
         photoRedactedUrl,
         photoPath: name,
       };
-      if (gpsLat && gpsLng) {
-        update.gps = { lat: gpsLat, lng: gpsLng, source: 'exif' };
-      } else {
-        update.hasGps = false;
+      if (hasGps) {
+        update.gps = { lat: gpsLat!, lng: gpsLng!, source: 'exif' }; // backward compat
       }
       await matchedDoc.set(update, { merge: true });
     }

@@ -21,6 +21,7 @@ export default function VerificationPage() {
   const [error, setError] = useState('');
   const [metadata, setMetadata] = useState({});
   const [geolocationStatus, setGeolocationStatus] = useState('');
+  const [deviceLoc, setDeviceLoc] = useState(null);
 
   // Brand verification codes/sources
   const brandSources = [
@@ -114,6 +115,7 @@ export default function VerificationPage() {
             timestamp: position.timestamp
           }
         }));
+        setDeviceLoc({ lat: position.coords.latitude, lng: position.coords.longitude, obtainedAt: Date.now() });
         setGeolocationStatus('granted');
       },
       (err) => {
@@ -177,6 +179,8 @@ export default function VerificationPage() {
         selectedBrand: selectedBrand,
         photoURL: photoURL,
         metadata: metadata,
+        deviceLoc: deviceLoc || null,
+        deviceLocDenied: geolocationStatus === 'denied' ? true : false,
         status: 'pending',
         submittedAt: serverTimestamp(),
         aiPendingAnalysis: true
