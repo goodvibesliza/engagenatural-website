@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Store, BookOpen, Home, Search as SearchIcon } from 'lucide-react'
+import { Store, BookOpen, Home, Bell, Search as SearchIcon } from 'lucide-react'
+import useNotificationsStore from '@/hooks/useNotificationsStore'
 
-function Item({ to, icon, label, testId, isActive }) {
+function Item({ to, icon, label, testId, isActive, badge }) {
   const IconComp = icon
   return (
     <NavLink
@@ -13,11 +14,21 @@ function Item({ to, icon, label, testId, isActive }) {
       }
       data-testid={testId}
     >
-      <IconComp
-        size={24}
-        aria-hidden
-        className={isActive ? 'text-deep-moss' : 'text-warm-gray'}
-      />
+      <div className="relative">
+        <IconComp
+          size={24}
+          aria-hidden
+          className={isActive ? 'text-deep-moss' : 'text-warm-gray'}
+        />
+        {badge > 0 && (
+          <span
+            aria-hidden
+            className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-brand-primary text-white text-[10px]"
+          >
+            {badge}
+          </span>
+        )}
+      </div>
       <span className={`text-[11px] mt-0.5 ${isActive ? 'text-deep-moss' : 'text-warm-gray'}`}>{label}</span>
     </NavLink>
   )
@@ -25,9 +36,11 @@ function Item({ to, icon, label, testId, isActive }) {
 
 export default function NavBarBottom() {
   const { pathname } = useLocation()
+  const { totalUnread } = useNotificationsStore()
 
   const active = {
     brands: pathname.startsWith('/staff/my-brands'),
+    notifications: pathname.startsWith('/staff/notifications'),
     home: pathname.startsWith('/community'),
     learning: pathname.startsWith('/staff/learning') || pathname.startsWith('/staff/trainings')
   }
@@ -60,6 +73,14 @@ export default function NavBarBottom() {
           label="Home"
           testId="bottomnav-home"
           isActive={active.home}
+        />
+        <Item
+          to="/staff/notifications"
+          icon={Bell}
+          label="Updates"
+          testId="bottomnav-notifications"
+          isActive={active.notifications}
+          badge={totalUnread}
         />
         <Item
           to="/staff/my-brands"

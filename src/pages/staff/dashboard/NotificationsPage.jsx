@@ -4,6 +4,9 @@ import { track } from '@/lib/analytics';
 import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
 import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
 import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
+import useNotificationsStore from '@/hooks/useNotificationsStore';
+import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
+import { useNavigate } from 'react-router-dom';
 
 const TabButton = ({ id, active, onClick, children }) => (
   <button
@@ -29,6 +32,9 @@ const EmptyState = ({ icon, headline, copy }) => (
 );
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
+  const { unreadCounts, markAsRead, markAllAsRead } = useNotificationsStore();
+  const { allCommunities } = useCommunitySwitcher();
   const [isDesktop, setIsDesktop] = useState(false);
   const [tab, setTab] = useState('all'); // 'all' | 'mentions' | 'system'
 
@@ -54,25 +60,74 @@ export default function NotificationsPage() {
     </>
   ), []);
 
+  const communityActivity = useMemo(() => {
+    const map = {};
+    for (const c of allCommunities || []) {
+      map[c.id] = { id: c.id, name: c.name, count: Number(unreadCounts?.[c.id] || 0) };
+    }
+    return Object.values(map).filter(x => x.count > 0).sort((a,b) => b.count - a.count);
+  }, [allCommunities, unreadCounts]);
+
   const CenterContent = () => (
     <div className="space-y-6" data-testid="notifications-center">
-      {/* Tabs */}
+      {/* Tabs + Mark all */}
       <div className="flex items-center gap-2">
         <TabButton id="all" active={tab === 'all'} onClick={() => { setTab('all'); try { track('notifications_tab_click', { tab: 'all' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'all' }, err); } }}>All</TabButton>
         <TabButton id="mentions" active={tab === 'mentions'} onClick={() => { setTab('mentions'); try { track('notifications_tab_click', { tab: 'mentions' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'mentions' }, err); } }}>Mentions</TabButton>
         <TabButton id="system" active={tab === 'system'} onClick={() => { setTab('system'); try { track('notifications_tab_click', { tab: 'system' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'system' }, err); } }}>System</TabButton>
+        <div className="ml-auto" />
+        <button
+          type="button"
+          onClick={() => { try { markAllAsRead(); } catch {} }}
+          className="h-9 px-3 rounded-md border text-sm bg-white hover:bg-gray-50"
+          data-testid="notifications-markall"
+        >
+          Mark all as read
+        </button>
       </div>
 
+      {/* Group: Community activity */}
       <div className="bg-white rounded-lg border border-gray-200">
-        {tab === 'all' && (
-          <EmptyState icon="✅" headline="You're all caught up." copy="No new notifications right now." />
+        <div className="px-4 py-3 border-b border-gray-100 text-sm font-medium text-gray-700">Community activity</div>
+        {communityActivity.length === 0 ? (
+          <EmptyState icon="✅" headline="You're all caught up." copy="No new community updates." />
+        ) : (
+          <ul role="list" className="divide-y divide-gray-100">
+            {communityActivity.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try { track('notification_open', { communityId: item.id }); } catch {}
+                    try { markAsRead(item.id); } catch {}
+                    navigate(`/community?tab=brand&brandId=${encodeURIComponent(item.id)}&via=notifications`);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-deep-moss"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">New posts in {item.name}</div>
+                      <div className="text-xs text-gray-500">Tap to open the feed</div>
+                    </div>
+                    <span className="ml-3 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-brand-primary text-white text-xs">{item.count}</span>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
-        {tab === 'mentions' && (
-          <EmptyState icon="@" headline="No mentions yet." copy="When someone mentions you, you'll see it here." />
-        )}
-        {tab === 'system' && (
-          <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
-        )}
+      </div>
+
+      {/* Mentions / replies */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-4 py-3 border-b border-gray-100 text-sm font-medium text-gray-700">Mentions & replies</div>
+        <EmptyState icon="@" headline="No mentions yet." copy="When someone mentions you, you'll see it here." />
+      </div>
+
+      {/* System updates */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-4 py-3 border-b border-gray-100 text-sm font-medium text-gray-700">System updates</div>
+        <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
       </div>
     </div>
   );

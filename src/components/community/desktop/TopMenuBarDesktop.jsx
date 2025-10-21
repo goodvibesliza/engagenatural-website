@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom';
 import UserDropdownMenu from '@/components/UserDropdownMenu';
 import LogoWordmark from '@/components/brand/LogoWordmark';
 import { track } from '@/lib/analytics';
+import useNotificationsStore from '@/hooks/useNotificationsStore';
 
 function itemClasses({ isActive }) {
   const base = 'inline-flex items-center px-3 h-11 min-h-[44px] rounded-md text-sm no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-deep-moss';
@@ -13,6 +14,7 @@ function itemClasses({ isActive }) {
 }
 
 export default function TopMenuBarDesktop() {
+  const { totalUnread } = useNotificationsStore();
   const communityRef = useRef(null);
   const notifRef = useRef(null);
   const brandsRef = useRef(null);
@@ -64,7 +66,7 @@ export default function TopMenuBarDesktop() {
           to="/staff/notifications"
           className={itemClasses}
           data-testid="topbar-notifications"
-          aria-label="Notifications"
+          aria-label={`Notifications${totalUnread > 0 ? `, ${totalUnread} new` : ''}`}
           ref={notifRef}
           onClick={() => {
             try { track('topmenu_click', { item: 'notifications', surface: 'community_desktop' }); } catch (err) { void err; /* Intentionally ignoring analytics errors to avoid impacting user experience */ }
@@ -74,7 +76,18 @@ export default function TopMenuBarDesktop() {
           }}
           end
         >
-          Notifications
+          <span className="relative inline-flex items-center gap-2">
+            <span>Notifications</span>
+            {totalUnread > 0 && (
+              <span
+                className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-brand-primary text-white text-xs"
+                aria-hidden
+                title={`You have ${totalUnread} new updates.`}
+              >
+                {totalUnread}
+              </span>
+            )}
+          </span>
         </NavLink>
         <NavLink
           to="/staff/my-brands"

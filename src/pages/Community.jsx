@@ -19,6 +19,7 @@ import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied, track } from '../lib/analytics';
 import './community.css';
 import { useAuth } from '../contexts/auth-context';
+import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -51,6 +52,7 @@ export default function Community({ hideTopTabs = false }) {
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  const { markVisited, markAsRead } = useCommunitySwitcher();
   
   // Mobile community switcher state
   const [showCommunitySheet, setShowCommunitySheet] = useState(false);
@@ -280,6 +282,22 @@ export default function Community({ hideTopTabs = false }) {
       console.debug?.('Community: localStorage read failed', err);
     }
   }, [isMobile, brandContext.has, location.search, user?.uid]);
+
+  // When visiting a community, update lastVisited
+  useEffect(() => {
+    if (brandContext?.communityId) {
+      try { markVisited(brandContext.communityId); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandContext?.communityId]);
+
+  // When feed opens or tab changes to brand, clear unread for that community
+  useEffect(() => {
+    if (tab === 'brand' && brandContext?.communityId) {
+      try { markAsRead(brandContext.communityId); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, brandContext?.communityId]);
 
   const header = useMemo(() => {
     if (hideTopTabs) return null;
