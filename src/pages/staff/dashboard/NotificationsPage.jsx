@@ -7,6 +7,9 @@ import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 import useNotificationsStore from '@/hooks/useNotificationsStore';
 import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 const TabButton = ({ id, active, onClick, children }) => (
   <button
@@ -42,8 +45,10 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const { unreadCounts, markAsRead, markAllAsRead } = useNotificationsStore();
   const { allCommunities } = useCommunitySwitcher();
+  const { user } = useAuth();
   const [isDesktop, setIsDesktop] = useState(false);
   const [tab, setTab] = useState('all'); // 'all' | 'mentions' | 'system'
+  const [systemItems, setSystemItems] = useState([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -52,6 +57,18 @@ export default function NotificationsPage() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Subscribe to system notifications (per-user)
+  useEffect(() => {
+    if (!db || !user?.uid) { setSystemItems([]); return; }
+    const q = query(collection(db, 'notifications', user.uid, 'system'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const arr = [];
+      snap.forEach((d) => arr.push({ id: d.id, ...(d.data() || {}) }));
+      setSystemItems(arr);
+    }, () => setSystemItems([]));
+    return () => { try { unsub(); } catch {} };
+  }, [db, user?.uid]);
 
   // page_view when shell active
   useEffect(() => {
@@ -136,8 +153,63 @@ export default function NotificationsPage() {
 
       {/* System updates */}
       <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-4 py-3 border-b border-gray-100 text-sm font-medium text-gray-700">System updates</div>
-        <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
+        <div className="px-4 py-3 border-b border-gray-100 text-sm font-medium text-gray-700 flex items-center gap-2">
+          <span>System updates</span>
+          <div className="ml-auto" />
+          {systemItems?.length > 0 && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await Promise.all(systemItems.map((it) => updateDoc(doc(db, 'notifications', user.uid, 'system', it.id), { unread: false, readAt: serverTimestamp() })));
+                } catch {}
+              }}
+              className="h-7 px-2 rounded-md border text-xs bg-white hover:bg-gray-50"
+            >
+              Mark system as read
+            </button>
+          )}
+        </div>
+        {(!systemItems || systemItems.length === 0) ? (
+          <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
+        ) : (
+          <ul role="list" className="divide-y divide-gray-100">
+            {systemItems.map((n) => (
+              <li key={n.id}>
+                <div className={`px-4 py-3 ${n.unread ? 'bg-oat-beige/40' : ''}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{n.title || 'System message'}</div>
+                      {n.body && <div className="mt-0.5 text-sm text-gray-700">{n.body}</div>}
+                      {n.createdAt?.toDate && (
+                        <div className="mt-1 text-xs text-gray-500">{n.createdAt.toDate().toLocaleString?.() || ''}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {n.unread && (
+                        <span className="inline-flex h-2 w-2 rounded-full bg-brand-primary" aria-label="unread" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try { await updateDoc(doc(db, 'notifications', user.uid, 'system', n.id), { unread: false, readAt: serverTimestamp() }); } catch {}
+                          if (n.link) {
+                            navigate(n.link);
+                          } else {
+                            navigate('/staff/verification');
+                          }
+                        }}
+                        className="rounded bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-primary/90"
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

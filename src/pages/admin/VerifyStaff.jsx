@@ -7,6 +7,7 @@ import {
   query,
   orderBy,
   updateDoc,
+  addDoc,
   doc,
   serverTimestamp,
 } from "firebase/firestore";
@@ -172,6 +173,22 @@ export default function VerifyStaff() {
         infoRequestedAt: serverTimestamp(),
         infoRequestMessage: requestInfoMsg || '',
       });
+      // System notification to applicant
+      if (v.applicantUid) {
+        try {
+          await addDoc(collection(db, 'notifications', v.applicantUid, 'system'), {
+            type: 'verification_info_request',
+            title: 'More info requested for your verification',
+            body: requestInfoMsg || 'An admin requested more information to complete your verification.',
+            link: '/staff/verification',
+            unread: true,
+            createdAt: serverTimestamp(),
+            meta: { requestId: v.id },
+          });
+        } catch (e) {
+          console.debug?.('VerifyStaff: failed to write system notification', e);
+        }
+      }
       setRequestingInfo(false);
       setRequestInfoMsg('');
       setSelected(null);
