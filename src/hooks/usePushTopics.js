@@ -7,13 +7,12 @@ import { requestPermissionAndToken, subscribeTopics, unsubscribeTopics } from '@
 import { track } from '@/lib/analytics';
 
 export default function usePushTopics() {
-  const { user } = useAuth();
+  const { user } = useAuth() || {};
   const { allCommunities } = useCommunitySwitcher();
   const { pushEnabled } = useNotificationsStore();
   const tokenRef = useRef(null);
 
   useEffect(() => {
-    let cancelled = false;
     async function syncSubs() {
       if (!user?.uid) return;
       const communities = (allCommunities || []).map((c) => `community_${c.id}`);
@@ -35,6 +34,6 @@ export default function usePushTopics() {
       }
     }
     syncSubs();
-    return () => { cancelled = true; };
+    return () => {};
   }, [pushEnabled, user?.uid, allCommunities]);
 }
