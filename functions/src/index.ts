@@ -1,0 +1,2 @@
+import './onPhotoEXIF';
+import './onVerificationScore';

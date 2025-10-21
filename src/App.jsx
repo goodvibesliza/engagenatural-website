@@ -27,6 +27,7 @@ import AnalyticsPage from './pages/admin/Analytics';
 import ProductsPage from './pages/admin/Products';
 import ActivityPage from './pages/admin/Activity';
 import SettingsPage from './pages/admin/Settings';
+import RosterUpload from './pages/admin/RosterUpload.jsx';
 import DemoData from './pages/admin/DemoData';
 import DevTools from './pages/admin/DevTools';
 import EnvCheck from './pages/admin/EnvCheck';
@@ -262,6 +263,16 @@ function App() {
               <RoleGuard allowedRoles={['super_admin']}>
                 <AdminLayout>
                   <VerifyStaff />
+                </AdminLayout>
+              </RoleGuard>
+            } 
+          />
+          <Route 
+            path="/admin/roster-upload" 
+            element={
+              <RoleGuard allowedRoles={['super_admin']}>
+                <AdminLayout>
+                  <RosterUpload />
                 </AdminLayout>
               </RoleGuard>
             } 

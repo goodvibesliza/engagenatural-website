@@ -24,6 +24,7 @@ const navigation = [
   { name: 'Overview', href: '/admin', icon: Home, current: false },
   { name: 'Users', href: '/admin/users', icon: Users, current: false, permission: ['manage_users'] },
   { name: 'Verifications', href: '/admin/verifications', icon: UserCheck, current: false, permission: ['approve_verifications'] },
+  { name: 'Roster CSV', href: '/admin/roster-upload', icon: FileText, current: false, permission: ['approve_verifications'] },
   { name: 'Brands', href: '/admin/brands', icon: Building, current: false, permission: ['manage_brands', 'manage_brand_content', 'manage_brand_products'] },
   { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp, current: false, permission: ['view_analytics'] },
   { name: 'Content', href: '/admin/content', icon: FileText, current: false, permission: ['manage_content', 'manage_brand_content'] },

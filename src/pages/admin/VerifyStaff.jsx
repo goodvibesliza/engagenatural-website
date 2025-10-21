@@ -10,6 +10,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { getDoc } from 'firebase/firestore';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ export default function VerifyStaff() {
   const [zoomCode, setZoomCode] = useState(false);
   const [requestingInfo, setRequestingInfo] = useState(false);
   const [requestInfoMsg, setRequestInfoMsg] = useState('');
+  const [storeInfo, setStoreInfo] = useState(null);
 
   useEffect(() => {
     const q = query(collection(db, 'verification_requests'), orderBy('submittedAt', 'desc'));
@@ -46,12 +48,32 @@ export default function VerifyStaff() {
           submittedCodeText: v.submittedCodeText || v.verificationCode || '',
           status: v.status || 'pending',
           submittedAt: v.submittedAt?.toDate ? v.submittedAt.toDate() : (v.submittedAt ? new Date(v.submittedAt) : null),
+          autoScore: typeof v.autoScore === 'number' ? v.autoScore : null,
+          reasons: Array.isArray(v.reasons) ? v.reasons : [],
+          distance_m: typeof v.distance_m === 'number' ? v.distance_m : null,
+          photoRedactedUrl: v.photoRedactedUrl || '',
+          gps: v.gps || null,
+          locSource: v.locSource || null,
+          locDenied: !!v.locDenied,
         };
       });
       setItems(rows);
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (selected?.storeId) {
+        try {
+          const s = await getDoc(doc(db, 'stores', selected.storeId));
+          setStoreInfo(s.exists() ? s.data() : null);
+        } catch { setStoreInfo(null); }
+      } else {
+        setStoreInfo(null);
+      }
+    })();
+  }, [selected?.storeId]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -146,6 +168,9 @@ export default function VerifyStaff() {
               <th className="px-4 py-3">Store</th>
               <th className="px-4 py-3">Code</th>
               <th className="px-4 py-3">Submitted</th>
+              <th className="px-4 py-3">Auto Score</th>
+              <th className="px-4 py-3">Geo</th>
+              <th className="px-4 py-3">Roster</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Photo</th>
               <th className="px-4 py-3">Code Img</th>
@@ -154,6 +179,10 @@ export default function VerifyStaff() {
           <tbody>
             {filtered.map((v) => {
               const codeImg = v.codeImageUrl || v.photoUrl || '';
+              const img = v.photoRedactedUrl || v.photoUrl || '';
+              const reasons = v.reasons || [];
+              const rosterBadge = reasons.includes('ROSTER_EMAIL_MATCH') ? 'email' : (reasons.includes('ROSTER_NAME_MATCH') ? 'name' : 'none');
+              const geoBadge = v.distance_m == null ? 'nogps' : (v.distance_m <= 200 ? 'match' : v.distance_m <= 800 ? 'near' : 'far');
               return (
                 <tr key={v.id} className="cursor-pointer hover:bg-gray-50" onClick={() => { setSelected(v); setZoomPhoto(false); setZoomCode(false); }}>
                   <td className="px-4 py-3 font-medium text-gray-900">{v.applicantName}</td>
@@ -161,6 +190,18 @@ export default function VerifyStaff() {
                   <td className="px-4 py-3 text-gray-700">{v.storeName || '—'}</td>
                   <td className="px-4 py-3 font-mono">{v.submittedCodeText || '—'}</td>
                   <td className="px-4 py-3 text-gray-700">{fmt(v.submittedAt)}</td>
+                  <td className="px-4 py-3 text-gray-900">{v.autoScore ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {geoBadge === 'match' && <span className="inline-flex rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-xs">Match</span>}
+                    {geoBadge === 'near' && <span className="inline-flex rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs">Near</span>}
+                    {geoBadge === 'far' && <span className="inline-flex rounded-full bg-red-100 text-red-800 px-2 py-0.5 text-xs">Out</span>}
+                    {geoBadge === 'nogps' && <span className="inline-flex rounded-full bg-gray-100 text-gray-700 px-2 py-0.5 text-xs">No GPS</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {rosterBadge === 'email' && <span className="inline-flex rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-xs">Email</span>}
+                    {rosterBadge === 'name' && <span className="inline-flex rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs">Name</span>}
+                    {rosterBadge === 'none' && <span className="inline-flex rounded-full bg-gray-100 text-gray-700 px-2 py-0.5 text-xs">None</span>}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       v.status === 'approved' ? 'bg-green-100 text-green-800' : v.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
@@ -169,8 +210,8 @@ export default function VerifyStaff() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {v.photoUrl ? (
-                      <img src={v.photoUrl} alt={`Photo of ${v.applicantName}`} className="h-24 w-24 rounded object-cover" />
+                    {img ? (
+                      <img src={img} alt={`Photo of ${v.applicantName}`} className="h-24 w-24 rounded object-cover" />
                     ) : (
                       <div className="flex h-24 w-24 items-center justify-center rounded bg-gray-100 text-xs text-gray-500">No photo</div>
                     )}
@@ -205,9 +246,9 @@ export default function VerifyStaff() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <div className="text-sm font-medium mb-1">Photo</div>
-                  {selected.photoUrl ? (
+                  {(selected.photoRedactedUrl || selected.photoUrl) ? (
                     <img
-                      src={selected.photoUrl}
+                      src={selected.photoRedactedUrl || selected.photoUrl}
                       alt={`Photo of ${selected.applicantName}`}
                       onClick={() => setZoomPhoto((z) => !z)}
                       className={`w-full rounded border object-contain ${zoomPhoto ? 'max-h-[80vh] cursor-zoom-out' : 'max-h-96 cursor-zoom-in'}`}
@@ -240,6 +281,49 @@ export default function VerifyStaff() {
                 <Field label="Submitted Code" value={selected.submittedCodeText || '—'} mono />
                 <Field label="Submitted At" value={fmt(selected.submittedAt)} />
                 <Field label="Status" value={selected.status} />
+              </div>
+
+              {/* Signals Section */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded border p-3">
+                  <div className="text-sm font-medium mb-2">Store</div>
+                  <div className="text-sm text-gray-700">{storeInfo?.storeName || selected.storeName || '—'}</div>
+                  <div className="text-xs text-gray-600">ID: {selected.storeId || '—'}</div>
+                  <div className="text-xs text-gray-600">Lat/Lng: {storeInfo?.lat ?? '—'}, {storeInfo?.lng ?? '—'}</div>
+                  {storeInfo?.address && <div className="text-xs text-gray-600">{storeInfo.address}</div>}
+                </div>
+                <div className="rounded border p-3">
+                  <div className="text-sm font-medium mb-2">GPS</div>
+                  <div className="text-sm text-gray-700">Lat/Lng: {selected.gps?.lat ?? '—'}, {selected.gps?.lng ?? '—'}</div>
+                  <div className="text-sm text-gray-700">Distance: {selected.distance_m != null ? `${selected.distance_m} m` : '—'}</div>
+                  {selected.gps?.lat && (
+                    <a
+                      href={`https://maps.google.com/?q=${selected.gps.lat},${selected.gps.lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                    >
+                      Open in Google Maps
+                    </a>
+                  )}
+                </div>
+                <div className="rounded border p-3 md:col-span-2">
+                  <div className="text-sm font-medium mb-2">Auto Score</div>
+                  <div className="h-3 w-full rounded bg-gray-100">
+                    <div
+                      className={`h-3 rounded ${
+                        (selected.autoScore ?? 0) >= 85 ? 'bg-green-500' : (selected.autoScore ?? 0) >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(100, Math.max(0, selected.autoScore ?? 0))}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 text-sm">Score: {selected.autoScore ?? 0}</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(selected.reasons || []).map((r, i) => (
+                      <span key={i} className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{r}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2">
