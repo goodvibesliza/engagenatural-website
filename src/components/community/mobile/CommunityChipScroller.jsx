@@ -83,6 +83,24 @@ export default function CommunityChipScroller({
 
     const startAutoScroll = () => {
       if (isPaused) return;
+      
+      // Guard: Don't start if container is not scrollable
+      if (!container || container.scrollWidth <= container.clientWidth) {
+        // Clear any pending timers/frames before early return
+        if (autoScrollTimer.current) {
+          clearTimeout(autoScrollTimer.current);
+          autoScrollTimer.current = null;
+        }
+        if (autoScrollFrame.current) {
+          cancelAnimationFrame(autoScrollFrame.current);
+          autoScrollFrame.current = null;
+        }
+        if (edgePauseTimeoutRef.current) {
+          clearTimeout(edgePauseTimeoutRef.current);
+          edgePauseTimeoutRef.current = null;
+        }
+        return;
+      }
 
       const scroll = () => {
         if (isPaused || !container) return;
@@ -172,10 +190,11 @@ export default function CommunityChipScroller({
     };
 
     // Event listeners for user interaction
+    // Note: Only touchstart/mousedown are tracked; 'scroll' is excluded to prevent
+    // programmatic scrollLeft updates from canceling auto-scroll
     const onUserInteraction = () => resetIdleTimer();
 
     container.addEventListener('touchstart', onUserInteraction, { passive: true });
-    container.addEventListener('scroll', onUserInteraction, { passive: true });
     container.addEventListener('mousedown', onUserInteraction);
 
     // Start initial timer
@@ -187,7 +206,6 @@ export default function CommunityChipScroller({
         clearTimeout(autoScrollTimer.current);
       }
       container.removeEventListener('touchstart', onUserInteraction);
-      container.removeEventListener('scroll', onUserInteraction);
       container.removeEventListener('mousedown', onUserInteraction);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
