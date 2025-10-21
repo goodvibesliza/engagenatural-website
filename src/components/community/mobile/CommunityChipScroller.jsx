@@ -191,11 +191,11 @@ export default function CommunityChipScroller({
           height: '68px' // Fixed height: 44px chip + 12px padding top + 12px padding bottom
         }}
       >
-        {/* All chip */}
+        {/* What's Good chip */}
         <button
           role="tab"
           aria-pressed={!selectedBrandId}
-          aria-label="View all communities"
+          aria-label="What's Good feed"
           onClick={() => handleChipClick(null, 'All', '')}
           className={`
             shrink-0 px-4 h-11 min-h-[44px] rounded-full text-sm font-medium
@@ -206,14 +206,33 @@ export default function CommunityChipScroller({
             }
           `}
         >
-          All
-          {/* Unread dot on "All" if any community has unread */}
+          What's Good
+          {/* Unread dot if any community has unread */}
           {hasAnyUnread && !selectedBrandId && (
             <span 
               className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
               aria-label="unread"
             />
           )}
+        </button>
+
+        {/* Pro Feed chip */}
+        <button
+          role="tab"
+          aria-pressed={false}
+          aria-label="Pro feed"
+          onClick={() => {
+            try {
+              track('community_switch', { via: 'chip', brandId: 'pro', brandName: 'Pro Feed' });
+            } catch (err) {
+              console.debug('CommunityChipScroller: track failed', err);
+            }
+            // Navigate to Pro Feed tab
+            window.location.href = '/community?tab=pro';
+          }}
+          className="shrink-0 px-4 h-11 min-h-[44px] rounded-full text-sm font-medium transition-all whitespace-nowrap relative bg-gray-100 text-gray-700 hover:bg-gray-200"
+        >
+          Pro Feed
         </button>
 
         {/* Pinned communities */}
