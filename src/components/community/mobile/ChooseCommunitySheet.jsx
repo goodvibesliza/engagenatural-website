@@ -69,7 +69,7 @@ export default function ChooseCommunitySheet({
       document.body.style.overflow = prevOverflow;
       setAnimateIn(false);
     };
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   const handleClose = useCallback(() => {
     setAnimateIn(false);

@@ -147,15 +147,16 @@ export default function useCommunitySwitcher() {
       return;
     }
 
-    // TODO: Subscribe to notification collection or unread counts
+    // TODO: Implement unread counts subscription — track in future epic
     // For now, mock with empty object
     // This would be implemented based on your notification system
-
+    //
     // Example implementation:
     // const q = query(
     //   collection(db, 'community_unread'),
     //   where('userId', '==', user.uid)
-    // );\n    // const unsubscribe = onSnapshot(q, (snapshot) => {
+    // );
+    // const unsubscribe = onSnapshot(q, (snapshot) => {
     //   const counts = {};
     //   snapshot.docs.forEach(doc => {
     //     const data = doc.data();
