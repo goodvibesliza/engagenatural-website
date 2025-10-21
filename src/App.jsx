@@ -84,6 +84,7 @@ import UserDebugCard from './components/dev/UserDebugCard';
 import EnvBadge from './components/dev/EnvBadge';
 // Global user dropdown
 import UserDropdownMenu from './components/UserDropdownMenu';
+import usePushTopics from '@/hooks/usePushTopics';
 
 // Simple spinner component for loading states
 const LoadingSpinner = () => (
@@ -215,6 +216,8 @@ function App() {
   const [emulatorInitialized, setEmulatorInitialized] = useState(false);
   // Feature flag for demo / dev tools & env check
   const showDemoTools = import.meta.env.VITE_SHOW_DEMO_TOOLS === 'true';
+  // Keep FCM topic subscriptions in sync with user settings and followed communities
+  usePushTopics();
   
   // Skip emulator setup since using production Firebase
   useEffect(() => {

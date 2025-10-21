@@ -2,7 +2,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 import { track } from '@/lib/analytics';
 
 /**
@@ -17,7 +19,9 @@ import { track } from '@/lib/analytics';
 export default function useNotificationsStore() {
   const { user } = useAuth();
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [pushEnabled, setPushEnabledState] = useState(false);
   const unsubRef = useRef(null);
+  const settingsUnsubRef = useRef(null);
 
   const subscribeToUpdates = useCallback(() => {
     if (!db || !user?.uid) return () => {};
@@ -56,6 +60,37 @@ export default function useNotificationsStore() {
     const off = subscribeToUpdates();
     return () => { try { off?.(); } catch {} };
   }, [user?.uid, subscribeToUpdates]);
+
+  // Listen to pushEnabled in users/{uid}/settings (mirror to local state)
+  useEffect(() => {
+    if (!db || !user?.uid) return;
+    try { if (typeof settingsUnsubRef.current === 'function') settingsUnsubRef.current(); } catch {}
+    const ref = doc(db, 'users', user.uid, 'settings', 'push');
+    const unsub = onSnapshot(ref, (snap) => {
+      const data = snap.data() || {};
+      const enabled = !!(data.pushEnabled ?? false);
+      setPushEnabledState(enabled);
+    }, () => setPushEnabledState(false));
+    settingsUnsubRef.current = unsub;
+    return () => { try { unsub(); } catch {}; if (settingsUnsubRef.current === unsub) settingsUnsubRef.current = null; };
+  }, [db, user?.uid]);
+
+  const setPushEnabled = useCallback(async (enabled) => {
+    if (!db || !user?.uid) return;
+    try {
+      setPushEnabledState(!!enabled);
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'push'), { pushEnabled: !!enabled, updatedAt: serverTimestamp() }, { merge: true });
+      try { track('push_toggle', { enabled: !!enabled }); } catch {}
+    } catch {}
+  }, [db, user?.uid]);
+
+  const sendPushNotification = useCallback(async (communityId, message) => {
+    if (!functions || !user?.uid || !communityId) return;
+    try {
+      const call = httpsCallable(functions, 'sendCommunityPushManual');
+      await call({ communityId, message });
+    } catch {}
+  }, [functions, user?.uid]);
 
   const markAsRead = useCallback(async (communityId) => {
     if (!db || !user?.uid || !communityId) return;
@@ -107,5 +142,9 @@ export default function useNotificationsStore() {
     markVisited,
     markAllAsRead,
     subscribeToUpdates,
+    // push
+    pushEnabled,
+    setPushEnabled,
+    sendPushNotification,
   };
 }
