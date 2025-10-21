@@ -1,0 +1,13 @@
+{
+  "name": "engagenatural-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.0.1"
+  }
+}

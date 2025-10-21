@@ -16,7 +16,7 @@ const LAST_VISITED_STORAGE_KEY = 'en.community.lastVisited';
  * @returns {Object} Community switcher state and handlers
  */
 export default function useCommunitySwitcher() {
-  const { user } = useAuth();
+  const { user } = useAuth() || {};
   const [allCommunities, setAllCommunities] = useState([]);
   const [pinnedIds, setPinnedIds] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});

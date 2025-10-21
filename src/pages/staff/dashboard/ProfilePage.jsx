@@ -4,9 +4,13 @@ import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import StaffProfilePanel from '../ProfilePanel';
+import useNotificationsStore from '@/hooks/useNotificationsStore';
+import { requestPermissionAndToken } from '@/lib/push';
+import { toast } from 'sonner';
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { pushEnabled, setPushEnabled } = useNotificationsStore();
   const [profileImage, setProfileImage] = useState(null);
   const [aboutMe, setAboutMe] = useState({
     interests: '',
@@ -476,9 +480,36 @@ export default function ProfilePage() {
               <h3 className="text-lg font-semibold" style={fontStyles.subsectionTitle}>Notification Preferences</h3>
             </div>
             <div className="space-y-4">
+              {/* Push Notifications Toggle */}
+              <div className="flex items-center justify-between py-1">
+                <div className="space-y-0.5">
+                  <div className="font-medium text-gray-900 text-sm">Enable Push Notifications</div>
+                  <div className="text-xs text-gray-500">
+                    {pushEnabled ? 'You’ll receive alerts for new posts in your communities.' : 'You’ll still see in-app notifications, but no push alerts.'}
+                  </div>
+                </div>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={!!pushEnabled}
+                    onChange={async () => {
+                      if (!pushEnabled) {
+                        const { permission } = await requestPermissionAndToken(user);
+                        if (permission !== 'granted') {
+                          toast?.error?.('Push notifications are disabled in your browser.');
+                          return;
+                        }
+                      }
+                      setPushEnabled(!pushEnabled);
+                    }}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary relative" />
+                </label>
+              </div>
+
               {[
                 { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive email updates about your account' },
-                { key: 'pushNotifications', label: 'Push Notifications', desc: 'Receive push notifications in the app' },
                 { key: 'communityUpdates', label: 'Community Updates', desc: 'New posts and activity in your communities' },
                 { key: 'trainingReminders', label: 'Training Reminders', desc: 'Reminders about trainings and new content' },
                 { key: 'sampleRequests', label: 'Sample Request Notifications', desc: 'Get notified about new sample requests' },
