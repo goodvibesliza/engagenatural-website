@@ -510,7 +510,6 @@ export default function ProfilePage() {
 
               {[
                 { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive email updates about your account' },
-                { key: 'pushNotifications', label: 'Push Notifications', desc: 'Receive push notifications in the app' },
                 { key: 'communityUpdates', label: 'Community Updates', desc: 'New posts and activity in your communities' },
                 { key: 'trainingReminders', label: 'Training Reminders', desc: 'Reminders about trainings and new content' },
                 { key: 'sampleRequests', label: 'Sample Request Notifications', desc: 'Get notified about new sample requests' },
