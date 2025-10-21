@@ -108,11 +108,16 @@ export default function useNotificationsStore() {
   const markVisited = useCallback(async (communityId) => {
     if (!db || !user?.uid || !communityId) return;
     try {
-      await setDoc(
-        doc(db, 'users', user.uid, 'preferences', 'community'),
-        { lastVisited: { [communityId]: serverTimestamp() } },
-        { merge: true }
-      );
+      const prefRef = doc(db, 'users', user.uid, 'preferences', 'community');
+      try {
+        await updateDoc(prefRef, { [`lastVisited.${communityId}`]: serverTimestamp(), updatedAt: serverTimestamp() });
+      } catch (innerErr) {
+        await setDoc(
+          prefRef,
+          { [`lastVisited.${communityId}`]: serverTimestamp(), updatedAt: serverTimestamp() },
+          { merge: true }
+        );
+      }
       try { track('community_mark_visited', { communityId }); } catch {}
     } catch {}
   }, [db, user?.uid]);
