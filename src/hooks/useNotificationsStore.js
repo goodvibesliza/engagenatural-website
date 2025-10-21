@@ -85,11 +85,13 @@ export default function useNotificationsStore() {
       const prefRef = doc(db, 'users', user.uid, 'preferences', 'community');
       try {
         await updateDoc(prefRef, { [`lastVisited.${communityId}`]: serverTimestamp(), updatedAt: serverTimestamp() });
-      } catch (innerErr) {
-        // Fallback when doc doesn't exist yet
+      }
+      // eslint-disable-next-line no-unused-vars
+      catch (innerErr) {
+        // Fallback when doc doesn't exist yet; only set this key via dot-notation
         await setDoc(
           prefRef,
-          { lastVisited: { [communityId]: serverTimestamp() }, updatedAt: serverTimestamp() },
+          { [`lastVisited.${communityId}`]: serverTimestamp(), updatedAt: serverTimestamp() },
           { merge: true }
         );
       }
