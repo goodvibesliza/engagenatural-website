@@ -158,7 +158,7 @@ export default function useNotificationsStore() {
         );
       }
       await batch.commit();
-      try { track('notification_mark_all_read', {}); } catch {}
+      try { track('notification_mark_all_read', {}); } catch (e) { console.debug('analytics: notification_mark_all_read failed (ignored)', e); }
     } catch (err) {
       console.error('markAllAsRead failed', err);
     }
