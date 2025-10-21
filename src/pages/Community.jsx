@@ -19,17 +19,19 @@ import UserDropdownMenu from '../components/UserDropdownMenu';
 import { communityView, filterApplied, track } from '../lib/analytics';
 import './community.css';
 import { useAuth } from '../contexts/auth-context';
+import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
+import useNotificationsStore from '@/hooks/useNotificationsStore';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 /**
- * Render the Community page with two feed tabs ("Whats Good" and "Pro"), filters, navigation, and lazy-loaded Pro content.
+ * Render the Community page UI with selectable feed tabs, filters, brand context, and analytics.
  *
- * Renders a header with the tab selector and mobile controls, a desktop sticky sidebar containing a New Post button and FilterBar,
- * and either the WhatsGoodFeed or a lazily loaded ProFeed based on the active tab. Synchronizes available filter options from child feeds,
- * initializes Pro filters from PRO_STUBS when the Pro tab is active, supports deep links to a specific post via location.state.focusPostId,
- * and records feed view analytics when the active tab changes.
+ * The component displays "Whats Good" and "Pro" feeds (with Pro loaded lazily), supports brand-scoped feeds with gating,
+ * synchronizes filters and URL params, supports deep links to individual posts, and emits view/interaction analytics.
  *
+ * @param {Object} props - Component props.
+ * @param {boolean} [props.hideTopTabs=false] - If true, hide the top tab/header area (used for embedding the page without tabs).
  * @returns {JSX.Element} The Community page component.
  */
 export default function Community({ hideTopTabs = false }) {
@@ -51,6 +53,8 @@ export default function Community({ hideTopTabs = false }) {
   const isMobile = useIsMobile();
   const mobileSkin = (getFlag('EN_MOBILE_FEED_SKIN') || '').toString().toLowerCase();
   const useLinkedInMobileSkin = isMobile && mobileSkin === 'linkedin';
+  const { markVisited: markVisitedLocal } = useCommunitySwitcher();
+  const { markVisited, markAsRead } = useNotificationsStore();
   
   // Mobile community switcher state
   const [showCommunitySheet, setShowCommunitySheet] = useState(false);
@@ -280,6 +284,24 @@ export default function Community({ hideTopTabs = false }) {
       console.debug?.('Community: localStorage read failed', err);
     }
   }, [isMobile, brandContext.has, location.search, user?.uid]);
+
+  // When visiting a community, update lastVisited
+  useEffect(() => {
+    if (brandContext?.communityId) {
+      try { markVisited(brandContext.communityId); } catch (err) { console.debug?.('Community: markVisited failed', err); }
+      // Keep local switcher state in sync for ordering
+      try { markVisitedLocal(brandContext.communityId); } catch (err) { console.debug?.('Community: local markVisited failed', err); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandContext?.communityId]);
+
+  // When feed opens or tab changes to brand, clear unread for that community
+  useEffect(() => {
+    if (tab === 'brand' && brandContext?.communityId) {
+      try { markAsRead(brandContext.communityId); } catch (err) { console.debug?.('Community: markAsRead failed', err); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, brandContext?.communityId]);
 
   const header = useMemo(() => {
     if (hideTopTabs) return null;

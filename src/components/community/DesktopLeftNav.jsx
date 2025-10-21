@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query as firestoreQuery, where } from 'firebase/firestore';
 import { track } from '../../lib/analytics';
+import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
+import useNotificationsStore from '@/hooks/useNotificationsStore';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 
+/**
+ * Render the desktop left navigation for the community feed, including feed tabs, followed brands, search, staff actions, and trending hashtags.
+ *
+ * The component reflects URL search parameters (tab, brand, brandId, q, tags), derives followed brands and trending tag counts from shared stores/events, and provides controls to navigate tabs, update query/tags in the URL, clear filters, pin/unpin brands, and mark brands as read.
+ *
+ * @returns {JSX.Element} The left-side navigation UI for the community feed.
+ */
 export default function DesktopLeftNav() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -19,6 +27,8 @@ export default function DesktopLeftNav() {
   const [query, setQuery] = useState(q);
   const [tagCounts, setTagCounts] = useState({});
   const isStaff = hasRole(['staff','verified_staff','brand_manager','super_admin']);
+  const { allCommunities, isPinned, togglePin } = useCommunitySwitcher();
+  const { unreadCounts, markAsRead } = useNotificationsStore();
   const [followedBrands, setFollowedBrands] = useState([]);
 
   useEffect(() => setQuery(q), [q]);
@@ -31,38 +41,15 @@ export default function DesktopLeftNav() {
     return () => window.removeEventListener('communityTagStats', onStats);
   }, []);
 
-  // Subscribe to followed brands to persist Brand entries in left rail
+  // Source brands from Community Switcher (already caches and subscribes)
   useEffect(() => {
-    let unsub = () => {};
     try {
-      // Hydrate from cache to reduce flicker
-      try {
-        const cached = localStorage.getItem('en.followedBrandCommunities');
-        if (cached) {
-          const arr = JSON.parse(cached);
-          if (Array.isArray(arr)) setFollowedBrands(arr);
-        }
-      } catch (err) { console.debug?.('DesktopLeftNav cache read failed', err); }
-
-      if (!db || !user?.uid) return;
-      const qf = firestoreQuery(collection(db, 'brand_follows'), where('userId', '==', user.uid));
-      unsub = onSnapshot(qf, (snap) => {
-        const items = snap.docs.map((d) => {
-          const data = d.data() || {};
-          return { brandId: data.brandId, brandName: data.brandName || 'Brand' };
-        }).filter((x) => !!x.brandId);
-        setFollowedBrands(items);
-        try { localStorage.setItem('en.followedBrandCommunities', JSON.stringify(items)); } catch (err) { console.debug?.('DesktopLeftNav cache write failed', err); }
-      }, (err) => {
-        console.debug?.('DesktopLeftNav onSnapshot error', err);
-        setFollowedBrands([]);
-      });
-    } catch (err) {
-      console.debug?.('DesktopLeftNav subscription error', err);
+      const items = (allCommunities || []).map(c => ({ brandId: c.id, brandName: c.name, communityId: c.communityId }));
+      setFollowedBrands(items);
+    } catch {
       setFollowedBrands([]);
     }
-    return () => { try { if (typeof unsub === 'function') unsub(); } catch (err) { console.debug?.('DesktopLeftNav unsubscribe failed', err); } };
-  }, [db, user?.uid]);
+  }, [allCommunities]);
 
   const goTab = (nextTab) => {
     const next = new URLSearchParams(location.search);
@@ -126,27 +113,44 @@ export default function DesktopLeftNav() {
               {followedBrands.map((b) => {
                 const active = tab === 'brand' && brandId === b.brandId;
                 const label = b.brandName || 'Brand';
+                const unread = Number(unreadCounts?.[b.communityId] || 0) > 0;
+                const pinned = isPinned?.(b.communityId);
                 return (
-                  <li key={b.brandId}>
-                    <a
-                      href={`/community?tab=brand&brandId=${encodeURIComponent(b.brandId)}&brand=${encodeURIComponent(label)}&via=left_rail`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        try { track('community_leftrail_click', { brandId: b.brandId }); } catch (err) { console.debug?.('DesktopLeftNav track leftrail click failed', err); }
-                        const next = new URLSearchParams(location.search);
-                        next.set('tab', 'brand');
-                        next.set('brandId', b.brandId);
-                        next.set('brand', label);
-                        navigate({ pathname: location.pathname, search: next.toString() });
-                      }}
-                      className={`en-cd-left-link ${active ? 'is-active' : ''}`}
-                      aria-current={active ? 'page' : undefined}
-                      title={label}
-                      style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
-                      data-testid={`left-nav-brand-${b.brandId}`}
-                    >
-                      <span className="truncate" style={{ maxWidth: 200 }}>{label}</span>
-                    </a>
+                  <li key={`${b.brandId}|${b.communityId || 'na'}`}>
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <a
+                          href={`/community?tab=brand&brandId=${encodeURIComponent(b.brandId)}&brand=${encodeURIComponent(label)}${b.communityId ? `&communityId=${encodeURIComponent(b.communityId)}` : ''}&via=left_rail`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            try { track('community_leftrail_click', { brandId: b.brandId }); } catch (err) { console.debug?.('DesktopLeftNav track leftrail click failed', err); }
+                            const next = new URLSearchParams(location.search);
+                            next.set('tab', 'brand');
+                            next.set('brandId', b.brandId);
+                            next.set('brand', label);
+                            if (b.communityId) next.set('communityId', b.communityId); else next.delete('communityId');
+                            navigate({ pathname: location.pathname, search: next.toString() });
+                            try { markAsRead?.(b.communityId); } catch (err) { console.debug?.('DesktopLeftNav markAsRead failed', err); }
+                          }}
+                          className={`en-cd-left-link ${active ? 'is-active' : ''}`}
+                          aria-current={active ? 'page' : undefined}
+                          title={pinned ? 'Pinned' : (unread ? 'New posts' : label)}
+                          style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, position: 'relative' }}
+                          data-testid={`left-nav-brand-${b.brandId}`}
+                        >
+                          <span className="truncate" style={{ maxWidth: 200 }}>{label}</span>
+                          {pinned && <span aria-hidden className="ml-1 text-amber-500">★</span>}
+                          {unread && (
+                            <span aria-hidden className="absolute right-2 top-1.5 inline-block w-2 h-2 rounded-full bg-brand-primary" />
+                          )}
+                        </a>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onClick={() => togglePin?.(b.communityId)}>
+                          {pinned ? 'Unpin' : 'Pin to top'}
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   </li>
                 );
               })}
