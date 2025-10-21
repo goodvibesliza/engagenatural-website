@@ -36,6 +36,7 @@ export default function CommunityChipScroller({
   const [isInputFocused, setIsInputFocused] = useState(false);
   const autoScrollTimer = useRef(null);
   const autoScrollFrame = useRef(null);
+  const edgePauseTimeoutRef = useRef(null);
   const lastUserInteraction = useRef(Date.now());
 
   // Track input focus state to pause auto-scroll during typing
@@ -93,7 +94,10 @@ export default function CommunityChipScroller({
         if (scrollDirection === 1 && currentScroll >= maxScroll) {
           // Reached right edge - pause then reverse
           isPaused = true;
-          setTimeout(() => {
+          if (edgePauseTimeoutRef.current) {
+            clearTimeout(edgePauseTimeoutRef.current);
+          }
+          edgePauseTimeoutRef.current = setTimeout(() => {
             scrollDirection = -1;
             isPaused = false;
             autoScrollFrame.current = requestAnimationFrame(scroll);
@@ -102,7 +106,10 @@ export default function CommunityChipScroller({
         } else if (scrollDirection === -1 && currentScroll <= 0) {
           // Reached left edge - pause then reverse
           isPaused = true;
-          setTimeout(() => {
+          if (edgePauseTimeoutRef.current) {
+            clearTimeout(edgePauseTimeoutRef.current);
+          }
+          edgePauseTimeoutRef.current = setTimeout(() => {
             scrollDirection = 1;
             isPaused = false;
             autoScrollFrame.current = requestAnimationFrame(scroll);
@@ -128,6 +135,10 @@ export default function CommunityChipScroller({
       if (autoScrollFrame.current) {
         cancelAnimationFrame(autoScrollFrame.current);
         autoScrollFrame.current = null;
+      }
+      if (edgePauseTimeoutRef.current) {
+        clearTimeout(edgePauseTimeoutRef.current);
+        edgePauseTimeoutRef.current = null;
       }
       if (isAutoScrolling) {
         setIsAutoScrolling(false);
@@ -179,7 +190,10 @@ export default function CommunityChipScroller({
       container.removeEventListener('scroll', onUserInteraction);
       container.removeEventListener('mousedown', onUserInteraction);
     };
-  }, [allCommunities.length, loading, isAutoScrolling, isInputFocused]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: isAutoScrolling is intentionally excluded to prevent infinite loop
+    // (startAutoScroll sets it true, which would trigger effect cleanup and rerun)
+  }, [allCommunities.length, loading, isInputFocused]);
 
   const handleChipClick = useCallback((brandId, brandName, communityId) => {
     try {
@@ -238,7 +252,7 @@ export default function CommunityChipScroller({
         {/* What's Good chip */}
         <button
           role="tab"
-          aria-pressed={!selectedBrandId}
+          aria-selected={!selectedBrandId}
           aria-label="What's Good feed"
           onClick={() => handleChipClick(null, 'All', '')}
           className={`
@@ -260,10 +274,8 @@ export default function CommunityChipScroller({
           )}
         </button>
 
-        {/* Pro Feed chip */}
+        {/* Pro Feed chip - navigation link, not a tab in this context */}
         <button
-          role="tab"
-          aria-pressed={false}
           aria-label="Pro feed"
           onClick={() => {
             try {
@@ -290,7 +302,7 @@ export default function CommunityChipScroller({
             <button
               key={community.id}
               role="tab"
-              aria-pressed={isSelected}
+              aria-selected={isSelected}
               aria-label={`View ${community.name} community${hasUnread ? ', unread' : ''}`}
               title={community.name}
               onClick={() => handleChipClick(community.id, community.name, community.communityId)}
@@ -335,7 +347,7 @@ export default function CommunityChipScroller({
             <button
               key={community.id}
               role="tab"
-              aria-pressed={isSelected}
+              aria-selected={isSelected}
               aria-label={`View ${community.name} community${hasUnread ? ', unread' : ''}`}
               title={community.name}
               onClick={() => handleChipClick(community.id, community.name, community.communityId)}
