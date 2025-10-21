@@ -6,6 +6,13 @@ import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
 import useNotificationsStore from '@/hooks/useNotificationsStore';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 
+/**
+ * Render the desktop left navigation for the community feed, including feed tabs, followed brands, search, staff actions, and trending hashtags.
+ *
+ * The component reflects URL search parameters (tab, brand, brandId, q, tags), derives followed brands and trending tag counts from shared stores/events, and provides controls to navigate tabs, update query/tags in the URL, clear filters, pin/unpin brands, and mark brands as read.
+ *
+ * @returns {JSX.Element} The left-side navigation UI for the community feed.
+ */
 export default function DesktopLeftNav() {
   const location = useLocation();
   const navigate = useNavigate();

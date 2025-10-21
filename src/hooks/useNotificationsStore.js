@@ -6,13 +6,18 @@ import { collection, doc, onSnapshot, setDoc, serverTimestamp, updateDoc } from 
 import { track } from '@/lib/analytics';
 
 /**
- * Shared notifications store (per-user)
+ * Provides a per-user notifications store with real-time Firestore syncing and helpers to mark notifications read or visited.
  *
- * Firestore structure (per spec):
- * notifications/{uid}/community/{communityId} => { unreadCount: number, lastUpdated: TS }
+ * Subscribes to notifications/{uid}/community to keep a local map of per-community unread counts in sync, resets when no user
+ * is present, and exposes operations that update both local state and Firestore (markAsRead, markVisited, markAllAsRead).
  *
- * Additionally updates user preferences for lastVisited when requested:
- * users/{uid}/preferences/community => { lastVisited: { [communityId]: TS } }
+ * @returns {{ unreadCounts: Object.<string, number>, totalUnread: number, markAsRead: function(string): Promise<void>, markVisited: function(string): Promise<void>, markAllAsRead: function(): Promise<void>, subscribeToUpdates: function(): function() }} An object containing:
+ *  - `unreadCounts`: mapping of communityId to unread count.
+ *  - `totalUnread`: sum of all unread counts.
+ *  - `markAsRead(communityId)`: sets the given community's unread count to 0 locally and in Firestore.
+ *  - `markVisited(communityId)`: records the current timestamp as the user's last visit for the community in preferences.
+ *  - `markAllAsRead()`: sets all known communities' unread counts to 0 locally and in Firestore.
+ *  - `subscribeToUpdates()`: starts a realtime subscription and returns a cleanup function that unsubscribes.
  */
 export default function useNotificationsStore() {
   const { user } = useAuth();
