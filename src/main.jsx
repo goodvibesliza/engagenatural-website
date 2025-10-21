@@ -12,3 +12,14 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// Register FCM service worker (only in browsers that support it)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    try {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    } catch (e) {
+      // no-op
+    }
+  });
+}
