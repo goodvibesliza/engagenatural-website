@@ -111,8 +111,11 @@ export default function useNotificationsStore() {
         { unreadCount: 0, lastUpdated: serverTimestamp() },
         { merge: true }
       );
-      try { track('community_mark_read', { communityId }); } catch {}
-    } catch {}
+      try { track('community_mark_read', { communityId }); } catch (e) { console.debug('analytics: community_mark_read failed (ignored)', e); }
+    } catch (err) {
+      console.error('[markAsRead] failed:', err);
+      try { toast?.error?.('Could not mark as read. Please retry.'); } catch (e) { console.debug('toast failed (ignored)', e); }
+    }
   }, [db, user?.uid]);
 
   const markVisited = useCallback(async (communityId) => {
@@ -121,15 +124,18 @@ export default function useNotificationsStore() {
       const prefRef = doc(db, 'users', user.uid, 'preferences', 'community');
       try {
         await updateDoc(prefRef, { [`lastVisited.${communityId}`]: serverTimestamp(), updatedAt: serverTimestamp() });
-      } catch (innerErr) {
+      } catch (err) {
+        console.warn('[markVisited] updateDoc failed, falling back to setDoc', err);
         await setDoc(
           prefRef,
           { [`lastVisited.${communityId}`]: serverTimestamp(), updatedAt: serverTimestamp() },
           { merge: true }
         );
       }
-      try { track('community_mark_visited', { communityId }); } catch {}
-    } catch {}
+      try { track('community_mark_visited', { communityId }); } catch (e) { console.warn('analytics: community_mark_visited failed (ignored)', e); }
+    } catch (err) {
+      console.warn('[markVisited] failed:', err);
+    }
   }, [db, user?.uid]);
 
   const markAllAsRead = useCallback(async () => {
