@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, onSnapshot, setDoc, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { toast } from 'sonner';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import { track } from '@/lib/analytics';
@@ -27,7 +28,7 @@ export default function useNotificationsStore() {
     if (!db || !user?.uid) return () => {};
     try {
       if (typeof unsubRef.current === 'function') unsubRef.current();
-    } catch {}
+    } catch (err) { console.debug('notifications: previous unsub failed (ignored)', err); }
 
     const col = collection(db, 'notifications', user.uid, 'community');
     const unsub = onSnapshot(
@@ -46,7 +47,7 @@ export default function useNotificationsStore() {
     );
     unsubRef.current = unsub;
     return () => {
-      try { unsub(); } catch {}
+      try { unsub(); } catch (err) { console.debug('notifications: unsub failed (ignored)', err); }
       if (unsubRef.current === unsub) unsubRef.current = null;
     };
   }, [db, user?.uid]);
@@ -58,13 +59,13 @@ export default function useNotificationsStore() {
       return;
     }
     const off = subscribeToUpdates();
-    return () => { try { off?.(); } catch {} };
+    return () => { try { off?.(); } catch (err) { console.debug('notifications: cleanup off failed (ignored)', err); } };
   }, [user?.uid, subscribeToUpdates]);
 
   // Listen to pushEnabled in users/{uid}/settings (mirror to local state)
   useEffect(() => {
     if (!db || !user?.uid) return;
-    try { if (typeof settingsUnsubRef.current === 'function') settingsUnsubRef.current(); } catch {}
+    try { if (typeof settingsUnsubRef.current === 'function') settingsUnsubRef.current(); } catch (err) { console.debug('push settings: previous unsub failed (ignored)', err); }
     const ref = doc(db, 'users', user.uid, 'settings', 'push');
     const unsub = onSnapshot(ref, (snap) => {
       const data = snap.data() || {};
@@ -72,24 +73,33 @@ export default function useNotificationsStore() {
       setPushEnabledState(enabled);
     }, () => setPushEnabledState(false));
     settingsUnsubRef.current = unsub;
-    return () => { try { unsub(); } catch {}; if (settingsUnsubRef.current === unsub) settingsUnsubRef.current = null; };
+    return () => { try { unsub(); } catch (err) { console.debug('push settings: unsub failed (ignored)', err); } if (settingsUnsubRef.current === unsub) settingsUnsubRef.current = null; };
   }, [db, user?.uid]);
 
   const setPushEnabled = useCallback(async (enabled) => {
     if (!db || !user?.uid) return;
     try {
-      setPushEnabledState(!!enabled);
+      setPushEnabledState(() => !!enabled);
       await setDoc(doc(db, 'users', user.uid, 'settings', 'push'), { pushEnabled: !!enabled, updatedAt: serverTimestamp() }, { merge: true });
-      try { track('push_toggle', { enabled: !!enabled }); } catch {}
-    } catch {}
+      try { track('push_toggle', { enabled: !!enabled }); } catch (err) { console.debug('analytics: push_toggle track failed (ignored)', err); }
+    } catch (err) {
+      console.error('Failed to update pushEnabled', err);
+      // revert optimistic update and notify user
+      setPushEnabledState(() => !enabled);
+      try { toast?.error?.('Could not update push notification setting. Please try again.'); } catch (e) { console.debug('toast failed (ignored)', e); }
+    }
   }, [db, user?.uid]);
 
   const sendPushNotification = useCallback(async (communityId, message) => {
-    if (!functions || !user?.uid || !communityId) return;
+    if (!functions || !user?.uid || !communityId) return false;
     try {
       const call = httpsCallable(functions, 'sendCommunityPushManual');
       await call({ communityId, message });
-    } catch {}
+      return true;
+    } catch (err) {
+      console.error('sendPushNotification failed', err);
+      return false;
+    }
   }, [functions, user?.uid]);
 
   const markAsRead = useCallback(async (communityId) => {
@@ -126,16 +136,26 @@ export default function useNotificationsStore() {
     if (!db || !user?.uid) return;
     const ids = Object.keys(unreadCounts || {});
     try {
+      // Optimistically zero all locally once
+      setUnreadCounts((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = 0;
+        return next;
+      });
+      // Batch write for atomic, faster updates
+      const batch = writeBatch(db);
       for (const id of ids) {
-        setUnreadCounts((prev) => ({ ...prev, [id]: 0 }));
-        await setDoc(
+        batch.set(
           doc(db, 'notifications', user.uid, 'community', id),
           { unreadCount: 0, lastUpdated: serverTimestamp() },
           { merge: true }
         );
       }
+      await batch.commit();
       try { track('notification_mark_all_read', {}); } catch {}
-    } catch {}
+    } catch (err) {
+      console.error('markAllAsRead failed', err);
+    }
   }, [db, user?.uid, unreadCounts]);
 
   const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((a, b) => a + (Number(b) || 0), 0), [unreadCounts]);
