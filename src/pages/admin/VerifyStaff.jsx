@@ -113,7 +113,7 @@ export default function VerifyStaff() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6 mx-auto w-full max-w-7xl">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Verification Queue</h1>
         <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export default function VerifyStaff() {
       </div>
 
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setZoomPhoto(false); setZoomCode(false); setRequestingInfo(false); setRequestInfoMsg(''); } }}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="w-[95vw] sm:w-auto max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Verification Detail</DialogTitle>
             <DialogDescription>Review submission and take action</DialogDescription>
