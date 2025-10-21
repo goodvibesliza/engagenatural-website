@@ -5,6 +5,14 @@ import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
 import { track } from '@/lib/analytics';
 
 /**
+ * Helper: Truncate long community name for display
+ */
+function truncateName(name, maxLength = 18) {
+  if (!name || name.length <= maxLength) return name;
+  return name.slice(0, maxLength - 1) + '…';
+}
+
+/**
  * V3: Enhanced horizontal chip scroller for mobile community switching
  * Features: smart ordering, unread badges, pinned indicators, auto-scroll carousel
  */
@@ -171,7 +179,7 @@ export default function CommunityChipScroller({
       container.removeEventListener('scroll', onUserInteraction);
       container.removeEventListener('mousedown', onUserInteraction);
     };
-  }, [allCommunities.length, loading, isAutoScrolling]);
+  }, [allCommunities.length, loading, isAutoScrolling, isInputFocused]);
 
   const handleChipClick = useCallback((brandId, brandName, communityId) => {
     try {
@@ -274,9 +282,7 @@ export default function CommunityChipScroller({
         {/* Pinned communities */}
         {pinnedCommunities.map(community => {
           const isSelected = selectedBrandId === community.id;
-          const truncated = community.name.length > 20 
-            ? `${community.name.slice(0, 19)}…` 
-            : community.name;
+          const truncated = truncateName(community.name, 20);
           const unreadCount = getUnreadCount(community.id);
           const hasUnread = unreadCount > 0;
           
@@ -321,9 +327,7 @@ export default function CommunityChipScroller({
         {/* Unpinned communities */}
         {unpinnedCommunities.map(community => {
           const isSelected = selectedBrandId === community.id;
-          const truncated = community.name.length > 20 
-            ? `${community.name.slice(0, 19)}…` 
-            : community.name;
+          const truncated = truncateName(community.name, 20);
           const unreadCount = getUnreadCount(community.id);
           const hasUnread = unreadCount > 0;
           
