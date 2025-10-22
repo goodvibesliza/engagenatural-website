@@ -245,6 +245,7 @@ export default function VerifyStaff() {
           >
             <option value="all">All statuses</option>
             <option value="pending">Pending</option>
+            <option value="needs_info">Needs info</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
@@ -552,9 +553,10 @@ export default function VerifyStaff() {
                       <button
                         type="button"
                         onClick={() => requestInfo(selected)}
-                        className="rounded bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
+                        disabled={processing}
+                        className="rounded bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Send Request
+                        {processing ? 'Sending...' : 'Send Request'}
                       </button>
                     </div>
                   </div>

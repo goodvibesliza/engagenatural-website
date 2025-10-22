@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { metersBetween } from './lib/haversine';
 
 try { admin.app(); } catch { admin.initializeApp(); }
 const db = admin.firestore();
@@ -7,22 +8,6 @@ const db = admin.firestore();
 const GEOFENCE_MATCH_M = 250;
 const GEOFENCE_NEAR_M = 800;
 const FRESHNESS_MS = 10 * 60 * 1000; // informational tag only
-
-function metersBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-  return Math.round(R * c);
-}
-
-function normalizeName(s?: string) {
-  return (s || '').toLowerCase().replace(/[^a-z\s]/g, '').trim();
-}
 
 export const onVerificationScore = functions.firestore
   .document('verification_requests/{id}')
