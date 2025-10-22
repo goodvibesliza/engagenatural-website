@@ -574,7 +574,7 @@ export default function VerifyStaff() {
                   </>
                 )}
 
-                {selected.status === 'pending' && requestingInfo && (
+                {(selected.status === 'pending' || selected.status === 'needs_info') && requestingInfo && (
                   <div className="w-full">
                     <div className="mb-2 text-sm font-medium text-gray-700">Message to applicant (optional)</div>
                     <textarea
