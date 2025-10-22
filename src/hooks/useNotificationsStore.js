@@ -22,18 +22,21 @@ import { track } from '@/lib/analytics';
 export default function useNotificationsStore() {
   const { user } = useAuth();
   const [unreadCounts, setUnreadCounts] = useState({});
-  const unsubRef = useRef(null);
+  const [systemUnread, setSystemUnread] = useState(0);
+  const unsubRef = useRef([]);
 
   const subscribeToUpdates = useCallback(() => {
     if (!db || !user?.uid) return () => {};
     try {
-      if (typeof unsubRef.current === 'function') unsubRef.current();
+      // cleanup any previous subscriptions
+      const arr = Array.isArray(unsubRef.current) ? unsubRef.current : [unsubRef.current];
+      for (const fn of arr) { try { typeof fn === 'function' && fn(); } catch (err) { console.debug?.('useNotificationsStore: subscribe cleanup failed', err); } }
     } catch (err) {
       console.debug?.('useNotificationsStore: subscribe cleanup failed', err);
     }
 
     const col = collection(db, 'notifications', user.uid, 'community');
-    const unsub = onSnapshot(
+    const unsubCommunity = onSnapshot(
       col,
       (snap) => {
         const next = {};
@@ -47,10 +50,25 @@ export default function useNotificationsStore() {
         setUnreadCounts({});
       }
     );
-    unsubRef.current = unsub;
+
+    // System notifications subscription: count docs with unread === true
+    const sysCol = collection(db, 'notifications', user.uid, 'system');
+    const unsubSystem = onSnapshot(
+      sysCol,
+      (snap) => {
+        let count = 0;
+        snap.forEach((d) => { if ((d.data() || {}).unread) count += 1; });
+        setSystemUnread(count);
+      },
+      () => setSystemUnread(0)
+    );
+
+    unsubRef.current = [unsubCommunity, unsubSystem];
     return () => {
-      try { unsub(); } catch (err) { console.debug?.('useNotificationsStore: unsubscribe failed', err); }
-      if (unsubRef.current === unsub) unsubRef.current = null;
+      for (const fn of [unsubCommunity, unsubSystem]) {
+        try { fn(); } catch (err) { console.debug?.('useNotificationsStore: unsubscribe failed', err); }
+      }
+      unsubRef.current = [];
     };
   }, [db, user?.uid]);
 
@@ -125,10 +143,11 @@ export default function useNotificationsStore() {
     }
   }, [db, user?.uid, unreadCounts]);
 
-  const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((a, b) => a + (Number(b) || 0), 0), [unreadCounts]);
+  const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((a, b) => a + (Number(b) || 0), 0) + Number(systemUnread || 0), [unreadCounts, systemUnread]);
 
   return {
     unreadCounts,
+    systemUnread,
     totalUnread,
     markAsRead,
     markVisited,
