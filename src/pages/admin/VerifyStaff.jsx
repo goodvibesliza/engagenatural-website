@@ -1,6 +1,7 @@
 // src/pages/admin/VerifyStaff.jsx (super_admin review UI for verification requests)
 import { useEffect, useMemo, useState } from "react";
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/auth-context';
 import {
   collection,
   onSnapshot,
@@ -11,6 +12,7 @@ import {
   doc,
   serverTimestamp,
   writeBatch,
+  arrayUnion,
 } from "firebase/firestore";
 import { getDoc } from 'firebase/firestore';
 import {
@@ -32,6 +34,7 @@ import {
  * @returns {JSX.Element} The verification queue UI component.
  */
 export default function VerifyStaff() {
+  const { user: admin } = useAuth();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -74,6 +77,10 @@ export default function VerifyStaff() {
             gps: v.gps || null,
             locSource: v.locSource || null,
             locDenied: !!v.locDenied,
+            // Info request history (new) + legacy backfill fields
+            infoRequests: Array.isArray(v.infoRequests) ? v.infoRequests : null,
+            infoRequestMessage: v.infoRequestMessage || '',
+            infoRequestedAt: v.infoRequestedAt?.toDate ? v.infoRequestedAt.toDate() : (v.infoRequestedAt ? new Date(v.infoRequestedAt) : null),
           };
         });
         setItems(rows);
@@ -174,10 +181,16 @@ export default function VerifyStaff() {
     if (!confirm(`Request more info from ${v.applicantName || 'this user'}?`)) return;
     setProcessing(true);
     try {
+      const adminUid = admin?.uid || null;
+      // Append-only history for questions
       await updateDoc(doc(db, 'verification_requests', v.id), {
         status: 'needs_info',
         infoRequestedAt: serverTimestamp(),
-        infoRequestMessage: requestInfoMsg || '',
+        infoRequests: arrayUnion({
+          message: requestInfoMsg || '',
+          createdAt: serverTimestamp(),
+          adminUid: adminUid,
+        }),
       });
       // System notification to applicant
       if (v.applicantUid) {
@@ -191,9 +204,15 @@ export default function VerifyStaff() {
             createdAt: serverTimestamp(),
             meta: { requestId: v.id },
           });
+          if (import.meta.env.DEV) {
+            console.debug?.('VerifyStaff: wrote system notification', { applicantUid: v.applicantUid, requestId: v.id });
+          }
         } catch (e) {
           console.error('VerifyStaff: failed to write system notification', e);
         }
+      }
+      if (import.meta.env.DEV) {
+        console.debug?.('VerifyStaff: requestInfo updated request', { requestId: v.id, applicantUid: v.applicantUid });
       }
       setRequestingInfo(false);
       setRequestInfoMsg('');
@@ -440,6 +459,40 @@ export default function VerifyStaff() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Questions history */}
+              <div className="rounded border p-3">
+                <div className="text-sm font-medium mb-2">Questions history</div>
+                {Array.isArray(selected.infoRequests) && selected.infoRequests.length > 0 ? (
+                  <ul className="space-y-2">
+                    {[...selected.infoRequests]
+                      .sort((a,b) => {
+                        const ad = a?.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a?.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+                        const bd = b?.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b?.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+                        return bd - ad;
+                      })
+                      .map((it, idx) => (
+                        <li key={idx} className="rounded bg-gray-50 p-2">
+                          <div className="text-sm text-gray-900">{it?.message || '(no message)'}</div>
+                          <div className="mt-0.5 text-xs text-gray-600">
+                            {it?.createdAt?.toDate ? it.createdAt.toDate().toLocaleString?.() : ''}
+                            {it?.adminUid ? ` · by ${it.adminUid}` : ''}
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  // Backfill legacy single message (do not write; display only)
+                  (selected.infoRequestMessage ? (
+                    <div className="rounded bg-gray-50 p-2">
+                      <div className="text-sm text-gray-900">{selected.infoRequestMessage}</div>
+                      <div className="mt-0.5 text-xs text-gray-600">{selected.infoRequestedAt ? selected.infoRequestedAt.toLocaleString?.() : ''}</div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600">No questions yet.</div>
+                  ))
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2">

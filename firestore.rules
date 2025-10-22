@@ -440,5 +440,21 @@ service cloud.firestore {
         )
       );
     }
+
+    // ---------- notifications (per-user) ----------
+    // System notifications created by admins, readable by the owner only
+    match /notifications/{uid}/system/{docId} {
+      // Owner can read their own notifications
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Owner can update their own notifications (e.g., mark as read)
+      allow update, delete: if request.auth != null && request.auth.uid == uid;
+      // Creation allowed for owner or super_admin (admin flow writes to applicant's inbox)
+      allow create: if request.auth != null && (request.auth.uid == uid || isSuperAdmin(request.auth.uid));
+    }
+
+    // Community unread counts per user (client-maintained counters)
+    match /notifications/{uid}/community/{communityId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

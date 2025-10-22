@@ -63,6 +63,9 @@ export default function NotificationsPage() {
     if (!db || !user?.uid) { setSystemItems([]); return; }
     const q = query(collection(db, 'notifications', user.uid, 'system'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
+      if (import.meta.env.DEV) {
+        try { console.debug?.('NotificationsPage: system snapshot', { uid: user?.uid, size: snap?.size }); } catch {}
+      }
       const arr = [];
       snap.forEach((d) => arr.push({ id: d.id, ...(d.data() || {}) }));
       setSystemItems(arr);
