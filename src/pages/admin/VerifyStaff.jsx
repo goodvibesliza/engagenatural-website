@@ -101,7 +101,13 @@ export default function VerifyStaff() {
         try {
           const s = await getDoc(doc(db, 'users', selected.applicantUid));
           setStoreInfo(s.exists() ? s.data() : null);
-        } catch { setStoreInfo(null); }
+        } catch (e) {
+          console.error(
+            'VerifyStaff: Failed to fetch store info',
+            { applicantUid: selected?.applicantUid, error: e }
+          );
+          setStoreInfo(null);
+        }
       } else {
         setStoreInfo(null);
       }
@@ -221,6 +227,34 @@ export default function VerifyStaff() {
     } catch (err) {
       console.error('Failed to request info:', err);
       alert('Failed to request info. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function sendReminder(v) {
+    if (!v?.id) return;
+    if (processing) return;
+    setProcessing(true);
+    try {
+      if (v.applicantUid) {
+        await addDoc(collection(db, 'notifications', v.applicantUid, 'system'), {
+          type: 'verification_info_reminder',
+          title: 'Reminder: more info needed for your verification',
+          body: 'Please respond to the admin questions to complete your verification.',
+          link: '/staff/verification',
+          unread: true,
+          createdAt: serverTimestamp(),
+          meta: { requestId: v.id },
+        });
+        if (import.meta.env.DEV) {
+          console.debug?.('VerifyStaff: sent reminder notification', { applicantUid: v.applicantUid, requestId: v.id });
+        }
+      }
+      alert('Reminder sent.');
+    } catch (err) {
+      console.error('Failed to send reminder:', err);
+      alert('Failed to send reminder. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -504,14 +538,22 @@ export default function VerifyStaff() {
                 >
                   Close
                 </button>
-                {selected.status === 'pending' && !requestingInfo && (
+                {(selected.status === 'pending' || selected.status === 'needs_info') && !requestingInfo && (
                   <>
                     <button
                       type="button"
                       onClick={() => setRequestingInfo(true)}
                       className="rounded bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
                     >
-                      Request Info
+                      {selected.status === 'needs_info' ? 'Ask Follow-up' : 'Request Info'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => sendReminder(selected)}
+                      disabled={processing}
+                      className="rounded border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {processing ? 'Sending…' : 'Send Reminder'}
                     </button>
                     <button
                       type="button"
