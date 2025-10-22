@@ -49,6 +49,7 @@ export default function NotificationsPage() {
   const [isDesktop, setIsDesktop] = useState(false);
   const [tab, setTab] = useState('all'); // 'all' | 'mentions' | 'system'
   const [systemItems, setSystemItems] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -64,13 +65,13 @@ export default function NotificationsPage() {
     const q = query(collection(db, 'notifications', user.uid, 'system'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
       if (import.meta.env.DEV) {
-        try { console.debug?.('NotificationsPage: system snapshot', { uid: user?.uid, size: snap?.size }); } catch {}
+        try { console.debug?.('NotificationsPage: system snapshot', { uid: user?.uid, size: snap?.size }); } catch (err) { console.error('NotificationsPage: debug log failed (system snapshot)', err); }
       }
       const arr = [];
       snap.forEach((d) => arr.push({ id: d.id, ...(d.data() || {}) }));
       setSystemItems(arr);
-    }, () => setSystemItems([]));
-    return () => { try { unsub(); } catch {} };
+    }, (err) => { console.error('NotificationsPage: system onSnapshot error', err); setSystemItems([]); setError('Failed to load system notifications.'); });
+    return () => { try { unsub(); } catch (err) { console.error('NotificationsPage: system unsubscribe failed', err); } };
   }, [db, user?.uid]);
 
   // page_view when shell active
@@ -100,6 +101,9 @@ export default function NotificationsPage() {
 
   const CenterContent = () => (
     <div className="space-y-6" data-testid="notifications-center">
+      {error && (
+        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>
+      )}
       {/* Tabs + Mark all */}
       <div className="flex items-center gap-2">
         <TabButton id="all" active={tab === 'all'} onClick={() => { setTab('all'); try { track('notifications_tab_click', { tab: 'all' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'all' }, err); } }}>All</TabButton>
@@ -108,7 +112,7 @@ export default function NotificationsPage() {
         <div className="ml-auto" />
         <button
           type="button"
-          onClick={() => { try { markAllAsRead(); } catch {} }}
+          onClick={() => { try { markAllAsRead(); } catch (err) { console.error('NotificationsPage: markAllAsRead failed', err); setError('Failed to mark notifications as read.'); } }}
           className="h-9 px-3 rounded-md border text-sm bg-white hover:bg-gray-50"
           data-testid="notifications-markall"
         >
@@ -165,7 +169,10 @@ export default function NotificationsPage() {
               onClick={async () => {
                 try {
                   await Promise.all(systemItems.map((it) => updateDoc(doc(db, 'notifications', user.uid, 'system', it.id), { unread: false, readAt: serverTimestamp() })));
-                } catch {}
+                } catch (err) {
+                  console.error('NotificationsPage: mark system as read failed', err);
+                  setError('Failed to mark system as read.');
+                }
               }}
               className="h-7 px-2 rounded-md border text-xs bg-white hover:bg-gray-50"
             >
@@ -195,7 +202,7 @@ export default function NotificationsPage() {
                       <button
                         type="button"
                         onClick={async () => {
-                          try { await updateDoc(doc(db, 'notifications', user.uid, 'system', n.id), { unread: false, readAt: serverTimestamp() }); } catch {}
+                          try { await updateDoc(doc(db, 'notifications', user.uid, 'system', n.id), { unread: false, readAt: serverTimestamp() }); } catch (err) { console.error('NotificationsPage: set system notification read failed', { id: n.id }, err); setError('Failed to mark notification as read.'); }
                           const target = n.link || '/staff/verification';
                           const state = n.meta?.requestId ? { requestId: n.meta.requestId } : undefined;
                           navigate(target, state ? { state } : undefined);

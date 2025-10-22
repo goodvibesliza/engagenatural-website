@@ -91,7 +91,7 @@ export default function VerificationPage() {
               setInfoRequests(Array.isArray(v?.infoRequests) ? v.infoRequests : []);
             }
           } catch (e) {
-            // ignore – will try latest submitted next
+            console.error('VerificationPage: needs_info query failed', e);
           }
         }
         if (!reqId) {
@@ -111,6 +111,7 @@ export default function VerificationPage() {
             }
           } catch (e) {
             // If index missing for orderBy, try without ordering as last resort
+            console.error('VerificationPage: latest-by-submitted query failed; falling back without orderBy', e);
             const q2 = query(
               collection(db, 'verification_requests'),
               where('userId', '==', user.uid),
@@ -142,7 +143,7 @@ export default function VerificationPage() {
       snap.forEach((d) => arr.push({ id: d.id, ...(d.data() || {}) }));
       setMessages(arr);
     }, () => setMessages([]));
-    return () => { try { unsub(); } catch {} };
+    return () => { try { unsub(); } catch (err) { console.error('VerificationPage: messages unsubscribe failed', err); } };
   }, [db, activeRequestId]);
 
   async function sendReply() {
