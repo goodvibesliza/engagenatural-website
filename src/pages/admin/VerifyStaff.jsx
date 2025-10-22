@@ -195,7 +195,8 @@ export default function VerifyStaff() {
         infoRequestedAt: serverTimestamp(),
         infoRequests: arrayUnion({
           message: requestInfoMsg || '',
-          createdAt: serverTimestamp(),
+          // Use client-side Date so Firestore stores a Timestamp; serverTimestamp() isn't allowed inside arrayUnion
+          createdAt: new Date(),
           adminUid: adminUid,
         }),
       });
