@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/auth-context';
 import { db, storage } from '@/lib/firebase';
-import { doc, updateDoc, addDoc, collection, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, serverTimestamp, getDoc, getDocs, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import PhotoUploadComponent from '../PhotoVerify';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 /**
  * Render the Verification Center UI and manage photo- and code-based verification flows, including metadata collection, optional geolocation, photo upload, and submitting verification requests to the backend.
@@ -13,6 +13,8 @@ import { Link } from 'react-router-dom';
  */
 export default function VerificationPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navState = location?.state || {};
   const [verificationPhoto, setVerificationPhoto] = useState(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
   const [verificationCode, setVerificationCode] = useState('');
@@ -24,6 +26,17 @@ export default function VerificationPage() {
   const [geolocationStatus, setGeolocationStatus] = useState('');
   const [deviceLoc, setDeviceLoc] = useState(null);
   const [storeInfo, setStoreInfo] = useState({ storeLoc: null, storeAddressText: '' });
+  // Admin question thread + staff responses
+  const [activeRequestId, setActiveRequestId] = useState(null);
+  const [infoRequests, setInfoRequests] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  // Inline store location widget state
+  const [addressText, setAddressText] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [storeLoc, setStoreLoc] = useState(null);
 
   // Load user's saved store location so we can show CTA/link here
   useEffect(() => {
@@ -34,12 +47,154 @@ export default function VerificationPage() {
         if (snap.exists()) {
           const d = snap.data();
           setStoreInfo({ storeLoc: d.storeLoc || null, storeAddressText: d.storeAddressText || '' });
+          setAddressText(d.storeAddressText || '');
+          setStoreLoc(d.storeLoc || null);
         }
       } catch (e) {
         console.debug?.('VerificationPage: failed to load user store', e);
       }
     })();
   }, [user?.uid]);
+
+  // Load the relevant verification request to show admin questions; prefer a requestId passed from notifications state,
+  // otherwise prefer the most recent request that is in 'needs_info' (infoRequestedAt desc), then fall back to latest by user.
+  useEffect(() => {
+    (async () => {
+      if (!db || !user?.uid) return;
+      setLoadingThread(true);
+      try {
+        let reqId = navState?.requestId;
+        if (reqId) {
+          const s = await getDoc(doc(db, 'verification_requests', reqId));
+          if (!s.exists() || (s.data()?.userId && s.data().userId !== user.uid)) {
+            // Fallback: ignore invalid id and find latest by this user
+            reqId = null;
+          } else {
+            setInfoRequests(Array.isArray(s.data()?.infoRequests) ? s.data().infoRequests : []);
+          }
+        }
+        if (!reqId) {
+          // Prefer a 'needs_info' request first
+          try {
+            const qNI = query(
+              collection(db, 'verification_requests'),
+              where('userId', '==', user.uid),
+              where('status', '==', 'needs_info'),
+              orderBy('infoRequestedAt', 'desc'),
+              limit(1)
+            );
+            const qsNI = await getDocs(qNI);
+            if (!qsNI.empty) {
+              const d = qsNI.docs[0];
+              reqId = d.id;
+              const v = d.data();
+              setInfoRequests(Array.isArray(v?.infoRequests) ? v.infoRequests : []);
+            }
+          } catch (e) {
+            // ignore – will try latest submitted next
+          }
+        }
+        if (!reqId) {
+          try {
+            const q = query(
+              collection(db, 'verification_requests'),
+              where('userId', '==', user.uid),
+              orderBy('submittedAt', 'desc'),
+              limit(1)
+            );
+            const qs = await getDocs(q);
+            if (!qs.empty) {
+              const d = qs.docs[0];
+              reqId = d.id;
+              const v = d.data();
+              setInfoRequests(Array.isArray(v?.infoRequests) ? v.infoRequests : []);
+            }
+          } catch (e) {
+            // If index missing for orderBy, try without ordering as last resort
+            const q2 = query(
+              collection(db, 'verification_requests'),
+              where('userId', '==', user.uid),
+              limit(1)
+            );
+            const qs2 = await getDocs(q2);
+            if (!qs2.empty) {
+              const d = qs2.docs[0];
+              reqId = d.id;
+              const v = d.data();
+              setInfoRequests(Array.isArray(v?.infoRequests) ? v.infoRequests : []);
+            }
+          }
+        }
+        setActiveRequestId(reqId || null);
+      } finally {
+        setLoadingThread(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, user?.uid, navState?.requestId]);
+
+  // Subscribe to staff reply messages for this request
+  useEffect(() => {
+    if (!db || !activeRequestId) { setMessages([]); return; }
+    const q = query(collection(db, 'verification_requests', activeRequestId, 'messages'), orderBy('createdAt', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const arr = [];
+      snap.forEach((d) => arr.push({ id: d.id, ...(d.data() || {}) }));
+      setMessages(arr);
+    }, () => setMessages([]));
+    return () => { try { unsub(); } catch {} };
+  }, [db, activeRequestId]);
+
+  async function sendReply() {
+    if (!user?.uid || !activeRequestId) return;
+    const text = replyText.trim();
+    if (!text) return;
+    setSendingReply(true);
+    try {
+      await addDoc(collection(db, 'verification_requests', activeRequestId, 'messages'), {
+        message: text,
+        authorUid: user.uid,
+        createdAt: serverTimestamp(),
+      });
+      setReplyText('');
+    } catch (e) {
+      console.error('Failed to send reply', e);
+      alert('Could not send your reply. Please try again.');
+    } finally {
+      setSendingReply(false);
+    }
+  }
+
+  async function setStoreLocationInline() {
+    if (!user?.uid) return;
+    if (!('geolocation' in navigator)) {
+      alert('Geolocation is not supported on this device/browser.');
+      return;
+    }
+    setSavingAddress(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      try {
+        const payload = {
+          storeAddressText: addressText || '',
+          storeLoc: { lat, lng, setAt: serverTimestamp(), source: 'device' },
+        };
+        await updateDoc(doc(db, 'users', user.uid), payload);
+        setStoreLoc({ lat, lng, setAt: new Date(), source: 'device' });
+        setStoreInfo({ storeLoc: { lat, lng }, storeAddressText: addressText || '' });
+      } catch (e) {
+        console.error('Failed to save store location:', e);
+        alert('Failed to save store location. Please try again.');
+      } finally {
+        setSavingAddress(false);
+      }
+    }, (err) => {
+      console.error('Geolocation error:', err);
+      setSavingAddress(false);
+      alert('Could not get device location. Please allow location access and try again.');
+    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+  }
 
   // Brand verification codes/sources
   const brandSources = [
@@ -236,6 +391,43 @@ export default function VerificationPage() {
         </p>
       </div>
 
+      {/* Store Location (inline widget) */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold mb-2">Store Location</h2>
+        <p className="text-sm text-gray-600 mb-3">Save your store GPS once. We’ll compare verification selfies to this location.</p>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Store address (for humans)</label>
+        <input
+          type="text"
+          value={addressText}
+          onChange={(e) => setAddressText(e.target.value)}
+          placeholder="123 Main St, Springfield…"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+        />
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={setStoreLocationInline}
+            disabled={savingAddress}
+            className="rounded bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {savingAddress ? 'Saving…' : (storeLoc?.lat != null ? 'Update Location' : 'Set Store Location')}
+          </button>
+          {storeLoc?.lat != null && (
+            <a
+              href={`https://maps.google.com/?q=${storeLoc.lat},${storeLoc.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Test map
+            </a>
+          )}
+        </div>
+        {storeLoc?.lat == null && (
+          <div className="mt-2 text-xs text-gray-600">Tip: Allow location access when prompted so we can save GPS.</div>
+        )}
+      </div>
+
       {/* Current Status */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold mb-4">Current Status</h2>
@@ -287,36 +479,6 @@ export default function VerificationPage() {
 
         {(!user?.verificationStatus || user?.verificationStatus === 'not_submitted' || user?.verificationStatus === 'rejected') && (
           <div className="space-y-6">
-            {/* Store Location prompt (so users coming from /community can find it) */}
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">Store Location</div>
-                  {storeInfo.storeLoc?.lat != null ? (
-                    <div className="mt-1 text-sm text-gray-700">
-                      Saved at: {storeInfo.storeAddressText || '—'}
-                      <div className="text-xs text-gray-600">Lat: {storeInfo.storeLoc.lat}, Lng: {storeInfo.storeLoc.lng}</div>
-                      <a
-                        href={`https://maps.google.com/?q=${storeInfo.storeLoc.lat},${storeInfo.storeLoc.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-block text-xs text-blue-600 hover:underline"
-                      >
-                        Open in Google Maps
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-sm text-gray-700">Save your store location once to help us verify in-store photos.</div>
-                  )}
-                </div>
-                <Link
-                  to="/staff/profile/store-location"
-                  className="shrink-0 rounded bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-primary/90"
-                >
-                  {storeInfo.storeLoc?.lat != null ? 'Edit' : 'Set Store Location'}
-                </Link>
-              </div>
-            </div>
             {/* Photo Verification */}
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Photo Verification</h3>
@@ -440,6 +602,78 @@ export default function VerificationPage() {
           </div>
         )}
       </div>
+
+      {/* Questions & Responses */}
+      {(activeRequestId || loadingThread) && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold mb-4">Questions from Admin</h2>
+          {loadingThread && (
+            <div className="text-sm text-gray-600">Loading…</div>
+          )}
+          {!loadingThread && !activeRequestId && (
+            <div className="text-sm text-gray-600">No recent verification request found.</div>
+          )}
+          {!!activeRequestId && (
+            <div className="space-y-4">
+              <div>
+                {Array.isArray(infoRequests) && infoRequests.length > 0 ? (
+                  <ul className="space-y-2">
+                    {[...infoRequests]
+                      .sort((a,b) => {
+                        const ad = a?.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a?.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+                        const bd = b?.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b?.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+                        return ad - bd;
+                      })
+                      .map((it, idx) => (
+                        <li key={idx} className="rounded bg-amber-50 border border-amber-200 p-2">
+                          <div className="text-sm text-gray-900">{it?.message || '(no message)'}</div>
+                          <div className="mt-0.5 text-xs text-gray-600">{it?.createdAt?.toDate ? it.createdAt.toDate().toLocaleString?.() : ''}</div>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <div className="text-sm text-gray-600">No questions yet.</div>
+                )}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-700 mb-1">Your messages</div>
+                {(!messages || messages.length === 0) ? (
+                  <div className="text-sm text-gray-600">You haven't replied yet.</div>
+                ) : (
+                  <ul className="space-y-2">
+                    {messages.map((m) => (
+                      <li key={m.id} className="rounded bg-gray-50 border border-gray-200 p-2">
+                        <div className="text-sm text-gray-900">{m.message || ''}</div>
+                        <div className="mt-0.5 text-xs text-gray-600">{m.createdAt?.toDate ? m.createdAt.toDate().toLocaleString?.() : ''}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reply to admin</label>
+                <textarea
+                  rows={3}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  className="w-full rounded border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  placeholder="Type your reply…"
+                />
+                <div className="mt-2 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={sendReply}
+                    disabled={sendingReply || !replyText.trim()}
+                    className="rounded bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sendingReply ? 'Sending…' : 'Send Reply'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

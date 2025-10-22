@@ -196,11 +196,9 @@ export default function NotificationsPage() {
                         type="button"
                         onClick={async () => {
                           try { await updateDoc(doc(db, 'notifications', user.uid, 'system', n.id), { unread: false, readAt: serverTimestamp() }); } catch {}
-                          if (n.link) {
-                            navigate(n.link);
-                          } else {
-                            navigate('/staff/verification');
-                          }
+                          const target = n.link || '/staff/verification';
+                          const state = n.meta?.requestId ? { requestId: n.meta.requestId } : undefined;
+                          navigate(target, state ? { state } : undefined);
                         }}
                         className="rounded bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-primary/90"
                       >

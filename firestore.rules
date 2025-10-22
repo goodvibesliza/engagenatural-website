@@ -230,6 +230,26 @@ service cloud.firestore {
       );
     }
 
+    // Staff/admin messages under a verification request (append-only)
+    match /verification_requests/{requestId}/messages/{msgId} {
+      // Owner (requester) and reviewers can read
+      allow read: if request.auth != null && (
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.userId == request.auth.uid ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+      // Owner can create replies; reviewers can also add notes if needed
+      allow create: if request.auth != null && (
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.userId == request.auth.uid ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+      // Immutable messages
+      allow update, delete: if false;
+    }
+
     // ---------- community_comments ----------
     match /community_comments/{commentId} {
       // Readable by any authenticated user (needed for post threads)

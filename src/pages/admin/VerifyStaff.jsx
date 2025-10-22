@@ -75,6 +75,7 @@ export default function VerifyStaff() {
             distance_m: typeof v.distance_m === 'number' ? v.distance_m : null,
             photoRedactedUrl: v.photoRedactedUrl || '',
             gps: v.gps || null,
+            deviceLoc: v.deviceLoc || null,
             locSource: v.locSource || null,
             locDenied: !!v.locDenied,
             // Info request history (new) + legacy backfill fields

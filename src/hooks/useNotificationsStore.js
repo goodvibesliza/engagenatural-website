@@ -8,11 +8,13 @@ import { track } from '@/lib/analytics';
 /**
  * Provides a per-user notifications store with real-time Firestore syncing and helpers to mark notifications read or visited.
  *
- * Subscribes to notifications/{uid}/community to keep a local map of per-community unread counts in sync, resets when no user
- * is present, and exposes operations that update both local state and Firestore (markAsRead, markVisited, markAllAsRead).
+ * Subscribes to BOTH notifications/{uid}/community (per-community unread counts) AND notifications/{uid}/system
+ * (system-level alerts) to keep local state in sync. Resets when no user is present, and exposes operations that
+ * update both local state and Firestore (markAsRead, markVisited, markAllAsRead).
  *
- * @returns {{ unreadCounts: Object.<string, number>, totalUnread: number, markAsRead: function(string): Promise<void>, markVisited: function(string): Promise<void>, markAllAsRead: function(): Promise<void>, subscribeToUpdates: function(): function() }} An object containing:
+ * @returns {{ unreadCounts: Object.<string, number>, systemUnread: number, totalUnread: number, markAsRead: function(string): Promise<void>, markVisited: function(string): Promise<void>, markAllAsRead: function(): Promise<void>, subscribeToUpdates: function(): function() }} An object containing:
  *  - `unreadCounts`: mapping of communityId to unread count.
+ *  - `systemUnread`: count of unread system-level notifications.
  *  - `totalUnread`: sum of all unread counts.
  *  - `markAsRead(communityId)`: sets the given community's unread count to 0 locally and in Firestore.
  *  - `markVisited(communityId)`: records the current timestamp as the user's last visit for the community in preferences.
@@ -76,6 +78,7 @@ export default function useNotificationsStore() {
   useEffect(() => {
     if (!user?.uid) {
       setUnreadCounts({});
+      setSystemUnread(0);
       return;
     }
     const off = subscribeToUpdates();
