@@ -101,7 +101,7 @@ export default function ProfileStoreLocation() {
             <div>Lat: {storeLoc.lat}</div>
             <div>Lng: {storeLoc.lng}</div>
             {mapHref && (
-              <a href={mapHref} target="_blank" rel="noreferrer" className="mt-2 inline-block text-blue-600 hover:underline">Test Map</a>
+              <a href={mapHref} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-blue-600 hover:underline">Test Map</a>
             )}
           </div>
         ) : (

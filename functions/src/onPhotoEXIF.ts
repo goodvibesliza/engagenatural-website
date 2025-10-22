@@ -24,9 +24,13 @@ export const onPhotoEXIF = functions.storage
     let gpsLng: number | null = null;
     try {
       const parsed: any = await exifr.parse(buf, { gps: true });
-      if (parsed?.latitude && parsed?.longitude) {
-        gpsLat = Number(parsed.latitude);
-        gpsLng = Number(parsed.longitude);
+      if (parsed?.latitude != null && parsed?.longitude != null) {
+        const latN = Number(parsed.latitude);
+        const lngN = Number(parsed.longitude);
+        if (Number.isFinite(latN) && Number.isFinite(lngN)) {
+          gpsLat = latN;
+          gpsLng = lngN;
+        }
       }
     } catch (err) {
       // ignore; set hasGps false below if not found
@@ -64,13 +68,25 @@ export const onPhotoEXIF = functions.storage
       }
     }
 
-    // If no match, try to at least update the most recent pending doc for the user
+    // If no URL match, consider a very tight fallback to avoid mis-association
     if (!matchedDoc && !candidatesSnap.empty) {
-      matchedDoc = candidatesSnap.docs[0].ref;
+      const eventMs = object.timeCreated ? Date.parse(object.timeCreated) : Date.now();
+      const WINDOW_MS = 5 * 60 * 1000; // ±5 minutes
+      for (const docSnap of candidatesSnap.docs) {
+        const v = docSnap.data() as any;
+        const statusOk = (v?.status || '').toLowerCase() === 'pending';
+        const noPhotoUrl = v?.photoURL == null || v?.photoURL === '';
+        const submittedAtMs = v?.submittedAt?.toMillis ? Number(v.submittedAt.toMillis()) : (v?.submittedAt != null ? Number(v.submittedAt) : NaN);
+        const timeOk = Number.isFinite(submittedAtMs) && Math.abs(submittedAtMs - eventMs) <= WINDOW_MS;
+        if (statusOk && noPhotoUrl && timeOk) {
+          matchedDoc = docSnap.ref;
+          break;
+        }
+      }
     }
 
     if (matchedDoc) {
-      const hasGps = !!(gpsLat && gpsLng);
+      const hasGps = Number.isFinite(gpsLat as number) && Number.isFinite(gpsLng as number);
       const update: any = {
         exif: hasGps ? { hasGps: true, lat: gpsLat, lng: gpsLng } : { hasGps: false },
         hasGps, // backward compat
@@ -79,7 +95,7 @@ export const onPhotoEXIF = functions.storage
         photoPath: name,
       };
       if (hasGps) {
-        update.gps = { lat: gpsLat!, lng: gpsLng!, source: 'exif' }; // backward compat
+        update.gps = { lat: gpsLat as number, lng: gpsLng as number, source: 'exif' }; // backward compat
       }
       await matchedDoc.set(update, { merge: true });
     }

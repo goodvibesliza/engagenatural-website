@@ -10,6 +10,7 @@ import {
   addDoc,
   doc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { getDoc } from 'firebase/firestore';
 import {
@@ -119,17 +120,17 @@ export default function VerifyStaff() {
     if (!confirm(`Approve verification for ${v.applicantName || 'this user'}?`)) return;
     setProcessing(true);
     try {
-      // Update user document
-      await updateDoc(doc(db, 'users', v.applicantUid), {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'users', v.applicantUid), {
         verified: true,
         verificationStatus: 'approved',
         updatedAt: serverTimestamp(),
       });
-      // Reflect status on the request document for UI consistency
-      await updateDoc(doc(db, 'verification_requests', v.id), {
+      batch.update(doc(db, 'verification_requests', v.id), {
         status: 'approved',
         reviewedAt: serverTimestamp(),
       });
+      await batch.commit();
       setSelected(null);
       alert('Verification approved.');
     } catch (err) {
@@ -146,15 +147,17 @@ export default function VerifyStaff() {
     if (!confirm(`Reject verification for ${v.applicantName || 'this user'}?`)) return;
     setProcessing(true);
     try {
-      await updateDoc(doc(db, 'users', v.applicantUid), {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'users', v.applicantUid), {
         verified: false,
         verificationStatus: 'rejected',
         updatedAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'verification_requests', v.id), {
+      batch.update(doc(db, 'verification_requests', v.id), {
         status: 'rejected',
         reviewedAt: serverTimestamp(),
       });
+      await batch.commit();
       setSelected(null);
       alert('Verification rejected.');
     } catch (error) {
@@ -167,6 +170,9 @@ export default function VerifyStaff() {
 
   async function requestInfo(v) {
     if (!v?.id) return;
+    if (processing) return;
+    if (!confirm(`Request more info from ${v.applicantName || 'this user'}?`)) return;
+    setProcessing(true);
     try {
       await updateDoc(doc(db, 'verification_requests', v.id), {
         status: 'needs_info',
@@ -186,13 +192,19 @@ export default function VerifyStaff() {
             meta: { requestId: v.id },
           });
         } catch (e) {
-          console.debug?.('VerifyStaff: failed to write system notification', e);
+          console.error('VerifyStaff: failed to write system notification', e);
         }
       }
       setRequestingInfo(false);
       setRequestInfoMsg('');
       setSelected(null);
-    } catch {}
+      alert('Info request sent.');
+    } catch (err) {
+      console.error('Failed to request info:', err);
+      alert('Failed to request info. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
   }
 
   return (
@@ -384,11 +396,11 @@ export default function VerifyStaff() {
                   <div className="text-sm text-gray-700">{storeInfo?.storeName || selected.storeName || '—'}</div>
                   <div className="text-xs text-gray-600">Address: {storeInfo?.storeAddressText || '—'}</div>
                   <div className="text-xs text-gray-600">Lat/Lng: {storeInfo?.storeLoc?.lat ?? '—'}, {storeInfo?.storeLoc?.lng ?? '—'}</div>
-                  {storeInfo?.storeLoc?.lat != null && (
+                  {storeInfo?.storeLoc?.lat != null && storeInfo?.storeLoc?.lng != null && (
                     <a
                       href={`https://maps.google.com/?q=${storeInfo.storeLoc.lat},${storeInfo.storeLoc.lng}`}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="mt-1 inline-block text-xs text-blue-600 hover:underline"
                     >
                       Store on Google Maps
@@ -399,11 +411,12 @@ export default function VerifyStaff() {
                   <div className="text-sm font-medium mb-2">GPS</div>
                   <div className="text-sm text-gray-700">Lat/Lng: {(selected.deviceLoc?.lat ?? selected.gps?.lat) ?? '—'}, {(selected.deviceLoc?.lng ?? selected.gps?.lng) ?? '—'}</div>
                   <div className="text-sm text-gray-700">Distance: {selected.distance_m != null ? `${selected.distance_m} m` : '—'}</div>
-                  {(selected.deviceLoc?.lat ?? selected.gps?.lat) && (
+                  {(selected.deviceLoc?.lat ?? selected.gps?.lat) != null &&
+                   (selected.deviceLoc?.lng ?? selected.gps?.lng) != null && (
                     <a
                       href={`https://maps.google.com/?q=${(selected.deviceLoc?.lat ?? selected.gps?.lat)},${(selected.deviceLoc?.lng ?? selected.gps?.lng)}`}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="mt-1 inline-block text-xs text-blue-600 hover:underline"
                     >
                       Open in Google Maps

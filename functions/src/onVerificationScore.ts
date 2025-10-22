@@ -38,11 +38,15 @@ export const onVerificationScore = functions.firestore
     let capturedAtMs: number | null = null;
     if (after.deviceLoc?.lat != null && after.deviceLoc?.lng != null) {
       deviceLat = Number(after.deviceLoc.lat); deviceLng = Number(after.deviceLoc.lng);
-      capturedAtMs = Number(after.deviceLoc.obtainedAt || after.capturedAt || Date.now());
-    } else if (after.metadata?.geolocation?.latitude && after.metadata?.geolocation?.longitude) {
+      capturedAtMs = after.deviceLoc.obtainedAt != null
+        ? Number(after.deviceLoc.obtainedAt)
+        : (after.capturedAt != null ? Number(after.capturedAt) : null);
+    } else if (after.metadata?.geolocation?.latitude != null && after.metadata?.geolocation?.longitude != null) {
       deviceLat = Number(after.metadata.geolocation.latitude);
       deviceLng = Number(after.metadata.geolocation.longitude);
-      capturedAtMs = Number(after.metadata.geolocation.timestamp || Date.now());
+      capturedAtMs = after.metadata.geolocation.timestamp != null
+        ? Number(after.metadata.geolocation.timestamp)
+        : null;
     }
 
     // Fall back to EXIF GPS from prior function
@@ -53,7 +57,7 @@ export const onVerificationScore = functions.firestore
       source = 'device'; lat = deviceLat; lng = deviceLng;
     } else if (after.exif?.hasGps && after.exif?.lat != null && after.exif?.lng != null) {
       source = 'exif'; lat = Number(after.exif.lat); lng = Number(after.exif.lng);
-    } else if (after.gps?.lat && after.gps?.lng) { // backward compat
+    } else if (after.gps?.lat != null && after.gps?.lng != null) { // backward compat
       source = 'exif'; lat = Number(after.gps.lat); lng = Number(after.gps.lng);
     }
 
@@ -76,34 +80,53 @@ export const onVerificationScore = functions.firestore
       if (lat == null || lng == null) reasons.push('NO_VERIFICATION_GPS');
       if (!storeLoc) reasons.push('NO_STORE_LOC');
     } else {
-      distance_m = metersBetween({ lat, lng }, storeLoc);
+      distance_m = metersBetween(
+        { lat: Number(lat), lng: Number(lng) },
+        { lat: Number(storeLoc.lat), lng: Number(storeLoc.lng) }
+      );
+      if (!Number.isFinite(distance_m)) {
+        reasons.push('INVALID_COORDS');
+        distance_m = null;
+      }
       if (source === 'device') {
-        if (distance_m <= GEOFENCE_MATCH_M) reasons.push('GEO_DEVICE_MATCH');
-        else if (distance_m <= GEOFENCE_NEAR_M) reasons.push('GEO_DEVICE_NEAR');
-        else reasons.push('GEO_OUT_OF_RANGE');
+        if (distance_m != null && distance_m <= GEOFENCE_MATCH_M) reasons.push('GEO_DEVICE_MATCH');
+        else if (distance_m != null && distance_m <= GEOFENCE_NEAR_M) reasons.push('GEO_DEVICE_NEAR');
+        else if (distance_m != null) reasons.push('GEO_OUT_OF_RANGE');
       } else if (source === 'exif') {
-        if (distance_m <= GEOFENCE_MATCH_M) reasons.push('GEO_EXIF_MATCH');
-        else if (distance_m <= GEOFENCE_NEAR_M) reasons.push('GEO_EXIF_NEAR');
-        else reasons.push('GEO_OUT_OF_RANGE');
+        if (distance_m != null && distance_m <= GEOFENCE_MATCH_M) reasons.push('GEO_EXIF_MATCH');
+        else if (distance_m != null && distance_m <= GEOFENCE_NEAR_M) reasons.push('GEO_EXIF_NEAR');
+        else if (distance_m != null) reasons.push('GEO_OUT_OF_RANGE');
       } else {
         reasons.push('NO_VERIFICATION_GPS');
       }
       // geo points: 100 at 0–50m, linear to 0 by 1500m
-      const d = distance_m;
-      if (d <= 50) geoPts = 100;
-      else if (d >= 1500) geoPts = 0;
-      else geoPts = Math.max(0, Math.round(100 * (1 - (d - 50) / (1500 - 50))));
+      if (distance_m != null) {
+        const d = distance_m;
+        if (d <= 50) geoPts = 100;
+        else if (d >= 1500) geoPts = 0;
+        else geoPts = Math.max(0, Math.round(100 * (1 - (d - 50) / (1500 - 50))));
+      }
     }
 
     // freshness
     const now = Date.now();
-    if (capturedAtMs && Math.abs(now - capturedAtMs) <= FRESHNESS_MS) {
+    if (capturedAtMs != null && Number.isFinite(capturedAtMs) && Math.abs(now - capturedAtMs) <= FRESHNESS_MS) {
       reasons.push('FRESH_CAPTURE');
-    } else if (capturedAtMs) {
+    } else if (capturedAtMs != null) {
       reasons.push('STALE_CAPTURE');
     }
 
     const autoScore = Math.max(0, Math.min(100, Math.round(geoPts)));
-
+    const before = change.before.exists ? (change.before.data() as any) : null;
+    const sameArr = (a?: unknown[], b?: unknown[]) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]);
+    if (
+      before &&
+      before.autoScore === autoScore &&
+      (before.distance_m ?? null) === (distance_m ?? null) &&
+      (before.locSource ?? null) === (source ?? null) &&
+      sameArr(before.reasons, reasons)
+    ) {
+      return;
+    }
     await change.after.ref.set({ autoScore, reasons, distance_m, locSource: source || null }, { merge: true });
   });

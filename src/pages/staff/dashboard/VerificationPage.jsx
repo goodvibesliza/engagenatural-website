@@ -36,7 +36,7 @@ export default function VerificationPage() {
           setStoreInfo({ storeLoc: d.storeLoc || null, storeAddressText: d.storeAddressText || '' });
         }
       } catch (e) {
-        // non-blocking
+        console.debug?.('VerificationPage: failed to load user store', e);
       }
     })();
   }, [user?.uid]);
