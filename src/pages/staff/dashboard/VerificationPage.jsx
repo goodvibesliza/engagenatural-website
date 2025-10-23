@@ -320,7 +320,7 @@ export default function VerificationPage() {
   // Submit verification
   const submitVerification = async () => {
     if (!user?.uid) {
-      setError('Please sign in to submit verification');
+      setError(strings.ERROR_NOT_SIGNED_IN || 'Please sign in to submit verification');
       return;
     }
     // Validate input
@@ -390,11 +390,8 @@ export default function VerificationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold mb-1">Verification Center</h1>
-        <p className="text-gray-700 mb-4">
-          Confirm your store employment to unlock brand trainings, product challenges, and sample rewards,
-          everything designed to help you learn, earn, and grow in the natural products community.
-        </p>
+        <h1 className="text-2xl font-semibold mb-1">{strings.PAGE_TITLE}</h1>
+        <p className="text-gray-700 mb-4">{strings.PAGE_DESCRIPTION}</p>
       </div>
 
       {/* Health food store employee notice (pink) */}
@@ -412,11 +409,11 @@ export default function VerificationPage() {
             <li key={i}>{line}</li>
           ))}
         </ul>
-        {(strings.REQUIREMENTS_TIPS && strings.REQUIREMENTS_TIPS.length > 0) && (
+        {Array.isArray(strings.REQUIREMENTS_TIPS) && strings.REQUIREMENTS_TIPS.length > 0 && (
           <div className="mt-4">
             <div className="text-sm font-medium text-gray-800 mb-1">Tips</div>
             <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
-              {strings.REQUIREMENTS_TIPS.map((tip, i) => (<li key={i}>{tip}</li>))}
+              {(Array.isArray(strings.REQUIREMENTS_TIPS) ? strings.REQUIREMENTS_TIPS : []).map((tip, i) => (<li key={i}>{tip}</li>))}
             </ul>
           </div>
         )}
