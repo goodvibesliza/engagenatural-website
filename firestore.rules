@@ -53,10 +53,7 @@ service cloud.firestore {
       );
     }
 
-    // Pass a PATH to a post doc
-    function isPublicPost(path) {
-      return exists(path) && get(path).data.visibility == 'public';
-    }
+    // Removed unused isPublicPost helper
 
     // ---------- users ----------
     // TEMPORARY DEMO SEEDING FIX:
