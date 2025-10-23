@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { geocodeAddress } from '@/lib/geocoding';
 import { Link } from 'react-router-dom';
 
 export default function ProfileStoreLocation() {
@@ -28,17 +29,7 @@ export default function ProfileStoreLocation() {
     })();
   }, [user?.uid]);
 
-  async function geocodeAddress(q) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) return null;
-    const first = data[0];
-    const lat = Number(first.lat); const lng = Number(first.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    return { lat, lng, provider: 'nominatim' };
-  }
+  // geocodeAddress imported from shared module
 
   async function setStoreLocation() {
     if (!user?.uid) return;

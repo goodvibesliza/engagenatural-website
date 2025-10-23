@@ -6,6 +6,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import PhotoUploadComponent from '../PhotoVerify';
 import { useLocation } from 'react-router-dom';
 import { getVerifyStrings } from '@/lib/i18nVerification';
+import { geocodeAddress } from '@/lib/geocoding';
 
 /**
  * Render the Verification Center UI and manage photo- and code-based verification flows, including metadata collection, optional geolocation, photo upload, and submitting verification requests to the backend.
@@ -169,17 +170,7 @@ export default function VerificationPage() {
     }
   }
 
-  async function geocodeAddress(q) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) return null;
-    const first = data[0];
-    const lat = Number(first.lat); const lng = Number(first.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    return { lat, lng, provider: 'nominatim' };
-  }
+  // geocodeAddress imported from shared module
 
   async function setStoreLocationInline() {
     if (!user?.uid) return;
@@ -197,7 +188,7 @@ export default function VerificationPage() {
       }
       if (!coords) {
         if (!('geolocation' in navigator)) {
-          alert('Could not geocode that address. Please check the spelling or try on a device with location.');
+          setError('Could not geocode that address. Please check the spelling or try on a device with location.');
           setSavingAddress(false);
           return;
         }
@@ -214,7 +205,7 @@ export default function VerificationPage() {
       setStoreLoc({ ...coords, setAt: new Date() });
     } catch (e) {
       console.error('Failed to save store location:', e);
-      alert('Failed to save store location. Please try again.');
+      setError(e?.message || 'Failed to save store location. Please try again.');
     } finally {
       setSavingAddress(false);
     }
