@@ -390,16 +390,18 @@ export default function VerificationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Verification Center</h1>
-        <p className="text-gray-600">
-          Submit your verification to unlock premium features and communities.
+        <h1 className="text-2xl font-semibold mb-1">Verification Center</h1>
+        <p className="text-gray-700 mb-4">
+          Confirm your store employment to unlock brand trainings, product challenges, and sample rewards,
+          everything designed to help you learn, earn, and grow in the natural products community.
         </p>
       </div>
 
-      {/* Health food store employee notice */}
-      <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md text-sm mb-0">
-        <strong>{strings.NOTICE_TITLE}</strong><br />
-        <span className="text-gray-700">{strings.NOTICE_SUBTEXT}</span>
+      {/* Health food store employee notice (pink) */}
+      {/* Localized strings already available as strings.NOTICE_TITLE / NOTICE_SUBTEXT */}
+      <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-lg text-base mb-5">
+        <strong className="font-semibold">{strings.NOTICE_TITLE}</strong><br />
+        <span className="text-rose-900/80">{strings.NOTICE_SUBTEXT}</span>
       </div>
 
       {/* Localized Requirements and Tips */}
