@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import { getVerifyStrings, getReasonText } from '@/lib/i18nVerification';
 
 /**
  * Render the staff verification queue UI for reviewing and managing verification requests.
@@ -35,6 +36,7 @@ import {
  */
 export default function VerifyStaff() {
   const { user: admin } = useAuth();
+  const strings = getVerifyStrings(admin?.locale || (typeof navigator !== 'undefined' ? navigator.language : 'en'));
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,6 +51,9 @@ export default function VerifyStaff() {
   const [processing, setProcessing] = useState(false);
   // Staff replies under messages subcollection
   const [messages, setMessages] = useState([]);
+  // Localized reject modal state (UI-only, no change to writes)
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectReason, setRejectReason] = useState('LOCATION_FAR');
 
   // Subscribe to staff replies for the currently selected request
   useEffect(() => {
@@ -187,7 +192,8 @@ export default function VerifyStaff() {
   async function reject(v) {
     if (!v?.applicantUid) return;
     if (processing) return;
-    if (!confirm(`Reject verification for ${v.applicantName || 'this user'}?`)) return;
+    // Confirm via localized modal
+    // This function is invoked after modal confirm
     setProcessing(true);
     try {
       const batch = writeBatch(db);
@@ -613,7 +619,7 @@ export default function VerifyStaff() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => reject(selected)}
+                      onClick={() => { setRejecting(true); }}
                       disabled={processing}
                       className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -654,6 +660,68 @@ export default function VerifyStaff() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Localized Reject Modal */}
+      <Dialog open={rejecting} onOpenChange={(o) => { setRejecting(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{strings.REJECT_TITLE}</DialogTitle>
+            <DialogDescription>{strings.REJECT_BODY}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">Reason</label>
+            <select
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            >
+              <option value="LOCATION_FAR">Location far</option>
+              <option value="LOCATION_MISSING">Location missing</option>
+              <option value="CODE_INVALID">Code invalid</option>
+              <option value="FACE_NOT_VISIBLE">Face not visible</option>
+              <option value="BLURRY">Blurry/Dark</option>
+              <option value="MULTIPLE_PEOPLE">Multiple people</option>
+              <option value="TIME_WINDOW">Time window</option>
+              <option value="ROSTER_MISMATCH">Roster mismatch</option>
+              <option value="IMAGE_EDIT">Edited/Upload</option>
+              <option value="OTHER">Other</option>
+            </select>
+            {(() => {
+              const { reason, fix } = getReasonText(admin?.locale, rejectReason, { distance_m: selected?.distance_m ?? undefined });
+              return (
+                <div className="rounded bg-gray-50 border border-gray-200 p-3 text-sm">
+                  {reason && <p className="text-gray-900 mb-1">{reason}</p>}
+                  {fix && <p className="text-gray-700">{fix}</p>}
+                </div>
+              );
+            })()}
+            <a
+              href="/staff/dashboard/verification"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-xs text-blue-600 hover:underline"
+            >
+              {strings.REJECT_LINK_REQUIREMENTS}
+            </a>
+          </div>
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setRejecting(false)}
+              className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { const v = selected; setRejecting(false); reject(v); }}
+              disabled={processing}
+              className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {strings.REJECT_BUTTON}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

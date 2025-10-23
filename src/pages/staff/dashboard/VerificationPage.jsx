@@ -5,6 +5,7 @@ import { doc, updateDoc, addDoc, collection, serverTimestamp, getDoc, getDocs, q
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import PhotoUploadComponent from '../PhotoVerify';
 import { useLocation } from 'react-router-dom';
+import { getVerifyStrings } from '@/lib/i18nVerification';
 
 /**
  * Render the Verification Center UI and manage photo- and code-based verification flows, including metadata collection, optional geolocation, photo upload, and submitting verification requests to the backend.
@@ -15,6 +16,7 @@ export default function VerificationPage() {
   const { user } = useAuth();
   const location = useLocation();
   const navState = location?.state || {};
+  const strings = getVerifyStrings(user?.locale || (typeof navigator !== 'undefined' ? navigator.language : 'en'));
   const [verificationPhoto, setVerificationPhoto] = useState(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
   const [verificationCode, setVerificationCode] = useState('');
@@ -388,6 +390,28 @@ export default function VerificationPage() {
         <p className="text-gray-600">
           Submit your verification to unlock premium features and communities.
         </p>
+      </div>
+
+      {/* Localized Requirements and Tips */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold mb-3">{strings.REQUIREMENTS_TITLE}</h2>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+          {(strings.REQUIREMENTS_BODY || []).map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+        {(strings.REQUIREMENTS_TIPS && strings.REQUIREMENTS_TIPS.length > 0) && (
+          <div className="mt-4">
+            <div className="text-sm font-medium text-gray-800 mb-1">Tips</div>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+              {strings.REQUIREMENTS_TIPS.map((tip, i) => (<li key={i}>{tip}</li>))}
+            </ul>
+          </div>
+        )}
+        <div className="mt-4">
+          <div className="text-sm font-medium text-gray-800 mb-1">{strings.WHY_WE_VERIFY_TITLE}</div>
+          <p className="text-sm text-gray-700">{strings.WHY_WE_VERIFY_BODY}</p>
+        </div>
       </div>
 
       {/* Store Location (inline widget) */}
