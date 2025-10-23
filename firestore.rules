@@ -235,16 +235,16 @@ service cloud.firestore {
     match /verification_requests/{requestId}/messages/{msgId} {
       // Owner (requester) and reviewers can read. Support legacy field names (userId | applicantUid).
       allow read: if request.auth != null && (
-        let req = get(/databases/$(database)/documents/verification_requests/$(requestId)).data;
-        (req.userId == request.auth.uid || req.applicantUid == request.auth.uid) ||
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.applicantUid == request.auth.uid ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
       );
       // Owner can create replies; reviewers can also add notes if needed (legacy owner fields supported)
       allow create: if request.auth != null && (
-        let req = get(/databases/$(database)/documents/verification_requests/$(requestId)).data;
-        (req.userId == request.auth.uid || req.applicantUid == request.auth.uid) ||
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.applicantUid == request.auth.uid ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
