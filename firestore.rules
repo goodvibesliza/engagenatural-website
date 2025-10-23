@@ -53,6 +53,14 @@ service cloud.firestore {
       );
     }
 
+    // Moderation helpers
+    function canModerateUsers(uid) {
+      return isSuperAdmin(uid) || isApprovedBrandManager(uid) || isBrandManagerLoose(uid);
+    }
+    function onlyVerificationFieldsChanged(before, after) {
+      return before.diff(after).changedKeys().hasOnly(['verified', 'verificationStatus', 'updatedAt']);
+    }
+
     // Removed unused isPublicPost helper
 
     // ---------- users ----------
@@ -62,8 +70,17 @@ service cloud.firestore {
     match /users/{uid} {
       // Read: any authenticated user (needed for community byline/avatar enrichment)
       allow read: if request.auth != null;
-      // Write: owner-only
-      allow write: if request.auth != null && request.auth.uid == uid;
+      // Create: owner creates their own user doc
+      allow create: if request.auth != null && request.auth.uid == uid;
+      // Update: owner OR moderators, but moderators may only change verification fields
+      allow update: if request.auth != null && (
+        request.auth.uid == uid || (
+          canModerateUsers(request.auth.uid) &&
+          onlyVerificationFieldsChanged(resource.data, request.resource.data)
+        )
+      );
+      // Delete: owner or super admin
+      allow delete: if request.auth != null && (request.auth.uid == uid || isSuperAdmin(request.auth.uid));
     }
     // Allow per-user subcollections (e.g., drafts) for the owner
     match /users/{uid}/{document=**} {
