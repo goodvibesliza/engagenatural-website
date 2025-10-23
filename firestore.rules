@@ -197,9 +197,10 @@ service cloud.firestore {
 
     // ---------- verification_requests (user submits for staff review) ----------
     match /verification_requests/{requestId} {
-      // Read: owner or staff reviewers (approved/loose brand managers) or super admin
+      // Read: owner (supports legacy field names) or staff reviewers (approved/loose brand managers) or super admin
       allow read: if request.auth != null && (
         resource.data.userId == request.auth.uid ||
+        resource.data.applicantUid == request.auth.uid ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
