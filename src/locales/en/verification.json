@@ -16,6 +16,8 @@
   ],
   "WHY_WE_VERIFY_TITLE": "Why we verify",
   "WHY_WE_VERIFY_BODY": "We confirm you’re a real staff member at your store to keep the community safe. We only store redacted photos and basic location signals.",
+  "NOTICE_TITLE": "This verification is for health food store employees only.",
+  "NOTICE_SUBTEXT": "Social media influencer verification coming soon.",
   "REJECT_TITLE": "We couldn’t verify this submission",
   "REJECT_BODY": "We reviewed your photo but it didn’t meet the verification requirements. Please fix the issue below and try again.",
   "REJECT_BUTTON": "Try again",

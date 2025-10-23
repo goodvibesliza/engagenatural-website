@@ -392,6 +392,12 @@ export default function VerificationPage() {
         </p>
       </div>
 
+      {/* Health food store employee notice */}
+      <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md text-sm mb-0">
+        <strong>{strings.NOTICE_TITLE}</strong><br />
+        <span className="text-gray-700">{strings.NOTICE_SUBTEXT}</span>
+      </div>
+
       {/* Localized Requirements and Tips */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold mb-3">{strings.REQUIREMENTS_TITLE}</h2>
