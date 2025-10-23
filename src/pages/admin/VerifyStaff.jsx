@@ -47,6 +47,35 @@ export default function VerifyStaff() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [processing, setProcessing] = useState(false);
+  // Staff replies under messages subcollection
+  const [messages, setMessages] = useState([]);
+
+  // Subscribe to staff replies for the currently selected request
+  useEffect(() => {
+    if (!selected?.id) { setMessages([]); return; }
+    try {
+      const q = query(
+        collection(db, 'verification_requests', selected.id, 'messages'),
+        orderBy('createdAt', 'asc')
+      );
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          const arr = [];
+          snap.forEach((d) => arr.push({ id: d.id, ...(d.data() || {}) }));
+          setMessages(arr);
+        },
+        (err) => {
+          console.error('VerifyStaff: messages subscription error', { requestId: selected?.id, err });
+          setMessages([]);
+        }
+      );
+      return () => { try { unsub(); } catch (e) { console.error('VerifyStaff: messages unsubscribe failed', e); } };
+    } catch (e) {
+      console.error('VerifyStaff: failed to subscribe to messages', { requestId: selected?.id, error: e });
+      setMessages([]);
+    }
+  }, [selected?.id]);
 
   useEffect(() => {
     setLoading(true);
@@ -529,6 +558,23 @@ export default function VerifyStaff() {
                   ) : (
                     <div className="text-sm text-gray-600">No questions yet.</div>
                   ))
+                )}
+              </div>
+
+              {/* Staff responses */}
+              <div className="rounded border p-3">
+                <div className="text-sm font-medium mb-2">Staff responses</div>
+                {(!messages || messages.length === 0) ? (
+                  <div className="text-sm text-gray-600">No replies yet.</div>
+                ) : (
+                  <ul className="space-y-2">
+                    {messages.map((m) => (
+                      <li key={m.id} className="rounded bg-gray-50 p-2 border border-gray-200">
+                        <div className="text-sm text-gray-900">{m.message || ''}</div>
+                        <div className="mt-0.5 text-xs text-gray-600">{m.createdAt?.toDate ? m.createdAt.toDate().toLocaleString?.() : ''}</div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 
