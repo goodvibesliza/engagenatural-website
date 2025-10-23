@@ -32,7 +32,7 @@
 <body>
   <div class="header" id="header">
     <div class="header-left">
-      <h1>Alert Investigation – Brand managers cannot open communities</h1>
+      <h1>Alert Investigation – Staff notifications not visible after “Request Info”</h1>
       <div>
         <span class="severity-badge sev-2">SEV-2</span>
         <span>Started: <span id="start-time">2025-10-01 00:00:00 UTC</span></span>
@@ -45,24 +45,23 @@
 
   <div class="section" id="exec-summary">
     <h2>Executive Summary</h2>
-    <p>Brand managers initially could not open community views due to a missing brand route and a component import mismatch. We added a guarded brand route that reuses the staff community UI and fixed the import. Follow-up issues (community name display, refresh, and stats) were resolved by loading community docs from Firestore, wiring the Refresh button to restart listeners, and adding live metrics (24h interactions and trending hashtags). A React Hooks violation in EnhancedCommunityPage (conditional useAuth) was fixed by calling useAuth() unconditionally.</p>
+    <p>Staff users did not see system notifications created by the admin “Request Info” action due to missing Firestore rules on <code>notifications/{uid}/system</code>. We added precise owner-only rules (admins can create), verified real-time subscription on the staff Notifications page, and implemented an append-only Questions history on verification requests with backfill for legacy messages.</p>
   </div>
 
   <div class="section" id="rca">
     <h2>Root Cause Analysis</h2>
     <div>
       <ul>
-        <li><strong>Primary Cause:</strong> No brand route existed to render the staff-style community page, and the “Open” action navigated to <code>/community/:id</code> which redirects/404s for brand managers.</li>
-        <li><strong>Code Defect 1:</strong> EnhancedCommunityPage imported <code>./components/PostList.jsx</code> but the file path did not match; fixed and standardized.</li>
-        <li><strong>Code Defect 2:</strong> EnhancedCommunityPage called <code>useAuth</code> conditionally, violating React Hook rules. Fixed by calling <code>useAuth()</code> unconditionally and null-checking the returned user where used.</li>
+        <li><strong>Primary Cause:</strong> Missing read permission for <code>notifications/{uid}/system/*</code> in <code>firestore.rules</code> blocked staff subscriptions from returning data.</li>
+        <li><strong>Contributing:</strong> Admin UI overwrote a single <code>infoRequestMessage</code> instead of preserving an append-only Questions history.</li>
       </ul>
 
       <h3>Evidence</h3>
-      <h4>Code Reference</h4>
+      <h4>Code References</h4>
       <pre>
-src/App.jsx – added route /brand/community/:communityId guarded by RoleGuard(brand_manager)
-src/components/community/EnhancedCommunityPage.jsx – fixed PostList import; fixed conditional useAuth; loads community docs from Firestore; live public posts subscription
-src/components/brand/communities/CommunitiesManager.jsx – “Open” navigates to /brand/community/:id; Refresh reloads + restarts listeners; added 24h interactions and trending hashtags
+src/pages/admin/VerifyStaff.jsx – writes notifications/{uid}/system and now appends infoRequests via arrayUnion
+src/pages/staff/dashboard/NotificationsPage.jsx – subscribes to notifications/{uid}/system; mark-as-read updates same doc
+firestore.rules – new rules for notifications owner reads/updates; super_admin create
       </pre>
     </div>
   </div>
@@ -71,16 +70,16 @@ src/components/brand/communities/CommunitiesManager.jsx – “Open” navigates
     <h2>Proposed Fix</h2>
     <ol class="fix-steps">
       <li class="fix-step">
-        <strong>Immediate Mitigation:</strong> Add brand route <code>/brand/community/:communityId</code> that renders the staff-style <code>EnhancedCommunityPage</code> under a brand_manager RoleGuard.
-        <div>Validation: Brand manager can open a community from CommunitiesManager without error.</div>
+        <strong>Immediate Mitigation:</strong> Add Firestore rules for owner‑only reads/updates under <code>notifications/{uid}/system</code>; allow <code>create</code> by <code>super_admin</code>.
+        <div>Validation: Staff sees new items within ~2s and can mark as read; cross‑user reads are denied.</div>
       </li>
       <li class="fix-step">
-        <strong>Short-term Fix:</strong> Update EnhancedCommunityPage imports; call <code>useAuth()</code> unconditionally; wire CommunitiesManager “Open” to the new route.
-        <div>Validation: No React Hook warnings; page renders posts and UI elements as expected.</div>
+        <strong>Short‑term Fix:</strong> In <code>VerifyStaff.jsx</code>, stop overwriting <code>infoRequestMessage</code>; append to <code>infoRequests</code> via <code>arrayUnion</code> and show Questions history (latest first) with backfill for legacy.
+        <div>Validation: Two “Request Info” actions display two entries after reload.</div>
       </li>
       <li class="fix-step">
-        <strong>Additional Improvements:</strong> Load community details from Firestore for accurate names; add Refresh wiring; compute live metrics (24h interactions, trending hashtags) from public posts/comments.
-        <div>Validation: Community names render correctly; Refresh updates lists and feed; metrics update in real time.</div>
+        <strong>Long‑term:</strong> Optional one‑off migration to move legacy <code>infoRequestMessage</code> → <code>infoRequests[0]</code> and drop legacy fields.
+        <div>Validation: No requests rely on legacy fields.</div>
       </li>
     </ol>
   </div>
@@ -90,25 +89,21 @@ src/components/brand/communities/CommunitiesManager.jsx – “Open” navigates
     <div class="timeline">
       <div class="timeline-item">
         <span class="timeline-time">T0</span>
-        <div class="timeline-content">Brand manager clicks “Open” → navigates to <code>/community/:id</code> → redirect/404.</div>
+        <div class="timeline-content">Admin uses “Request Info”; Firestore write to <code>notifications/{uid}/system</code> succeeds.</div>
       </div>
       <div class="timeline-item">
-        <span class="timeline-time">T0+1</span>
-        <div class="timeline-content">Added <code>/brand/community/:communityId</code> route; fixed EnhancedCommunityPage import.</div>
+        <span class="timeline-time">T0+2s</span>
+        <div class="timeline-content">Staff /notifications shows no items because rules blocked read.</div>
       </div>
       <div class="timeline-item">
-        <span class="timeline-time">T0+2</span>
-        <div class="timeline-content">Fixed conditional <code>useAuth</code> usage; EnhancedCommunityPage now loads community name/description from Firestore.</div>
-      </div>
-      <div class="timeline-item">
-        <span class="timeline-time">T0+3</span>
-        <div class="timeline-content">CommunitiesManager: wired Refresh and added live metrics (24h interactions, trending hashtags).</div>
+        <span class="timeline-time">Fix</span>
+        <div class="timeline-content">Rules added; VerifyStaff updated to append history; NotificationsPage logs size for validation.</div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>Generated: <span id="generation-date">2025-10-02 00:00:00 UTC</span></p>
+    <p>Generated: <span id="generation-date">2025-10-22</span></p>
   </div>
 </body>
 </html>

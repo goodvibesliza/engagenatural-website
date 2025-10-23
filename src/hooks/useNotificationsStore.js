@@ -8,11 +8,13 @@ import { track } from '@/lib/analytics';
 /**
  * Provides a per-user notifications store with real-time Firestore syncing and helpers to mark notifications read or visited.
  *
- * Subscribes to notifications/{uid}/community to keep a local map of per-community unread counts in sync, resets when no user
- * is present, and exposes operations that update both local state and Firestore (markAsRead, markVisited, markAllAsRead).
+ * Subscribes to BOTH notifications/{uid}/community (per-community unread counts) AND notifications/{uid}/system
+ * (system-level alerts) to keep local state in sync. Resets when no user is present, and exposes operations that
+ * update both local state and Firestore (markAsRead, markVisited, markAllAsRead).
  *
- * @returns {{ unreadCounts: Object.<string, number>, totalUnread: number, markAsRead: function(string): Promise<void>, markVisited: function(string): Promise<void>, markAllAsRead: function(): Promise<void>, subscribeToUpdates: function(): function() }} An object containing:
+ * @returns {{ unreadCounts: Object.<string, number>, systemUnread: number, totalUnread: number, markAsRead: function(string): Promise<void>, markVisited: function(string): Promise<void>, markAllAsRead: function(): Promise<void>, subscribeToUpdates: function(): function() }} An object containing:
  *  - `unreadCounts`: mapping of communityId to unread count.
+ *  - `systemUnread`: count of unread system-level notifications.
  *  - `totalUnread`: sum of all unread counts.
  *  - `markAsRead(communityId)`: sets the given community's unread count to 0 locally and in Firestore.
  *  - `markVisited(communityId)`: records the current timestamp as the user's last visit for the community in preferences.
@@ -22,18 +24,21 @@ import { track } from '@/lib/analytics';
 export default function useNotificationsStore() {
   const { user } = useAuth();
   const [unreadCounts, setUnreadCounts] = useState({});
-  const unsubRef = useRef(null);
+  const [systemUnread, setSystemUnread] = useState(0);
+  const unsubRef = useRef([]);
 
   const subscribeToUpdates = useCallback(() => {
     if (!db || !user?.uid) return () => {};
     try {
-      if (typeof unsubRef.current === 'function') unsubRef.current();
+      // cleanup any previous subscriptions
+      const arr = Array.isArray(unsubRef.current) ? unsubRef.current : [unsubRef.current];
+      for (const fn of arr) { try { typeof fn === 'function' && fn(); } catch (err) { console.debug?.('useNotificationsStore: subscribe cleanup failed', err); } }
     } catch (err) {
       console.debug?.('useNotificationsStore: subscribe cleanup failed', err);
     }
 
     const col = collection(db, 'notifications', user.uid, 'community');
-    const unsub = onSnapshot(
+    const unsubCommunity = onSnapshot(
       col,
       (snap) => {
         const next = {};
@@ -47,10 +52,25 @@ export default function useNotificationsStore() {
         setUnreadCounts({});
       }
     );
-    unsubRef.current = unsub;
+
+    // System notifications subscription: count docs with unread === true
+    const sysCol = collection(db, 'notifications', user.uid, 'system');
+    const unsubSystem = onSnapshot(
+      sysCol,
+      (snap) => {
+        let count = 0;
+        snap.forEach((d) => { if ((d.data() || {}).unread) count += 1; });
+        setSystemUnread(count);
+      },
+      () => setSystemUnread(0)
+    );
+
+    unsubRef.current = [unsubCommunity, unsubSystem];
     return () => {
-      try { unsub(); } catch (err) { console.debug?.('useNotificationsStore: unsubscribe failed', err); }
-      if (unsubRef.current === unsub) unsubRef.current = null;
+      for (const fn of [unsubCommunity, unsubSystem]) {
+        try { fn(); } catch (err) { console.debug?.('useNotificationsStore: unsubscribe failed', err); }
+      }
+      unsubRef.current = [];
     };
   }, [db, user?.uid]);
 
@@ -58,6 +78,7 @@ export default function useNotificationsStore() {
   useEffect(() => {
     if (!user?.uid) {
       setUnreadCounts({});
+      setSystemUnread(0);
       return;
     }
     const off = subscribeToUpdates();
@@ -125,10 +146,11 @@ export default function useNotificationsStore() {
     }
   }, [db, user?.uid, unreadCounts]);
 
-  const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((a, b) => a + (Number(b) || 0), 0), [unreadCounts]);
+  const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((a, b) => a + (Number(b) || 0), 0) + Number(systemUnread || 0), [unreadCounts, systemUnread]);
 
   return {
     unreadCounts,
+    systemUnread,
     totalUnread,
     markAsRead,
     markVisited,

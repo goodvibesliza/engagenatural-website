@@ -4,6 +4,7 @@ import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import StaffProfilePanel from '../ProfilePanel';
+import { Link } from 'react-router-dom';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -319,6 +320,17 @@ export default function ProfilePage() {
         <div className="md:col-span-2 space-y-6">
           {/* Verification Benefits */}
           {getVerificationBenefits()}
+
+          {/* Store Location quick link */}
+          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Store Location</div>
+                <div className="text-xs text-gray-600">Save your store GPS once to help with verification</div>
+              </div>
+              <Link to="/staff/profile/store-location" className="text-sm text-brand-primary hover:text-brand-primary/80">Set Store Location →</Link>
+            </div>
+          </div>
 
           {/* About Me Card */}
           <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">

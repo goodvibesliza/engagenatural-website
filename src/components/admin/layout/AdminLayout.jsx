@@ -3,8 +3,18 @@ import React, { useState } from 'react';
 import { Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/auth-context';
 import AdminSidebar from './admin-sidebar';
-import UserDropdownMenuUpdated from '../../UserDropdownMenu';
 
+/**
+ * Provides an admin-only layout wrapper that enforces super_admin access and renders a persistent sidebar with a main content area.
+ *
+ * When authentication is loading, renders a full-screen loading indicator. If the authenticated user is absent or does not
+ * have the role "super_admin", redirects to the root path. Otherwise, renders the admin sidebar and places `children` in the
+ * scrollable main content area.
+ *
+ * @param {object} props
+ * @param {import('react').ReactNode} props.children - Content to display inside the admin main area.
+ * @returns {JSX.Element} The admin layout element: a loading indicator, a redirect to "/", or the sidebar plus content area containing `children`.
+ */
 export default function AdminLayout({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -26,25 +36,14 @@ export default function AdminLayout({ children }) {
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <AdminSidebar />
-      
-      {/* Top Bar */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 lg:ml-64">
-        <div className="px-6 h-16 flex items-center justify-between">
-          <div className="font-semibold text-gray-900">Admin</div>
-          <div className="fixed top-4 right-4 z-50">
-            <UserDropdownMenuUpdated />
-          </div>
-        </div>
-      </header>
-      
-      {/* Main Content */}
-      {/*  
-        lg:ml-64  ->  pushes the main content to the right by the sidebar width
-        so that the fixed sidebar no longer overlaps the page on large screens
-      */}
-      <main className="flex-1 overflow-y-auto p-8 lg:ml-64">
-        {children}
-      </main>
+
+      {/* Content Column */}
+      <div className="flex flex-1 flex-col lg:ml-64">
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

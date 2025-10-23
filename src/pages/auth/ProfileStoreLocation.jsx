@@ -1,0 +1,113 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { Link } from 'react-router-dom';
+
+export default function ProfileStoreLocation() {
+  const { user } = useAuth();
+  const [addressText, setAddressText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [storeLoc, setStoreLoc] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      if (!user?.uid) return;
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (snap.exists()) {
+          const d = snap.data();
+          setAddressText(d.storeAddressText || '');
+          setStoreLoc(d.storeLoc || null);
+        }
+      } catch (e) {
+        console.error('Failed to load profile:', e);
+      }
+    })();
+  }, [user?.uid]);
+
+  async function setStoreLocation() {
+    if (!user?.uid) return;
+    setError('');
+    setSuccess('');
+    if (!('geolocation' in navigator)) {
+      setError('Geolocation is not supported on this device/browser.');
+      return;
+    }
+    setSaving(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      try {
+        const payload = {
+          storeAddressText: addressText || '',
+          storeLoc: { lat, lng, setAt: serverTimestamp(), source: 'device' },
+        };
+        await updateDoc(doc(db, 'users', user.uid), payload);
+        setStoreLoc({ lat, lng, setAt: new Date(), source: 'device' });
+        setSuccess('Store location saved.');
+      } catch (e) {
+        console.error('Failed to save store location:', e);
+        setError('Failed to save store location. Please try again.');
+      } finally {
+        setSaving(false);
+      }
+    }, (err) => {
+      console.error('Geolocation error:', err);
+      setSaving(false);
+      setError('Could not get device location. Please allow location access and try again.');
+    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+  }
+
+  const mapHref = storeLoc?.lat != null && storeLoc?.lng != null
+    ? `https://maps.google.com/?q=${storeLoc.lat},${storeLoc.lng}`
+    : null;
+
+  return (
+    <div className="max-w-xl mx-auto p-4 sm:p-6">
+      <div className="mb-4">
+        <Link to="/staff/profile" className="text-sm text-blue-600 hover:underline">← Back to Profile</Link>
+      </div>
+      <h1 className="text-2xl font-bold mb-1">Store Location</h1>
+      <p className="text-sm text-gray-600 mb-6">Save your store location once. We’ll compare verification selfies to this location.</p>
+
+      <label className="block text-sm font-medium text-gray-700 mb-1">Store address (for humans)</label>
+      <input
+        type="text"
+        value={addressText}
+        onChange={(e) => setAddressText(e.target.value)}
+        placeholder="123 Main St, Springfield…"
+        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+      />
+
+      <button
+        type="button"
+        onClick={setStoreLocation}
+        disabled={saving}
+        className="mt-3 rounded bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {saving ? 'Saving…' : 'Set Store Location'}
+      </button>
+
+      {error && <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+      {success && <div className="mt-3 rounded border border-green-300 bg-green-50 p-3 text-sm text-green-800">{success}</div>}
+
+      <div className="mt-6 rounded border p-3">
+        <div className="text-sm font-medium mb-1">Saved Coordinates</div>
+        {storeLoc?.lat != null ? (
+          <div className="text-sm text-gray-800">
+            <div>Lat: {storeLoc.lat}</div>
+            <div>Lng: {storeLoc.lng}</div>
+            {mapHref && (
+              <a href={mapHref} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-blue-600 hover:underline">Test Map</a>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-600">No store location saved yet.</div>
+        )}
+      </div>
+    </div>
+  );
+}

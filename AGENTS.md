@@ -2,6 +2,63 @@
 
 This document captures the exact next steps to finish and validate the current workstream.
 
+## 2025-10 Verification: Store Location + Auto-Scoring + System Notifications
+
+Context: Verification now relies on user-saved store location (no master store list). Admins can request more info; that triggers a system notification visible on /staff/notifications.
+
+Key files
+- Staff: src/pages/staff/dashboard/VerificationPage.jsx
+  - Shows a "Store Location" card at top with link to /staff/profile/store-location
+  - Submits deviceLoc (if granted) with verification payload
+- Store location page: src/pages/auth/ProfileStoreLocation.jsx
+  - Saves users/{uid}.storeLoc { lat, lng, setAt, source:'device' } and storeAddressText
+- Admin review: src/pages/admin/VerifyStaff.jsx
+  - Signals: shows user storeLoc/address, verification GPS, distance_m, autoScore, reasons, maps links
+  - Actions: Approve/Reject/Request Info
+  - Request Info writes a system notification at notifications/{uid}/system/{autoId}
+- Functions
+  - functions/src/onPhotoEXIF.ts → exif: { hasGps, lat?, lng? }, photoRedactedUrl
+  - functions/src/onVerificationScore.ts → compares verification GPS vs users/{uid}.storeLoc; saves { autoScore, distance_m, reasons, locSource }
+- Notifications UI: src/pages/staff/dashboard/NotificationsPage.jsx
+  - Adds a "System" tab section reading notifications/{uid}/system ordered by createdAt desc
+  - Each notification shows title/body/time; "View" navigates to link or /staff/verification
+
+Firestore shapes
+- Verification request (verification_requests/{id}):
+  {
+    userId, userEmail, userName,
+    photoURL?, metadata?, deviceLoc?, deviceLocDenied?,
+    status: 'pending'|'approved'|'rejected'|'needs_info',
+    autoScore?, distance_m?, reasons?: string[], locSource?: 'device'|'exif'|null,
+    submittedAt, reviewedAt?, infoRequestedAt?, infoRequestMessage?
+  }
+
+- User profile (users/{uid}):
+  { storeAddressText?: string, storeLoc?: { lat, lng, setAt, source } }
+
+- System notifications (notifications/{uid}/system/{autoId}):
+  { type: 'verification_info_request', title, body, link: '/staff/verification', unread: true, createdAt, meta?: { requestId } }
+
+Admin → Request Info behavior
+- Updates verification_requests/{id}: { status:'needs_info', infoRequestedAt, infoRequestMessage }
+- Adds notifications/{uid}/system doc as above
+
+Staff → Notifications behavior
+- Subscribes to notifications/{uid}/system (realtime)
+- "Mark system as read" zeroes unread flags on all docs in view
+- Opening an item marks unread:false, readAt and navigates
+
+Testing checklist
+1) Save store location (ProfileStoreLocation) and verify card appears in Verification page
+2) Submit verification with/without device location
+3) Cloud Functions populate exif, distance_m, autoScore, reasons
+4) Admin Request Info creates a system notification; check /staff/notifications → System
+5) Click "View" to navigate to /staff/verification and unread clears
+
+Notes
+- Geo badge thresholds: Match ≤250m, Near ≤800m
+- AutoScore: 100 at 0–50m → linearly to 0 by 1500m
+
 ## Quickstart: Community Byline/Avatar Debugging (Store/Brand not showing)
 
 Goal: Ensure posts display the author name with the correct Store/Brand byline and avatar across /community, /staff/community and post detail pages.

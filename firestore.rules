@@ -53,10 +53,15 @@ service cloud.firestore {
       );
     }
 
-    // Pass a PATH to a post doc
-    function isPublicPost(path) {
-      return exists(path) && get(path).data.visibility == 'public';
+    // Moderation helpers
+    function canModerateUsers(uid) {
+      return isSuperAdmin(uid) || isApprovedBrandManager(uid) || isBrandManagerLoose(uid);
     }
+    function onlyVerificationFieldsChanged(before, after) {
+      return before.diff(after).changedKeys().hasOnly(['verified', 'verificationStatus', 'updatedAt']);
+    }
+
+    // Removed unused isPublicPost helper
 
     // ---------- users ----------
     // TEMPORARY DEMO SEEDING FIX:
@@ -65,8 +70,17 @@ service cloud.firestore {
     match /users/{uid} {
       // Read: any authenticated user (needed for community byline/avatar enrichment)
       allow read: if request.auth != null;
-      // Write: owner-only
-      allow write: if request.auth != null && request.auth.uid == uid;
+      // Create: owner creates their own user doc
+      allow create: if request.auth != null && request.auth.uid == uid;
+      // Update: owner OR moderators, but moderators may only change verification fields
+      allow update: if request.auth != null && (
+        request.auth.uid == uid || (
+          canModerateUsers(request.auth.uid) &&
+          onlyVerificationFieldsChanged(resource.data, request.resource.data)
+        )
+      );
+      // Delete: owner or super admin
+      allow delete: if request.auth != null && (request.auth.uid == uid || isSuperAdmin(request.auth.uid));
     }
     // Allow per-user subcollections (e.g., drafts) for the owner
     match /users/{uid}/{document=**} {
@@ -197,9 +211,10 @@ service cloud.firestore {
 
     // ---------- verification_requests (user submits for staff review) ----------
     match /verification_requests/{requestId} {
-      // Read: owner or staff reviewers (approved/loose brand managers) or super admin
+      // Read: owner (supports legacy field names) or staff reviewers (approved/loose brand managers) or super admin
       allow read: if request.auth != null && (
         resource.data.userId == request.auth.uid ||
+        resource.data.applicantUid == request.auth.uid ||
         isApprovedBrandManager(request.auth.uid) ||
         isBrandManagerLoose(request.auth.uid) ||
         isSuperAdmin(request.auth.uid)
@@ -228,6 +243,28 @@ service cloud.firestore {
         (resource.data.userId == request.auth.uid && resource.data.status == 'pending') ||
         isSuperAdmin(request.auth.uid)
       );
+    }
+
+    // Staff/admin messages under a verification request (append-only)
+    match /verification_requests/{requestId}/messages/{msgId} {
+      // Owner (requester) and reviewers can read. Support legacy field names (userId | applicantUid).
+      allow read: if request.auth != null && (
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.applicantUid == request.auth.uid ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+      // Owner can create replies; reviewers can also add notes if needed (legacy owner fields supported)
+      allow create: if request.auth != null && (
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/verification_requests/$(requestId)).data.applicantUid == request.auth.uid ||
+        isApprovedBrandManager(request.auth.uid) ||
+        isBrandManagerLoose(request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+      // Immutable messages
+      allow update, delete: if false;
     }
 
     // ---------- community_comments ----------
@@ -439,6 +476,22 @@ service cloud.firestore {
           belongsToBrand(request.auth.uid, resource.data.brandId)
         )
       );
+    }
+
+    // ---------- notifications (per-user) ----------
+    // System notifications created by admins, readable by the owner only
+    match /notifications/{uid}/system/{docId} {
+      // Owner can read their own notifications
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Owner can update their own notifications (e.g., mark as read)
+      allow update, delete: if request.auth != null && request.auth.uid == uid;
+      // Creation allowed for owner or super_admin (admin flow writes to applicant's inbox)
+      allow create: if request.auth != null && (request.auth.uid == uid || isSuperAdmin(request.auth.uid));
+    }
+
+    // Community unread counts per user (client-maintained counters)
+    match /notifications/{uid}/community/{communityId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
   }
 }

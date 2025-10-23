@@ -7,6 +7,9 @@ import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
 import useNotificationsStore from '@/hooks/useNotificationsStore';
 import useCommunitySwitcher from '@/hooks/useCommunitySwitcher';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 const TabButton = ({ id, active, onClick, children }) => (
   <button
@@ -42,8 +45,11 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const { unreadCounts, markAsRead, markAllAsRead } = useNotificationsStore();
   const { allCommunities } = useCommunitySwitcher();
+  const { user } = useAuth();
   const [isDesktop, setIsDesktop] = useState(false);
   const [tab, setTab] = useState('all'); // 'all' | 'mentions' | 'system'
+  const [systemItems, setSystemItems] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -52,6 +58,21 @@ export default function NotificationsPage() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Subscribe to system notifications (per-user)
+  useEffect(() => {
+    if (!db || !user?.uid) { setSystemItems([]); return; }
+    const q = query(collection(db, 'notifications', user.uid, 'system'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      if (import.meta.env.DEV) {
+        try { console.debug?.('NotificationsPage: system snapshot', { uid: user?.uid, size: snap?.size }); } catch (err) { console.error('NotificationsPage: debug log failed (system snapshot)', err); }
+      }
+      const arr = [];
+      snap.forEach((d) => arr.push({ id: d.id, ...(d.data() || {}) }));
+      setSystemItems(arr);
+    }, (err) => { console.error('NotificationsPage: system onSnapshot error', err); setSystemItems([]); setError('Failed to load system notifications.'); });
+    return () => { try { unsub(); } catch (err) { console.error('NotificationsPage: system unsubscribe failed', err); } };
+  }, [db, user?.uid]);
 
   // page_view when shell active
   useEffect(() => {
@@ -80,6 +101,9 @@ export default function NotificationsPage() {
 
   const CenterContent = () => (
     <div className="space-y-6" data-testid="notifications-center">
+      {error && (
+        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>
+      )}
       {/* Tabs + Mark all */}
       <div className="flex items-center gap-2">
         <TabButton id="all" active={tab === 'all'} onClick={() => { setTab('all'); try { track('notifications_tab_click', { tab: 'all' }); } catch (err) { console.debug?.('track notifications_tab_click failed', { tab: 'all' }, err); } }}>All</TabButton>
@@ -88,7 +112,7 @@ export default function NotificationsPage() {
         <div className="ml-auto" />
         <button
           type="button"
-          onClick={() => { try { markAllAsRead(); } catch {} }}
+          onClick={() => { try { markAllAsRead(); } catch (err) { console.error('NotificationsPage: markAllAsRead failed', err); setError('Failed to mark notifications as read.'); } }}
           className="h-9 px-3 rounded-md border text-sm bg-white hover:bg-gray-50"
           data-testid="notifications-markall"
         >
@@ -136,8 +160,64 @@ export default function NotificationsPage() {
 
       {/* System updates */}
       <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-4 py-3 border-b border-gray-100 text-sm font-medium text-gray-700">System updates</div>
-        <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
+        <div className="px-4 py-3 border-b border-gray-100 text-sm font-medium text-gray-700 flex items-center gap-2">
+          <span>System updates</span>
+          <div className="ml-auto" />
+          {systemItems?.length > 0 && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await Promise.all(systemItems.map((it) => updateDoc(doc(db, 'notifications', user.uid, 'system', it.id), { unread: false, readAt: serverTimestamp() })));
+                } catch (err) {
+                  console.error('NotificationsPage: mark system as read failed', err);
+                  setError('Failed to mark system as read.');
+                }
+              }}
+              className="h-7 px-2 rounded-md border text-xs bg-white hover:bg-gray-50"
+            >
+              Mark system as read
+            </button>
+          )}
+        </div>
+        {(!systemItems || systemItems.length === 0) ? (
+          <EmptyState icon="🔔" headline="No system notifications." copy="We’ll post important system updates here." />
+        ) : (
+          <ul role="list" className="divide-y divide-gray-100">
+            {systemItems.map((n) => (
+              <li key={n.id}>
+                <div className={`px-4 py-3 ${n.unread ? 'bg-oat-beige/40' : ''}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{n.title || 'System message'}</div>
+                      {n.body && <div className="mt-0.5 text-sm text-gray-700">{n.body}</div>}
+                      {n.createdAt?.toDate && (
+                        <div className="mt-1 text-xs text-gray-500">{n.createdAt.toDate().toLocaleString?.() || ''}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {n.unread && (
+                        <span className="inline-flex h-2 w-2 rounded-full bg-brand-primary" aria-label="unread" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try { await updateDoc(doc(db, 'notifications', user.uid, 'system', n.id), { unread: false, readAt: serverTimestamp() }); } catch (err) { console.error('NotificationsPage: set system notification read failed', { id: n.id }, err); setError('Failed to mark notification as read.'); }
+                          const target = n.link || '/staff/verification';
+                          const state = n.meta?.requestId ? { requestId: n.meta.requestId } : undefined;
+                          navigate(target, state ? { state } : undefined);
+                        }}
+                        className="rounded bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-primary/90"
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
