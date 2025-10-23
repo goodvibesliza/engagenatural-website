@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog';
 import { getVerifyStrings, getReasonText } from '@/lib/i18nVerification';
+import { metersBetween } from '@/lib/haversine';
 
 /**
  * Render the staff verification queue UI for reviewing and managing verification requests.
@@ -110,6 +111,7 @@ export default function VerifyStaff() {
             photoRedactedUrl: v.photoRedactedUrl || '',
             gps: v.gps || null,
             deviceLoc: v.deviceLoc || null,
+            metadata: v.metadata || null,
             locSource: v.locSource || null,
             locDenied: !!v.locDenied,
             // Info request history (new) + legacy backfill fields
@@ -189,21 +191,21 @@ export default function VerifyStaff() {
     }
   }
 
-  async function reject(v) {
+  async function reject(v, reason) {
     if (!v?.applicantUid) return;
     if (processing) return;
-    // Confirm via localized modal
-    // This function is invoked after modal confirm
     setProcessing(true);
     try {
       const batch = writeBatch(db);
       batch.update(doc(db, 'users', v.applicantUid), {
         verified: false,
         verificationStatus: 'rejected',
+        rejectionReason: reason,
         updatedAt: serverTimestamp(),
       });
       batch.update(doc(db, 'verification_requests', v.id), {
         status: 'rejected',
+        rejectionReason: reason,
         reviewedAt: serverTimestamp(),
       });
       await batch.commit();
@@ -433,6 +435,32 @@ export default function VerifyStaff() {
           </DialogHeader>
           {selected && (
             <div className="space-y-6">
+              {(() => {
+                // Derived geo calcs as fallback if Cloud Function hasn't populated yet
+                const storeLat = storeInfo?.storeLoc?.lat;
+                const storeLng = storeInfo?.storeLoc?.lng;
+                const selLat = (selected.deviceLoc?.lat ?? selected.gps?.lat ?? selected.metadata?.geolocation?.latitude ?? null);
+                const selLng = (selected.deviceLoc?.lng ?? selected.gps?.lng ?? selected.metadata?.geolocation?.longitude ?? null);
+                let derivedDistance = null;
+                if (storeLat != null && storeLng != null && selLat != null && selLng != null) {
+                  const a = { lat: Number(selLat), lng: Number(selLng) };
+                  const b = { lat: Number(storeLat), lng: Number(storeLng) };
+                  const d = metersBetween(a, b);
+                  if (Number.isFinite(d)) derivedDistance = d;
+                }
+                // 100 @ <=50m, linear to 0 @ >=1500m
+                let derivedScore = null;
+                if (derivedDistance != null) {
+                  const d = derivedDistance;
+                  if (d <= 50) derivedScore = 100;
+                  else if (d >= 1500) derivedScore = 0;
+                  else derivedScore = Math.max(0, Math.round(100 * (1 - (d - 50) / (1500 - 50))));
+                }
+                // Expose to scoped variables by mutating a shallow copy of selected for render-only usage
+                selected.__derivedDistance = derivedDistance;
+                selected.__derivedScore = derivedScore;
+                return null;
+              })()}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <div className="text-sm font-medium mb-1">Photo</div>
@@ -502,7 +530,7 @@ export default function VerifyStaff() {
                 <div className="rounded border p-3">
                   <div className="text-sm font-medium mb-2">GPS</div>
                   <div className="text-sm text-gray-700">Lat/Lng: {(selected.deviceLoc?.lat ?? selected.gps?.lat) ?? '—'}, {(selected.deviceLoc?.lng ?? selected.gps?.lng) ?? '—'}</div>
-                  <div className="text-sm text-gray-700">Distance: {selected.distance_m != null ? `${selected.distance_m} m` : '—'}</div>
+                  <div className="text-sm text-gray-700">Distance: { (selected.distance_m ?? selected.__derivedDistance) != null ? `${(selected.distance_m ?? selected.__derivedDistance)} m` : '—'}</div>
                   {(selected.deviceLoc?.lat ?? selected.gps?.lat) != null &&
                    (selected.deviceLoc?.lng ?? selected.gps?.lng) != null && (
                     <a
@@ -520,12 +548,12 @@ export default function VerifyStaff() {
                   <div className="h-3 w-full rounded bg-gray-100">
                     <div
                       className={`h-3 rounded ${
-                        (selected.autoScore ?? 0) >= 85 ? 'bg-green-500' : (selected.autoScore ?? 0) >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                        ((selected.autoScore ?? selected.__derivedScore ?? 0) >= 85) ? 'bg-green-500' : ((selected.autoScore ?? selected.__derivedScore ?? 0) >= 50) ? 'bg-amber-500' : 'bg-red-500'
                       }`}
-                      style={{ width: `${Math.min(100, Math.max(0, selected.autoScore ?? 0))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, (selected.autoScore ?? selected.__derivedScore ?? 0)))}%` }}
                     />
                   </div>
-                  <div className="mt-2 text-sm">Score: {selected.autoScore ?? 0}</div>
+                  <div className="mt-2 text-sm">Score: {selected.autoScore ?? selected.__derivedScore ?? 0}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {(selected.reasons || []).map((r, i) => (
                       <span key={i} className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{r}</span>
@@ -716,7 +744,7 @@ export default function VerifyStaff() {
             </button>
             <button
               type="button"
-              onClick={() => { const v = selected; setRejecting(false); reject(v); }}
+              onClick={() => { const v = selected; const reason = rejectReason; setRejecting(false); reject(v, reason); }}
               disabled={processing}
               className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
