@@ -25,12 +25,10 @@ import {
 import { getVerifyStrings, getReasonText } from '@/lib/i18nVerification';
 
 /**
- * Render the staff verification queue UI for reviewing and managing verification requests.
+ * Admin interface for reviewing and managing verification requests.
  *
- * Subscribes to the Firestore 'verification_requests' collection and presents a searchable,
- * status-filterable table of requests. Exposes actions in a detail dialog to approve, reject,
- * or request more information; those actions update the corresponding user and request
- * documents in Firestore and update component state to reflect changes.
+ * Renders a searchable, status-filterable table of verification submissions and a detail dialog
+ * that lets an admin approve, reject (via a localized modal), request more information, or send reminders.
  *
  * @returns {JSX.Element} The verification queue UI component.
  */
@@ -189,6 +187,14 @@ export default function VerifyStaff() {
     }
   }
 
+  /**
+   * Mark a verification request as rejected and apply corresponding user updates.
+   *
+   * Updates the applicant's user document and the verification request document to reflect rejection, clears the current selection, and notifies the admin via an alert.
+   * @param {Object} v - Verification request object containing identifiers.
+   * @param {string} v.id - Firestore document ID of the verification request.
+   * @param {string} v.applicantUid - UID of the applicant whose user document will be updated.
+   */
   async function reject(v) {
     if (!v?.applicantUid) return;
     if (processing) return;
