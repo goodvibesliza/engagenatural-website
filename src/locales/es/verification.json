@@ -70,5 +70,15 @@
   "SHORT_LOCATION_FAR": "La ubicación no coincidió con tu tienda ({{distance_m}} m).",
   "SHORT_GPS_MISSING": "Falta GPS — activa la ubicación y reintenta.",
   "SHORT_CODE_INVALID": "Código no visible — reescribe y muéstralo.",
-  "SHORT_FACE_NOT_VISIBLE": "Rostro no visible — quita gorra/gafas y repite."
+  "SHORT_FACE_NOT_VISIBLE": "Rostro no visible — quita gorra/gafas y repite.",
+  "OPTION_LOCATION_FAR": "Ubicación demasiado lejos",
+  "OPTION_LOCATION_MISSING": "Ubicación faltante",
+  "OPTION_CODE_INVALID": "Código inválido",
+  "OPTION_FACE_NOT_VISIBLE": "Rostro no visible",
+  "OPTION_BLURRY": "Borrosa/Oscura",
+  "OPTION_MULTIPLE_PEOPLE": "Varias personas",
+  "OPTION_TIME_WINDOW": "Fuera de ventana de tiempo",
+  "OPTION_ROSTER_MISMATCH": "No coincide con nómina",
+  "OPTION_IMAGE_EDIT": "Editada/Subida",
+  "OPTION_OTHER": "Otro"
 }

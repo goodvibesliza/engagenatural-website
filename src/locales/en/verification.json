@@ -71,4 +71,15 @@
   "SHORT_GPS_MISSING": "GPS missing — enable location and retry.",
   "SHORT_CODE_INVALID": "Code not visible — rewrite and hold it up.",
   "SHORT_FACE_NOT_VISIBLE": "Face not visible — remove hat/glasses and reshoot."
+  ,
+  "OPTION_LOCATION_FAR": "Location far",
+  "OPTION_LOCATION_MISSING": "Location missing",
+  "OPTION_CODE_INVALID": "Code invalid",
+  "OPTION_FACE_NOT_VISIBLE": "Face not visible",
+  "OPTION_BLURRY": "Blurry/Dark",
+  "OPTION_MULTIPLE_PEOPLE": "Multiple people",
+  "OPTION_TIME_WINDOW": "Time window",
+  "OPTION_ROSTER_MISMATCH": "Roster mismatch",
+  "OPTION_IMAGE_EDIT": "Edited/Upload",
+  "OPTION_OTHER": "Other"
 }

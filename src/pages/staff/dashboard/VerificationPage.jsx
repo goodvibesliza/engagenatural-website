@@ -17,6 +17,9 @@ export default function VerificationPage() {
   const location = useLocation();
   const navState = location?.state || {};
   const strings = getVerifyStrings(user?.locale || (typeof navigator !== 'undefined' ? navigator.language : 'en'));
+  const reqs = Array.isArray(strings.REQUIREMENTS_BODY)
+    ? strings.REQUIREMENTS_BODY
+    : (strings.REQUIREMENTS_BODY ? [strings.REQUIREMENTS_BODY] : []);
   const [verificationPhoto, setVerificationPhoto] = useState(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
   const [verificationCode, setVerificationCode] = useState('');
@@ -425,7 +428,7 @@ export default function VerificationPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold mb-3">{strings.REQUIREMENTS_TITLE}</h2>
         <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
-          {(strings.REQUIREMENTS_BODY || []).map((line, i) => (
+          {reqs.map((line, i) => (
             <li key={i}>{line}</li>
           ))}
         </ul>

@@ -750,16 +750,16 @@ export default function VerifyStaff() {
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
             >
-              <option value="LOCATION_FAR">Location far</option>
-              <option value="LOCATION_MISSING">Location missing</option>
-              <option value="CODE_INVALID">Code invalid</option>
-              <option value="FACE_NOT_VISIBLE">Face not visible</option>
-              <option value="BLURRY">Blurry/Dark</option>
-              <option value="MULTIPLE_PEOPLE">Multiple people</option>
-              <option value="TIME_WINDOW">Time window</option>
-              <option value="ROSTER_MISMATCH">Roster mismatch</option>
-              <option value="IMAGE_EDIT">Edited/Upload</option>
-              <option value="OTHER">Other</option>
+              <option value="LOCATION_FAR">{strings.OPTION_LOCATION_FAR}</option>
+              <option value="LOCATION_MISSING">{strings.OPTION_LOCATION_MISSING}</option>
+              <option value="CODE_INVALID">{strings.OPTION_CODE_INVALID}</option>
+              <option value="FACE_NOT_VISIBLE">{strings.OPTION_FACE_NOT_VISIBLE}</option>
+              <option value="BLURRY">{strings.OPTION_BLURRY}</option>
+              <option value="MULTIPLE_PEOPLE">{strings.OPTION_MULTIPLE_PEOPLE}</option>
+              <option value="TIME_WINDOW">{strings.OPTION_TIME_WINDOW}</option>
+              <option value="ROSTER_MISMATCH">{strings.OPTION_ROSTER_MISMATCH}</option>
+              <option value="IMAGE_EDIT">{strings.OPTION_IMAGE_EDIT}</option>
+              <option value="OTHER">{strings.OPTION_OTHER}</option>
             </select>
             {(() => {
               const effectiveDistance = selected?.distance_m ?? derivedMetrics.derivedDistance ?? undefined;
