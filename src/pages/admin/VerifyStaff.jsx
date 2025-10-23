@@ -149,6 +149,44 @@ export default function VerifyStaff() {
         });
         setItems(rows);
         setLoading(false);
+        // Enrich with derived geo metrics for list view when missing in doc
+        (async () => {
+          try {
+            const uids = Array.from(new Set(rows.map(r => r.applicantUid).filter(Boolean)));
+            const locMap = {};
+            await Promise.all(uids.map(async (uid) => {
+              try {
+                const s = await getDoc(doc(db, 'users', uid));
+                if (s.exists()) {
+                  const u = s.data();
+                  if (u?.storeLoc?.lat != null && u?.storeLoc?.lng != null) {
+                    locMap[uid] = { lat: Number(u.storeLoc.lat), lng: Number(u.storeLoc.lng) };
+                  }
+                }
+              } catch (e) {
+                console.error('VerifyStaff: failed to load storeLoc for uid', uid, e);
+              }
+            }));
+            const enhanced = rows.map(r => {
+              if (typeof r.autoScore === 'number' && typeof r.distance_m === 'number') return r;
+              const store = locMap[r.applicantUid];
+              const lat = r?.deviceLoc?.lat ?? r?.gps?.lat ?? r?.metadata?.geolocation?.latitude ?? null;
+              const lng = r?.deviceLoc?.lng ?? r?.gps?.lng ?? r?.metadata?.geolocation?.longitude ?? null;
+              let _derivedDistance = null; let _derivedScore = null;
+              if (store && lat != null && lng != null) {
+                const d = metersBetween({ lat: Number(lat), lng: Number(lng) }, store);
+                if (Number.isFinite(d)) {
+                  _derivedDistance = d;
+                  if (d <= 50) _derivedScore = 100; else if (d >= 1500) _derivedScore = 0; else _derivedScore = Math.max(0, Math.round(100 * (1 - (d - 50) / (1500 - 50))));
+                }
+              }
+              return { ...r, _derivedDistance, _derivedScore };
+            });
+            setItems(enhanced);
+          } catch (e) {
+            console.error('VerifyStaff: failed to compute derived metrics for list', e);
+          }
+        })();
       },
       (err) => {
         console.error('Failed to fetch verification requests:', err);
@@ -381,7 +419,8 @@ export default function VerifyStaff() {
               const img = v.photoRedactedUrl || v.photoUrl || '';
               const reasons = v.reasons || [];
               const rosterBadge = reasons.includes('ROSTER_EMAIL_MATCH') ? 'email' : (reasons.includes('ROSTER_NAME_MATCH') ? 'name' : 'none');
-              const geoBadge = v.distance_m == null ? 'nogps' : (v.distance_m <= 250 ? 'match' : v.distance_m <= 800 ? 'near' : 'far');
+              const listDistance = (typeof v.distance_m === 'number' ? v.distance_m : (typeof v._derivedDistance === 'number' ? v._derivedDistance : null));
+              const geoBadge = listDistance == null ? 'nogps' : (listDistance <= 250 ? 'match' : listDistance <= 800 ? 'near' : 'far');
               const openRow = () => { setSelected(v); setZoomPhoto(false); setZoomCode(false); };
               const onRowKey = (e) => {
                 if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
@@ -404,7 +443,7 @@ export default function VerifyStaff() {
                   <td className="px-4 py-3 text-gray-700">{v.storeName || '—'}</td>
                   <td className="px-4 py-3 font-mono">{v.submittedCodeText || '—'}</td>
                   <td className="px-4 py-3 text-gray-700">{fmt(v.submittedAt)}</td>
-                  <td className="px-4 py-3 text-gray-900">{v.autoScore ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-900">{(typeof v.autoScore === 'number' ? v.autoScore : (typeof v._derivedScore === 'number' ? v._derivedScore : '—'))}</td>
                   <td className="px-4 py-3">
                     {geoBadge === 'match' && <span className="inline-flex rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-xs">Match</span>}
                     {geoBadge === 'near' && <span className="inline-flex rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs">Near</span>}
