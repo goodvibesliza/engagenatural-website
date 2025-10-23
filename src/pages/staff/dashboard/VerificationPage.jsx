@@ -4,7 +4,7 @@ import { db, storage } from '@/lib/firebase';
 import { doc, updateDoc, addDoc, collection, serverTimestamp, getDoc, getDocs, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import PhotoUploadComponent from '../PhotoVerify';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 /**
  * Render the Verification Center UI and manage photo- and code-based verification flows, including metadata collection, optional geolocation, photo upload, and submitting verification requests to the backend.
@@ -25,7 +25,6 @@ export default function VerificationPage() {
   const [metadata, setMetadata] = useState({});
   const [geolocationStatus, setGeolocationStatus] = useState('');
   const [deviceLoc, setDeviceLoc] = useState(null);
-  const [storeInfo, setStoreInfo] = useState({ storeLoc: null, storeAddressText: '' });
   // Admin question thread + staff responses
   const [activeRequestId, setActiveRequestId] = useState(null);
   const [infoRequests, setInfoRequests] = useState([]);
@@ -46,7 +45,6 @@ export default function VerificationPage() {
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) {
           const d = snap.data();
-          setStoreInfo({ storeLoc: d.storeLoc || null, storeAddressText: d.storeAddressText || '' });
           setAddressText(d.storeAddressText || '');
           setStoreLoc(d.storeLoc || null);
         }
@@ -183,7 +181,7 @@ export default function VerificationPage() {
         };
         await updateDoc(doc(db, 'users', user.uid), payload);
         setStoreLoc({ lat, lng, setAt: new Date(), source: 'device' });
-        setStoreInfo({ storeLoc: { lat, lng }, storeAddressText: addressText || '' });
+        // state already updated via setStoreLoc and addressText
       } catch (e) {
         console.error('Failed to save store location:', e);
         alert('Failed to save store location. Please try again.');
