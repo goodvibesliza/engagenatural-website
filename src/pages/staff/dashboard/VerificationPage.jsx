@@ -166,35 +166,55 @@ export default function VerificationPage() {
     }
   }
 
+  async function geocodeAddress(q) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const first = data[0];
+    const lat = Number(first.lat); const lng = Number(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng, provider: 'nominatim' };
+  }
+
   async function setStoreLocationInline() {
     if (!user?.uid) return;
-    if (!('geolocation' in navigator)) {
-      alert('Geolocation is not supported on this device/browser.');
-      return;
-    }
     setSavingAddress(true);
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      try {
-        const payload = {
-          storeAddressText: addressText || '',
-          storeLoc: { lat, lng, setAt: serverTimestamp(), source: 'device' },
-        };
-        await updateDoc(doc(db, 'users', user.uid), payload);
-        setStoreLoc({ lat, lng, setAt: new Date(), source: 'device' });
-        // state already updated via setStoreLoc and addressText
-      } catch (e) {
-        console.error('Failed to save store location:', e);
-        alert('Failed to save store location. Please try again.');
-      } finally {
-        setSavingAddress(false);
+    try {
+      let coords = null;
+      const addr = (addressText || '').trim();
+      if (addr) {
+        try {
+          const g = await geocodeAddress(addr);
+          if (g) coords = { lat: g.lat, lng: g.lng, setAt: serverTimestamp(), source: 'address', provider: g.provider };
+        } catch (e) {
+          console.error('Address geocoding failed', e);
+        }
       }
-    }, (err) => {
-      console.error('Geolocation error:', err);
+      if (!coords) {
+        if (!('geolocation' in navigator)) {
+          alert('Could not geocode that address. Please check the spelling or try on a device with location.');
+          setSavingAddress(false);
+          return;
+        }
+        await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition((pos) => {
+            const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+            coords = { lat, lng, setAt: serverTimestamp(), source: 'device' };
+            resolve();
+          }, (err) => reject(err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+        });
+      }
+      const payload = { storeAddressText: addressText || '', storeLoc: coords };
+      await updateDoc(doc(db, 'users', user.uid), payload);
+      setStoreLoc({ ...coords, setAt: new Date() });
+    } catch (e) {
+      console.error('Failed to save store location:', e);
+      alert('Failed to save store location. Please try again.');
+    } finally {
       setSavingAddress(false);
-      alert('Could not get device location. Please allow location access and try again.');
-    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+    }
   }
 
   // Brand verification codes/sources
