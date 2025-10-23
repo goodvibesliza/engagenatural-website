@@ -319,6 +319,10 @@ export default function VerificationPage() {
 
   // Submit verification
   const submitVerification = async () => {
+    if (!user?.uid) {
+      setError('Please sign in to submit verification');
+      return;
+    }
     // Validate input
     if (!verificationPhoto && !verificationCode) {
       setError('Please provide a photo or verification code');
@@ -423,6 +427,12 @@ export default function VerificationPage() {
       {/* Store Location (inline widget) */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold mb-2">Store Location</h2>
+        <a
+          href="/staff/profile/store-location"
+          className="text-xs text-blue-600 hover:underline"
+        >
+          Manage in Profile
+        </a>
         <p className="text-sm text-gray-600 mb-3">Save your store GPS once. We’ll compare verification selfies to this location.</p>
         <label className="block text-sm font-medium text-gray-700 mb-1">Store address (for humans)</label>
         <input

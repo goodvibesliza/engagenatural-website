@@ -228,6 +228,7 @@ export default function VerifyStaff() {
       await updateDoc(doc(db, 'verification_requests', v.id), {
         status: 'needs_info',
         infoRequestedAt: serverTimestamp(),
+        infoRequestMessage: requestInfoMsg || '',
         infoRequests: arrayUnion({
           message: requestInfoMsg || '',
           // Use client-side Date so Firestore stores a Timestamp; serverTimestamp() isn't allowed inside arrayUnion
