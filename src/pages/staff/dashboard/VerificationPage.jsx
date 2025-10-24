@@ -193,8 +193,17 @@ export default function VerificationPage() {
               source: 'address',
               provider: g.provider
             };
+            // Back-compat: many backends (e.g., onVerificationScore) read users/{uid}.storeLoc.
+            // Mirror the address coords into storeLoc so autoscore/distance keep working.
+            payload.storeLoc = {
+              lat: g.lat,
+              lng: g.lng,
+              setAt: serverTimestamp(),
+              source: 'address'
+            };
             // update local state immediately so Test map reflects the address
             setStoreAddressGeo({ lat: g.lat, lng: g.lng, source: 'address', setAt: null, provider: g.provider });
+            setStoreLoc({ lat: g.lat, lng: g.lng, source: 'address', setAt: null });
           }
         } catch (e) {
           console.error('Address geocoding failed', e);
