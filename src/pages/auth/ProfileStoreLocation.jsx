@@ -37,38 +37,55 @@ export default function ProfileStoreLocation() {
     setSuccess('');
     setSaving(true);
     try {
-      let coords = null;
       const addr = (addressText || '').trim();
+      const payload = { storeAddressText: addr };
+
+      // 1) Geocode address → storeAddressGeo (reference only), never into storeLoc
       if (addr) {
         try {
           const g = await geocodeAddress(addr);
-          if (g) coords = { lat: g.lat, lng: g.lng, setAt: serverTimestamp(), source: 'address', provider: g.provider };
+          if (g) {
+            payload.storeAddressGeo = {
+              lat: g.lat,
+              lng: g.lng,
+              setAt: serverTimestamp(),
+              source: 'address',
+              provider: g.provider
+            };
+          }
         } catch (e) {
           console.error('Address geocoding failed', e);
         }
       }
-      if (!coords) {
-        // Fallback to device location if available
-        if (!('geolocation' in navigator)) {
-          setError('Could not geocode that address. Please check the spelling or try on a device with location.');
-          setSaving(false);
-          return;
+
+      // 2) Get device GPS → storeLoc (device-only)
+      let deviceLoc = null;
+      if ('geolocation' in navigator) {
+        try {
+          await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition((pos) => {
+              const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+              deviceLoc = { lat, lng, setAt: serverTimestamp(), source: 'device' };
+              resolve();
+            }, (err) => reject(err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+          });
+        } catch (e) {
+          console.error('Device geolocation failed', e);
         }
-        await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition((pos) => {
-            const lat = pos.coords.latitude; const lng = pos.coords.longitude;
-            coords = { lat, lng, setAt: serverTimestamp(), source: 'device' };
-            resolve();
-          }, (err) => reject(err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
-        });
       }
-      const payload = { storeAddressText: addressText || '', storeLoc: coords };
+
+      if (deviceLoc) {
+        payload.storeLoc = deviceLoc; // device-only
+      }
+
       await updateDoc(doc(db, 'users', user.uid), payload);
-      setStoreLoc({ ...coords, setAt: new Date() });
-      setSuccess('Store location saved.');
+
+      // Update local state: use pending placeholder for setAt (avoid local Date)
+      if (deviceLoc) setStoreLoc({ lat: deviceLoc.lat, lng: deviceLoc.lng, source: 'device', setAt: null });
+      setSuccess(deviceLoc ? 'Store location (device GPS) saved.' : 'Address saved. Device GPS not captured.');
     } catch (e) {
       console.error('Failed to save store location:', e);
-      setError('Failed to save store location. Please try again.');
+      setError('Failed to save store information. Please try again.');
     } finally {
       setSaving(false);
     }
