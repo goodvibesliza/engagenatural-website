@@ -14,12 +14,13 @@ Key files
   - Saves users/{uid}.storeLoc { lat, lng, setAt, source:'device' } and storeAddressText
   - New (2025-10-24): Address geocode is stored under users/{uid}.storeAddressGeo { lat, lng, setAt, source:'address', provider } and NEVER written to storeLoc
 - Admin review: src/pages/admin/VerifyStaff.jsx
-  - Signals: shows user storeLoc/address, verification GPS, distance_m, autoScore, reasons, maps links
+  - Signals: shows the store address text and the address geocode (storeAddressGeo), the verification GPS, distance/score, reasons, and map links
+  - Baseline: UI uses users/{uid}.storeAddressGeo (address from text entry) as the store baseline for display and any derived client-side distance/score when server fields are missing
   - Actions: Approve/Reject/Request Info
   - Request Info writes a system notification at notifications/{uid}/system/{autoId}
 - Functions
   - functions/src/onPhotoEXIF.ts → exif: { hasGps, lat?, lng? }, photoRedactedUrl
-  - functions/src/onVerificationScore.ts → compares verification GPS vs users/{uid}.storeLoc; saves { autoScore, distance_m, reasons, locSource }
+  - functions/src/onVerificationScore.ts → currently compares verification GPS vs users/{uid}.storeLoc (device); UI now uses storeAddressGeo as the baseline for clarity. If server-side comparison should also use the address baseline, update the function accordingly.
 - Notifications UI: src/pages/staff/dashboard/NotificationsPage.jsx
   - Adds a "System" tab section reading notifications/{uid}/system ordered by createdAt desc
   - Each notification shows title/body/time; "View" navigates to link or /staff/verification
@@ -75,6 +76,20 @@ Notes
   - src/pages/auth/ProfileStoreLocation.jsx → writes storeAddressGeo and, when available, device GPS to storeLoc
   - src/pages/staff/dashboard/VerificationPage.jsx → inline widget mirrors the same behavior
   - Local React state uses a pending placeholder for setAt (no local Date()) until Firestore serverTimestamp resolves
+
+### Language selector & i18n (2025-10-24)
+- Language control (profile):
+  - File: src/pages/staff/dashboard/ProfilePage.jsx
+  - Section "Language / Idioma" with a select for English (en) and Español (es)
+  - On change: updates users/{uid}.locale and shows a toast ("Language updated to English" / "Idioma actualizado a Español")
+  - Preselects from user.locale; defaults to "en"
+- Locale wiring:
+  - Verification page strings: getVerifyStrings(user?.locale || navigator.language || 'en')
+  - Admin rejection modal strings: getVerifyStrings(admin?.locale || navigator.language || 'en')
+- Verification page copy updates:
+  - Subhead under "Verification Center" replaced with comma-separated copy (see component for exact text)
+  - Restored the pink notice box using strings.NOTICE_TITLE and strings.NOTICE_SUBTEXT
+  - Locale keys present in src/locales/en/verification.json and src/locales/es/verification.json
 
 ## Quickstart: Community Byline/Avatar Debugging (Store/Brand not showing)
 

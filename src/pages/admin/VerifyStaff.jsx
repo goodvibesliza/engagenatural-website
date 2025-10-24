@@ -55,11 +55,12 @@ export default function VerifyStaff() {
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('LOCATION_FAR');
 
-  // Compute derived geo metrics without mutating objects (fallback when Cloud Function hasn't populated yet)
+  // Compute derived geo metrics without mutating objects (use address geocode as the store baseline)
   const derivedMetrics = useMemo(() => {
     try {
-      const storeLat = storeInfo?.storeLoc?.lat;
-      const storeLng = storeInfo?.storeLoc?.lng;
+      // Use storeAddressGeo (from text-entered address) as baseline for distance/scoring
+      const storeLat = storeInfo?.storeAddressGeo?.lat;
+      const storeLng = storeInfo?.storeAddressGeo?.lng;
       const selLat = (selected?.deviceLoc?.lat ?? selected?.gps?.lat ?? selected?.metadata?.geolocation?.latitude ?? null);
       const selLng = (selected?.deviceLoc?.lng ?? selected?.gps?.lng ?? selected?.metadata?.geolocation?.longitude ?? null);
       let derivedDistance = null;
@@ -158,12 +159,13 @@ export default function VerifyStaff() {
                 const s = await getDoc(doc(db, 'users', uid));
                 if (s.exists()) {
                   const u = s.data();
-                  if (u?.storeLoc?.lat != null && u?.storeLoc?.lng != null) {
-                    locMap[uid] = { lat: Number(u.storeLoc.lat), lng: Number(u.storeLoc.lng) };
+                  const addr = u?.storeAddressGeo;
+                  if (addr?.lat != null && addr?.lng != null) {
+                    locMap[uid] = { lat: Number(addr.lat), lng: Number(addr.lng) };
                   }
                 }
               } catch (e) {
-                console.error('VerifyStaff: failed to load storeLoc for uid', uid, e);
+                console.error('VerifyStaff: failed to load storeAddressGeo for uid', uid, e);
               }
             }));
             const enhanced = rows.map(r => {
@@ -583,10 +585,10 @@ export default function VerifyStaff() {
                   <div className="text-sm font-medium mb-2">Store</div>
                   <div className="text-sm text-gray-700">{storeInfo?.storeName || selected.storeName || '—'}</div>
                   <div className="text-xs text-gray-600">Address: {storeInfo?.storeAddressText || '—'}</div>
-                  <div className="text-xs text-gray-600">Lat/Lng: {storeInfo?.storeLoc?.lat ?? '—'}, {storeInfo?.storeLoc?.lng ?? '—'}</div>
-                  {storeInfo?.storeLoc?.lat != null && storeInfo?.storeLoc?.lng != null && (
+                  <div className="text-xs text-gray-600">Lat/Lng: {(storeInfo?.storeAddressGeo?.lat ?? '—')}, {(storeInfo?.storeAddressGeo?.lng ?? '—')}</div>
+                  {(storeInfo?.storeAddressGeo?.lat != null && storeInfo?.storeAddressGeo?.lng != null) && (
                     <a
-                      href={`https://maps.google.com/?q=${storeInfo.storeLoc.lat},${storeInfo.storeLoc.lng}`}
+                      href={`https://maps.google.com/?q=${storeInfo.storeAddressGeo.lat},${storeInfo.storeAddressGeo.lng}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-1 inline-block text-xs text-blue-600 hover:underline"

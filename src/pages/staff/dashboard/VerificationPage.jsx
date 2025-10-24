@@ -42,6 +42,7 @@ export default function VerificationPage() {
   const [addressText, setAddressText] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
   const [storeLoc, setStoreLoc] = useState(null);
+  const [storeAddressGeo, setStoreAddressGeo] = useState(null);
 
   // Load user's saved store location so we can show CTA/link here
   useEffect(() => {
@@ -53,6 +54,7 @@ export default function VerificationPage() {
           const d = snap.data();
           setAddressText(d.storeAddressText || '');
           setStoreLoc(d.storeLoc || null);
+          setStoreAddressGeo(d.storeAddressGeo || null);
         }
       } catch (e) {
         console.debug?.('VerificationPage: failed to load user store', e);
@@ -201,33 +203,17 @@ export default function VerificationPage() {
               source: 'address',
               provider: g.provider
             };
+            // update local state immediately so Test map reflects the address
+            setStoreAddressGeo({ lat: g.lat, lng: g.lng, source: 'address', setAt: null, provider: g.provider });
           }
         } catch (e) {
           console.error('Address geocoding failed', e);
         }
       }
 
-      // Device GPS → storeLoc (device-only)
-      let deviceLoc = null;
-      if ('geolocation' in navigator) {
-        try {
-          await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition((pos) => {
-              const lat = pos.coords.latitude; const lng = pos.coords.longitude;
-              deviceLoc = { lat, lng, setAt: serverTimestamp(), source: 'device' };
-              resolve();
-            }, (err) => reject(err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
-          });
-        } catch (e) {
-          console.error('Device geolocation failed', e);
-        }
-      }
-      if (deviceLoc) payload.storeLoc = deviceLoc;
-
       await updateDoc(doc(db, 'users', user.uid), payload);
 
       // Local state: pending setAt placeholder
-      if (deviceLoc) setStoreLoc({ lat: deviceLoc.lat, lng: deviceLoc.lng, source: 'device', setAt: null });
     } catch (e) {
       console.error('Failed to save store location:', e);
       setError(e?.message || 'Failed to save store location. Please try again.');
@@ -429,11 +415,13 @@ export default function VerificationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold mb-1">{strings.PAGE_TITLE}</h1>
-        <p className="text-gray-700 mb-4">{strings.PAGE_DESCRIPTION}</p>
+        <h1 className="text-2xl font-semibold mb-1">Verification Center</h1>
+        <p className="text-gray-700 mb-4">
+          Confirm your store employment to unlock: brand trainings, product challenges, and sample rewards.  
+          Everything is designed to help you learn, earn, and grow in the natural products community.
+        </p>
       </div>
 
-      {/* Health food store employee notice (pink) */}
       {/* Localized strings already available as strings.NOTICE_TITLE / NOTICE_SUBTEXT */}
       <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-lg text-base mb-5">
         <strong className="font-semibold">{strings.NOTICE_TITLE}</strong><br />
@@ -489,9 +477,13 @@ export default function VerificationPage() {
           >
             {savingAddress ? 'Saving…' : (storeLoc?.lat != null ? 'Update Location' : 'Set Store Location')}
           </button>
-          {storeLoc?.lat != null && (
+          {(storeAddressGeo?.lat != null || storeLoc?.lat != null) && (
             <a
-              href={`https://maps.google.com/?q=${storeLoc.lat},${storeLoc.lng}`}
+              href={`https://maps.google.com/?q=${
+                (storeAddressGeo?.lat != null && storeAddressGeo?.lng != null)
+                  ? `${storeAddressGeo.lat},${storeAddressGeo.lng}`
+                  : `${storeLoc.lat},${storeLoc.lng}`
+              }`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:underline"
@@ -500,8 +492,10 @@ export default function VerificationPage() {
             </a>
           )}
         </div>
-        {storeLoc?.lat == null && (
-          <div className="mt-2 text-xs text-gray-600">Tip: Allow location access when prompted so we can save GPS.</div>
+        {!(addressText && addressText.trim()) && (
+          <div className="mt-2 text-xs text-gray-600">
+            Enter your store's address above so we can verify your location.
+          </div>
         )}
       </div>
 
