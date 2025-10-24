@@ -59,8 +59,9 @@ export default function VerifyStaff() {
   // Compute derived geo metrics without mutating objects (fallback when Cloud Function hasn't populated yet)
   const derivedMetrics = useMemo(() => {
     try {
-      const storeLat = (storeInfo?.storeAddressGeo?.lat ?? storeInfo?.storeLoc?.lat);
-      const storeLng = (storeInfo?.storeAddressGeo?.lng ?? storeInfo?.storeLoc?.lng);
+      // Use only device-sourced storeLoc for scoring; do not fall back to storeAddressGeo
+      const storeLat = storeInfo?.storeLoc?.lat;
+      const storeLng = storeInfo?.storeLoc?.lng;
       const selLat = (selected?.deviceLoc?.lat ?? selected?.gps?.lat ?? selected?.metadata?.geolocation?.latitude ?? null);
       const selLng = (selected?.deviceLoc?.lng ?? selected?.gps?.lng ?? selected?.metadata?.geolocation?.longitude ?? null);
       let derivedDistance = null;
@@ -159,11 +160,8 @@ export default function VerifyStaff() {
                 const s = await getDoc(doc(db, 'users', uid));
                 if (s.exists()) {
                   const u = s.data();
-                  const addr = u?.storeAddressGeo;
                   const dev = u?.storeLoc;
-                  if (addr?.lat != null && addr?.lng != null) {
-                    locMap[uid] = { lat: Number(addr.lat), lng: Number(addr.lng) };
-                  } else if (dev?.lat != null && dev?.lng != null) {
+                  if (dev?.lat != null && dev?.lng != null) {
                     locMap[uid] = { lat: Number(dev.lat), lng: Number(dev.lng) };
                   }
                 }

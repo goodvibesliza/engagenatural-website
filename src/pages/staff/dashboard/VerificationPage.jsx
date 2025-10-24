@@ -489,8 +489,10 @@ export default function VerificationPage() {
             </a>
           )}
         </div>
-        {(!storeAddressGeo?.lat && !storeLoc?.lat) && (
-          <div className="mt-2 text-xs text-gray-600">Tip: Allow location access when prompted so we can save GPS.</div>
+        {!(addressText && addressText.trim()) && (
+          <div className="mt-2 text-xs text-gray-600">
+            Tip: Enter your full street address, including city and postal code, to improve accuracy.
+          </div>
         )}
       </div>
 
