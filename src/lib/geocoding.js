@@ -4,9 +4,9 @@
 // the browser will still send a Referer automatically from the page origin.
 
 /**
- * Geocode a free-form address string to { lat, lng } using Nominatim.
- * @param {string} query - Address text
- * @returns {Promise<{lat:number,lng:number,provider:string}|null>}
+ * Convert a free-form address into geographic coordinates using OpenStreetMap Nominatim.
+ * @param {string} query - Free-form address text; if missing or not a string the function returns `null`.
+ * @returns {{lat:number,lng:number,provider:string}|null} An object with numeric `lat` and `lng` and `provider: 'nominatim'`, or `null` when no valid coordinates are available.
  */
 export async function geocodeAddress(query) {
   if (!query || typeof query !== 'string') return null;

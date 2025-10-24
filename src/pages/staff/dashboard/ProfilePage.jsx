@@ -7,6 +7,16 @@ import StaffProfilePanel from '../ProfilePanel';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
+/**
+ * Render and manage the user's profile page with editing, avatar, language, verification, and notification controls.
+ *
+ * Renders a full-profile UI that loads user data on mount, displays verification status and verification benefits,
+ * allows changing the profile image (upload or emoji avatar), editing "About Me" and profile information,
+ * selecting preferred language (locale), setting store location, and toggling notification preferences.
+ * Handles optimistic updates, persistence to Firestore and Firebase Storage, and basic loading/saving states.
+ *
+ * @returns {JSX.Element} The Profile page UI.
+ */
 export default function ProfilePage() {
   const { user } = useAuth();
   const [profileImage, setProfileImage] = useState(null);
