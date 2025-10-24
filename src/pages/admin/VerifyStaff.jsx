@@ -59,8 +59,8 @@ export default function VerifyStaff() {
   // Compute derived geo metrics without mutating objects (fallback when Cloud Function hasn't populated yet)
   const derivedMetrics = useMemo(() => {
     try {
-      const storeLat = storeInfo?.storeLoc?.lat;
-      const storeLng = storeInfo?.storeLoc?.lng;
+      const storeLat = (storeInfo?.storeAddressGeo?.lat ?? storeInfo?.storeLoc?.lat);
+      const storeLng = (storeInfo?.storeAddressGeo?.lng ?? storeInfo?.storeLoc?.lng);
       const selLat = (selected?.deviceLoc?.lat ?? selected?.gps?.lat ?? selected?.metadata?.geolocation?.latitude ?? null);
       const selLng = (selected?.deviceLoc?.lng ?? selected?.gps?.lng ?? selected?.metadata?.geolocation?.longitude ?? null);
       let derivedDistance = null;
@@ -159,8 +159,12 @@ export default function VerifyStaff() {
                 const s = await getDoc(doc(db, 'users', uid));
                 if (s.exists()) {
                   const u = s.data();
-                  if (u?.storeLoc?.lat != null && u?.storeLoc?.lng != null) {
-                    locMap[uid] = { lat: Number(u.storeLoc.lat), lng: Number(u.storeLoc.lng) };
+                  const addr = u?.storeAddressGeo;
+                  const dev = u?.storeLoc;
+                  if (addr?.lat != null && addr?.lng != null) {
+                    locMap[uid] = { lat: Number(addr.lat), lng: Number(addr.lng) };
+                  } else if (dev?.lat != null && dev?.lng != null) {
+                    locMap[uid] = { lat: Number(dev.lat), lng: Number(dev.lng) };
                   }
                 }
               } catch (e) {
@@ -560,10 +564,10 @@ export default function VerifyStaff() {
                   <div className="text-sm font-medium mb-2">Store</div>
                   <div className="text-sm text-gray-700">{storeInfo?.storeName || selected.storeName || '—'}</div>
                   <div className="text-xs text-gray-600">Address: {storeInfo?.storeAddressText || '—'}</div>
-                  <div className="text-xs text-gray-600">Lat/Lng: {storeInfo?.storeLoc?.lat ?? '—'}, {storeInfo?.storeLoc?.lng ?? '—'}</div>
-                  {storeInfo?.storeLoc?.lat != null && storeInfo?.storeLoc?.lng != null && (
+                  <div className="text-xs text-gray-600">Lat/Lng: {(storeInfo?.storeAddressGeo?.lat ?? '—')}, {(storeInfo?.storeAddressGeo?.lng ?? '—')}</div>
+                  {(storeInfo?.storeAddressGeo?.lat != null && storeInfo?.storeAddressGeo?.lng != null) && (
                     <a
-                      href={`https://maps.google.com/?q=${storeInfo.storeLoc.lat},${storeInfo.storeLoc.lng}`}
+                      href={`https://maps.google.com/?q=${storeInfo.storeAddressGeo.lat},${storeInfo.storeAddressGeo.lng}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-1 inline-block text-xs text-blue-600 hover:underline"

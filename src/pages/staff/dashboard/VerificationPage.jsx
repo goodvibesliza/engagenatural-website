@@ -201,27 +201,9 @@ export default function VerificationPage() {
         }
       }
 
-      // Device GPS → storeLoc (device-only)
-      let deviceLoc = null;
-      if ('geolocation' in navigator) {
-        try {
-          await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition((pos) => {
-              const lat = pos.coords.latitude; const lng = pos.coords.longitude;
-              deviceLoc = { lat, lng, setAt: serverTimestamp(), source: 'device' };
-              resolve();
-            }, (err) => reject(err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
-          });
-        } catch (e) {
-          console.error('Device geolocation failed', e);
-        }
-      }
-      if (deviceLoc) payload.storeLoc = deviceLoc;
-
       await updateDoc(doc(db, 'users', user.uid), payload);
 
       // Local state: pending setAt placeholder
-      if (deviceLoc) setStoreLoc({ lat: deviceLoc.lat, lng: deviceLoc.lng, source: 'device', setAt: null });
     } catch (e) {
       console.error('Failed to save store location:', e);
       setError(e?.message || 'Failed to save store location. Please try again.');
