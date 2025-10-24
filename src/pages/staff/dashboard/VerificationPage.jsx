@@ -5,6 +5,8 @@ import { doc, updateDoc, addDoc, collection, serverTimestamp, getDoc, getDocs, q
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import PhotoUploadComponent from '../PhotoVerify';
 import { useLocation } from 'react-router-dom';
+import { getVerifyStrings } from '@/lib/i18nVerification';
+import { geocodeAddress } from '@/lib/geocoding';
 
 /**
  * Render the Verification Center UI and manage photo- and code-based verification flows, including metadata collection, optional geolocation, photo upload, and submitting verification requests to the backend.
@@ -15,6 +17,10 @@ export default function VerificationPage() {
   const { user } = useAuth();
   const location = useLocation();
   const navState = location?.state || {};
+  const strings = getVerifyStrings(user?.locale || (typeof navigator !== 'undefined' ? navigator.language : 'en'));
+  const reqs = Array.isArray(strings.REQUIREMENTS_BODY)
+    ? strings.REQUIREMENTS_BODY
+    : (strings.REQUIREMENTS_BODY ? [strings.REQUIREMENTS_BODY] : []);
   const [verificationPhoto, setVerificationPhoto] = useState(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
   const [verificationCode, setVerificationCode] = useState('');
@@ -164,35 +170,60 @@ export default function VerificationPage() {
     }
   }
 
+  // geocodeAddress imported from shared module
+
   async function setStoreLocationInline() {
     if (!user?.uid) return;
-    if (!('geolocation' in navigator)) {
-      alert('Geolocation is not supported on this device/browser.');
-      return;
-    }
     setSavingAddress(true);
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      try {
-        const payload = {
-          storeAddressText: addressText || '',
-          storeLoc: { lat, lng, setAt: serverTimestamp(), source: 'device' },
-        };
-        await updateDoc(doc(db, 'users', user.uid), payload);
-        setStoreLoc({ lat, lng, setAt: new Date(), source: 'device' });
-        // state already updated via setStoreLoc and addressText
-      } catch (e) {
-        console.error('Failed to save store location:', e);
-        alert('Failed to save store location. Please try again.');
-      } finally {
-        setSavingAddress(false);
+    try {
+      const addr = (addressText || '').trim();
+      const payload = { storeAddressText: addr };
+
+      // Address → storeAddressGeo (reference only), never into storeLoc
+      if (addr) {
+        try {
+          const g = await geocodeAddress(addr);
+          if (g) {
+            payload.storeAddressGeo = {
+              lat: g.lat,
+              lng: g.lng,
+              setAt: serverTimestamp(),
+              source: 'address',
+              provider: g.provider
+            };
+          }
+        } catch (e) {
+          console.error('Address geocoding failed', e);
+        }
       }
-    }, (err) => {
-      console.error('Geolocation error:', err);
+
+      // Device GPS → storeLoc (device-only)
+      let deviceLoc = null;
+      if ('geolocation' in navigator) {
+        try {
+          await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition((pos) => {
+              const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+              deviceLoc = { lat, lng, setAt: serverTimestamp(), source: 'device' };
+              resolve();
+            }, (err) => reject(err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+          });
+        } catch (e) {
+          console.error('Device geolocation failed', e);
+        }
+      }
+      if (deviceLoc) payload.storeLoc = deviceLoc;
+
+      await updateDoc(doc(db, 'users', user.uid), payload);
+
+      // Local state: pending setAt placeholder
+      if (deviceLoc) setStoreLoc({ lat: deviceLoc.lat, lng: deviceLoc.lng, source: 'device', setAt: null });
+    } catch (e) {
+      console.error('Failed to save store location:', e);
+      setError(e?.message || 'Failed to save store location. Please try again.');
+    } finally {
       setSavingAddress(false);
-      alert('Could not get device location. Please allow location access and try again.');
-    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+    }
   }
 
   // Brand verification codes/sources
@@ -317,6 +348,10 @@ export default function VerificationPage() {
 
   // Submit verification
   const submitVerification = async () => {
+    if (!user?.uid) {
+      setError(strings.ERROR_NOT_SIGNED_IN || 'Please sign in to submit verification');
+      return;
+    }
     // Validate input
     if (!verificationPhoto && !verificationCode) {
       setError('Please provide a photo or verification code');
@@ -384,15 +419,48 @@ export default function VerificationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Verification Center</h1>
-        <p className="text-gray-600">
-          Submit your verification to unlock premium features and communities.
-        </p>
+        <h1 className="text-2xl font-semibold mb-1">{strings.PAGE_TITLE}</h1>
+        <p className="text-gray-700 mb-4">{strings.PAGE_DESCRIPTION}</p>
+      </div>
+
+      {/* Health food store employee notice (pink) */}
+      {/* Localized strings already available as strings.NOTICE_TITLE / NOTICE_SUBTEXT */}
+      <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-lg text-base mb-5">
+        <strong className="font-semibold">{strings.NOTICE_TITLE}</strong><br />
+        <span className="text-rose-900/80">{strings.NOTICE_SUBTEXT}</span>
+      </div>
+
+      {/* Localized Requirements and Tips */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold mb-3">{strings.REQUIREMENTS_TITLE}</h2>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+          {reqs.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+        {Array.isArray(strings.REQUIREMENTS_TIPS) && strings.REQUIREMENTS_TIPS.length > 0 && (
+          <div className="mt-4">
+            <div className="text-sm font-medium text-gray-800 mb-1">Tips</div>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+              {strings.REQUIREMENTS_TIPS.map((tip, i) => (<li key={i}>{tip}</li>))}
+            </ul>
+          </div>
+        )}
+        <div className="mt-4">
+          <div className="text-sm font-medium text-gray-800 mb-1">{strings.WHY_WE_VERIFY_TITLE}</div>
+          <p className="text-sm text-gray-700">{strings.WHY_WE_VERIFY_BODY}</p>
+        </div>
       </div>
 
       {/* Store Location (inline widget) */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold mb-2">Store Location</h2>
+        <a
+          href="/staff/profile/store-location"
+          className="text-xs text-blue-600 hover:underline"
+        >
+          Manage in Profile
+        </a>
         <p className="text-sm text-gray-600 mb-3">Save your store GPS once. We’ll compare verification selfies to this location.</p>
         <label className="block text-sm font-medium text-gray-700 mb-1">Store address (for humans)</label>
         <input

@@ -12,6 +12,7 @@ Key files
   - Submits deviceLoc (if granted) with verification payload
 - Store location page: src/pages/auth/ProfileStoreLocation.jsx
   - Saves users/{uid}.storeLoc { lat, lng, setAt, source:'device' } and storeAddressText
+  - New (2025-10-24): Address geocode is stored under users/{uid}.storeAddressGeo { lat, lng, setAt, source:'address', provider } and NEVER written to storeLoc
 - Admin review: src/pages/admin/VerifyStaff.jsx
   - Signals: shows user storeLoc/address, verification GPS, distance_m, autoScore, reasons, maps links
   - Actions: Approve/Reject/Request Info
@@ -34,7 +35,11 @@ Firestore shapes
   }
 
 - User profile (users/{uid}):
-  { storeAddressText?: string, storeLoc?: { lat, lng, setAt, source } }
+  {
+    storeAddressText?: string,
+    storeAddressGeo?: { lat, lng, setAt, source:'address', provider?: 'nominatim' },
+    storeLoc?: { lat, lng, setAt, source:'device' }
+  }
 
 - System notifications (notifications/{uid}/system/{autoId}):
   { type: 'verification_info_request', title, body, link: '/staff/verification', unread: true, createdAt, meta?: { requestId } }
@@ -58,6 +63,18 @@ Testing checklist
 Notes
 - Geo badge thresholds: Match ≤250m, Near ≤800m
 - AutoScore: 100 at 0–50m → linearly to 0 by 1500m
+
+### Store location policy update (2025-10-24)
+- Device-only policy for storeLoc:
+  - storeLoc is strictly for device GPS: { lat, lng, setAt: serverTimestamp(), source: 'device' }
+  - Address coordinates are never persisted into storeLoc
+- Address handling:
+  - Human-entered address is kept as storeAddressText
+  - Geocoded address coordinates are stored in storeAddressGeo with serverTimestamp and source:'address'
+- UI alignment (both places):
+  - src/pages/auth/ProfileStoreLocation.jsx → writes storeAddressGeo and, when available, device GPS to storeLoc
+  - src/pages/staff/dashboard/VerificationPage.jsx → inline widget mirrors the same behavior
+  - Local React state uses a pending placeholder for setAt (no local Date()) until Firestore serverTimestamp resolves
 
 ## Quickstart: Community Byline/Avatar Debugging (Store/Brand not showing)
 

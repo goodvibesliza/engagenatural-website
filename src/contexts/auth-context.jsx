@@ -306,6 +306,8 @@ export function AuthProvider({ children }) {
           level,
           points,
           profileImage,
+          // Expose preferred locale from profile for i18n (e.g., 'en' | 'es')
+          locale: (typeof firestoreProfile?.locale === 'string' && firestoreProfile.locale.trim()) ? firestoreProfile.locale : undefined,
         }
       : null;
     /* ------------------------------------------------------------------

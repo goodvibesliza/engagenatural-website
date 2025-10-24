@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { geocodeAddress } from '@/lib/geocoding';
 import { Link } from 'react-router-dom';
 
 export default function ProfileStoreLocation() {
@@ -28,37 +29,66 @@ export default function ProfileStoreLocation() {
     })();
   }, [user?.uid]);
 
+  // geocodeAddress imported from shared module
+
   async function setStoreLocation() {
     if (!user?.uid) return;
     setError('');
     setSuccess('');
-    if (!('geolocation' in navigator)) {
-      setError('Geolocation is not supported on this device/browser.');
-      return;
-    }
     setSaving(true);
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      try {
-        const payload = {
-          storeAddressText: addressText || '',
-          storeLoc: { lat, lng, setAt: serverTimestamp(), source: 'device' },
-        };
-        await updateDoc(doc(db, 'users', user.uid), payload);
-        setStoreLoc({ lat, lng, setAt: new Date(), source: 'device' });
-        setSuccess('Store location saved.');
-      } catch (e) {
-        console.error('Failed to save store location:', e);
-        setError('Failed to save store location. Please try again.');
-      } finally {
-        setSaving(false);
+    try {
+      const addr = (addressText || '').trim();
+      const payload = { storeAddressText: addr };
+
+      // 1) Geocode address → storeAddressGeo (reference only), never into storeLoc
+      if (addr) {
+        try {
+          const g = await geocodeAddress(addr);
+          if (g) {
+            payload.storeAddressGeo = {
+              lat: g.lat,
+              lng: g.lng,
+              setAt: serverTimestamp(),
+              source: 'address',
+              provider: g.provider
+            };
+          }
+        } catch (e) {
+          console.error('Address geocoding failed', e);
+        }
       }
-    }, (err) => {
-      console.error('Geolocation error:', err);
+
+      // 2) Get device GPS → storeLoc (device-only)
+      let deviceLoc = null;
+      if ('geolocation' in navigator) {
+        try {
+          await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition((pos) => {
+              const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+              deviceLoc = { lat, lng, setAt: serverTimestamp(), source: 'device' };
+              resolve();
+            }, (err) => reject(err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+          });
+        } catch (e) {
+          console.error('Device geolocation failed', e);
+        }
+      }
+
+      if (deviceLoc) {
+        payload.storeLoc = deviceLoc; // device-only
+      }
+
+      await updateDoc(doc(db, 'users', user.uid), payload);
+
+      // Update local state: use pending placeholder for setAt (avoid local Date)
+      if (deviceLoc) setStoreLoc({ lat: deviceLoc.lat, lng: deviceLoc.lng, source: 'device', setAt: null });
+      setSuccess(deviceLoc ? 'Store location (device GPS) saved.' : 'Address saved. Device GPS not captured.');
+    } catch (e) {
+      console.error('Failed to save store location:', e);
+      setError('Failed to save store information. Please try again.');
+    } finally {
       setSaving(false);
-      setError('Could not get device location. Please allow location access and try again.');
-    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+    }
   }
 
   const mapHref = storeLoc?.lat != null && storeLoc?.lng != null
