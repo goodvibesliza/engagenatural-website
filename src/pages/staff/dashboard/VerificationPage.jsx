@@ -42,6 +42,7 @@ export default function VerificationPage() {
   const [addressText, setAddressText] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
   const [storeLoc, setStoreLoc] = useState(null);
+  const [storeAddressGeo, setStoreAddressGeo] = useState(null);
 
   // Load user's saved store location so we can show CTA/link here
   useEffect(() => {
@@ -53,6 +54,7 @@ export default function VerificationPage() {
           const d = snap.data();
           setAddressText(d.storeAddressText || '');
           setStoreLoc(d.storeLoc || null);
+          setStoreAddressGeo(d.storeAddressGeo || null);
         }
       } catch (e) {
         console.debug?.('VerificationPage: failed to load user store', e);
@@ -191,6 +193,8 @@ export default function VerificationPage() {
               source: 'address',
               provider: g.provider
             };
+            // update local state immediately so Test map reflects the address
+            setStoreAddressGeo({ lat: g.lat, lng: g.lng, source: 'address', setAt: null, provider: g.provider });
           }
         } catch (e) {
           console.error('Address geocoding failed', e);
@@ -479,9 +483,13 @@ export default function VerificationPage() {
           >
             {savingAddress ? 'Saving…' : (storeLoc?.lat != null ? 'Update Location' : 'Set Store Location')}
           </button>
-          {storeLoc?.lat != null && (
+          {(storeAddressGeo?.lat != null || storeLoc?.lat != null) && (
             <a
-              href={`https://maps.google.com/?q=${storeLoc.lat},${storeLoc.lng}`}
+              href={`https://maps.google.com/?q=${
+                (storeAddressGeo?.lat != null && storeAddressGeo?.lng != null)
+                  ? `${storeAddressGeo.lat},${storeAddressGeo.lng}`
+                  : `${storeLoc.lat},${storeLoc.lng}`
+              }`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:underline"
@@ -490,7 +498,7 @@ export default function VerificationPage() {
             </a>
           )}
         </div>
-        {storeLoc?.lat == null && (
+        {(!storeAddressGeo?.lat && !storeLoc?.lat) && (
           <div className="mt-2 text-xs text-gray-600">Tip: Allow location access when prompted so we can save GPS.</div>
         )}
       </div>
