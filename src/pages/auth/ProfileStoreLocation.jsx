@@ -5,6 +5,13 @@ import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { geocodeAddress } from '@/lib/geocoding';
 import { Link } from 'react-router-dom';
 
+/**
+ * UI for viewing and saving the user's store location using a human-readable address and device GPS.
+ *
+ * Persists an address text and optional geocoded address coordinates as `storeAddressText` / `storeAddressGeo` on the current user's Firestore document, and optionally captures device GPS coordinates into `storeLoc`. May prompt the browser for geolocation permission when attempting to capture device GPS.
+ *
+ * @returns {JSX.Element} The ProfileStoreLocation component UI.
+ */
 export default function ProfileStoreLocation() {
   const { user } = useAuth();
   const [addressText, setAddressText] = useState('');

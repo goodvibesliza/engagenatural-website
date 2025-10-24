@@ -150,6 +150,12 @@ export default function VerificationPage() {
     return () => { try { unsub(); } catch (err) { console.error('VerificationPage: messages unsubscribe failed', err); } };
   }, [db, activeRequestId]);
 
+  /**
+   * Post the current reply text as a message to the active verification request thread.
+   *
+   * If there is no signed-in user, no active request, or the trimmed reply text is empty, the function does nothing.
+   * On success the input is cleared; on failure an alert is shown.
+   */
   async function sendReply() {
     if (!user?.uid || !activeRequestId) return;
     const text = replyText.trim();
@@ -170,7 +176,11 @@ export default function VerificationPage() {
     }
   }
 
-  // geocodeAddress imported from shared module
+  /**
+   * Save the current human-readable store address and optional device geolocation to the signed-in user's profile.
+   *
+   * If an address string is present, attempts to geocode it and stores the resulting coordinates and provider under `storeAddressGeo` on the user's document; separately, if the browser grants geolocation permission, captures device coordinates and stores them under `storeLoc`. Persists the assembled payload to Firestore and updates local store location state when a device location is obtained. No action is taken if there is no signed-in user (`user.uid`).
+   */
 
   async function setStoreLocationInline() {
     if (!user?.uid) return;

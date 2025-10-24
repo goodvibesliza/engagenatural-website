@@ -28,10 +28,9 @@ import { metersBetween } from '@/lib/haversine';
 /**
  * Render the staff verification queue UI for reviewing and managing verification requests.
  *
- * Subscribes to the Firestore 'verification_requests' collection and presents a searchable,
- * status-filterable table of requests. Exposes actions in a detail dialog to approve, reject,
- * or request more information; those actions update the corresponding user and request
- * documents in Firestore and update component state to reflect changes.
+ * Presents a searchable, status-filterable list of verification requests and a detail dialog
+ * that lets an admin approve, reject (with a recorded reason), request additional information,
+ * or send reminders. Corresponding Firestore documents and UI state are updated to reflect actions.
  *
  * @returns {JSX.Element} The verification queue UI component.
  */
@@ -229,6 +228,14 @@ export default function VerifyStaff() {
 
   const fmt = (d) => d ? d.toLocaleString() : '—';
 
+  /**
+   * Approves a verification request and updates the applicant's user record and the request status in Firestore.
+   *
+   * Prompts for confirmation, prevents concurrent processing, writes a batched update that marks the user as verified
+   * and sets the request status to "approved" with a review timestamp, then clears the selected request and shows a success alert.
+   *
+   * @param {Object} v - Verification request object. Must include `applicantUid` and `id`; `applicantName` is used in the confirmation prompt if present.
+   */
   async function approve(v) {
     if (!v?.applicantUid) return;
     if (processing) return;
@@ -256,6 +263,12 @@ export default function VerifyStaff() {
     }
   }
 
+  /**
+   * Rejects a verification request and records the rejection reason in Firestore for both the user and the verification request.
+   *
+   * @param {Object} v - Verification request object; must include `id` and `applicantUid`.
+   * @param {string} reason - Non-empty rejection reason code to record on both documents.
+   */
   async function reject(v, reason) {
     if (!v?.applicantUid) return;
     if (!reason || typeof reason !== 'string' || !reason.trim()) {
@@ -289,6 +302,16 @@ export default function VerifyStaff() {
     }
   }
 
+  /**
+   * Send a request for more information about a verification request and record the request.
+   *
+   * Updates the verification_requests document to set status to "needs_info", appends an entry
+   * to the request's infoRequests history (client timestamp), and saves the admin's infoRequestMessage.
+   * If the request has an applicantUid, creates a system notification for that applicant.
+   * On success, resets local request UI state (requestingInfo, requestInfoMsg, selected) and shows an alert.
+   *
+   * @param {Object} v - Verification request object; must include `id`. May include `applicantUid` and `applicantName` for notification and confirmation text.
+   */
   async function requestInfo(v) {
     if (!v?.id) return;
     if (processing) return;
