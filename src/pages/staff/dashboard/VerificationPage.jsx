@@ -482,7 +482,7 @@ export default function VerificationPage() {
         </div>
         {!(addressText && addressText.trim()) && (
           <div className="mt-2 text-xs text-gray-600">
-            Tip: Enter your full street address, including city and postal code, to improve accuracy.
+            Enter your store's address above so we can verify your location.
           </div>
         )}
       </div>
