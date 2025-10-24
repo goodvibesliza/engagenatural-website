@@ -22,19 +22,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import { getVerifyStrings, getReasonText } from '@/lib/i18nVerification';
+import { metersBetween } from '@/lib/haversine';
 
 /**
  * Render the staff verification queue UI for reviewing and managing verification requests.
  *
- * Subscribes to the Firestore 'verification_requests' collection and presents a searchable,
- * status-filterable table of requests. Exposes actions in a detail dialog to approve, reject,
- * or request more information; those actions update the corresponding user and request
- * documents in Firestore and update component state to reflect changes.
+ * Presents a searchable, status-filterable list of verification requests and a detail dialog
+ * that lets an admin approve, reject (with a recorded reason), request additional information,
+ * or send reminders. Corresponding Firestore documents and UI state are updated to reflect actions.
  *
  * @returns {JSX.Element} The verification queue UI component.
  */
 export default function VerifyStaff() {
   const { user: admin } = useAuth();
+  const strings = getVerifyStrings(admin?.locale || (typeof navigator !== 'undefined' ? navigator.language : 'en'));
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,6 +51,36 @@ export default function VerifyStaff() {
   const [processing, setProcessing] = useState(false);
   // Staff replies under messages subcollection
   const [messages, setMessages] = useState([]);
+  // Localized reject modal state (UI-only, no change to writes)
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectReason, setRejectReason] = useState('LOCATION_FAR');
+
+  // Compute derived geo metrics without mutating objects (fallback when Cloud Function hasn't populated yet)
+  const derivedMetrics = useMemo(() => {
+    try {
+      const storeLat = storeInfo?.storeLoc?.lat;
+      const storeLng = storeInfo?.storeLoc?.lng;
+      const selLat = (selected?.deviceLoc?.lat ?? selected?.gps?.lat ?? selected?.metadata?.geolocation?.latitude ?? null);
+      const selLng = (selected?.deviceLoc?.lng ?? selected?.gps?.lng ?? selected?.metadata?.geolocation?.longitude ?? null);
+      let derivedDistance = null;
+      if (storeLat != null && storeLng != null && selLat != null && selLng != null) {
+        const a = { lat: Number(selLat), lng: Number(selLng) };
+        const b = { lat: Number(storeLat), lng: Number(storeLng) };
+        const d = metersBetween(a, b);
+        if (Number.isFinite(d)) derivedDistance = d;
+      }
+      let derivedScore = null;
+      if (derivedDistance != null) {
+        const d = derivedDistance;
+        if (d <= 50) derivedScore = 100;
+        else if (d >= 1500) derivedScore = 0;
+        else derivedScore = Math.max(0, Math.round(100 * (1 - (d - 50) / (1500 - 50))));
+      }
+      return { derivedDistance, derivedScore };
+    } catch {
+      return { derivedDistance: null, derivedScore: null };
+    }
+  }, [selected, storeInfo]);
 
   // Subscribe to staff replies for the currently selected request
   useEffect(() => {
@@ -105,6 +137,7 @@ export default function VerifyStaff() {
             photoRedactedUrl: v.photoRedactedUrl || '',
             gps: v.gps || null,
             deviceLoc: v.deviceLoc || null,
+            metadata: v.metadata || null,
             locSource: v.locSource || null,
             locDenied: !!v.locDenied,
             // Info request history (new) + legacy backfill fields
@@ -115,6 +148,44 @@ export default function VerifyStaff() {
         });
         setItems(rows);
         setLoading(false);
+        // Enrich with derived geo metrics for list view when missing in doc
+        (async () => {
+          try {
+            const uids = Array.from(new Set(rows.map(r => r.applicantUid).filter(Boolean)));
+            const locMap = {};
+            await Promise.all(uids.map(async (uid) => {
+              try {
+                const s = await getDoc(doc(db, 'users', uid));
+                if (s.exists()) {
+                  const u = s.data();
+                  if (u?.storeLoc?.lat != null && u?.storeLoc?.lng != null) {
+                    locMap[uid] = { lat: Number(u.storeLoc.lat), lng: Number(u.storeLoc.lng) };
+                  }
+                }
+              } catch (e) {
+                console.error('VerifyStaff: failed to load storeLoc for uid', uid, e);
+              }
+            }));
+            const enhanced = rows.map(r => {
+              if (typeof r.autoScore === 'number' && typeof r.distance_m === 'number') return r;
+              const store = locMap[r.applicantUid];
+              const lat = r?.deviceLoc?.lat ?? r?.gps?.lat ?? r?.metadata?.geolocation?.latitude ?? null;
+              const lng = r?.deviceLoc?.lng ?? r?.gps?.lng ?? r?.metadata?.geolocation?.longitude ?? null;
+              let _derivedDistance = null; let _derivedScore = null;
+              if (store && lat != null && lng != null) {
+                const d = metersBetween({ lat: Number(lat), lng: Number(lng) }, store);
+                if (Number.isFinite(d)) {
+                  _derivedDistance = d;
+                  if (d <= 50) _derivedScore = 100; else if (d >= 1500) _derivedScore = 0; else _derivedScore = Math.max(0, Math.round(100 * (1 - (d - 50) / (1500 - 50))));
+                }
+              }
+              return { ...r, _derivedDistance, _derivedScore };
+            });
+            setItems(enhanced);
+          } catch (e) {
+            console.error('VerifyStaff: failed to compute derived metrics for list', e);
+          }
+        })();
       },
       (err) => {
         console.error('Failed to fetch verification requests:', err);
@@ -157,6 +228,14 @@ export default function VerifyStaff() {
 
   const fmt = (d) => d ? d.toLocaleString() : '—';
 
+  /**
+   * Approves a verification request and updates the applicant's user record and the request status in Firestore.
+   *
+   * Prompts for confirmation, prevents concurrent processing, writes a batched update that marks the user as verified
+   * and sets the request status to "approved" with a review timestamp, then clears the selected request and shows a success alert.
+   *
+   * @param {Object} v - Verification request object. Must include `applicantUid` and `id`; `applicantName` is used in the confirmation prompt if present.
+   */
   async function approve(v) {
     if (!v?.applicantUid) return;
     if (processing) return;
@@ -184,20 +263,32 @@ export default function VerifyStaff() {
     }
   }
 
-  async function reject(v) {
+  /**
+   * Rejects a verification request and records the rejection reason in Firestore for both the user and the verification request.
+   *
+   * @param {Object} v - Verification request object; must include `id` and `applicantUid`.
+   * @param {string} reason - Non-empty rejection reason code to record on both documents.
+   */
+  async function reject(v, reason) {
     if (!v?.applicantUid) return;
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      console.error('reject: invalid reason parameter', { reason });
+      alert('Please select a rejection reason.');
+      return;
+    }
     if (processing) return;
-    if (!confirm(`Reject verification for ${v.applicantName || 'this user'}?`)) return;
     setProcessing(true);
     try {
       const batch = writeBatch(db);
       batch.update(doc(db, 'users', v.applicantUid), {
         verified: false,
         verificationStatus: 'rejected',
+        rejectionReason: reason,
         updatedAt: serverTimestamp(),
       });
       batch.update(doc(db, 'verification_requests', v.id), {
         status: 'rejected',
+        rejectionReason: reason,
         reviewedAt: serverTimestamp(),
       });
       await batch.commit();
@@ -211,6 +302,16 @@ export default function VerifyStaff() {
     }
   }
 
+  /**
+   * Send a request for more information about a verification request and record the request.
+   *
+   * Updates the verification_requests document to set status to "needs_info", appends an entry
+   * to the request's infoRequests history (client timestamp), and saves the admin's infoRequestMessage.
+   * If the request has an applicantUid, creates a system notification for that applicant.
+   * On success, resets local request UI state (requestingInfo, requestInfoMsg, selected) and shows an alert.
+   *
+   * @param {Object} v - Verification request object; must include `id`. May include `applicantUid` and `applicantName` for notification and confirmation text.
+   */
   async function requestInfo(v) {
     if (!v?.id) return;
     if (processing) return;
@@ -222,6 +323,7 @@ export default function VerifyStaff() {
       await updateDoc(doc(db, 'verification_requests', v.id), {
         status: 'needs_info',
         infoRequestedAt: serverTimestamp(),
+        infoRequestMessage: requestInfoMsg || '',
         infoRequests: arrayUnion({
           message: requestInfoMsg || '',
           // Use client-side Date so Firestore stores a Timestamp; serverTimestamp() isn't allowed inside arrayUnion
@@ -340,7 +442,8 @@ export default function VerifyStaff() {
               const img = v.photoRedactedUrl || v.photoUrl || '';
               const reasons = v.reasons || [];
               const rosterBadge = reasons.includes('ROSTER_EMAIL_MATCH') ? 'email' : (reasons.includes('ROSTER_NAME_MATCH') ? 'name' : 'none');
-              const geoBadge = v.distance_m == null ? 'nogps' : (v.distance_m <= 250 ? 'match' : v.distance_m <= 800 ? 'near' : 'far');
+              const listDistance = (typeof v.distance_m === 'number' ? v.distance_m : (typeof v._derivedDistance === 'number' ? v._derivedDistance : null));
+              const geoBadge = listDistance == null ? 'nogps' : (listDistance <= 250 ? 'match' : listDistance <= 800 ? 'near' : 'far');
               const openRow = () => { setSelected(v); setZoomPhoto(false); setZoomCode(false); };
               const onRowKey = (e) => {
                 if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
@@ -363,7 +466,7 @@ export default function VerifyStaff() {
                   <td className="px-4 py-3 text-gray-700">{v.storeName || '—'}</td>
                   <td className="px-4 py-3 font-mono">{v.submittedCodeText || '—'}</td>
                   <td className="px-4 py-3 text-gray-700">{fmt(v.submittedAt)}</td>
-                  <td className="px-4 py-3 text-gray-900">{v.autoScore ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-900">{(typeof v.autoScore === 'number' ? v.autoScore : (typeof v._derivedScore === 'number' ? v._derivedScore : '—'))}</td>
                   <td className="px-4 py-3">
                     {geoBadge === 'match' && <span className="inline-flex rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-xs">Match</span>}
                     {geoBadge === 'near' && <span className="inline-flex rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs">Near</span>}
@@ -495,7 +598,7 @@ export default function VerifyStaff() {
                 <div className="rounded border p-3">
                   <div className="text-sm font-medium mb-2">GPS</div>
                   <div className="text-sm text-gray-700">Lat/Lng: {(selected.deviceLoc?.lat ?? selected.gps?.lat) ?? '—'}, {(selected.deviceLoc?.lng ?? selected.gps?.lng) ?? '—'}</div>
-                  <div className="text-sm text-gray-700">Distance: {selected.distance_m != null ? `${selected.distance_m} m` : '—'}</div>
+                  <div className="text-sm text-gray-700">Distance: { (selected.distance_m ?? derivedMetrics.derivedDistance) != null ? `${(selected.distance_m ?? derivedMetrics.derivedDistance)} m` : '—'}</div>
                   {(selected.deviceLoc?.lat ?? selected.gps?.lat) != null &&
                    (selected.deviceLoc?.lng ?? selected.gps?.lng) != null && (
                     <a
@@ -513,12 +616,12 @@ export default function VerifyStaff() {
                   <div className="h-3 w-full rounded bg-gray-100">
                     <div
                       className={`h-3 rounded ${
-                        (selected.autoScore ?? 0) >= 85 ? 'bg-green-500' : (selected.autoScore ?? 0) >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                        ((selected.autoScore ?? derivedMetrics.derivedScore ?? 0) >= 85) ? 'bg-green-500' : ((selected.autoScore ?? derivedMetrics.derivedScore ?? 0) >= 50) ? 'bg-amber-500' : 'bg-red-500'
                       }`}
-                      style={{ width: `${Math.min(100, Math.max(0, selected.autoScore ?? 0))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, (selected.autoScore ?? derivedMetrics.derivedScore ?? 0)))}%` }}
                     />
                   </div>
-                  <div className="mt-2 text-sm">Score: {selected.autoScore ?? 0}</div>
+                  <div className="mt-2 text-sm">Score: {selected.autoScore ?? derivedMetrics.derivedScore ?? 0}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {(selected.reasons || []).map((r, i) => (
                       <span key={i} className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{r}</span>
@@ -613,7 +716,7 @@ export default function VerifyStaff() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => reject(selected)}
+                      onClick={() => { setRejecting(true); }}
                       disabled={processing}
                       className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -654,6 +757,69 @@ export default function VerifyStaff() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Localized Reject Modal */}
+      <Dialog open={rejecting} onOpenChange={(o) => { setRejecting(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{strings.REJECT_TITLE}</DialogTitle>
+            <DialogDescription>{strings.REJECT_BODY}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">Reason</label>
+            <select
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            >
+              <option value="LOCATION_FAR">{strings.OPTION_LOCATION_FAR}</option>
+              <option value="LOCATION_MISSING">{strings.OPTION_LOCATION_MISSING}</option>
+              <option value="CODE_INVALID">{strings.OPTION_CODE_INVALID}</option>
+              <option value="FACE_NOT_VISIBLE">{strings.OPTION_FACE_NOT_VISIBLE}</option>
+              <option value="BLURRY">{strings.OPTION_BLURRY}</option>
+              <option value="MULTIPLE_PEOPLE">{strings.OPTION_MULTIPLE_PEOPLE}</option>
+              <option value="TIME_WINDOW">{strings.OPTION_TIME_WINDOW}</option>
+              <option value="ROSTER_MISMATCH">{strings.OPTION_ROSTER_MISMATCH}</option>
+              <option value="IMAGE_EDIT">{strings.OPTION_IMAGE_EDIT}</option>
+              <option value="OTHER">{strings.OPTION_OTHER}</option>
+            </select>
+            {(() => {
+              const effectiveDistance = selected?.distance_m ?? derivedMetrics.derivedDistance ?? undefined;
+              const { reason, fix } = getReasonText(admin?.locale, rejectReason, { distance_m: effectiveDistance });
+              return (
+                <div className="rounded bg-gray-50 border border-gray-200 p-3 text-sm">
+                  {reason && <p className="text-gray-900 mb-1">{reason}</p>}
+                  {fix && <p className="text-gray-700">{fix}</p>}
+                </div>
+              );
+            })()}
+            <a
+              href="/staff/dashboard/verification"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-xs text-blue-600 hover:underline"
+            >
+              {strings.REJECT_LINK_REQUIREMENTS}
+            </a>
+          </div>
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setRejecting(false)}
+              className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { const v = selected; const reason = rejectReason; if (!v) return; setRejecting(false); reject(v, reason); }}
+              disabled={processing || !selected}
+              className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {strings.REJECT_BUTTON}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -5,7 +5,18 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import StaffProfilePanel from '../ProfilePanel';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
+/**
+ * Render and manage the user's profile page with editing, avatar, language, verification, and notification controls.
+ *
+ * Renders a full-profile UI that loads user data on mount, displays verification status and verification benefits,
+ * allows changing the profile image (upload or emoji avatar), editing "About Me" and profile information,
+ * selecting preferred language (locale), setting store location, and toggling notification preferences.
+ * Handles optimistic updates, persistence to Firestore and Firebase Storage, and basic loading/saving states.
+ *
+ * @returns {JSX.Element} The Profile page UI.
+ */
 export default function ProfilePage() {
   const { user } = useAuth();
   const [profileImage, setProfileImage] = useState(null);
@@ -23,6 +34,7 @@ export default function ProfilePage() {
   const [editingUserInfo, setEditingUserInfo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [locale, setLocale] = useState('en');
   const [notificationPreferences, setNotificationPreferences] = useState({
     emailNotifications: true,
     pushNotifications: true,
@@ -87,6 +99,7 @@ export default function ProfilePage() {
           });
           
           setProfileImage(userData.profileImage || null);
+          setLocale(typeof userData.locale === 'string' ? userData.locale : 'en');
           setNotificationPreferences({
             emailNotifications: userData.notificationPreferences?.emailNotifications ?? true,
             pushNotifications: userData.notificationPreferences?.pushNotifications ?? true,
@@ -121,6 +134,25 @@ export default function ProfilePage() {
         return <span className={`${baseClasses} bg-red-100 text-red-800`}>⚠ Rejected</span>;
       default:
         return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>🔒 Not Verified</span>;
+    }
+  };
+
+  // Update preferred language (locale)
+  const updateLanguage = async (value) => {
+    if (!user?.uid) return;
+    try {
+      setLocale(value);
+      await updateDoc(doc(db, 'users', user.uid), { locale: value });
+      if (value === 'en') {
+        toast.success('Language updated to English');
+      } else if (value === 'es') {
+        toast.success('Idioma actualizado a Español');
+      } else {
+        toast.success(`Language set: ${value}`);
+      }
+    } catch (e) {
+      console.error('Failed to update language', e);
+      toast.error('Could not update language');
     }
   };
 
@@ -318,6 +350,25 @@ export default function ProfilePage() {
 
         {/* Right Column - Verification Benefits & Editable Cards */}
         <div className="md:col-span-2 space-y-6">
+          {/* Language / Idioma */}
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold" style={fontStyles.subsectionTitle}>Language / Idioma</h3>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-500 mb-1" htmlFor="locale-select">Preferred Language</label>
+              <select
+                id="locale-select"
+                value={locale}
+                onChange={(e) => updateLanguage(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              >
+                <option value="en">English (en)</option>
+                <option value="es">Español (es)</option>
+              </select>
+            </div>
+          </div>
+
           {/* Verification Benefits */}
           {getVerificationBenefits()}
 

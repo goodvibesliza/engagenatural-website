@@ -1,0 +1,84 @@
+{
+  "REQUIREMENTS_TITLE": "Requisitos de verificación",
+  "REQUIREMENTS_BODY": [
+    "Usa la cámara de la app. No se permiten subidas ni capturas de pantalla.",
+    "Está en tu tienda. Mantén los servicios de ubicación activados.",
+    "Sujeta el código proporcionado para que se vea claramente.",
+    "Muestra tu rostro completo. Buena iluminación. Sin filtros.",
+    "Envía dentro de 10 minutos de tomar la foto.",
+    "Solo una persona. Sin gorras, gafas de sol ni mascarillas.",
+    "Permite el GPS del dispositivo. Lo usamos para confirmar que estás en la tienda."
+  ],
+  "REQUIREMENTS_TIPS": [
+    "Si el GPS falla, sal 10–20 segundos a cielo abierto.",
+    "Si escribiste mal el código, inicia un intento nuevo.",
+    "Si cambió la dirección de tu tienda, actualízala en tu perfil primero."
+  ],
+  "WHY_WE_VERIFY_TITLE": "Por qué verificamos",
+  "WHY_WE_VERIFY_BODY": "Confirmamos que eres personal real de tu tienda para mantener segura a la comunidad. Solo guardamos fotos redactadas y señales básicas de ubicación.",
+  "NOTICE_TITLE": "Esta verificación es solo para empleados de tiendas naturistas o de salud.",
+  "NOTICE_SUBTEXT": "La verificación para influencers en redes sociales estará disponible pronto.",
+  "PAGE_TITLE": "Centro de Verificación",
+  "PAGE_DESCRIPTION": "Confirma tu empleo en la tienda para desbloquear capacitaciones de marca, desafíos de producto y recompensas de muestras, todo diseñado para ayudarte a aprender, ganar y crecer en la comunidad de productos naturales.",
+  "ERROR_NOT_SIGNED_IN": "Inicia sesión para enviar la verificación",
+  "REJECT_TITLE": "No pudimos verificar este envío",
+  "REJECT_BODY": "Revisamos tu foto pero no cumplió los requisitos de verificación. Corrige el problema abajo y vuelve a intentarlo.",
+  "REJECT_BUTTON": "Volver a intentar",
+  "REJECT_LINK_REQUIREMENTS": "Ver los requisitos de verificación",
+  "REASON_LOCATION_FAR": {
+    "reason": "La ubicación de la foto no coincidió con la ubicación guardada de tu tienda (a {{distance_m}} m).",
+    "fix": "Quédate en tu tienda y vuelve a intentar con la ubicación activada. Si tu tienda se mudó, actualiza la ubicación en Perfil y reenvía."
+  },
+  "REASON_LOCATION_MISSING": {
+    "reason": "No pudimos leer el GPS de tu dispositivo o foto.",
+    "fix": "Activa la ubicación, abre de nuevo la cámara y envía otra vez. Si estás adentro, acércate a la entrada o sal para mejor señal."
+  },
+  "REASON_CODE_INVALID": {
+    "reason": "Faltó el código requerido o no se podía leer.",
+    "fix": "Escribe el código actual con claridad y sosténlo a la altura del pecho en la foto. Evita reflejos y sombras."
+  },
+  "REASON_FACE_NOT_VISIBLE": {
+    "reason": "Tu rostro no era completamente visible.",
+    "fix": "Quítate gorras, gafas de sol o mascarillas. Mira a la cámara con buena iluminación."
+  },
+  "REASON_BLURRY": {
+    "reason": "La foto estaba muy borrosa u oscura para revisar.",
+    "fix": "Usa más luz y mantén el pulso. Limpia la lente de la cámara."
+  },
+  "REASON_MULTIPLE_PEOPLE": {
+    "reason": "Apareció más de una persona en la foto.",
+    "fix": "Envía una foto solo de ti, sin otras personas en cuadro."
+  },
+  "REASON_TIME_WINDOW": {
+    "reason": "La marca de tiempo de la foto no coincidió con la ventana de envío.",
+    "fix": "Captura y envía dentro de 10 minutos."
+  },
+  "REASON_ROSTER_MISMATCH": {
+    "reason": "No pudimos asociar esta cuenta con la nómina de tu tienda.",
+    "fix": "Confirma que usas tu correo de trabajo o pide a tu gerente que te agregue a la nómina, y vuelve a intentar."
+  },
+  "REASON_IMAGE_EDIT": {
+    "reason": "Detectamos señales de edición o una subida que no proviene de la cámara.",
+    "fix": "Usa la cámara de la app y envía la foto original. No recortes ni edites."
+  },
+  "REASON_OTHER": {
+    "reason": "{{custom_reason}}",
+    "fix": "{{custom_fix}}"
+  },
+  "INLINE_BANNER": "No pudimos verificar este envío. {{reason_line}} — revisa los requisitos y vuelve a intentarlo.",
+  "SHORT_SMS": "No pudimos verificar tu foto: {{reason_short}}. Abre la app, sigue los pasos en la página de Verificación y vuelve a intentarlo.",
+  "SHORT_LOCATION_FAR": "La ubicación no coincidió con tu tienda ({{distance_m}} m).",
+  "SHORT_GPS_MISSING": "Falta GPS — activa la ubicación y reintenta.",
+  "SHORT_CODE_INVALID": "Código no visible — reescribe y muéstralo.",
+  "SHORT_FACE_NOT_VISIBLE": "Rostro no visible — quita gorra/gafas y repite.",
+  "OPTION_LOCATION_FAR": "Ubicación demasiado lejos",
+  "OPTION_LOCATION_MISSING": "Ubicación faltante",
+  "OPTION_CODE_INVALID": "Código inválido",
+  "OPTION_FACE_NOT_VISIBLE": "Rostro no visible",
+  "OPTION_BLURRY": "Borrosa/Oscura",
+  "OPTION_MULTIPLE_PEOPLE": "Varias personas",
+  "OPTION_TIME_WINDOW": "Fuera de ventana de tiempo",
+  "OPTION_ROSTER_MISMATCH": "No coincide con nómina",
+  "OPTION_IMAGE_EDIT": "Editada/Subida",
+  "OPTION_OTHER": "Otro"
+}

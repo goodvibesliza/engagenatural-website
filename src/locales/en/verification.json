@@ -1,0 +1,85 @@
+{
+  "REQUIREMENTS_TITLE": "Verification Requirements",
+  "REQUIREMENTS_BODY": [
+    "Use the in-app camera. No uploads or screenshots.",
+    "Be at your store location. Keep location services on.",
+    "Hold the provided code so it’s clearly visible.",
+    "Show your full face. Good lighting. No filters.",
+    "Submit within 10 minutes of taking the photo.",
+    "One person only. No hats, sunglasses, or masks.",
+    "Allow device GPS. We use it to confirm you’re at the store."
+  ],
+  "REQUIREMENTS_TIPS": [
+    "If GPS fails, step outside for 10–20 seconds with clear sky view.",
+    "If you typed the code wrong, start a new attempt.",
+    "If your store address changed, update it in your profile first."
+  ],
+  "WHY_WE_VERIFY_TITLE": "Why we verify",
+  "WHY_WE_VERIFY_BODY": "We confirm you’re a real staff member at your store to keep the community safe. We only store redacted photos and basic location signals.",
+  "NOTICE_TITLE": "This verification is for health food store employees only.",
+  "NOTICE_SUBTEXT": "Social media influencer verification coming soon.",
+  "PAGE_TITLE": "Verification Center",
+  "PAGE_DESCRIPTION": "Confirm your store employment to unlock brand trainings, product challenges, and sample rewards, everything designed to help you learn, earn, and grow in the natural products community.",
+  "ERROR_NOT_SIGNED_IN": "Please sign in to submit verification",
+  "REJECT_TITLE": "We couldn’t verify this submission",
+  "REJECT_BODY": "We reviewed your photo but it didn’t meet the verification requirements. Please fix the issue below and try again.",
+  "REJECT_BUTTON": "Try again",
+  "REJECT_LINK_REQUIREMENTS": "View the verification requirements",
+  "REASON_LOCATION_FAR": {
+    "reason": "Your photo location didn’t match your saved store location ({{distance_m}}m away).",
+    "fix": "Stand at your store and retry with location services on. If your store moved, update your store location in Profile and then resubmit."
+  },
+  "REASON_LOCATION_MISSING": {
+    "reason": "We couldn’t read GPS from your device or photo.",
+    "fix": "Enable location services, reopen the camera, and resubmit. If indoors, step near the entrance or outside for a stronger signal."
+  },
+  "REASON_CODE_INVALID": {
+    "reason": "The required code was missing or unreadable.",
+    "fix": "Write the current code clearly and hold it chest-level in the photo. Avoid glare and shadows."
+  },
+  "REASON_FACE_NOT_VISIBLE": {
+    "reason": "Your face wasn’t fully visible.",
+    "fix": "Remove hats, sunglasses, or masks. Face the camera with good lighting."
+  },
+  "REASON_BLURRY": {
+    "reason": "The photo was too blurry or dark to review.",
+    "fix": "Use brighter light and hold still. Clean your camera lens."
+  },
+  "REASON_MULTIPLE_PEOPLE": {
+    "reason": "More than one person appeared in the photo.",
+    "fix": "Submit a solo photo with only you in frame."
+  },
+  "REASON_TIME_WINDOW": {
+    "reason": "The photo timestamp didn’t match the submission window.",
+    "fix": "Capture and submit within 10 minutes."
+  },
+  "REASON_ROSTER_MISMATCH": {
+    "reason": "We couldn’t match this account to your store’s roster.",
+    "fix": "Confirm you’re using the correct work email or ask your manager to add you to the roster, then try again."
+  },
+  "REASON_IMAGE_EDIT": {
+    "reason": "We detected signs of editing or a non-camera upload.",
+    "fix": "Use the in-app camera and submit the original photo. Don’t crop or edit."
+  },
+  "REASON_OTHER": {
+    "reason": "{{custom_reason}}",
+    "fix": "{{custom_fix}}"
+  },
+  "INLINE_BANNER": "We couldn’t verify this submission. {{reason_line}} — please review the requirements and try again.",
+  "SHORT_SMS": "We couldn’t verify your photo: {{reason_short}}. Open the app, follow the steps on the Verification page, and try again.",
+  "SHORT_LOCATION_FAR": "Location didn’t match your store ({{distance_m}}m).",
+  "SHORT_GPS_MISSING": "GPS missing — enable location and retry.",
+  "SHORT_CODE_INVALID": "Code not visible — rewrite and hold it up.",
+  "SHORT_FACE_NOT_VISIBLE": "Face not visible — remove hat/glasses and reshoot."
+  ,
+  "OPTION_LOCATION_FAR": "Location far",
+  "OPTION_LOCATION_MISSING": "Location missing",
+  "OPTION_CODE_INVALID": "Code invalid",
+  "OPTION_FACE_NOT_VISIBLE": "Face not visible",
+  "OPTION_BLURRY": "Blurry/Dark",
+  "OPTION_MULTIPLE_PEOPLE": "Multiple people",
+  "OPTION_TIME_WINDOW": "Time window",
+  "OPTION_ROSTER_MISMATCH": "Roster mismatch",
+  "OPTION_IMAGE_EDIT": "Edited/Upload",
+  "OPTION_OTHER": "Other"
+}

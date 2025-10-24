@@ -116,6 +116,17 @@ function deriveRoleFromSources(profile, claims) {
   return "staff";
 }
 
+/**
+ * Provides authentication state and helpers to descendant components via AuthContext.
+ *
+ * Synchronizes Firebase Auth user, Firestore profile, and (when applicable) emulator claims;
+ * ensures a minimal Firestore user document exists; and exposes derived fields (role, permissions,
+ * locale, profile values), signIn/signOut methods, and utility helpers for permission and role checks.
+ *
+ * @param {{children: React.ReactNode}} props - Component props.
+ * @param {React.ReactNode} props.children - Elements that will receive the authentication context.
+ * @returns {JSX.Element} The AuthContext provider wrapping the given children and supplying auth state and utilities.
+ */
 export function AuthProvider({ children }) {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [firestoreProfile, setFirestoreProfile] = useState(null);
@@ -306,6 +317,8 @@ export function AuthProvider({ children }) {
           level,
           points,
           profileImage,
+          // Expose preferred locale from profile for i18n (e.g., 'en' | 'es')
+          locale: (typeof firestoreProfile?.locale === 'string' && firestoreProfile.locale.trim()) ? firestoreProfile.locale : undefined,
         }
       : null;
     /* ------------------------------------------------------------------
