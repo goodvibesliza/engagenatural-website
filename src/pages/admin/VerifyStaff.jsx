@@ -56,12 +56,12 @@ export default function VerifyStaff() {
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('LOCATION_FAR');
 
-  // Compute derived geo metrics without mutating objects (fallback when Cloud Function hasn't populated yet)
+  // Compute derived geo metrics without mutating objects (use address geocode as the store baseline)
   const derivedMetrics = useMemo(() => {
     try {
-      // Use only device-sourced storeLoc for scoring; do not fall back to storeAddressGeo
-      const storeLat = storeInfo?.storeLoc?.lat;
-      const storeLng = storeInfo?.storeLoc?.lng;
+      // Use storeAddressGeo (from text-entered address) as baseline for distance/scoring
+      const storeLat = storeInfo?.storeAddressGeo?.lat;
+      const storeLng = storeInfo?.storeAddressGeo?.lng;
       const selLat = (selected?.deviceLoc?.lat ?? selected?.gps?.lat ?? selected?.metadata?.geolocation?.latitude ?? null);
       const selLng = (selected?.deviceLoc?.lng ?? selected?.gps?.lng ?? selected?.metadata?.geolocation?.longitude ?? null);
       let derivedDistance = null;
@@ -160,13 +160,13 @@ export default function VerifyStaff() {
                 const s = await getDoc(doc(db, 'users', uid));
                 if (s.exists()) {
                   const u = s.data();
-                  const dev = u?.storeLoc;
-                  if (dev?.lat != null && dev?.lng != null) {
-                    locMap[uid] = { lat: Number(dev.lat), lng: Number(dev.lng) };
+                  const addr = u?.storeAddressGeo;
+                  if (addr?.lat != null && addr?.lng != null) {
+                    locMap[uid] = { lat: Number(addr.lat), lng: Number(addr.lng) };
                   }
                 }
               } catch (e) {
-                console.error('VerifyStaff: failed to load storeLoc for uid', uid, e);
+                console.error('VerifyStaff: failed to load storeAddressGeo for uid', uid, e);
               }
             }));
             const enhanced = rows.map(r => {
