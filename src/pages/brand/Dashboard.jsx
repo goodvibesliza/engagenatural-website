@@ -31,6 +31,11 @@ import BrandSidebar from '../../components/brands/BrandSidebar';
 // Extracted sections
 import AnalyticsSection from './dashboard/AnalyticsSection';
 import SampleRequestsSection from './dashboard/SampleRequestsSection';
+import UsersSection from './dashboard/UsersSection';
+import BrandPerformanceSection from './dashboard/BrandPerformanceSection';
+import ActivitySection from './dashboard/ActivitySection';
+import SettingsSection from './dashboard/SettingsSection';
+import HelpSection from './dashboard/HelpSection';
 
 // Brand Dashboard Content moved to ./dashboard/AnalyticsSection.jsx
 
@@ -270,17 +275,7 @@ const EnhancedBrandHome = () => {
           ) : (
             <>
               {activeSection === 'analytics' && <AnalyticsSection brandId={brandId} />}
-              {activeSection === 'users' && (
-                <div className="p-6">
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">User Management</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Manage team members and their access permissions</p>
-                  </div>
-                  <Card className="p-6">
-                    <p>User management content will be displayed here.</p>
-                  </Card>
-                </div>
-              )}
+              {activeSection === 'users' && <UsersSection />}
               {activeSection === 'content' && (
                 /* Full-width workspace for the content manager */
                 <div className="w-full p-0 md:p-6">
@@ -298,59 +293,10 @@ const EnhancedBrandHome = () => {
                   <CommunitiesManager brandId={brandId} />
                 </div>
               )}
-              {activeSection === 'brand' && (
-                <div className="p-6">
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Brand Performance</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Track your brand's performance and engagement metrics</p>
-                  </div>
-                  <Card className="p-6">
-                    <p>Brand performance metrics will be displayed here.</p>
-                  </Card>
-                </div>
-              )}
-              {activeSection === 'activity' && (
-                <div className="p-6">
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Activity Feed</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Recent activity and events from your brand</p>
-                  </div>
-                  <Card className="p-6">
-                    <p>Activity feed will be displayed here.</p>
-                  </Card>
-                </div>
-              )}
-              {activeSection === 'settings' && (
-                <div className="p-6">
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Settings</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Configure your brand settings and preferences</p>
-                  </div>
-                  <Card className="p-6 space-y-4">
-                    <p>Settings options will be displayed here.</p>
-                    {/* Link to Brand Style Guide */}
-                    <Button
-                      asChild
-                      variant="outline"
-                    >
-                      <Link to={`/brand-dashboard/${brandId}/style-guide`}>
-                        View Brand Style Guide
-                      </Link>
-                    </Button>
-                  </Card>
-                </div>
-              )}
-              {activeSection === 'help' && (
-                <div className="p-6">
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Help & Support</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Resources and documentation to help you succeed</p>
-                  </div>
-                  <Card className="p-6">
-                    <p>Help and support resources will be displayed here.</p>
-                  </Card>
-                </div>
-              )}
+              {activeSection === 'brand' && <BrandPerformanceSection />}
+              {activeSection === 'activity' && <ActivitySection />}
+              {activeSection === 'settings' && <SettingsSection brandId={brandId} />}
+              {activeSection === 'help' && <HelpSection />}
             </>
           )}
         </main>
