@@ -42,7 +42,11 @@ export default function SampleRequestsSection({ brandId }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!brandId) return;
+    if (!brandId) {
+      setError('Missing brandId');
+      setLoading(false);
+      return;
+    }
     const q = query(
       collection(db, 'sample_requests'),
       where('brandId', '==', brandId),

@@ -342,6 +342,53 @@
        }
      };
    }, [trainings, brandId]);
+
+  // Compute Top Trainings (last 30 days)
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      setLoadingTop(true);
+      try {
+        if (!brandId || trainings.length === 0) {
+          if (active) {
+            setTopTrainings([]);
+            setLoadingTop(false);
+          }
+          return;
+        }
+        const since = Timestamp.fromDate(thirtyDaysAgo);
+        const subset = trainings.slice(0, 50);
+        const results = await Promise.allSettled(
+          subset.map(async (t) => {
+            const q = query(
+              collection(db, 'training_progress'),
+              where('trainingId', '==', t.id),
+              where('status', '==', 'completed'),
+              where('completedAt', '>=', since)
+            );
+            const agg = await getCountFromServer(q);
+            const count = typeof agg?.data?.().count === 'number' ? agg.data().count : 0;
+            return { id: t.id, title: t.title || t.name || 'Untitled training', count };
+          })
+        );
+        if (!active) return;
+        const mapped = results.map((r, i) =>
+          r.status === 'fulfilled'
+            ? r.value
+            : { id: subset[i].id, title: subset[i].title || subset[i].name || 'Untitled training', count: 0 }
+        );
+        setTopTrainings(mapped.sort((a, b) => b.count - a.count).slice(0, 5));
+      } catch {
+        if (active) setTopTrainings([]);
+      } finally {
+        if (active) setLoadingTop(false);
+      }
+    };
+    run();
+    return () => {
+      active = false;
+    };
+  }, [brandId, trainings, thirtyDaysAgo]);
  
    if (error.brandId) {
      return (
