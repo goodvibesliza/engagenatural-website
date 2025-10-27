@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { useLogout } from '../../hooks/useLogout';
 import { trackEvent } from '../../services/analytics';
@@ -25,7 +25,6 @@ import {
   FileText,
   BarChart3,
   Settings,
-  User,
   HelpCircle,
   LogOut,
   Building,
@@ -175,14 +174,14 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
   // Reusable nav button renderer to keep styling, a11y and behavior consistent
   const renderNavButton = (item) => {
     const active = item.href ? isActive(item.href) : (item.section === activeSection);
+    const describedBy = item.support ? 'support-nav-heading' : 'brand-nav-heading';
     return (
       <button
         key={item.id}
         onClick={() => handleNavClick(item)}
         aria-current={active ? 'page' : undefined}
         aria-label={`Navigate to ${item.label}${item.isNew ? ' (New feature)' : ''}`}
-        aria-describedby="brand-nav-heading"
-        tabIndex={0}
+        aria-describedby={describedBy}
         data-testid={item.id === 'communities' ? 'nav-communities' : `sidebar-${item.id}`}
         className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
           active
@@ -277,7 +276,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
         <Separator className="my-4" />
 
         <div className="mb-2 px-3">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" id="support-nav-heading">
             Support
           </h3>
         </div>
