@@ -63,13 +63,6 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       description: 'Overview and key metrics'
     },
     {
-      id: 'profile',
-      label: 'Profile',
-      icon: User,
-      href: '/brand/profile',
-      description: 'Manage your brand profile'
-    },
-    {
       id: 'users',
       label: 'User Management',
       icon: Users,
