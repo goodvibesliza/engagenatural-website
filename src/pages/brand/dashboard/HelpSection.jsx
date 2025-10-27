@@ -1,6 +1,11 @@
 import React from 'react';
 import { Card } from '../../../components/ui/card';
 
+/**
+ * Renders the "Help & Support" section with a header, subtitle, and a Card containing placeholder help resources.
+ *
+ * @returns {JSX.Element} The Help & Support UI section.
+ */
 export default function HelpSection() {
   return (
     <div className="p-6">

@@ -33,13 +33,14 @@ import {
 } from 'lucide-react';
 
 /**
- * Desktop sidebar for brand managers with Communities navigation
- * Supports both route-based navigation and section callbacks for Dashboard
+ * Render the brand management sidebar with navigation, support items, and a user profile menu.
+ *
+ * Renders desktop and mobile variants, tracks navigation and logout events for analytics, and—when already on /brand—invokes an optional onSectionChange callback to update dashboard UI without a full route change.
  * @param {Object} props
- * @param {boolean} props.sidebarOpen - Mobile sidebar open state
- * @param {Function} props.setSidebarOpen - Mobile sidebar state setter
- * @param {Function} props.onSectionChange - Optional callback for Dashboard section changes
- * @param {string} props.activeSection - Active section ID for Dashboard
+ * @param {boolean} props.sidebarOpen - Mobile sidebar visibility.
+ * @param {Function} props.setSidebarOpen - Setter to toggle mobile sidebar visibility.
+ * @param {Function} [props.onSectionChange] - Optional callback invoked with a section id when a section-based nav item is selected while on the /brand route.
+ * @param {string} props.activeSection - Currently active dashboard section id used to determine active state for section-based nav items.
  */
 export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionChange, activeSection }) {
   const location = useLocation();

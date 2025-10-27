@@ -1,6 +1,13 @@
 import React from 'react';
 import { Card } from '../../../components/ui/card';
 
+/**
+ * Render the activity feed section layout.
+ *
+ * This presentational component displays a title, a short subtitle, and a Card containing
+ * a placeholder where the activity feed will be shown.
+ * @returns {JSX.Element} A section element containing the activity feed header and placeholder card.
+ */
 export default function ActivitySection() {
   return (
     <div className="p-6">

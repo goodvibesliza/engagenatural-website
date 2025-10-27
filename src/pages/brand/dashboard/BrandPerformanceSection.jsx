@@ -1,6 +1,12 @@
 import React from 'react';
 import { Card } from '../../../components/ui/card';
 
+/**
+ * Render a section displaying a Brand Performance header, subtitle, and a card placeholder for metrics.
+ *
+ * Displays a title ("Brand Performance"), a subtitle describing the content, and a Card containing placeholder text where brand performance metrics will be shown.
+ * @returns {JSX.Element} The Brand Performance section JSX.
+ */
 export default function BrandPerformanceSection() {
   return (
     <div className="p-6">
