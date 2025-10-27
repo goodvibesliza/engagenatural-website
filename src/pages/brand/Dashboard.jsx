@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link, Outlet, useOutlet } from 'react-router-dom';
+import { useParams, useNavigate, Link, Outlet, useOutlet, useSearchParams } from 'react-router-dom';
 import { 
   Menu, Bell, Search, Calendar, Download, ChevronDown,
   BarChart2, Users, FileText, TrendingUp, Activity, Settings, 
@@ -58,8 +58,16 @@ const EnhancedBrandHome = () => {
   // State for mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // State for active section (analytics, users, content, etc.)
-  const [activeSection, setActiveSection] = useState('analytics');
+  // URL-synced active section (analytics, users, content, etc.)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSection = searchParams.get('section') || 'analytics';
+  const [activeSection, setActiveSection] = useState(initialSection);
+
+  // Keep state in sync with URL (supports deep-link and back/forward)
+  useEffect(() => {
+    const section = searchParams.get('section') || 'analytics';
+    setActiveSection(section);
+  }, [searchParams]);
   
   // State for notifications dropdown
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -107,7 +115,14 @@ const EnhancedBrandHome = () => {
   
   // Function to handle section change
   const handleSectionChange = (section) => {
+    // Update local state immediately for snappy UI
     setActiveSection(section);
+    // Push section to URL so reload/back/forward work
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('section', section);
+      return next;
+    });
     setSidebarOpen(false); // Close mobile sidebar when navigating
   };
   
