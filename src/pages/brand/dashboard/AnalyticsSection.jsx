@@ -5,7 +5,6 @@
  import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
  import BrandAnalyticsPage from '../BrandAnalyticsPage';
  import BrandROICalculatorPage from '../BrandROICalculatorPage';
- import roiGrowthGraph from '../../../assets/roi_growth_graph.png';
  import CommunityMetricsChart from '../../../components/brand/CommunityMetricsChart';
  import { Link } from 'react-router-dom';
  import {
@@ -502,19 +501,6 @@
          <TabsContent value="analytics">
            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
              <BrandAnalyticsPage brandId={brandId} />
-           </div>
-           {/* ROI Calculator inline on Analytics page */}
-           <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-             <div className="flex items-center justify-between mb-4">
-               <div>
-                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">ROI Calculator</h3>
-                 <p className="text-sm text-gray-500 dark:text-gray-400">Estimate ROI and save scenarios. Full charts included.</p>
-               </div>
-             </div>
-             <div className="mb-4">
-               <img src={roiGrowthGraph} alt="ROI growth chart" className="w-full max-h-64 object-contain rounded border border-gray-200 dark:border-gray-700" />
-             </div>
-             <BrandROICalculatorPage brandId={brandId} />
            </div>
          </TabsContent>
          <TabsContent value="roi">
