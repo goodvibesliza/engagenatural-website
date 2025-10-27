@@ -280,9 +280,18 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
         
         {(() => {
           const active = activeSection === 'help';
+          const onClick = () => {
+            const target = '/brand?section=help';
+            if (onSectionChange && location.pathname === '/brand') {
+              onSectionChange('help');
+              navigate(target);
+            } else {
+              navigate(target);
+            }
+          };
           return (
             <button 
-              onClick={() => onSectionChange && onSectionChange('help')}
+              onClick={onClick}
               className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
                 active
                   ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'
