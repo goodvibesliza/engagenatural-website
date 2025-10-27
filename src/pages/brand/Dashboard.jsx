@@ -118,11 +118,9 @@ const EnhancedBrandHome = () => {
     // Update local state immediately for snappy UI
     setActiveSection(section);
     // Push section to URL so reload/back/forward work
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.set('section', section);
-      return next;
-    });
+    const next = new URLSearchParams(searchParams);
+    next.set('section', section);
+    setSearchParams(next);
     setSidebarOpen(false); // Close mobile sidebar when navigating
   };
   
