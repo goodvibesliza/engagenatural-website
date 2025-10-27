@@ -37,6 +37,17 @@ import {
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
+/**
+ * Render the ROI calculator page for a specific brand, including inputs, projections,
+ * charts, and persistence of saved scenarios to Firestore.
+ *
+ * The component loads saved scenarios for the provided brandId, calculates ROI and
+ * monthly projections from user inputs, and provides UI controls to save, load,
+ * delete, and export scenarios.
+ *
+ * @param {string} brandId - Identifier of the brand used to load and persist saved scenarios; when not provided the page displays an error.
+ * @returns {JSX.Element} The ROI Calculator page UI with input form, results, projection charts, and saved-scenarios management.
+ */
 export default function BrandROICalculatorPage({ brandId }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);

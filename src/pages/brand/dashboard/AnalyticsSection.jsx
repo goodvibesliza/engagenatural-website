@@ -1,4 +1,4 @@
- import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
  import { BookOpen, BarChart2, TrendingUp, Users, Shield } from 'lucide-react';
  import { Card } from '../../../components/ui/card';
  import { Button } from '../../../components/ui/Button';
@@ -27,6 +27,14 @@
    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
  };
  
+ /**
+  * Render the Brand Dashboard section with overview cards and tabs for analytics, ROI, and community metrics.
+  *
+  * Renders real-time summaries for trainings, engagement, per-training progress, top trainings (last 30 days), and follower statistics, and coordinates Firestore listeners and lifecycle cleanup.
+  * @param {Object} props
+  * @param {string} props.brandId - The brand identifier used to scope Firestore queries; when missing, an error UI is shown.
+  * @returns {JSX.Element} The AnalyticsSection React component UI for the specified brand.
+  */
  export default function AnalyticsSection({ brandId }) {
    const [trainings, setTrainings] = useState([]);
    const [engagement, setEngagement] = useState({ enrolled: 0, completed: 0 });

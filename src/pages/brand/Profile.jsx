@@ -17,8 +17,10 @@ import { toast } from 'sonner';
 import BrandSidebar from '../../components/brands/BrandSidebar';
 
 /**
- * Brand Manager Profile Page
- * Desktop layout showing profile information, notification preferences, and avatar upload
+ * Brand manager profile page that displays profile information, allows avatar upload and name editing, and provides controls for notification preferences.
+ *
+ * Persists profile photo, display name, and notification preference changes to the user record.
+ * @returns {JSX.Element} The brand profile page UI.
  */
 export default function BrandProfile() {
   const { user } = useAuth();

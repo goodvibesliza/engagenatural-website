@@ -36,6 +36,13 @@ const formatDate = (timestamp) => {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 };
 
+/**
+ * Renders a section that lists sample requests for a given brand, including loading, empty, and error states.
+ *
+ * @param {Object} props
+ * @param {string} props.brandId - Brand identifier used to query the `sample_requests` collection; when missing the component displays an error state.
+ * @returns {JSX.Element} The rendered UI for managing and viewing sample requests.
+ */
 export default function SampleRequestsSection({ brandId }) {
   const [sampleRequests, setSampleRequests] = useState([]);
   const [loading, setLoading] = useState(true);
