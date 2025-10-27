@@ -135,8 +135,16 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       navigate(item.href);
     }
     // If item has a section and callback is provided, use section callback
-    else if (item.section && onSectionChange) {
-      onSectionChange(item.section);
+    else if (item.section) {
+      const target = `/brand?section=${item.section}`;
+      // If we're already on the dashboard page and have a handler, update UI immediately
+      if (onSectionChange && location.pathname === '/brand') {
+        onSectionChange(item.section);
+        navigate(target);
+      } else {
+        // Ensure we are on the dashboard route so section rendering works
+        navigate(target);
+      }
     }
 
     // Close mobile sidebar
