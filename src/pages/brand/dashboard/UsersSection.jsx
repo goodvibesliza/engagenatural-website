@@ -1,6 +1,11 @@
 import React from 'react';
 import { Card } from '../../../components/ui/card';
 
+/**
+ * Renders the User Management section with a header, subtitle, and a Card containing placeholder content.
+ *
+ * @returns {JSX.Element} The UsersSection component UI.
+ */
 export default function UsersSection() {
   return (
     <div className="p-6">
