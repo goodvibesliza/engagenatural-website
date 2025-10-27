@@ -12,7 +12,6 @@
    query,
    where,
    orderBy,
-   limit,
    onSnapshot,
    getDocs,
    getCountFromServer,
@@ -20,32 +19,7 @@
  } from 'firebase/firestore';
  import { db } from '@/lib/firebase';
  
- const renderStatusBadge = (status) => {
-   let color = '';
-   switch (status) {
-     case 'pending':
-       color = 'bg-yellow-100 text-yellow-800';
-       break;
-     case 'approved':
-       color = 'bg-blue-100 text-blue-800';
-       break;
-     case 'shipped':
-       color = 'bg-green-100 text-green-800';
-       break;
-     case 'denied':
-       color = 'bg-red-100 text-red-800';
-       break;
-     case 'completed':
-       color = 'bg-green-100 text-green-800';
-       break;
-     case 'in_progress':
-       color = 'bg-blue-100 text-blue-800';
-       break;
-     default:
-       color = 'bg-gray-100 text-gray-800';
-   }
-   return <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>{status.replace('_', ' ')}</span>;
- };
+ // (removed unused renderStatusBadge) 
  
  const formatDate = (timestamp) => {
    if (!timestamp) return 'N/A';
@@ -55,15 +29,13 @@
  
  export default function AnalyticsSection({ brandId }) {
    const [trainings, setTrainings] = useState([]);
-   const [sampleRequests, setSampleRequests] = useState([]);
-   const [announcements, setAnnouncements] = useState([]);
    const [engagement, setEngagement] = useState({ enrolled: 0, completed: 0 });
    const [trainingProgressCounts, setTrainingProgressCounts] = useState({});
    const [followersStats, setFollowersStats] = useState({ total: 0, last7d: 0, last30d: 0, series30d: [] });
    const [topTrainings, setTopTrainings] = useState([]);
    const [loadingTop, setLoadingTop] = useState(true);
-   const [loading, setLoading] = useState({ trainings: true, sampleRequests: true, announcements: true, engagement: true });
-   const [error, setError] = useState({ trainings: null, sampleRequests: null, announcements: null, engagement: null, brandId: null });
+  const [loading, setLoading] = useState({ trainings: true, engagement: true });
+  const [error, setError] = useState({ trainings: null, engagement: null, brandId: null });
  
    const { now, sevenDaysAgo, thirtyDaysAgo } = useMemo(() => {
      const current = new Date();
@@ -77,21 +49,17 @@
    useEffect(() => {
      let isMounted = true;
      let unsubscribeTrainings = null;
-     let unsubscribeRequests = null;
-     let unsubscribeAnnouncements = null;
      let unsubscribeProgress = null;
  
      if (!brandId) {
        console.error('Missing brandId in AnalyticsSection');
-       setError((prev) => ({
+      setError((prev) => ({
          ...prev,
          brandId: 'No brand ID provided. Please contact support if this issue persists.',
          trainings: 'Cannot fetch trainings: Brand ID is missing',
-         sampleRequests: 'Cannot fetch sample requests: Brand ID is missing',
-         announcements: 'Cannot fetch announcements: Brand ID is missing',
          engagement: 'Cannot fetch engagement data: Brand ID is missing',
        }));
-       setLoading({ trainings: false, sampleRequests: false, announcements: false, engagement: false });
+      setLoading({ trainings: false, engagement: false });
        return () => {};
      }
  
@@ -133,77 +101,7 @@
        }
      }
  
-     try {
-       const requestsQuery = query(
-         collection(db, 'sample_requests'),
-         where('brandId', '==', brandId),
-         orderBy('createdAt', 'desc'),
-         limit(5)
-       );
-       unsubscribeRequests = onSnapshot(
-         requestsQuery,
-         (snapshot) => {
-           if (!isMounted) return;
-           try {
-             const requestsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-             setSampleRequests(requestsData);
-             setLoading((prev) => ({ ...prev, sampleRequests: false }));
-           } catch (err) {
-             console.error('Error processing sample requests data:', err);
-             setError((prev) => ({ ...prev, sampleRequests: `Error processing data: ${err.message}` }));
-             setLoading((prev) => ({ ...prev, sampleRequests: false }));
-           }
-         },
-         (err) => {
-           if (!isMounted) return;
-           console.error('Error fetching sample requests:', err);
-           setError((prev) => ({ ...prev, sampleRequests: err.message }));
-           setLoading((prev) => ({ ...prev, sampleRequests: false }));
-         }
-       );
-     } catch (err) {
-       console.error('Error setting up sample requests query:', err);
-       if (isMounted) {
-         setError((prev) => ({ ...prev, sampleRequests: `Error setting up query: ${err.message}` }));
-         setLoading((prev) => ({ ...prev, sampleRequests: false }));
-       }
-     }
- 
-     try {
-       const announcementsQuery = query(
-         collection(db, 'announcements'),
-         where('brandId', '==', brandId),
-         orderBy('createdAt', 'desc'),
-         limit(5)
-       );
-       unsubscribeAnnouncements = onSnapshot(
-         announcementsQuery,
-         (snapshot) => {
-           if (!isMounted) return;
-           try {
-             const announcementsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-             setAnnouncements(announcementsData);
-             setLoading((prev) => ({ ...prev, announcements: false }));
-           } catch (err) {
-             console.error('Error processing announcements data:', err);
-             setError((prev) => ({ ...prev, announcements: `Error processing data: ${err.message}` }));
-             setLoading((prev) => ({ ...prev, announcements: false }));
-           }
-         },
-         (err) => {
-           if (!isMounted) return;
-           console.error('Error fetching announcements:', err);
-           setError((prev) => ({ ...prev, announcements: err.message }));
-           setLoading((prev) => ({ ...prev, announcements: false }));
-         }
-       );
-     } catch (err) {
-       console.error('Error setting up announcements query:', err);
-       if (isMounted) {
-         setError((prev) => ({ ...prev, announcements: `Error setting up query: ${err.message}` }));
-         setLoading((prev) => ({ ...prev, announcements: false }));
-       }
-     }
+    // removed unused listeners for sample_requests and announcements
  
      const fetchEngagement = async () => {
        try {
@@ -268,10 +166,8 @@
  
      return () => {
        isMounted = false;
-       if (typeof unsubscribeTrainings === 'function') try { unsubscribeTrainings(); } catch {}
-       if (typeof unsubscribeRequests === 'function') try { unsubscribeRequests(); } catch {}
-       if (typeof unsubscribeAnnouncements === 'function') try { unsubscribeAnnouncements(); } catch {}
-       if (typeof unsubscribeProgress === 'function') try { unsubscribeProgress(); } catch {}
+      if (typeof unsubscribeTrainings === 'function') try { unsubscribeTrainings(); } catch {}
+      if (typeof unsubscribeProgress === 'function') try { unsubscribeProgress(); } catch {}
      };
    }, [brandId]);
  
