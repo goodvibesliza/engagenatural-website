@@ -37,6 +37,17 @@ import {
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
+/**
+ * Render the ROI calculator page for a specific brand, including inputs, projections,
+ * charts, and persistence of saved scenarios to Firestore.
+ *
+ * The component loads saved scenarios for the provided brandId, calculates ROI and
+ * monthly projections from user inputs, and provides UI controls to save, load,
+ * delete, and export scenarios.
+ *
+ * @param {string} brandId - Identifier of the brand used to load and persist saved scenarios; when not provided the page displays an error.
+ * @returns {JSX.Element} The ROI Calculator page UI with input form, results, projection charts, and saved-scenarios management.
+ */
 export default function BrandROICalculatorPage({ brandId }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -506,32 +517,31 @@ export default function BrandROICalculatorPage({ brandId }) {
   };
   
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">ROI Calculator</h1>
-          <p className="text-gray-500 dark:text-gray-400">Calculate the return on investment for your training programs</p>
-        </div>
-        
-        <div className="flex space-x-2 mt-4 md:mt-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">ROI Calculator</h1>
+            <p className="text-gray-500 dark:text-gray-400">Calculate the return on investment for your training programs</p>
+          </div>
+          
+          <div className="flex space-x-2 mt-4 md:mt-0">
             <TabsList>
               <TabsTrigger value="calculator">Calculator</TabsTrigger>
               <TabsTrigger value="saved">Saved Scenarios</TabsTrigger>
             </TabsList>
-          </Tabs>
+          </div>
         </div>
-      </div>
-      
-      {error && (
+        
+        {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-      )}
-      
-      <TabsContent value="calculator" className="mt-0">
+        )}
+        
+        <TabsContent value="calculator" className="mt-0">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Input Card */}
           <Card className="lg:col-span-1">
@@ -774,9 +784,9 @@ export default function BrandROICalculatorPage({ brandId }) {
             </CardFooter>
           </Card>
         </div>
-      </TabsContent>
-      
-      <TabsContent value="saved" className="mt-0">
+        </TabsContent>
+        
+        <TabsContent value="saved" className="mt-0">
         <Card>
           <CardHeader>
             <CardTitle>Saved ROI Scenarios</CardTitle>
@@ -862,7 +872,8 @@ export default function BrandROICalculatorPage({ brandId }) {
             )}
           </CardContent>
         </Card>
-      </TabsContent>
-    </div>
+        </TabsContent>
+      </div>
+    </Tabs>
   );
 }

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { useAuth } from '../../contexts/auth-context';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -12,10 +14,13 @@ import { Separator } from '../../components/ui/separator';
 import { Switch } from '../../components/ui/switch';
 import { User, Building, Mail, Calendar, Bell, Upload, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
+import BrandSidebar from '../../components/brands/BrandSidebar';
 
 /**
- * Brand Manager Profile Page
- * Desktop layout showing profile information, notification preferences, and avatar upload
+ * Brand manager profile page that displays profile information, allows avatar upload and name editing, and provides controls for notification preferences.
+ *
+ * Persists profile photo, display name, and notification preference changes to the user record.
+ * @returns {JSX.Element} The brand profile page UI.
  */
 export default function BrandProfile() {
   const { user } = useAuth();
@@ -189,17 +194,54 @@ export default function BrandProfile() {
       .slice(0, 2);
   };
 
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <BrandSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+      {/* Main */}
+      <div className="flex-1 lg:pl-72 flex flex-col overflow-hidden">
+        {/* Header (matches dashboard style, minimal) */}
+        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between h-16 px-4 lg:px-6">
+          <div className="flex items-center">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 lg:hidden mr-3"
+              aria-label="Open menu"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            {/* Breadcrumbs */}
+            <div className="hidden md:flex items-center text-sm">
+              <Link to="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Home</Link>
+              <span className="mx-2 text-gray-400 dark:text-gray-500">/</span>
+              <Link to="/brand" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Brand</Link>
+              <span className="mx-2 text-gray-400 dark:text-gray-500">/</span>
+              <span className="text-gray-900 dark:text-gray-100 font-medium">Profile</span>
+            </div>
+            <div className="md:hidden text-lg font-semibold text-gray-900 dark:text-gray-100">Profile</div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Profile Settings</h1>
@@ -457,6 +499,8 @@ export default function BrandProfile() {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </main>
       </div>
     </div>
   );

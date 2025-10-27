@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth-context';
 import { useLogout } from '../../hooks/useLogout';
 import { trackEvent } from '../../services/analytics';
@@ -25,7 +25,6 @@ import {
   FileText,
   BarChart3,
   Settings,
-  User,
   HelpCircle,
   LogOut,
   Building,
@@ -34,13 +33,14 @@ import {
 } from 'lucide-react';
 
 /**
- * Desktop sidebar for brand managers with Communities navigation
- * Supports both route-based navigation and section callbacks for Dashboard
+ * Render the brand management sidebar with navigation, support items, and a user profile menu.
+ *
+ * Renders desktop and mobile variants, tracks navigation and logout events for analytics, and—when already on /brand—invokes an optional onSectionChange callback to update dashboard UI without a full route change.
  * @param {Object} props
- * @param {boolean} props.sidebarOpen - Mobile sidebar open state
- * @param {Function} props.setSidebarOpen - Mobile sidebar state setter
- * @param {Function} props.onSectionChange - Optional callback for Dashboard section changes
- * @param {string} props.activeSection - Active section ID for Dashboard
+ * @param {boolean} props.sidebarOpen - Mobile sidebar visibility.
+ * @param {Function} props.setSidebarOpen - Setter to toggle mobile sidebar visibility.
+ * @param {Function} [props.onSectionChange] - Optional callback invoked with a section id when a section-based nav item is selected while on the /brand route.
+ * @param {string} props.activeSection - Currently active dashboard section id used to determine active state for section-based nav items.
  */
 export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionChange, activeSection }) {
   const location = useLocation();
@@ -61,13 +61,6 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       icon: Home,
       section: 'analytics',
       description: 'Overview and key metrics'
-    },
-    {
-      id: 'profile',
-      label: 'Profile',
-      icon: User,
-      href: '/brand/profile',
-      description: 'Manage your brand profile'
     },
     {
       id: 'users',
@@ -118,6 +111,15 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       icon: Settings,
       section: 'settings',
       description: 'Configure brand preferences'
+    },
+    // Support group items
+    {
+      id: 'help',
+      label: 'Help & Support',
+      icon: HelpCircle,
+      section: 'help',
+      description: 'Documentation and resources',
+      support: true
     }
   ];
 
@@ -135,8 +137,16 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       navigate(item.href);
     }
     // If item has a section and callback is provided, use section callback
-    else if (item.section && onSectionChange) {
-      onSectionChange(item.section);
+    else if (item.section) {
+      const target = `/brand?section=${item.section}`;
+      // If we're already on the dashboard page and have a handler, update UI immediately
+      if (onSectionChange && location.pathname === '/brand') {
+        onSectionChange(item.section);
+        navigate(target);
+      } else {
+        // Ensure we are on the dashboard route so section rendering works
+        navigate(target);
+      }
     }
 
     // Close mobile sidebar
@@ -160,6 +170,47 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
 
   const isActive = (href) => {
     return location.pathname === href || location.pathname.startsWith(href + '/');
+  };
+
+  // Reusable nav button renderer to keep styling, a11y and behavior consistent
+  const renderNavButton = (item) => {
+    const active = item.href ? isActive(item.href) : (item.section === activeSection);
+    const describedBy = item.support ? 'support-nav-heading' : 'brand-nav-heading';
+    return (
+      <button
+        key={item.id}
+        onClick={() => handleNavClick(item)}
+        aria-current={active ? 'page' : undefined}
+        aria-label={`Navigate to ${item.label}${item.isNew ? ' (New feature)' : ''}`}
+        aria-describedby={describedBy}
+        data-testid={item.id === 'communities' ? 'nav-communities' : `sidebar-${item.id}`}
+        className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
+          active
+            ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'
+            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+        }`}
+      >
+        <item.icon
+          className={`h-5 w-5 mr-3 ${
+            active ? 'text-brand-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
+          }`}
+          aria-hidden="true"
+        />
+        <div className="flex flex-col items-start flex-1">
+          <div className="flex items-center">
+            <span>{item.label}</span>
+            {item.isNew && (
+              <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-800">
+                New
+              </Badge>
+            )}
+          </div>
+          {active && (
+            <span className="text-xs opacity-80">{item.description}</span>
+          )}
+        </div>
+      </button>
+    );
   };
 
   const SidebarContent = () => (
@@ -221,62 +272,17 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
           </h3>
         </div>
         
-        {navItems.map((item, index) => {
-          // Check if active based on href route OR section match
-          const active = item.href ? isActive(item.href) : (item.section === activeSection);
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item)}
-              aria-current={active ? 'page' : undefined}
-              aria-label={`Navigate to ${item.label}${item.isNew ? ' (New feature)' : ''}`}
-              aria-describedby="brand-nav-heading"
-              tabIndex={0}
-              data-testid={item.id === 'communities' ? 'nav-communities' : `sidebar-${item.id}`}
-              className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
-                active
-                  ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'
-                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <item.icon
-                className={`h-5 w-5 mr-3 ${
-                  active ? 'text-brand-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
-                }`}
-                aria-hidden="true"
-              />
-              <div className="flex flex-col items-start flex-1">
-                <div className="flex items-center">
-                  <span>{item.label}</span>
-                  {item.isNew && (
-                    <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-800">
-                      New
-                    </Badge>
-                  )}
-                </div>
-                {active && (
-                  <span className="text-xs opacity-80">{item.description}</span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+        {navItems.filter(i => !i.support).map((item) => renderNavButton(item))}
 
         <Separator className="my-4" />
 
         <div className="mb-2 px-3">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400" id="support-nav-heading">
             Support
           </h3>
         </div>
-        
-        <button 
-          className="flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
-          aria-label="Access help and support resources"
-        >
-          <HelpCircle className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
-          <span>Help & Support</span>
-        </button>
+
+        {navItems.filter(i => i.support).map((item) => renderNavButton(item))}
 
         <button
           onClick={handleLogout}

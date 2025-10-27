@@ -13,11 +13,14 @@
     .header-left { flex: 1; }
     .header-right { flex: 1; text-align: right; }
     .severity-badge { display: inline-block; padding: 5px 10px; border-radius: 4px; font-weight: bold; margin-bottom: 10px; }
+    .sev-1 { background-color: #d9534f; color: white; }
     .sev-2 { background-color: #f0ad4e; color: white; }
+    .sev-3 { background-color: #f7e58d; color: #333; }
     .section { margin-bottom: 30px; page-break-inside: avoid; }
     pre { background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 10px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; font-size: 14px; page-break-inside: avoid; }
     details { margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background-color: #f9f9f9; }
     summary { font-weight: bold; cursor: pointer; }
+    img { max-width: 100%; height: auto; border: 1px solid #ddd; margin: 10px 0; page-break-inside: avoid; }
     a { color: #0366d6; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .timeline { margin-left: 20px; }
@@ -27,42 +30,46 @@
     .fix-steps { list-style-type: decimal; padding-left: 20px; }
     .fix-step { margin-bottom: 15px; }
     .footer { margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; font-size: 12px; color: #777; text-align: center; }
+    @media print { body { font-size: 12pt; } a { color: #000; } a:after { content: " (" attr(href) ")"; font-size: 90%; color: #555; } .no-print { display: none; } @page { margin: 1.5cm; } }
+    .replace-note { background-color: #fffacd; padding: 2px 4px; border-radius: 3px; font-style: italic; font-size: 0.9em; color: #555; }
   </style>
+  
 </head>
 <body>
   <div class="header" id="header">
     <div class="header-left">
-      <h1>Alert Investigation – Staff notifications not visible after “Request Info”</h1>
+      <h1>Alert Investigation Brand Dashboard left nav non-functional</h1>
       <div>
-        <span class="severity-badge sev-2">SEV-2</span>
-        <span>Started: <span id="start-time">2025-10-01 00:00:00 UTC</span></span>
+        <span class="severity-badge sev-3">SEV-3</span>
+        <span>Started: <span id="start-time">2025-10-27</span></span>
       </div>
     </div>
     <div class="header-right">
-      <div>On-call: <strong id="oncall-engineer">Droid (Factory)</strong></div>
+      <div>On-call: <strong id="oncall-engineer">Droid</strong></div>
     </div>
   </div>
 
   <div class="section" id="exec-summary">
     <h2>Executive Summary</h2>
-    <p>Staff users did not see system notifications created by the admin “Request Info” action due to missing Firestore rules on <code>notifications/{uid}/system</code>. We added precise owner-only rules (admins can create), verified real-time subscription on the staff Notifications page, and implemented an append-only Questions history on verification requests with backfill for legacy messages.</p>
+    <p>Clicks on the Brand dashboard’s left menu did not switch sections or highlight correctly; deep links and back/forward were broken. Restored URL–state synchronization and fixed the Help button wiring, resolving navigation and active highlighting.</p>
   </div>
 
   <div class="section" id="rca">
     <h2>Root Cause Analysis</h2>
     <div>
+      <p>Suspected root cause:</p>
       <ul>
-        <li><strong>Primary Cause:</strong> Missing read permission for <code>notifications/{uid}/system/*</code> in <code>firestore.rules</code> blocked staff subscriptions from returning data.</li>
-        <li><strong>Contributing:</strong> Admin UI overwrote a single <code>infoRequestMessage</code> instead of preserving an append-only Questions history.</li>
+        <li><strong>Primary Hypothesis:</strong> URL–state sync for the active section was removed during the refactor, leaving section state local-only in Dashboard.jsx.</li>
+        <li><strong>Contributing Factor:</strong> The "Help &amp; Support" control in BrandSidebar.jsx wasn’t connected to the parent’s section change handler, so Help never activated.</li>
       </ul>
 
       <h3>Evidence</h3>
-      <h4>Code References</h4>
-      <pre>
-src/pages/admin/VerifyStaff.jsx – writes notifications/{uid}/system and now appends infoRequests via arrayUnion
-src/pages/staff/dashboard/NotificationsPage.jsx – subscribes to notifications/{uid}/system; mark-as-read updates same doc
-firestore.rules – new rules for notifications owner reads/updates; super_admin create
-      </pre>
+      <h4>Code Reference</h4>
+      <p>Dashboard state lacked useSearchParams and did not read/update <code>?section=</code> prior to the fix. Files touched:</p>
+      <ul>
+        <li><a href="#">src/pages/brand/Dashboard.jsx</a> — add useSearchParams; sync state with URL; push updates on click.</li>
+        <li><a href="#">src/components/brands/BrandSidebar.jsx</a> — wire Help button to onSectionChange('help') and add active styling.</li>
+      </ul>
     </div>
   </div>
 
@@ -70,17 +77,15 @@ firestore.rules – new rules for notifications owner reads/updates; super_admin
     <h2>Proposed Fix</h2>
     <ol class="fix-steps">
       <li class="fix-step">
-        <strong>Immediate Mitigation:</strong> Add Firestore rules for owner‑only reads/updates under <code>notifications/{uid}/system</code>; allow <code>create</code> by <code>super_admin</code>.
-        <div>Validation: Staff sees new items within ~2s and can mark as read; cross‑user reads are denied.</div>
+        <strong>Immediate Mitigation:</strong> None required (UI-only regression).
+        <div>Validation: Manual click-through confirms sections switch and highlight.</div>
       </li>
       <li class="fix-step">
-        <strong>Short‑term Fix:</strong> In <code>VerifyStaff.jsx</code>, stop overwriting <code>infoRequestMessage</code>; append to <code>infoRequests</code> via <code>arrayUnion</code> and show Questions history (latest first) with backfill for legacy.
-        <div>Validation: Two “Request Info” actions display two entries after reload.</div>
+        <strong>Short-term Fix:</strong> Use search params as the source of truth for the active section; update URL on click and read on load/effect; wire Help button.
+        <div>Validation: Deep-link to <code>/brand?section=users</code> loads Users; back/forward updates section and highlight.</div>
       </li>
       <li class="fix-step">
-        <strong>Long‑term:</strong> Optional one‑off migration to move legacy <code>infoRequestMessage</code> → <code>infoRequests[0]</code> and drop legacy fields.
-        <div>Validation: No requests rely on legacy fields.</div>
-      </li>
+        <strong>Long-term Solution:</strong> Keep section selection URL-driven and covered by a test that asserts query-string sync and active highlighting.</li>
     </ol>
   </div>
 
@@ -88,22 +93,16 @@ firestore.rules – new rules for notifications owner reads/updates; super_admin
     <h2>Incident Timeline</h2>
     <div class="timeline">
       <div class="timeline-item">
-        <span class="timeline-time">T0</span>
-        <div class="timeline-content">Admin uses “Request Info”; Firestore write to <code>notifications/{uid}/system</code> succeeds.</div>
-      </div>
-      <div class="timeline-item">
-        <span class="timeline-time">T0+2s</span>
-        <div class="timeline-content">Staff /notifications shows no items because rules blocked read.</div>
-      </div>
-      <div class="timeline-item">
-        <span class="timeline-time">Fix</span>
-        <div class="timeline-content">Rules added; VerifyStaff updated to append history; NotificationsPage logs size for validation.</div>
+        <span class="timeline-time">2025-10-27</span>
+        <div class="timeline-content">
+          Fix committed: 47a950ee — sync active section with URL via useSearchParams; wire Help button; highlight fixed.
+        </div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>Generated: <span id="generation-date">2025-10-22</span></p>
+    <p>Generated: <span id="generation-date">2025-10-27</span></p>
   </div>
 </body>
 </html>
