@@ -172,6 +172,47 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
     return location.pathname === href || location.pathname.startsWith(href + '/');
   };
 
+  // Reusable nav button renderer to keep styling, a11y and behavior consistent
+  const renderNavButton = (item) => {
+    const active = item.href ? isActive(item.href) : (item.section === activeSection);
+    return (
+      <button
+        key={item.id}
+        onClick={() => handleNavClick(item)}
+        aria-current={active ? 'page' : undefined}
+        aria-label={`Navigate to ${item.label}${item.isNew ? ' (New feature)' : ''}`}
+        aria-describedby="brand-nav-heading"
+        tabIndex={0}
+        data-testid={item.id === 'communities' ? 'nav-communities' : `sidebar-${item.id}`}
+        className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
+          active
+            ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'
+            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+        }`}
+      >
+        <item.icon
+          className={`h-5 w-5 mr-3 ${
+            active ? 'text-brand-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
+          }`}
+          aria-hidden="true"
+        />
+        <div className="flex flex-col items-start flex-1">
+          <div className="flex items-center">
+            <span>{item.label}</span>
+            {item.isNew && (
+              <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-800">
+                New
+              </Badge>
+            )}
+          </div>
+          {active && (
+            <span className="text-xs opacity-80">{item.description}</span>
+          )}
+        </div>
+      </button>
+    );
+  };
+
   const SidebarContent = () => (
     <>
       {/* Brand Header with EngageNatural wordmark */}
@@ -231,46 +272,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
           </h3>
         </div>
         
-        {navItems.filter(i => !i.support).map((item, index) => {
-          // Check if active based on href route OR section match
-          const active = item.href ? isActive(item.href) : (item.section === activeSection);
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item)}
-              aria-current={active ? 'page' : undefined}
-              aria-label={`Navigate to ${item.label}${item.isNew ? ' (New feature)' : ''}`}
-              aria-describedby="brand-nav-heading"
-              tabIndex={0}
-              data-testid={item.id === 'communities' ? 'nav-communities' : `sidebar-${item.id}`}
-              className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
-                active
-                  ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'
-                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <item.icon
-                className={`h-5 w-5 mr-3 ${
-                  active ? 'text-brand-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
-                }`}
-                aria-hidden="true"
-              />
-              <div className="flex flex-col items-start flex-1">
-                <div className="flex items-center">
-                  <span>{item.label}</span>
-                  {item.isNew && (
-                    <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-800">
-                      New
-                    </Badge>
-                  )}
-                </div>
-                {active && (
-                  <span className="text-xs opacity-80">{item.description}</span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+        {navItems.filter(i => !i.support).map((item) => renderNavButton(item))}
 
         <Separator className="my-4" />
 
@@ -280,38 +282,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
           </h3>
         </div>
 
-        {navItems.filter(i => i.support).map((item) => {
-          const active = item.section === activeSection;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item)}
-              aria-current={active ? 'page' : undefined}
-              aria-label={`Navigate to ${item.label}`}
-              aria-describedby="brand-nav-heading"
-              tabIndex={0}
-              data-testid={`sidebar-${item.id}`}
-              className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
-                active
-                  ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'
-                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <item.icon
-                className={`h-5 w-5 mr-3 ${
-                  active ? 'text-brand-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
-                }`}
-                aria-hidden="true"
-              />
-              <div className="flex flex-col items-start flex-1">
-                <span>{item.label}</span>
-                {active && (
-                  <span className="text-xs opacity-80">{item.description}</span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+        {navItems.filter(i => i.support).map((item) => renderNavButton(item))}
 
         <button
           onClick={handleLogout}
