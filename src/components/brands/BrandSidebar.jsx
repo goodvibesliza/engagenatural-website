@@ -111,6 +111,15 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
       icon: Settings,
       section: 'settings',
       description: 'Configure brand preferences'
+    },
+    // Support group items
+    {
+      id: 'help',
+      label: 'Help & Support',
+      icon: HelpCircle,
+      section: 'help',
+      description: 'Documentation and resources',
+      support: true
     }
   ];
 
@@ -222,7 +231,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
           </h3>
         </div>
         
-        {navItems.map((item, index) => {
+        {navItems.filter(i => !i.support).map((item, index) => {
           // Check if active based on href route OR section match
           const active = item.href ? isActive(item.href) : (item.section === activeSection);
           return (
@@ -270,33 +279,39 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
             Support
           </h3>
         </div>
-        
-        {(() => {
-          const active = activeSection === 'help';
-          const onClick = () => {
-            const target = '/brand?section=help';
-            if (onSectionChange && location.pathname === '/brand') {
-              onSectionChange('help');
-              navigate(target);
-            } else {
-              navigate(target);
-            }
-          };
+
+        {navItems.filter(i => i.support).map((item) => {
+          const active = item.section === activeSection;
           return (
-            <button 
-              onClick={onClick}
-              className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
+            <button
+              key={item.id}
+              onClick={() => handleNavClick(item)}
+              aria-current={active ? 'page' : undefined}
+              aria-label={`Navigate to ${item.label}`}
+              aria-describedby="brand-nav-heading"
+              tabIndex={0}
+              data-testid={`sidebar-${item.id}`}
+              className={`flex items-center w-full px-4 py-2.5 text-sm rounded-md mb-1 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
                 active
                   ? 'text-brand-primary bg-brand-primary/10 font-medium border border-brand-primary/20'
                   : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
-              aria-label="Access help and support resources"
             >
-              <HelpCircle className={`h-5 w-5 mr-3 ${active ? 'text-brand-primary' : 'text-gray-500 dark:text-gray-400'}`} aria-hidden="true" />
-              <span>Help & Support</span>
+              <item.icon
+                className={`h-5 w-5 mr-3 ${
+                  active ? 'text-brand-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'
+                }`}
+                aria-hidden="true"
+              />
+              <div className="flex flex-col items-start flex-1">
+                <span>{item.label}</span>
+                {active && (
+                  <span className="text-xs opacity-80">{item.description}</span>
+                )}
+              </div>
             </button>
           );
-        })()}
+        })}
 
         <button
           onClick={handleLogout}
