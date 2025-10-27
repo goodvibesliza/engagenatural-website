@@ -9,6 +9,8 @@
   VITE_USE_EMULATOR = "false"
   VITE_SHOW_DEBUG = "false"
   VITE_NETLIFY_CONTEXT = "production" # used by EnvBadge
+  # Disable Netlify secrets scanning (false positives from Firebase SDK strings)
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 [context.deploy-preview.environment]
   VITE_USE_EMULATOR = "false"

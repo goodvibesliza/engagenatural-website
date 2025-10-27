@@ -23,6 +23,7 @@ import {
   Trophy,
   LogOut,
   Settings,
+  Home,
 } from 'lucide-react';
 
 /**
@@ -127,6 +128,12 @@ export default function UserDropdownMenu() {
               <Link to="/brand/profile">
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/brand">
+                <Home className="mr-2 h-4 w-4" />
+                <span>Admin</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
