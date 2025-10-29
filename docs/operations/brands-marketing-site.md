@@ -1,7 +1,7 @@
 ---
 title: Brands Marketing Site (brands.engagenatural.com)
 owner: Liza Boone
-status: Draft for dev review
+status: Draft for dev review, started AI coding
 last_updated: 2025-10-29
 version: 1.0
 ---
@@ -23,7 +23,7 @@ No auth, no app dependencies, just fast and clean.
 - **Analytics:** Plausible (preferred) or GA4
 - **Error/Perf Monitoring:** Sentry (client + edge)
 - **Forms:** Formspree (current) or Next.js API route → email/webhook
-- **Deployment:** Netlify (preferred) or Vercel
+- **Deployment:** Netlify brands.engagenatural.com
 - **CI/CD:** GitHub → Netlify build previews per branch/PR
 
 > Rationale: Next.js + Netlify is a standard modern marketing stack: fast, SEO-friendly, trivial CI/CD.
@@ -203,19 +203,10 @@ NEXT_PUBLIC_SENTRY_DSN=...
 - Scheduler embed (e.g., Cal.com) for demo booking
 - A/B copy tests (hero variants)
 
-## 14) DNS setup (quick)
-
-In your DNS host (where engagenatural.com is managed), create a CNAME:
-
-- Host/Name: `brands`
-- Value/Target: `<your-site>.netlify.app` (shown in Netlify site domain panel)
-- TTL: default
+## 14) DNS setup - complete
 
 In Netlify Site settings → Domain management, add `brands.engagenatural.com`.
 
-Wait for propagation, then hit the URL.
-
-(Optional) Add staging CNAME: `brands-staging` → staging Netlify domain.
 
 ## 15) Dev Notes / Hand-off
 
