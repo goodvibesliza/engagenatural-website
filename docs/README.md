@@ -6,6 +6,7 @@ This index links all documentation sections. Keep line width ≤100 and headings
 
 ## System Architecture
 
+- Community & Brand Manager Expansion (Phase 8.5 → 8.6) → ./community-brand-manager-expansion-phase-8.5-8.6.md
 - Admin System → ./system/admin-system.md
 - Brand Manager System → ./system/brand-manager-system.md
 - Staff UI Redesign → ./system/staff-ui-redesign.md
@@ -30,6 +31,7 @@ This index links all documentation sections. Keep line width ≤100 and headings
 - Deployment Runbook → ./operations/deployment-runbook.md
 - QA Checklist → ./operations/qa-checklist.md
 - Roadmap → ./operations/roadmap.md
+- Brands Marketing Site (Technical Brief) → ./operations/brands-marketing-site.md
 
 ## Assets
 

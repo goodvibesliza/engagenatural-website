@@ -133,6 +133,7 @@ See docs/operations/deployment-runbook.md → CORS section.
 
 - Docs Index: ./docs/README.md
 - System
+  - Community & Brand Manager Expansion (Phase 8.5 → 8.6): ./docs/community-brand-manager-expansion-phase-8.5-8.6.md
   - Admin System: ./docs/system/admin-system.md
   - Brand Manager System: ./docs/system/brand-manager-system.md
   - Staff UI Redesign: ./docs/system/staff-ui-redesign.md
@@ -151,6 +152,7 @@ See docs/operations/deployment-runbook.md → CORS section.
   - Deployment Runbook: ./docs/operations/deployment-runbook.md
   - QA Checklist: ./docs/operations/qa-checklist.md
   - Roadmap: ./docs/operations/roadmap.md
+  - Brands Marketing Site (Technical Brief): ./docs/operations/brands-marketing-site.md
 
 ## Contributors
 
