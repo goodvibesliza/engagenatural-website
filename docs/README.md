@@ -28,6 +28,7 @@ This index links all documentation sections. Keep line width ≤100 and headings
 
 ## Operations
 
+- Implementation Progress → ./operations/implementation-progress.md
 - Deployment Runbook → ./operations/deployment-runbook.md
 - QA Checklist → ./operations/qa-checklist.md
 - Roadmap → ./operations/roadmap.md
