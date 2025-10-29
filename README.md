@@ -132,6 +132,7 @@ See docs/operations/deployment-runbook.md → CORS section.
 ## Quick Links (docs)
 
 - Docs Index: ./docs/README.md
+- Project Status: ./docs/operations/implementation-progress.md
 - System
   - Community & Brand Manager Expansion (Phase 8.5 → 8.6): ./docs/community-brand-manager-expansion-phase-8.5-8.6.md
   - Admin System: ./docs/system/admin-system.md
