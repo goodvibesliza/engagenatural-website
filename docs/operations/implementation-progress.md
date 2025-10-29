@@ -35,7 +35,7 @@ This document tracks the current build status and next steps for all EngageNatur
 | Phase 8 – Seed content | 🟡 In progress | Sample programs + brand posts pending |
 | Phase 8.5–8.8 – UI redesign | ✅ Done | Unified LinkedIn-style layout |
 | Phase 9 — Sampling Program / Coupon System | 🟢 In progress | Core logic drafted, API setup pending |
-| Phase 10 — Brands Landing & Marketing Site | 🔵 Starting | Basic internal page live; Netlify site migration pending |
+| Phase 10 — Brands Landing & Marketing Site | 🔵 In progress | subpage live, site works |
 | Phase 11 — Security & Data Hygiene | ⏳ Planned | Firestore rules tightening |
 | Phase 12 — Tests & QA | ⏳ Planned | Playwright smoke + manual checklist |
 | Phase 13 — Observability & Legal | ⏳ Planned | Sentry + analytics + legal pages |
