@@ -102,7 +102,8 @@ Community
 
 
 Rollout Sequence
-|Step|	|Description|	|Status|
+|Step|Description|Status|
+|------|--------|-------|
 |8.9 a|	Add Challenges tab in Admin|	🟢 Active|
 |8.9 b|	Extend editor/viewer|	🟢 Active|
 |8.9 c|	Connect to Brand dashboard|	🟡 Pending|
