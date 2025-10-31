@@ -9,6 +9,16 @@ interface Props {
   onAssign?: (t: Template) => void
 }
 
+/**
+ * Render a card showing a template's metadata (type, duration, difficulty, title, tags) and action buttons.
+ *
+ * @param template - The Template to display in the card.
+ * @param onPreview - Optional callback invoked with `template` when the "Preview" button is clicked.
+ * @param onEdit - Optional callback invoked with `template` when the "Edit" button is clicked.
+ * @param onDuplicate - Optional callback invoked with `template` when the "Duplicate" button is clicked.
+ * @param onAssign - Optional callback invoked with `template` when the "Assign" button is clicked.
+ * @returns A React element representing the template card.
+ */
 export default function TemplateCard({ template, onPreview, onEdit, onDuplicate, onAssign }: Props) {
   const chip = template.type === 'lesson' ? 'Lesson' : template.type === 'challenge' ? 'Challenge' : 'Community'
 
