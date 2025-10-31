@@ -13,6 +13,17 @@ type Form = {
   visibility: Visibility
 }
 
+/**
+ * Template editor page for creating and editing templates.
+ *
+ * Initializes form state from the current route and template store, presents fields for title, type,
+ * duration, difficulty, tags, body, approved, and visibility, and exposes actions to save, preview,
+ * and duplicate templates. Saving will create or update a template in the store and navigate to the
+ * resulting template's page; preview saves then navigates to the template view; duplicate creates
+ * a copy (from an existing template or the current unsaved form) and navigates to the copy's editor.
+ *
+ * @returns The page's JSX element.
+ */
 export default function TemplateEditorPage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()

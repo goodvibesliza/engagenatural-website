@@ -7,6 +7,15 @@ interface EmptyStateProps {
   onAction?: () => void
 }
 
+/**
+ * Render an empty-state UI with a title, optional description, and optional action button.
+ *
+ * @param title - Title text shown prominently; defaults to "Nothing here yet"
+ * @param description - Optional descriptive text shown below the title
+ * @param actionLabel - Label for an action button; the button is rendered only when both `actionLabel` and `onAction` are provided
+ * @param onAction - Click handler for the action button; required alongside `actionLabel` for the button to appear
+ * @returns A JSX element representing the empty-state container
+ */
 export default function EmptyState({
   title = 'Nothing here yet',
   description,

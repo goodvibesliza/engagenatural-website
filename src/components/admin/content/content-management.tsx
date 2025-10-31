@@ -66,6 +66,11 @@ interface RoleAccessResult {
   canAccess: (permissions: string[]) => boolean
 }
 
+/**
+ * Renders the content management dashboard for viewing, filtering, and managing lessons and challenges across brands.
+ *
+ * @returns The root JSX element for the Content Management dashboard UI.
+ */
 export default function ContentManagement(_props: ContentManagementProps): JSX.Element {
   const { canAccess } = (useRoleAccess() as unknown) as RoleAccessResult
 

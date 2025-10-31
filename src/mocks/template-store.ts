@@ -78,6 +78,11 @@ const seed: Template[] = [
   },
 ]
 
+/**
+ * Load the persisted template list from localStorage, falling back to the default seed set when missing or invalid.
+ *
+ * @returns The array of stored templates, or the default seed templates if no valid data is found in localStorage.
+ */
 function load(): Template[] {
   try {
     const raw = localStorage.getItem(LS_KEY)
@@ -90,12 +95,22 @@ function load(): Template[] {
   }
 }
 
+/**
+ * Persist the given templates to browser localStorage using the module storage key.
+ *
+ * @param items - The templates to store; serialized as JSON and saved under `LS_KEY`. Failures during storage are silently ignored.
+ */
 function save(items: Template[]) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(items))
   } catch {}
 }
 
+/**
+ * Loads brand templates from localStorage.
+ *
+ * @returns An array of BrandTemplate objects retrieved from localStorage; an empty array if no valid data is found or an error occurs.
+ */
 function loadBrand(): BrandTemplate[] {
   try {
     const raw = localStorage.getItem(LS_BRAND_KEY)
@@ -108,12 +123,27 @@ function loadBrand(): BrandTemplate[] {
   }
 }
 
+/**
+ * Persist an array of brand templates to localStorage using the module's brand key.
+ *
+ * @param items - The BrandTemplate objects to store
+ *
+ * Note: Persistence failures (for example, JSON serialization errors or storage quota exceeded)
+ * are caught and ignored; this function does not throw.
+ */
 function saveBrand(items: BrandTemplate[]) {
   try {
     localStorage.setItem(LS_BRAND_KEY, JSON.stringify(items))
   } catch {}
 }
 
+/**
+ * Provides a React hook exposing an in-memory template store persisted to localStorage.
+ *
+ * The hook manages both learning templates and brand-specific templates and keeps them synchronized with localStorage.
+ *
+ * @returns An API object with methods for managing templates and brand templates: `list`, `listByType`, `getById`, `create`, `update`, `duplicate`, `remove`, `listBrand`, `getBrandById`, `duplicateToBrand`, `updateBrand`, and `removeBrand`.
+ */
 export function useTemplateStore() {
   const [items, setItems] = useState<Template[]>(() => load())
   const [brandItems, setBrandItems] = useState<BrandTemplate[]>(() => loadBrand())
