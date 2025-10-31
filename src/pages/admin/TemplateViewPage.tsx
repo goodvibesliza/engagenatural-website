@@ -96,7 +96,11 @@ export default function TemplateViewPage() {
       <AssignModal
         open={assignOpen}
         onClose={() => setAssignOpen(false)}
-        onSubmit={() => setAssignOpen(false)}
+        onSubmit={(payload) => {
+          // Frontend-only: capture chosen brandIds; no network call here
+          console.log('Assigned brandIds:', payload.brandIds, 'tier:', payload.tier)
+          setAssignOpen(false)
+        }}
       />
     </div>
   )
