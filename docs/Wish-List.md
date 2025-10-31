@@ -74,6 +74,7 @@ Acceptance Criteria
 - Notifications fire for create and each status change.
 - Rules prevent unauthorized updates and invalid transitions.
 
+<<<<<<< HEAD
 ## 3) Notifications (Telegram Integration — see /docs/Notification-System.md)
 
 We’re moving notifications from Email + Push to a Telegram-based system tied to @EngageNaturalBot.
@@ -94,6 +95,30 @@ We’re moving notifications from Email + Push to a Telegram-based system tied t
 
 Acceptance criteria unchanged — messages must still log success/failure and respect rate limits.
 
+=======
+## 3) Notifications (MVP — Email + Push)
+- Email (provider: SendGrid or SES)
+  - Add provider config to functions (env): SENDGRID_API_KEY or AWS creds.
+  - Create function helper `sendEmail({ to, templateId|subject+html, data })`.
+  - Triggers: verification Request Info, sampling request create/approve/deny/ship, admin messages.
+  - Store delivery logs in `notifications_meta/{uid}/emails` with status and error if any.
+- Push (Firebase Cloud Messaging)
+  - Service worker: `public/firebase-messaging-sw.js` with messaging handler; ensure Vite copies it.
+  - Client: request permission from Profile toggle; register token and save to `users/{uid}.fcmTokens[token]={ createdAt, platform }`.
+  - Functions: topic or direct sends via `sendPush({ tokens|topic, title, body, data })`.
+  - Handle token refresh and invalidation (clean up on 404/410 from FCM).
+- App integration
+  - Wire events to a `notify()` facade that picks push when available else email.
+  - UI: system notifications tab continues to show in-app items; emails/push complement it.
+- Open PR follow-up
+  - Fix build on branch `feature/push-notifications-only` and merge into MVP.
+
+Acceptance Criteria
+- Profile toggle controls push permission; token saved/removed accordingly.
+- Receiving devices show push notifications in foreground and background.
+- Emails are sent for verification request info and sampling status changes.
+- All notifications log success/failure.
+>>>>>>> adba6af6 (feat(admin): add TSX versions of content management and template pages)
 
 ## 4) Analytics PII Gate (pre‑vendor)
 - Implement helpers in `src/lib/analytics.js`: `getAnonymousId`, `getHashedId`, `shouldSendIdentity` (salt via `VITE_ANALYTICS_SALT`).

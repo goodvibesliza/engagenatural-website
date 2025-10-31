@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// renamed to .tsx
 import { useRoleAccess } from '../../../hooks/use-role-access'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/Button'

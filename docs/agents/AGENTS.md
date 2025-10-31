@@ -297,7 +297,7 @@ Notes
 - AutoScore: 100 at 0–50m → linearly to 0 by 1500m
 
 ### Store location policy update (2025-10-24)
-Status: Address geocode baseline implemented and working (2025-10-31). [Completed]
+Status: Address geocode baseline implemented and working (2025-10-31).
 - Device-only policy for storeLoc:
   - storeLoc is strictly for device GPS: { lat, lng, setAt: serverTimestamp(), source: 'device' }
   - Address coordinates are never persisted into storeLoc

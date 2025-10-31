@@ -1,6 +1,6 @@
 title: LinkedIn Layout – Phases 8.5–8.8
 version: 1.1
-author: Factory AI / Liza Boone
+author: Manus AI / Factory AI / Liza Boone
 last_updated: 2025-10-29
 
 # Phase 8.5 – Redesign Staff UI (Community)
