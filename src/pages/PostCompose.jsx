@@ -198,7 +198,7 @@ export default function PostCompose() {
     let moderationMeta = null;
     try {
       // Moderate content (DSHEA/inappropriate/spam) before saving
-      const moderation = await filterPostContent({ content: rawBody });
+      const moderation = await filterPostContent({ content: `${(title || '').trim()}\n${rawBody}` });
       moderatedBody = moderation?.content ?? rawBody;
       needsReview = !!moderation?.needsReview;
       isBlocked = !!moderation?.isBlocked;
@@ -332,7 +332,7 @@ export default function PostCompose() {
       // On failure, still allow users to preview their content as a draft
       if (moderatedBody === rawBody) {
         try {
-          const moderation = await filterPostContent({ content: rawBody });
+          const moderation = await filterPostContent({ content: `${(title || '').trim()}\n${rawBody}` });
           moderatedBody = moderation?.content ?? rawBody;
         } catch (err2) {
           // leave moderatedBody as raw fallback

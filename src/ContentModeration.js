@@ -15,6 +15,10 @@ const inappropriateWords = [
   'cvs pharmacy', 'walgreens', 'rite aid'
 ]
 
+// Profanity terms that should result in a hard block regardless of score
+const PROFANITY_TERMS = ['fuck', 'shit', 'bitch', 'asshole', 'bastard', 'dick', 'cunt']
+const PROFANITY_REGEXES = PROFANITY_TERMS.map((t) => new RegExp(`\\b${t}\\b`, 'i'))
+
 const spamPatterns = [
   /\b\d{3}-\d{3}-\d{4}\b/, // Phone numbers
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // Email addresses
@@ -33,7 +37,21 @@ export const moderateContent = (content) => {
     moderatedContent: content
   }
 
-  const lowerContent = content.toLowerCase()
+  const lowerContent = String(content || '').toLowerCase()
+  
+  // Hard-block profanity (word-boundary match) regardless of aggregate score
+  const hasProfanity = PROFANITY_REGEXES.some((rx) => rx.test(lowerContent))
+  if (hasProfanity) {
+    result.flags.push({
+      type: 'profanity',
+      details: 'Contains profanity',
+      severity: 'high'
+    })
+    result.isAppropriate = false
+    result.suggestedAction = 'block'
+    result.moderatedContent = '[Content removed by moderator]'
+    return result
+  }
   
   // Check for inappropriate words
   const foundWords = inappropriateWords.filter(word => 
@@ -90,7 +108,7 @@ export const moderateContent = (content) => {
   if (result.confidence < 0.3) {
     result.isAppropriate = false
     result.suggestedAction = 'block'
-  } else if (result.confidence < 0.7) {
+  } else if (result.confidence <= 0.7) {
     result.isAppropriate = false
     result.suggestedAction = 'review'
   }

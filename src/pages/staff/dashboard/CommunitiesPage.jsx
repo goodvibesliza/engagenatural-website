@@ -424,7 +424,7 @@ export default function CommunitiesPage() {
       let moderationFlags = [];
       let moderationObj = null;
       try {
-        const moderation = await filterPostContent({ content: moderatedBody });
+        const moderation = await filterPostContent({ content: `${(newTitle || '').trim()}\n${moderatedBody}` });
         moderatedBody = moderation?.content ?? moderatedBody;
         needsReview = !!moderation?.needsReview;
         isBlocked = !!moderation?.isBlocked;
