@@ -13,6 +13,7 @@ This index links all documentation sections. Keep line width ≤100 and headings
 - Firebase Architecture → ./system/firebase-architecture.md
 - Security Rules → ./system/security-rules.md
 - Content Moderation → ./system/Content-Moderation.md
+- Notifications → ./system/Notifications-System.md
 
 ## Business & Product
 
