@@ -16,8 +16,20 @@ const inappropriateWords = [
 ]
 
 // Profanity terms that should result in a hard block regardless of score
-const PROFANITY_TERMS = ['fuck', 'shit', 'bitch', 'asshole', 'bastard', 'dick', 'cunt']
-const PROFANITY_REGEXES = PROFANITY_TERMS.map((t) => new RegExp(`\\b${t}\\b`, 'i'))
+// Tradeoff: enforce ONLY a left boundary so we catch common inflections (e.g., "fucking", "shitty").
+// This avoids false negatives from trailing word boundaries while keeping false positives low
+// (won't match inside mid-word substrings). Example: (?:^|\W)fuck matches "fuck" and "fucking" but
+// not "outfucker" (no left boundary).
+const PROFANITY_TERMS = [
+  'fuck', 'fucking', 'fucker',
+  'shit', 'shitty',
+  'bitch', 'bitches', 'bitchy',
+  'asshole', 'assholes',
+  'bastard', 'bastards',
+  'dick', 'dicks',
+  'cunt', 'cunts'
+]
+const PROFANITY_REGEXES = PROFANITY_TERMS.map((t) => new RegExp(`(?:^|\\W)${t}`, 'i'))
 
 const spamPatterns = [
   /\b\d{3}-\d{3}-\d{4}\b/, // Phone numbers
