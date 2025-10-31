@@ -12,6 +12,7 @@ This index links all documentation sections. Keep line width ≤100 and headings
 - Staff UI Redesign → ./system/staff-ui-redesign.md
 - Firebase Architecture → ./system/firebase-architecture.md
 - Security Rules → ./system/security-rules.md
+- Content Moderation → ./system/Content-Moderation.md
 
 ## Business & Product
 

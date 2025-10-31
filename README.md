@@ -133,6 +133,7 @@ See docs/operations/deployment-runbook.md → CORS section.
 
 - Docs Index: ./docs/README.md
 - Project Status: ./docs/operations/implementation-progress.md
+- App website repo (separate): [engagenatural-appwebsite](https://github.com/goodvibesliza/engagenatural-appwebsite)
 - System
   - Community & Brand Manager Expansion (Phase 8.5 → 8.6): ./docs/community-brand-manager-expansion-phase-8.5-8.6.md
   - Admin System: ./docs/system/admin-system.md
@@ -140,6 +141,7 @@ See docs/operations/deployment-runbook.md → CORS section.
   - Staff UI Redesign: ./docs/system/staff-ui-redesign.md
   - Firebase Architecture: ./docs/system/firebase-architecture.md
   - Security Rules: ./docs/system/security-rules.md
+  - Content Moderation: ./docs/system/Content-Moderation.md
 - Design
   - Brand Vibe Report: ./docs/design/brand-vibe-report.md
   - UI Style Guide: ./docs/design/ui-style-guide.md

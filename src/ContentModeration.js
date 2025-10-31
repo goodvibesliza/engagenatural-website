@@ -15,6 +15,22 @@ const inappropriateWords = [
   'cvs pharmacy', 'walgreens', 'rite aid'
 ]
 
+// Profanity terms that should result in a hard block regardless of score
+// Tradeoff: enforce ONLY a left boundary so we catch common inflections (e.g., "fucking", "shitty").
+// This avoids false negatives from trailing word boundaries while keeping false positives low
+// (won't match inside mid-word substrings). Example: (?:^|\W)fuck matches "fuck" and "fucking" but
+// not "outfucker" (no left boundary).
+const PROFANITY_TERMS = [
+  'fuck', 'fucking', 'fucker',
+  'shit', 'shitty',
+  'bitch', 'bitches', 'bitchy',
+  'asshole', 'assholes',
+  'bastard', 'bastards',
+  'dick', 'dicks',
+  'cunt', 'cunts'
+]
+const PROFANITY_REGEXES = PROFANITY_TERMS.map((t) => new RegExp(`(?:^|\\W)${t}`, 'i'))
+
 const spamPatterns = [
   /\b\d{3}-\d{3}-\d{4}\b/, // Phone numbers
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // Email addresses
@@ -33,7 +49,21 @@ export const moderateContent = (content) => {
     moderatedContent: content
   }
 
-  const lowerContent = content.toLowerCase()
+  const lowerContent = String(content || '').toLowerCase()
+  
+  // Hard-block profanity (word-boundary match) regardless of aggregate score
+  const hasProfanity = PROFANITY_REGEXES.some((rx) => rx.test(lowerContent))
+  if (hasProfanity) {
+    result.flags.push({
+      type: 'profanity',
+      details: 'Contains profanity',
+      severity: 'high'
+    })
+    result.isAppropriate = false
+    result.suggestedAction = 'block'
+    result.moderatedContent = '[Content removed by moderator]'
+    return result
+  }
   
   // Check for inappropriate words
   const foundWords = inappropriateWords.filter(word => 
@@ -90,7 +120,7 @@ export const moderateContent = (content) => {
   if (result.confidence < 0.3) {
     result.isAppropriate = false
     result.suggestedAction = 'block'
-  } else if (result.confidence < 0.7) {
+  } else if (result.confidence <= 0.7) {
     result.isAppropriate = false
     result.suggestedAction = 'review'
   }

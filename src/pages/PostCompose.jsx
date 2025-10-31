@@ -198,8 +198,11 @@ export default function PostCompose() {
     let moderationMeta = null;
     try {
       // Moderate content (DSHEA/inappropriate/spam) before saving
-      const moderation = await filterPostContent({ content: rawBody });
-      moderatedBody = moderation?.content ?? rawBody;
+      // Use title+body for detection, but NEVER persist the title in body
+      const combinedForModeration = `${(title || '').trim()}\n${rawBody}`;
+      const moderation = await filterPostContent({ content: combinedForModeration });
+      // Keep the original body for storage/drafts unless body-specific transforms are added later
+      moderatedBody = rawBody;
       needsReview = !!moderation?.needsReview;
       isBlocked = !!moderation?.isBlocked;
       moderationFlags = moderation?.moderationFlags || moderation?.moderation?.flags || [];
@@ -330,15 +333,7 @@ export default function PostCompose() {
       navigate(`/community/post/${ref.id}`);
     } catch (e) {
       // On failure, still allow users to preview their content as a draft
-      if (moderatedBody === rawBody) {
-        try {
-          const moderation = await filterPostContent({ content: rawBody });
-          moderatedBody = moderation?.content ?? rawBody;
-        } catch (err2) {
-          // leave moderatedBody as raw fallback
-          console.debug?.('PostCompose: moderation retry failed', err2);
-        }
-      }
+      // Leave moderatedBody as the original body; moderation is used only for gating
       const rawCid = selectedCommunityId || 'whats-good';
       const cid = rawCid.replaceAll('_', '-');
       const cname = (communities.find((c) => c.id === rawCid)?.name) || "What's Good";
