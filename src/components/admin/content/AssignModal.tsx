@@ -24,14 +24,15 @@ export default function AssignModal({ open, onClose, onSubmit }: AssignModalProp
     [selected]
   )
 
-  if (!open) return null
-
+  // Reset selection when modal opens; keep hook order stable regardless of open
   useEffect(() => {
     if (open) {
       setSelected([])
       setTier('basic')
     }
   }, [open])
+
+  if (!open) return null
 
   const toggle = (id: string) => {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))

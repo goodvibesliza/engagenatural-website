@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-
-export type TemplateType = 'lesson' | 'challenge' | 'community'
-export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
-export type Visibility = 'internal' | 'shared'
+import type { TemplateType, Difficulty, Visibility } from '@/types/templates'
+export type { TemplateType, Difficulty, Visibility } from '@/types/templates'
 
 export interface Template {
   id: string

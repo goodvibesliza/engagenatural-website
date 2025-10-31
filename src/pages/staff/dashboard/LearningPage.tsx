@@ -30,7 +30,10 @@ export default function LearningPage() {
   const [filter, setFilter] = useState<'all' | Extract<TemplateType, 'lesson' | 'challenge'>>(() => {
     try {
       const v = localStorage.getItem(LS_FILTER_KEY)
-      return v === 'lesson' || v === 'challenge' || v === 'all' ? (v as any) : 'all'
+      const allowed = ['lesson', 'challenge', 'all'] as const
+      return (allowed as readonly string[]).includes(v || '')
+        ? (v as typeof allowed[number])
+        : 'all'
     } catch {
       return 'all'
     }

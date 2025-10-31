@@ -2,7 +2,7 @@ export type TemplateType = 'lesson' | 'challenge' | 'community'
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
-type Visibility = 'public' | 'private' | 'brand'
+export type Visibility = 'internal' | 'shared'
 
 interface BaseTemplate {
   id: string
