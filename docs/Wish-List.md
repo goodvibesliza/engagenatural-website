@@ -74,28 +74,26 @@ Acceptance Criteria
 - Notifications fire for create and each status change.
 - Rules prevent unauthorized updates and invalid transitions.
 
-## 3) Notifications (MVP — Email + Push)
-- Email (provider: SendGrid or SES)
-  - Add provider config to functions (env): SENDGRID_API_KEY or AWS creds.
-  - Create function helper `sendEmail({ to, templateId|subject+html, data })`.
-  - Triggers: verification Request Info, sampling request create/approve/deny/ship, admin messages.
-  - Store delivery logs in `notifications_meta/{uid}/emails` with status and error if any.
-- Push (Firebase Cloud Messaging)
-  - Service worker: `public/firebase-messaging-sw.js` with messaging handler; ensure Vite copies it.
-  - Client: request permission from Profile toggle; register token and save to `users/{uid}.fcmTokens[token]={ createdAt, platform }`.
-  - Functions: topic or direct sends via `sendPush({ tokens|topic, title, body, data })`.
-  - Handle token refresh and invalidation (clean up on 404/410 from FCM).
-- App integration
-  - Wire events to a `notify()` facade that picks push when available else email.
-  - UI: system notifications tab continues to show in-app items; emails/push complement it.
-- Open PR follow-up
-  - Fix build on branch `feature/push-notifications-only` and merge into MVP.
+## 3) Notifications (Telegram Integration — see /docs/Notification-System.md)
 
-Acceptance Criteria
-- Profile toggle controls push permission; token saved/removed accordingly.
-- Receiving devices show push notifications in foreground and background.
-- Emails are sent for verification request info and sampling status changes.
-- All notifications log success/failure.
+We’re moving notifications from Email + Push to a Telegram-based system tied to @EngageNaturalBot.
+
+### Summary
+- Core logic and triggers stay the same, but output channels change:
+  - Replace `sendEmail()` and `sendPush()` helpers with `sendTelegram()` facade.
+  - Use Telegram `chat_id` from linked user profiles instead of FCM tokens.
+- Add a user-linking flow (deep link `t.me/EngageNaturalBot?start=link_<uid>`) in Profile.
+- Cloud Functions now enqueue and deliver via Bot API instead of SendGrid/FCM.
+- In-app notifications remain as secondary (no UI change required).
+
+### Next steps
+1. Review **/docs/Notification-System.md** for full setup, env vars, and function paths.  
+2. Refactor current notification helpers to route through Telegram.  
+3. Update Firestore schema (`users/{uid}/telegram`, `notifications_meta/...`) per spec.  
+4. Test quiz pass + reward confirmation messages end-to-end.
+
+Acceptance criteria unchanged — messages must still log success/failure and respect rate limits.
+
 
 ## 4) Analytics PII Gate (pre‑vendor)
 - Implement helpers in `src/lib/analytics.js`: `getAnonymousId`, `getHashedId`, `shouldSendIdentity` (salt via `VITE_ANALYTICS_SALT`).
