@@ -15,6 +15,18 @@ interface AssignModalProps {
   onSubmit: (payload: { brandIds: string[]; tier: Tier }) => void
 }
 
+/**
+ * Render a modal that lets the user select one or more brands and assign them a plan tier.
+ *
+ * The modal is not rendered when `open` is false. Selecting brands and a tier and submitting
+ * calls `onSubmit` with `{ brandIds, tier }`, then calls `onClose`. Clicking the backdrop or
+ * the Cancel button calls `onClose`.
+ *
+ * @param open - Whether the modal is visible
+ * @param onClose - Callback invoked to close the modal
+ * @param onSubmit - Callback invoked with the selected brand IDs and chosen tier when the form is submitted
+ * @returns The modal JSX element when `open` is true, otherwise `null`
+ */
 export default function AssignModal({ open, onClose, onSubmit }: AssignModalProps) {
   const [selected, setSelected] = useState<string[]>([])
   const [tier, setTier] = useState<Tier>('basic')

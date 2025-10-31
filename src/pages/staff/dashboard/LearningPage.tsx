@@ -8,6 +8,11 @@ const LS_FILTER_KEY = 'engagenatural.staffFilter'
 type ProgressStatus = 'started' | 'completed'
 type ProgressMap = Record<string, { status: ProgressStatus; updatedAt: string }>
 
+/**
+ * Load the persisted learning progress map from local storage.
+ *
+ * @returns A ProgressMap mapping template IDs to progress entries ({ status, updatedAt }); returns an empty object if no valid progress is stored.
+ */
 function loadProgress(): ProgressMap {
   try {
     const raw = localStorage.getItem(LS_PROGRESS_KEY)
@@ -19,12 +24,29 @@ function loadProgress(): ProgressMap {
   }
 }
 
+/**
+ * Persist the given progress map to the staff progress key in localStorage.
+ *
+ * Saves the provided ProgressMap under the LS_PROGRESS_KEY. Any errors encountered while writing to storage are ignored.
+ *
+ * @param map - Mapping of template IDs to their progress entries to persist
+ */
 function saveProgress(map: ProgressMap) {
   try {
     localStorage.setItem(LS_PROGRESS_KEY, JSON.stringify(map))
   } catch {}
 }
 
+/**
+ * Render a learning dashboard with filterable lessons and challenges and client-side progress tracking.
+ *
+ * The component lists templates for the demo brand, allows filtering by "all", "lesson", or "challenge",
+ * and lets users mark items as started or completed. Item progress and the selected filter are persisted
+ * to localStorage.
+ *
+ * @returns A React element containing a header with filter controls and a responsive grid of learning items;
+ * each item shows metadata, a completed badge when applicable, and actions to start or mark the item complete.
+ */
 export default function LearningPage() {
   const store = useTemplateStore()
   const [filter, setFilter] = useState<'all' | Extract<TemplateType, 'lesson' | 'challenge'>>(() => {
