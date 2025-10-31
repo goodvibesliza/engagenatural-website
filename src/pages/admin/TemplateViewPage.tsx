@@ -9,7 +9,7 @@ export default function TemplateViewPage() {
   const navigate = useNavigate()
   const store = useTemplateStore()
 
-  const template = useMemo<Template | null>(() => (id ? store.getById(id) : null), [id, store])
+  const template = useMemo<Template | null>(() => (id ? store.get(id) : null), [id, store])
   const [assignOpen, setAssignOpen] = useState(false)
 
   if (!template) {
@@ -97,8 +97,11 @@ export default function TemplateViewPage() {
         open={assignOpen}
         onClose={() => setAssignOpen(false)}
         onSubmit={(payload) => {
-          // Frontend-only: capture chosen brandIds; no network call here
-          console.log('Assigned brandIds:', payload.brandIds, 'tier:', payload.tier)
+          if (!template) return setAssignOpen(false)
+          const res = store.assignToBrands(template.id, payload)
+          if (!('success' in res) || !res.success) {
+            console.warn('Assign failed', res)
+          }
           setAssignOpen(false)
         }}
       />

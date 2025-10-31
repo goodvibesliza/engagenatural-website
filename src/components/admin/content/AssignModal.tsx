@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 type Tier = 'basic' | 'pro' | 'enterprise'
 
@@ -25,6 +25,13 @@ export default function AssignModal({ open, onClose, onSubmit }: AssignModalProp
   )
 
   if (!open) return null
+
+  useEffect(() => {
+    if (open) {
+      setSelected([])
+      setTier('basic')
+    }
+  }, [open])
 
   const toggle = (id: string) => {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))

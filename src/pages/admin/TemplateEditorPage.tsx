@@ -20,7 +20,7 @@ export default function TemplateEditorPage() {
   const store = useTemplateStore()
 
   const isNew = location.pathname.includes('/admin/templates/new') || !id
-  const existing = useMemo<Template | null>(() => (id ? store.getById(id) : null), [id, store])
+  const existing = useMemo<Template | null>(() => (id ? store.get(id) : null), [id, store])
 
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<Form>(() => {
@@ -74,11 +74,15 @@ export default function TemplateEditorPage() {
     setSaving(true)
     try {
       if (existing) {
-        const updated = store.update(existing.id, payload())
-        if (updated) navigate(`/admin/templates/${updated.id}`)
+        const result = store.update(existing.id, payload())
+        if (typeof result === 'boolean') {
+          if (result) navigate(`/admin/templates/${existing.id}`)
+        } else if (result) {
+          navigate(`/admin/templates/${result.id}`)
+        }
       } else {
         const created = store.create(payload())
-        navigate(`/admin/templates/${created.id}`)
+        if (created) navigate(`/admin/templates/${created.id}`)
       }
     } finally {
       setSaving(false)
@@ -88,11 +92,12 @@ export default function TemplateEditorPage() {
   const handlePreview = async () => {
     // Save then navigate to view
     if (existing) {
-      const updated = store.update(existing.id, payload())
-      if (updated) navigate(`/admin/templates/${updated.id}`)
+      const result = store.update(existing.id, payload())
+      const ok = typeof result === 'boolean' ? result : !!result
+      if (ok) navigate(`/admin/templates/${existing.id}`)
     } else {
       const created = store.create(payload())
-      navigate(`/admin/templates/${created.id}`)
+      if (created) navigate(`/admin/templates/${created.id}`)
     }
   }
 
