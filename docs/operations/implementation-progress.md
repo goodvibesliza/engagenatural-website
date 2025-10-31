@@ -36,6 +36,8 @@ This document tracks the current build status and next steps for all EngageNatur
 | Phase 7 – Demo polish | ✅ Done | Completed tasks listed below |
 | Phase 8 – Seed content | 🟡 In progress | Sample programs + brand posts pending |
 | Phase 8.5–8.8 – UI redesign | ✅ Done | Unified LinkedIn-style layout |
+| Phase 8.9 - Learning & Challenges Templates |🟡 In progress| Adds templates system
+| Phase 8.91 - Challenge Types + Educator Services |⏳ Planned |	Gamified challenges + upcharge
 | Phase 9 — Sampling Program / Coupon System | 🟢 In progress | Brand-led CSV export + ROI tracking |
 | Phase 10 — Notifications (Telegram MVP) | 🟢 In progress | Replacing email/push with @EngageNaturalBot |
 | Phase 11 — Brands Landing & Marketing Site | ✅ Done | Subpage live, site works |
@@ -93,6 +95,20 @@ Community
 - [ ] Two sample programs with realistic copy
 - [ ] 3–4 community posts with useful tips
 - [x] Re-seed (emulator), screenshot KPIs for sales deck
+
+---
+
+## Phase 8.9 - 8.91 - Learning & Challenges Templates and Challenge Types + Educator Services
+
+
+Rollout Sequence
+|Step|	|Description|	|Status|
+|8.9 a|	Add Challenges tab in Admin|	🟢 Active|
+|8.9 b|	Extend editor/viewer|	🟢 Active|
+|8.9 c|	Connect to Brand dashboard|	🟡 Pending|
+|8.91 a|	Add challenge type logic (quiz, mission, streak)|	⏳ Planned|
+|8.91 b|	Enable educator-service requests|	⏳ Planned|
+|8.91 c|	Wire analytics + notifications|	⏳ Planned|
 
 ---
 
