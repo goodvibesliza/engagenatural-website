@@ -2,6 +2,69 @@
 
 This document captures the exact next steps to finish and validate the current workstream.
 
+## 2025-11 Brand Content Templates – Status + Refactor Plan
+
+Canonical doc notice
+- This file (repo root AGENTS.md) is now the canonical AGENTS. An archived copy of the old docs/operations/AGENTS.md has been saved as docs/operations/AGENTSold.md for comparison; delete it when you’re satisfied.
+
+Current status (completed)
+- [x] Templates UI wired into /brand?section=content via ContentManager.jsx (renders ContentPage templates at top of tab)
+- [x] Strong IDs: replaced Math.random-based IDs with crypto.randomUUID() for templates and brand copies
+- [x] Tier support: assignToBrands validates tier and persists it on BrandTemplate
+- [x] Modal sync: Edit modal resets state on open/template change to prevent stale values
+- [x] Template types consolidated and imported from src/types/templates.ts
+- [x] Dynamic brand selection: brandId inferred from auth or VITE_DEMO_BRAND_ID fallback in templates view
+
+Root cause summary (prior issue)
+- Because ContentManager.jsx didn’t render the template picker at all, when navigating to /brand?section=content no templates appeared even though admin templates existed → user saw empty state.
+
+Refactor goal
+- Reduce src/pages/brand/ContentManager.jsx (~1,790 lines) into focused, testable sections; keep Firestore content workflows intact and layer in a first-class Templates section powered by the local mock store (or future Firebase source).
+
+Proposed architecture
+```
+src/pages/brand/ContentManager/
+├─ index.jsx (shell, tabs, routing between sections)
+├─ TemplatesSection.tsx        (uses useTemplateStore; shows shared + brand copies)
+├─ LibrarySection.jsx          (existing content library + uploader)
+├─ ChallengesSection.jsx       (existing challenges list/editor)
+├─ LessonsSection.jsx          (existing lessons list/editor)
+└─ AnnouncementsSection.jsx    (existing announcements list)
+```
+
+Refactor plan (incremental)
+1) Create TemplatesSection.tsx that wraps current ContentPage.tsx component for reuse
+   - [x] Integrate templates into Content tab as interim step (done)
+   - [ ] Extract into its own section component and import in shell
+2) Extract LibrarySection.jsx (content library + uploader) from ContentManager.jsx
+   - [ ] Move JSX/state/effects related to Firestore brand content into LibrarySection.jsx
+   - [ ] Keep API boundaries: pass brandId as prop; expose onRefresh callback
+3) Extract ChallengesSection.jsx and LessonsSection.jsx
+   - [ ] Move current lists, filters, preview panes, and editor dialogs per section
+   - [ ] Ensure fetch + filter utilities are co-located or shared via small helpers
+4) Extract AnnouncementsSection.jsx
+   - [ ] Move Firestore query + list rendering
+5) Create a thin shell (index.jsx)
+   - [ ] Owns Tabs and routes between sections
+   - [ ] Minimal shared state; each section self-contained
+6) Type hardening (where easy)
+   - [ ] Convert TemplatesSection to TS fully (already TypeScript-ready)
+   - [ ] Add lightweight TS types for section props; keep Firestore models in JS for now
+7) Cleanup
+   - [ ] Remove migrated code from ContentManager.jsx; keep file as backwards-compat shim or redirect
+   - [ ] Delete dead imports, utilities, and duplicated components
+
+Validation checklist
+- [ ] /brand?section=content loads with Templates + Library without console errors
+- [ ] Creating/duplicating templates reflects immediately in brand copies list
+- [ ] Challenges and Lessons lists load, filter, preview, and edit as before
+- [ ] Announcements list loads and errors are surfaced via Alert
+- [ ] Uploader works and newly uploaded items appear in Library list
+
+Follow-ups (optional)
+- [ ] Make Templates a first-class left-rail item next to Content Library
+- [ ] Swap local mock template store for Firebase collections when ready (keep the same interface)
+
 ## 2025-10 Verification: Store Location + Auto-Scoring + System Notifications
 
 Context: Verification now relies on user-saved store location (no master store list). Admins can request more info; that triggers a system notification visible on /staff/notifications.
@@ -66,6 +129,7 @@ Notes
 - AutoScore: 100 at 0–50m → linearly to 0 by 1500m
 
 ### Store location policy update (2025-10-24)
+Status: Address geocode baseline implemented and working (2025-10-31). [Completed]
 - Device-only policy for storeLoc:
   - storeLoc is strictly for device GPS: { lat, lng, setAt: serverTimestamp(), source: 'device' }
   - Address coordinates are never persisted into storeLoc
