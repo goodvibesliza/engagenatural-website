@@ -221,7 +221,7 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your.email@example.com"
                     required
-                    className="border-gray-300 focus:border-brand-primary focus:ring-brand-primary font-body"
+                    className="border-soft font-body"
                     disabled={loading}
                   />
                 </div>
@@ -237,7 +237,7 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="border-gray-300 focus:border-brand-primary focus:ring-brand-primary font-body"
+                    className="border-soft font-body"
                     disabled={loading}
                   />
                 </div>
@@ -294,7 +294,7 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your full name"
                     required
-                    className="border-gray-300 focus:border-brand-primary focus:ring-brand-primary font-body"
+                    className="border-soft font-body"
                     disabled={loading}
                   />
                 </div>
@@ -310,7 +310,7 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your.email@example.com"
                     required
-                    className="border-gray-300 focus:border-brand-primary focus:ring-brand-primary font-body"
+                    className="border-soft font-body"
                     disabled={loading}
                   />
                 </div>
@@ -326,7 +326,7 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Create a secure password"
                     required
-                    className="border-gray-300 focus:border-brand-primary focus:ring-brand-primary font-body"
+                    className="border-soft font-body"
                     disabled={loading}
                   />
                 </div>
@@ -342,7 +342,7 @@ export default function LoginWidget({ buttonText = "Login", buttonVariant = "def
                     onChange={(e) => setStoreName(e.target.value)}
                     placeholder="Where do you work?"
                     required
-                    className="border-gray-300 focus:border-brand-primary focus:ring-brand-primary font-body"
+                    className="border-soft font-body"
                     disabled={loading}
                   />
                 </div>
