@@ -24,6 +24,8 @@ import { getDocsWithIndexHint } from '../../lib/firestoreIndexHelper';
 
 // Import existing components
 import ChallengeEditor2 from '../../components/brand/ChallengeEditor2';
+// Lightweight template picker UI (uses local mock store)
+import BrandTemplates from './ContentPage';
 import EnhancedLessonForm from '../../components/brand/content/EnhancedLessonForm';
 import FileUploader from '../../components/brand/content/FileUploader';
 
@@ -1598,6 +1600,10 @@ const IntegratedContentManager = ({ brandId: propBrandId }) => {
         
         {/* Content Library Tab */}
         <TabsContent value="content" className="space-y-6">
+          {/* Shared Templates + Brand Copies (from local template store) */}
+          <div className="w-full p-0">
+            <BrandTemplates />
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <Card>

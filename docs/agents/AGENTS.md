@@ -2,6 +2,237 @@
 
 This document captures the exact next steps to finish and validate the current workstream.
 
+## 2025-11 Brand Content Templates – Status + Refactor Plan
+
+Updated AGENTS.md (canonical)
+
+File: AGENTS.md (repo root) Owner: @you • Updated: 2025-11-02
+
+1) Purpose
+
+Single source of truth for the Brand Content Templates refactor. Aligns with the new color system + LinkedIn-style shell with right rail, and standardizes all refactor output to TypeScript (.tsx).
+
+2) Scope
+
+
+
+
+In: UI/UX restructure, .tsx components, right-rail layout, Shared/My Copies boards, drawer editor, mock store (swappable to Firestore/Mongo later).
+
+
+
+Out: DB migrations and server rules (handled later with adapters).
+
+3) Status (done)
+
+
+
+
+✅ Templates visible under /brand?section=content
+
+
+
+✅ Strong IDs via crypto.randomUUID()
+
+
+
+✅ Tier validation on assignToBrands
+
+
+
+✅ Modal state resets on open/change
+
+
+
+✅ Types consolidated in src/types/templates.ts
+
+
+
+✅ Brand detection via auth → VITE_DEMO_BRAND_ID fallback
+
+4) Root Cause (historic)
+
+ContentManager.jsx didn’t render template picker → empty state despite admin templates.
+
+5) Target Architecture (sectionized + right rail)
+
+src/pages/brand/ContentManager/
+├─ index.tsx                 # Thin shell: tabs + section routing + right rail slot
+├─ TemplatesSection.tsx      # Shared | My Copies, actions, opens Edit drawer
+├─ EditTemplateDrawer.tsx    # Right-side drawer editor (stepped form)
+├─ LibrarySection.tsx        # Brand library + uploader (extracted)
+├─ LessonsSection.tsx        # Brand lessons list/editor (extracted)
+├─ ChallengesSection.tsx     # Brand challenges list/editor (extracted)
+└─ AnnouncementsSection.tsx  # Brand announcements (extracted)
+
+
+Shell layout decisions
+
+
+
+
+Left rail (persistent): Content → Templates (first) · Library · Lessons · Challenges · Announcements
+
+
+
+Center header: Brand switcher | Tier badge | Search | Tag filter | New Template
+
+
+
+Center content (Templates): sub-tabs Shared | My Copies
+
+
+
+Right rail: KPIs (7/30d), “Top Templates,” recent changes, helpful links
+
+6) Visual & tokens (from brand handoff)
+
+
+
+
+Neutral canvas, black text, muted taupe dividers, accent tokens from the new palette.
+
+
+
+Headings Playfair; UI/body Inter.
+
+
+
+Use CSS vars in Tailwind (e.g., var(--brand-accent)) so a color swap is one change.
+
+7) TypeScript policy
+
+
+
+
+All files in this refactor output as .tsx (and helpers .ts).
+
+
+
+Mixed repo allowed (allowJs: true). We’ll tighten later.
+
+8) Data boundary (swap-ready)
+
+All UI hits useTemplateStore() (TS mock) now. Later, drop in firestoreTemplateStore or mongoTemplateStore behind the same interface.
+
+9) Refactor plan & checkboxes
+
+Step 1 — Templates (TS)
+
+
+
+
+TemplatesSection.tsx (Shared/My Copies, list + actions)
+
+
+
+EditTemplateDrawer.tsx (right drawer, stepped form)
+
+
+
+Wire to useTemplateStore (TS mock)
+
+
+
+Empty states + tier badges
+
+Step 2 — Extract Library
+
+
+
+LibrarySection.tsx (brandId prop, onRefresh)
+
+Step 3 — Extract Lessons & Challenges
+
+
+
+LessonsSection.tsx + ChallengesSection.tsx (lists, filters, editors)
+
+
+
+Co-locate fetch/filter helpers
+
+Step 4 — Extract Announcements
+
+
+
+AnnouncementsSection.tsx + surfaced error Alert
+
+Step 5 — Shell
+
+
+
+index.tsx that owns tabs + right rail slot; minimal shared state
+
+Step 6 — Types
+
+
+
+TS types for section props; keep existing Firestore JS models untouched
+
+Step 7 — Cleanup
+
+
+
+Reduce ContentManager.jsx to shim/redirect → new shell
+
+
+
+Remove dead imports/dupes
+
+10) Validation checklist
+
+
+
+
+/brand?section=content shows Templates + Library with no console errors
+
+
+
+“Use” creates brand copy → appears in My Copies immediately
+
+
+
+Lessons & Challenges still filter/preview/edit like before
+
+
+
+Announcements load; errors bubble via Alert
+
+
+
+Uploading files shows in Library
+
+11) Decision log
+
+
+
+
+2025-11-02: Promote Templates to left rail; add Shared | My Copies
+
+
+
+2025-11-02: Right-rail KPIs enabled for this layout
+
+
+
+2025-11-02: Drawer editor replaces full-page edit for context
+
+
+
+2025-11-02: All refactor outputs are .tsx
+
+12) Follow-ups
+
+
+
+
+Optional: separate left-rail item for Templates beside Library
+
+
+
+Optional: swap mock store for Firebase/Mongo adapter behind same interface
+
 ## 2025-10 Verification: Store Location + Auto-Scoring + System Notifications
 
 Context: Verification now relies on user-saved store location (no master store list). Admins can request more info; that triggers a system notification visible on /staff/notifications.
@@ -66,6 +297,7 @@ Notes
 - AutoScore: 100 at 0–50m → linearly to 0 by 1500m
 
 ### Store location policy update (2025-10-24)
+Status: Address geocode baseline implemented and working (2025-10-31). [Completed]
 - Device-only policy for storeLoc:
   - storeLoc is strictly for device GPS: { lat, lng, setAt: serverTimestamp(), source: 'device' }
   - Address coordinates are never persisted into storeLoc
@@ -332,43 +564,146 @@ Future‑proofing
 
 ## 2025-10 Brand Dashboard refactor + build hardening
 
-Context: The monolithic `src/pages/brand/Dashboard.jsx` was split into modular sections to improve maintainability. Netlify build was stabilized by removing checked-in env files and reducing false-positive secret scans.
+Updated AGENTS.md (canonical)
 
-Changes
-- Extracted sections (new files under `src/pages/brand/dashboard/`):
-  - `AnalyticsSection.jsx`
-  - `SampleRequestsSection.jsx` (added `brandId` guard to avoid stuck spinners)
-  - `UsersSection.jsx`
-  - `BrandPerformanceSection.jsx`
-  - `ActivitySection.jsx`
-  - `SettingsSection.jsx`
-  - `HelpSection.jsx`
-- Updated `src/pages/brand/Dashboard.jsx` to import/use sections
-- `AnalyticsSection`: restored Top Trainings aggregation effect; removed dead code/listeners
-- `vite.config.js`: added `/* eslint-env node */`; disabled sourcemaps in build
-- `netlify.toml`: disabled smart secrets scan to avoid false positives
-- Removed `.env.local` and `.env.production` from git history/index
-- Deleted legacy backup `src/pages/brand/Dashboard.jsx.old`
+File: AGENTS.md (repo root) Owner: @you • Updated: 2025-11-02
 
-Branch / PR
-- Branch: `refactor/brand-dashboard-split`
-- Latest commit: `d1f147df`
+1) Purpose
 
-Deployment notes
-- Ensure Netlify env includes required `VITE_*` vars
-- Optionally set `SECRETS_SCAN_SMART_DETECTION_ENABLED=false` in Netlify environment if scans still block
+Single source of truth for the Brand Content Templates refactor. Aligns with the new color system + LinkedIn-style shell with right rail, and standardizes all refactor output to TypeScript (.tsx).
 
-Validation
-- `pnpm install --frozen-lockfile` → OK
-- `pnpm build` → OK (PR deploy green)
+2) Scope
 
-Known issue fixed (2025-10-27)
-- Symptom: Left menu clicks didn’t switch sections; active highlight didn’t follow URL; deep links like `/brand?section=users` didn’t load the right section.
-- Root cause: During the split, section state became local-only in `Dashboard.jsx` and was no longer synchronized with the URL. The "Help & Support" button in `BrandSidebar.jsx` also wasn’t wired to the parent section setter, so it never activated the Help section.
-- Fix:
-  - `src/pages/brand/Dashboard.jsx`: use `useSearchParams` to initialize `activeSection` from `?section=...`, update the query string on section changes, and listen for search param changes to support back/forward and reload.
-  - `src/components/brands/BrandSidebar.jsx`: wire the Help button to `onSectionChange('help')` and apply active styling when `activeSection === 'help'`.
-  - Result: Clicking left menu switches content and highlights correctly; URL stays in sync; deep-linking and browser navigation work.
+In: UI/UX restructure, .tsx components, right-rail layout, Shared/My Copies boards, drawer editor, mock store (swappable to Firestore/Mongo later).
+
+Out: DB migrations and server rules (handled later with adapters).
+
+3) Status (done)
+
+✅ Templates visible under /brand?section=content
+
+✅ Strong IDs via crypto.randomUUID()
+
+✅ Tier validation on assignToBrands
+
+✅ Modal state resets on open/change
+
+✅ Types consolidated in src/types/templates.ts
+
+✅ Brand detection via auth → VITE_DEMO_BRAND_ID fallback
+
+4) Root Cause (historic)
+
+ContentManager.jsx didn’t render template picker → empty state despite admin templates.
+
+5) Target Architecture (sectionized + right rail)
+
+```
+src/pages/brand/ContentManager/
+├─ index.tsx                 # Thin shell: tabs + section routing + right rail slot
+├─ TemplatesSection.tsx      # Shared | My Copies, actions, opens Edit drawer
+├─ EditTemplateDrawer.tsx    # Right-side drawer editor (stepped form)
+├─ LibrarySection.tsx        # Brand library + uploader (extracted)
+├─ LessonsSection.tsx        # Brand lessons list/editor (extracted)
+├─ ChallengesSection.tsx     # Brand challenges list/editor (extracted)
+└─ AnnouncementsSection.tsx  # Brand announcements (extracted)
+```
+
+Shell layout decisions
+
+Left rail (persistent): Content → Templates (first) · Library · Lessons · Challenges · Announcements
+
+Center header: Brand switcher | Tier badge | Search | Tag filter | New Template
+
+Center content (Templates): sub-tabs Shared | My Copies
+
+Right rail: KPIs (7/30d), “Top Templates,” recent changes, helpful links
+
+6) Visual & tokens (from brand handoff)
+
+Neutral canvas, black text, muted taupe dividers, accent tokens from the new palette.
+
+Headings Playfair; UI/body Inter.
+
+Use CSS vars in Tailwind (e.g., var(--brand-accent)) so a color swap is one change.
+
+7) TypeScript policy
+
+All files in this refactor output as .tsx (and helpers .ts).
+
+Mixed repo allowed (allowJs: true). We’ll tighten later.
+
+8) Data boundary (swap-ready)
+
+All UI hits useTemplateStore() (TS mock) now. Later, drop in firestoreTemplateStore or mongoTemplateStore behind the same interface.
+
+9) Refactor plan & checkboxes
+
+Step 1 — Templates (TS)
+
+TemplatesSection.tsx (Shared/My Copies, list + actions)
+
+EditTemplateDrawer.tsx (right drawer, stepped form)
+
+Wire to useTemplateStore (TS mock)
+
+Empty states + tier badges
+
+Step 2 — Extract Library
+
+LibrarySection.tsx (brandId prop, onRefresh)
+
+Step 3 — Extract Lessons & Challenges
+
+LessonsSection.tsx + ChallengesSection.tsx (lists, filters, editors)
+
+Co-locate fetch/filter helpers
+
+Step 4 — Extract Announcements
+
+AnnouncementsSection.tsx + surfaced error Alert
+
+Step 5 — Shell
+
+index.tsx that owns tabs + right rail slot; minimal shared state
+
+Step 6 — Types
+
+TS types for section props; keep existing Firestore JS models untouched
+
+Step 7 — Cleanup
+
+Reduce ContentManager.jsx to shim/redirect → new shell
+
+Remove dead imports/dupes
+
+10) Validation checklist
+
+/brand?section=content shows Templates + Library with no console errors
+
+“Use” creates brand copy → appears in My Copies immediately
+
+Lessons & Challenges still filter/preview/edit like before
+
+Announcements load; errors bubble via Alert
+
+Uploading files shows in Library
+
+11) Decision log
+
+2025-11-02: Promote Templates to left rail; add Shared | My Copies
+
+2025-11-02: Right-rail KPIs enabled for this layout
+
+2025-11-02: Drawer editor replaces full-page edit for context
+
+2025-11-02: All refactor outputs are .tsx
+
+12) Follow-ups
+
+Optional: separate left-rail item for Templates beside Library
+
+Optional: swap mock store for Firebase/Mongo adapter behind same interface
 
 ## Rollback
 If needed, revert the following commits on this branch:
