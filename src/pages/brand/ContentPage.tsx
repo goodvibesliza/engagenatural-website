@@ -1,28 +1,15 @@
 import React, { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useTemplateStore, Template, TemplateType, BrandTemplate } from '@/mocks/template-store'
+import { useTemplateStore } from '@/mocks/template-store'
+import type { BaseTemplate as Template, TemplateType, BrandTemplate } from '@/types/templates'
 
 const CURRENT_BRAND_ID = 'demo-brand'
 
-/**
- * Parse the current location's query string into a URLSearchParams object.
- *
- * @returns A `URLSearchParams` instance representing the current location's query parameters
- */
 function useQuery() {
   const { search } = useLocation()
   return useMemo(() => new URLSearchParams(search), [search])
 }
 
-/**
- * Renders a fullscreen preview modal showing a title and body when open.
- *
- * @param open - Controls whether the modal is visible
- * @param onClose - Callback invoked to close the modal
- * @param title - Heading text displayed inside the modal
- * @param body - Body text displayed inside the modal; preserves line breaks
- * @returns The modal element when `open` is true, `null` otherwise
- */
 function PreviewModal({ open, onClose, title, body }: { open: boolean; onClose: () => void; title: string; body: string }) {
   if (!open) return null
   return (
@@ -45,16 +32,6 @@ function PreviewModal({ open, onClose, title, body }: { open: boolean; onClose: 
   )
 }
 
-/**
- * Renders a modal that lets the user edit a brand-owned template's title and body.
- *
- * @param open - Whether the modal is visible
- * @param onClose - Callback invoked to close the modal
- * @param template - The brand template providing initial `title` and `body` values
- * @param onSave - Callback invoked with `{ title, body }` when the user saves changes
- *
- * @returns The edit modal element when `open` is true, otherwise `null`
- */
 function EditModal({
   open,
   onClose,
@@ -96,16 +73,6 @@ function EditModal({
   )
 }
 
-/**
- * Renders a card displaying a template or brand copy with metadata and action buttons.
- *
- * @param data - The template or brand-owned copy whose metadata (type, duration, title, tags) is shown.
- * @param owned - Whether the provided data is a brand-owned copy; controls which action buttons are shown.
- * @param onUse - Optional callback invoked when the "Use Template" action is clicked (shown when not owned).
- * @param onPreview - Callback invoked when the "Preview" action is clicked.
- * @param onEdit - Optional callback invoked when the "Edit copy" action is clicked (shown when owned).
- * @returns The rendered card element containing metadata, optional tags, and contextual action buttons.
- */
 function Card({
   data,
   owned,
@@ -148,16 +115,6 @@ function Card({
   )
 }
 
-/**
- * Render the Brand Content management page with tabs for Lessons and Challenges.
- *
- * Displays brand-owned copies and available shared templates for the selected tab,
- * provides actions to preview templates, duplicate a shared template into the brand,
- * and edit brand-owned copies. The component reads the `section` query parameter and
- * renders nothing unless `section` equals `"content"`.
- *
- * @returns The rendered Brand Content page as a JSX element.
- */
 export default function ContentPage() {
   const q = useQuery()
   const section = q.get('section') || 'content'

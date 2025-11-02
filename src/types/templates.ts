@@ -4,7 +4,7 @@ export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
 export type Visibility = 'internal' | 'shared'
 
-interface BaseTemplate {
+export interface BaseTemplate {
   id: string
   title: string
   type: TemplateType
@@ -19,4 +19,10 @@ interface BaseTemplate {
 }
 
 export type LearningTemplate = BaseTemplate
-export type BrandTemplate = BaseTemplate
+
+// BrandTemplate extends BaseTemplate with brand-specific metadata
+export interface BrandTemplate extends BaseTemplate {
+  brandId: string
+  // source template id this brand template was derived from
+  sourceId: string
+}

@@ -1,14 +1,10 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useTemplateStore, Template } from '@/mocks/template-store'
+import { useTemplateStore } from '@/mocks/template-store'
+import type { BaseTemplate as Template } from '@/types/templates'
 import AssignModal from '@/components/admin/content/AssignModal'
 import EmptyState from '@/components/common/EmptyState'
 
-/**
- * Render an admin page that displays a template's details, actions (edit, assign, delete), body content, and demo analytics.
- *
- * @returns A React element that shows the template view for the ID from route params, or an "Template not found" empty state when no template is found.
- */
 export default function TemplateViewPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
