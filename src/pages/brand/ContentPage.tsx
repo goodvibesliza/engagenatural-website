@@ -2,8 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTemplateStore } from '@/mocks/template-store'
 import type { BaseTemplate as Template, TemplateType, BrandTemplate } from '@/types/templates'
-
-const CURRENT_BRAND_ID = 'demo-brand'
+import { useAuth } from '@/contexts/auth-context'
 
 function useQuery() {
   const { search } = useLocation()
@@ -121,9 +120,12 @@ export default function ContentPage() {
 
   const [tab, setTab] = useState<Extract<TemplateType, 'lesson' | 'challenge'>>('lesson')
   const store = useTemplateStore()
+  const { brandId: authBrandId } = useAuth() || ({} as any)
+  const demoBrandFallback = (import.meta as any)?.env?.VITE_DEMO_BRAND_ID as string | undefined
+  const effectiveBrandId = authBrandId || demoBrandFallback
 
   // Brand-owned copies
-  const owned = store.listBrand(CURRENT_BRAND_ID, tab)
+  const owned = effectiveBrandId ? store.listBrand(effectiveBrandId, tab) : []
   const ownedIds = new Set(owned.map((b) => b.sourceId))
 
   // Shared templates available to use (not yet owned by brand)
@@ -189,7 +191,7 @@ export default function ContentPage() {
                 key={t.id}
                 data={t}
                 owned={false}
-                onUse={() => store.duplicateToBrand(t.id, CURRENT_BRAND_ID)}
+                onUse={() => effectiveBrandId && store.duplicateToBrand(t.id, effectiveBrandId)}
                 onPreview={() => setPreview({ title: t.title, body: t.body })}
               />
             ))}
@@ -203,7 +205,7 @@ export default function ContentPage() {
           open={!!editing}
           onClose={() => setEditing(null)}
           template={editing}
-          onSave={(u) => store.updateBrand(editing.id, CURRENT_BRAND_ID, u)}
+          onSave={(u) => effectiveBrandId && store.updateBrand(editing.id, effectiveBrandId, u)}
         />
       )}
     </div>
