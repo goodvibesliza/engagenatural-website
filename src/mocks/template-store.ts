@@ -110,7 +110,7 @@ export function useTemplateStore() {
       getById: (id: string) => items.find((t) => t.id === id) || null,
       create: (input: CreateInput) => {
         const now = new Date().toISOString()
-        const id = `tpl-${Math.random().toString(36).slice(2, 8)}`
+        const id = `tpl-${crypto.randomUUID()}`
         const created: Template = { id, createdAt: now, updatedAt: now, ...input }
         setItems((prev) => [created, ...prev])
         return created
@@ -132,7 +132,7 @@ export function useTemplateStore() {
         const now = new Date().toISOString()
         const copy: Template = {
           ...found,
-          id: `tpl-${Math.random().toString(36).slice(2, 8)}`,
+          id: `tpl-${crypto.randomUUID()}`,
           title: `${found.title} (Copy)`,
           createdAt: now,
           updatedAt: now,
@@ -146,6 +146,10 @@ export function useTemplateStore() {
       assignToBrands: (templateId: string, payload: { brandIds: string[]; tier?: 'basic' | 'pro' | 'enterprise' }) => {
         const src = items.find((t) => t.id === templateId)
         if (!src) return { success: false, error: 'Template not found' as const }
+        const allowedTiers = new Set(['basic', 'pro', 'enterprise'] as const)
+        if (payload.tier && !allowedTiers.has(payload.tier)) {
+          return { success: false, error: 'Invalid tier' as const }
+        }
         const ids = Array.from(new Set(payload.brandIds || []))
         const now = new Date().toISOString()
         let created = 0
@@ -153,7 +157,7 @@ export function useTemplateStore() {
           const next = [...prev]
           for (const brandId of ids) {
             const bt: BrandTemplate = {
-              id: `btpl-${Math.random().toString(36).slice(2, 8)}`,
+              id: `btpl-${crypto.randomUUID()}`,
               brandId,
               sourceId: src.id,
               title: src.title,
@@ -164,6 +168,7 @@ export function useTemplateStore() {
               body: src.body,
               approved: src.approved,
               visibility: src.visibility,
+              tier: payload.tier,
               createdAt: now,
               updatedAt: now,
             }
@@ -183,7 +188,7 @@ export function useTemplateStore() {
         if (!src) return null
         const now = new Date().toISOString()
         const created: BrandTemplate = {
-          id: `btpl-${Math.random().toString(36).slice(2, 8)}`,
+          id: `btpl-${crypto.randomUUID()}`,
           brandId,
           sourceId: src.id,
           title: src.title,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTemplateStore } from '@/mocks/template-store'
 import type { BaseTemplate as Template, TemplateType, BrandTemplate } from '@/types/templates'
@@ -44,6 +44,12 @@ function EditModal({
 }) {
   const [title, setTitle] = useState(template.title)
   const [body, setBody] = useState(template.body)
+  useEffect(() => {
+    if (open && template) {
+      setTitle(template.title)
+      setBody(template.body)
+    }
+  }, [open, template?.id])
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

@@ -25,4 +25,6 @@ export interface BrandTemplate extends BaseTemplate {
   brandId: string
   // source template id this brand template was derived from
   sourceId: string
+  // optional tier for assignment context
+  tier?: 'basic' | 'pro' | 'enterprise'
 }
