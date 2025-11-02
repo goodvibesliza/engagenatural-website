@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import type { JSX } from "react"
 import { templateStore } from "@/stores/templateStore"
+import LibrarySection from "./LibrarySection"
 
 type SectionKey = "Templates" | "Library" | "Lessons" | "Challenges" | "Announcements"
 
@@ -97,7 +98,7 @@ export default function BrandContentManagerShell(): JSX.Element {
         {/* Content switcher */}
         <section className="flex-1 p-5">
           {active === "Templates" && <TemplatesSection templates={sharedTemplates} />}
-          {active === "Library" && <LibrarySection />}
+          {active === "Library" && <LibrarySection brandId={brandId} />}
           {active === "Lessons" && <LessonsSection />}
           {active === "Challenges" && <ChallengesSection />}
           {active === "Announcements" && <AnnouncementsSection />}
@@ -168,13 +169,7 @@ function TemplatesSection({ templates }: { templates: ReturnType<typeof template
   )
 }
 
-function LibrarySection(): JSX.Element {
-  return (
-    <div className="rounded-lg border border-[color:var(--divider-taupe)] bg-white p-6 text-sm text-stone-700">
-      Library coming soon.
-    </div>
-  )
-}
+// LibrarySection is imported from a dedicated module
 
 function LessonsSection(): JSX.Element {
   return (
