@@ -36,7 +36,7 @@ import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-appro
 // Brand Manager Components
 import BrandDashboard from './pages/brand/Dashboard';
 // New Brand Content Manager Shell (TSX)
-import IntegratedContentManager from './pages/brand/ContentManager.tsx';
+import IntegratedContentManager from './pages/brand/ContentManager';
 // Brand Training Detail
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 import Communities from './pages/brand/Communities.jsx';
@@ -133,6 +133,17 @@ const ContentManagerStandalone = () => {
   const storedBrandId = typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
   const brandId = storedBrandId || user?.brandId || 'demo-brand';
   return <IntegratedContentManager brandId={brandId} />;
+};
+
+// Brand entry route switcher that preserves legacy query param behavior
+const BrandEntrySwitch = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const section = params.get('section');
+  if (section === 'content') {
+    return <Navigate to="/brand/content" replace />;
+  }
+  return <BrandDashboard />;
 };
 
 // Redirect helper to preserve dynamic :postId when moving from /staff/community/post/:postId → /community/post/:postId
@@ -490,7 +501,7 @@ function App() {
             path="/brand" 
             element={
               <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
-                <BrandDashboard />
+                <BrandEntrySwitch />
               </RoleGuard>
             } 
           />
