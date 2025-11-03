@@ -159,29 +159,41 @@ export default function ProfilePage() {
   // Upload profile image
   const uploadProfileImage = async (file) => {
     if (!file || !user?.uid) return;
-    
+    // Basic validation prior to upload
+    const isImage = typeof file.type === 'string' ? file.type.startsWith('image/') : true;
+    const maxBytes = 10 * 1024 * 1024; // 10MB ceiling
+    if (!isImage) {
+      alert('Please select an image file.');
+      return;
+    }
+    if (typeof file.size === 'number' && file.size > maxBytes) {
+      alert('Image is too large. Please choose a file under 10MB.');
+      return;
+    }
+
     setSaving(true);
     try {
       // Check if storage is available
       if (!storage) {
         throw new Error('Firebase Storage not initialized');
       }
-  
+
       // Upload to Firebase Storage
-      const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${file.name}`);
-      
+      const safeName = file.name || `profile-${Date.now()}.jpg`;
+      const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${safeName}`);
+
       const uploadResult = await uploadBytes(imageRef, file);
       const imageURL = await getDownloadURL(uploadResult.ref);
-      
+
       // Update user profile
       await updateDoc(doc(db, 'users', user.uid), {
         profileImage: imageURL
       });
-      
+
       setProfileImage(imageURL);
       setShowAvatarSelector(false);
       alert('Profile photo uploaded successfully!');
-      
+
     } catch (error) {
       console.error('Error uploading avatar:', error);
       alert(`Error uploading photo: ${error.message}. Please check Firebase Storage setup.`);

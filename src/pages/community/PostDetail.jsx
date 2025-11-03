@@ -1,1 +1,842 @@
-export { default } from '../PostDetail.jsx';
+// src/pages/PostDetail.jsx
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { WHATS_GOOD_STUBS } from '../components/community/WhatsGoodFeed';
+import { PRO_STUBS } from '../components/community/ProFeed';
+import { db } from '@/lib/firebase';
+import { useAuth } from '../contexts/auth-context';
+import SkeletonDetail from '../components/community/SkeletonDetail';
+import { filterPostContent } from '../ContentModeration';
+import ErrorBanner from '../components/community/ErrorBanner';
+import { postOpen, postLike as analyticsPostLike, postComment as analyticsPostComment, postOpenTraining } from '../lib/analytics';
+import COPY from '../i18n/community.copy';
+import TopMenuBarDesktop from '@/components/community/desktop/TopMenuBarDesktop.jsx';
+import DesktopLinkedInShell from '@/layouts/DesktopLinkedInShell.jsx';
+import LeftSidebarSearch from '@/components/common/LeftSidebarSearch.jsx';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getCountFromServer,
+  orderBy,
+  query,
+  where,
+  writeBatch,
+  deleteDoc,
+  setDoc,
+  addDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+
+const GENERIC_COMPANY_REGEX = /^(whats-?good|whatsgood|all|public|pro feed)$/i;
+
+export default function PostDetail() {
+  const { postId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const headingRef = useRef(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const goCommunityHome = () => {
+    try {
+      const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+      if (flag === 'linkedin' && isDesktop) {
+        navigate('/community');
+      } else {
+        navigate('/community');
+      }
+    } catch {
+      navigate('/community');
+    }
+  };
+
+  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState(null);
+  const [likeIds, setLikeIds] = useState([]); // derive counts from arrays
+  const [liked, setLiked] = useState(false);
+  const [comments, setComments] = useState([]); // [{id,text,createdAt,status?:'pending'|'error'|'ok'}]
+  const [newComment, setNewComment] = useState('');
+  const [likeError, setLikeError] = useState('');
+  const [failedImages, setFailedImages] = useState(new Set());
+
+  const { user } = useAuth();
+
+  // Null-safe email anonymizer: returns first char + *** when possible
+  const anonymizeEmail = (email) => {
+    if (!email || typeof email !== 'string') return '';
+    const [local] = email.split('@');
+    if (!local) return '';
+    const first = local.charAt(0);
+    return `${first || ''}***`;
+  };
+
+  // Static right rail content for desktop shell (no hooks to preserve order)
+  const rightRail = (
+    <>
+      <div className="en-cd-right-title">Right Rail</div>
+      <div className="en-cd-right-placeholder">(reserved)</div>
+    </>
+  );
+
+  const handleImageError = (url) => {
+    if (!url) return;
+    setFailedImages((prev) => {
+      const next = new Set(prev);
+      next.add(url);
+      return next;
+    });
+  };
+
+  // Reset failed image tracking when navigating to a different post or when
+  // the current post's image list changes so images can be retried per post.
+  useEffect(() => {
+    setFailedImages(new Set());
+  }, [postId, JSON.stringify(post?.imageUrls || [])]);
+
+  // Focus the heading after content is loaded and rendered
+  useEffect(() => {
+    if (!loading && post && headingRef.current) {
+      headingRef.current.focus();
+    }
+  }, [loading, post]);
+
+  // Support draft previews passed via navigation state (no backend write yet)
+  useEffect(() => {
+    const draft = location.state?.draft;
+    if (draft) {
+      setPost({
+        id: draft.id,
+        brand: draft.brand || draft.communityName || 'General',
+        title: draft.title || 'Update',
+        snippet: draft.body || draft.content || '',
+        content: draft.body || draft.content || '',
+        createdAt: new Date(),
+        likeIds: [],
+        commentIds: [],
+      });
+      setLoading(false);
+    }
+  }, [location.state]);
+
+  // initial load (stubs / firestore)
+  useEffect(() => {
+    // If we already set a draft post, skip network load
+    if (location.state?.draft) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        let mappedPost = null;
+        let feedType = 'unknown';
+        
+        // Try to find in stub data first
+        const wg = WHATS_GOOD_STUBS.find((p) => p.id === postId);
+        const pr = !wg ? PRO_STUBS.find((p) => p.id === postId) : null;
+        const stub = wg || pr || null;
+        
+        if (stub) {
+          mappedPost = {
+            id: stub.id,
+            brand: stub.brand || 'General',
+            title: stub.title || 'Update',
+            snippet: stub.snippet || stub.content || '',
+            content: stub.content || stub.snippet || '',
+            createdAt: stub.createdAt || null,
+            timeAgo: stub.timeAgo || '',
+            trainingId: stub.trainingId || null,
+            likeIds: [],
+            commentIds: [],
+          };
+          feedType = wg ? 'whatsGood' : 'pro';
+        } else if (db) {
+          // Try Firestore lookup (only if db is available)
+          const ref = doc(db, 'community_posts', postId);
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+            const data = snap.data();
+            mappedPost = {
+              id: snap.id,
+              // Keep community label; company byline is computed separately
+              brand: data.brand || data.brandName || data.communityName || 'General',
+              title: data.title || 'Update',
+              snippet: data.body || data.content || '',
+              content: data.body || data.content || '',
+              createdAt: data.createdAt || null,
+              authorName: data.authorName || data.author?.name || '',
+              authorPhotoURL: data.authorPhotoURL || data.author?.photoURL || data.author?.profileImage || data.author?.avatar || data.author?.avatarUrl || data.author?.image || '',
+              // Company/brand/store byline with broad fallbacks
+              company:
+                data.companyName ||
+                data.brandName ||
+                data.author?.companyName ||
+                data.author?.company ||
+                data.author?.brand ||
+                data.author?.storeName ||
+                data.author?.retailerName ||
+                data.communityName ||
+                '',
+              brandId: data.brandId || data.brandSlug || data.brandKey || data.brandName || data.brand || '',
+              imageUrls: Array.isArray(data.imageUrls)
+                ? data.imageUrls
+                : (Array.isArray(data.images) ? data.images : []),
+              userId: data.userId || data.authorId || data.author?.uid || data.author?.id || null,
+              trainingId: data.trainingId || null,
+              likeIds: [],
+              commentIds: [],
+            };
+            feedType = 'unknown';
+            // Enrich when company is generic or avatar missing
+            try {
+              const isGeneric = !mappedPost.company || GENERIC_COMPANY_REGEX.test(String(mappedPost.company));
+              if (db && mappedPost.userId && (isGeneric || !mappedPost.authorPhotoURL)) {
+                const userRef = doc(db, 'users', mappedPost.userId);
+                const userDoc = await getDoc(userRef);
+                if (userDoc.exists()) {
+                  const u = userDoc.data() || {};
+                  const profileCompany = u.storeName || u.retailerName || u.companyName || '';
+                  if (isGeneric && profileCompany) mappedPost.company = profileCompany;
+                  if (!mappedPost.authorPhotoURL) mappedPost.authorPhotoURL = u.profileImage || u.photoURL || '';
+                }
+              }
+            } catch (err) {
+              // Surface enrichment failures for diagnostics; non-fatal
+              console.error('Failed to populate author/company from user doc', err);
+            }
+          }
+        } else {
+          // No Firestore available; leave mappedPost as null to show not found state
+          mappedPost = null;
+        }
+
+        // Set the post if we found it (either stub or Firestore)
+        if (mappedPost && !cancelled) {
+          setPost(mappedPost);
+          postOpen({ postId: mappedPost.id, feedType });
+        } else if (!cancelled) {
+          setPost(null);
+          setLoading(false);
+          return; // Exit early if no post found
+        }
+
+        // ALWAYS load likes and comments from Firestore (for both stub and real posts)
+        if (db && !cancelled) {
+          try {
+            const likesQ = query(collection(db, 'post_likes'), where('postId', '==', postId));
+            const [likesSnap] = await Promise.all([
+              getCountFromServer(likesQ),
+            ]);
+            
+            if (!cancelled) {
+              const likeCount = likesSnap.data().count || 0;
+              // Initialize likeIds as placeholders to derive count; do not add 'me' yet
+              setLikeIds(Array.from({ length: likeCount }, (_, i) => `x${i}`));
+            }
+
+            const recentQ = query(
+              collection(db, 'community_comments'),
+              where('postId', '==', postId),
+              orderBy('createdAt', 'asc')
+            );
+            const recentSnap = await getDocs(recentQ);
+            if (!cancelled) {
+              setComments(recentSnap.docs.map((d) => ({ id: d.id, status: 'ok', ...d.data() })));
+            }
+
+            // Determine if current user liked this post already
+            try {
+              if (user?.uid) {
+                const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
+                const likeDoc = await getDoc(likeRef);
+                if (!cancelled) {
+                  const likedByMe = likeDoc.exists();
+                  setLiked(likedByMe);
+                  // Rebuild array to keep length equal to Firestore count, replacing a placeholder with 'me' if liked
+                  setLikeIds((prev) => {
+                    const count = prev.length; // Firestore likeCount-derived length
+                    const hasMe = prev.includes('me');
+                    if (likedByMe) {
+                      if (hasMe) return prev; // already represented
+                      if (count === 0) return prev; // nothing to replace; keep exact count
+                      // replace last placeholder with 'me' to maintain length
+                      const withoutLast = prev.slice(0, count - 1);
+                      return [...withoutLast, 'me'];
+                    }
+                    // Not liked by me: if 'me' is present, replace it with a placeholder to keep length
+                    if (hasMe) {
+                      const withoutMe = prev.filter((v) => v !== 'me');
+                      return [...withoutMe, `x${withoutMe.length}`];
+                    }
+                    return prev;
+                  });
+                }
+              }
+            } catch (err) {
+              console.warn('Failed to check if user liked post:', err);
+            }
+          } catch (err) {
+            console.warn('Failed to load comments/likes from Firestore:', err);
+            // Initialize empty arrays if Firestore fails
+            if (!cancelled) {
+              setLikeIds([]);
+              setComments([]);
+              setLiked(false);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('PostDetail: failed to load post or related data', { postId }, err);
+        if (!cancelled) {
+          setPost(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [postId, location.state]);
+
+  // Keep liked marker in sync with auth changes
+  useEffect(() => {
+    let cancelled = false;
+    async function refreshLiked() {
+      if (!postId || !db) return;
+      // On logout, clear liked state immediately
+      if (!user?.uid) {
+        setLiked(false);
+        // Replace 'me' with a placeholder to keep count length stable
+        setLikeIds((prev) => {
+          if (!prev.includes('me')) return prev;
+          const withoutMe = prev.filter((v) => v !== 'me');
+          return [...withoutMe, `x${withoutMe.length}`];
+        });
+        return;
+      }
+      try {
+        const likeRef = doc(db, 'post_likes', `${postId}_${user.uid}`);
+        const likeDoc = await getDoc(likeRef);
+        if (cancelled) return;
+        const likedByMe = likeDoc.exists();
+        setLiked(likedByMe);
+        setLikeIds((prev) => {
+          const count = prev.length;
+          const hasMe = prev.includes('me');
+          if (likedByMe) {
+            if (hasMe) return prev;
+            if (count === 0) return prev; // nothing to replace
+            const withoutLast = prev.slice(0, count - 1);
+            return [...withoutLast, 'me'];
+          }
+          if (hasMe) {
+            const withoutMe = prev.filter((v) => v !== 'me');
+            return [...withoutMe, `x${withoutMe.length}`];
+          }
+          return prev;
+        });
+      } catch (err) {
+        console.error('PostDetail: refreshLiked failed', { postId, userId: user?.uid }, err);
+      }
+    }
+    refreshLiked();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, postId]);
+
+  const handleLike = async () => {
+    if (!post) return;
+    setLikeError('');
+
+    // Derive nextLiked from previous state (race-safe)
+    const intendedNext = !liked; // used only for server intent and error revert
+
+    setLiked((prev) => {
+      const next = !prev;
+      analyticsPostLike({ postId: post.id, liked: next });
+      return next;
+    });
+
+    // Update likeIds using intendedNext (single source of truth)
+    setLikeIds((prev) => {
+      const hasMe = prev.includes('me');
+      if (intendedNext) {
+        // ensure presence
+        return hasMe ? prev : [...prev, 'me'];
+      }
+      // ensure removal
+      return hasMe ? prev.filter((v) => v !== 'me') : prev;
+    });
+
+    // Persist via Firestore if available; revert on failure
+    try {
+      if (db && user?.uid) {
+        const likeRef = doc(db, 'post_likes', `${post.id}_${user.uid}`);
+        const likeDoc = await getDoc(likeRef);
+        if (likeDoc.exists()) {
+          // currently liked on server
+          if (!intendedNext) {
+            await deleteDoc(likeRef);
+          }
+        } else {
+          // not liked on server
+          if (intendedNext) {
+            await setDoc(likeRef, { postId: post.id, userId: user.uid, createdAt: serverTimestamp() });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('PostDetail: failed to persist like toggle', { postId: post?.id, userId: user?.uid, intendedNext }, err);
+      // Revert and show error
+      setLiked((prev) => !prev); // undo last toggle
+      setLikeIds((prev) => {
+        const hasMe = prev.includes('me');
+        // Revert opposite of intended
+        if (intendedNext) {
+          // we tried to like → ensure removal
+          return hasMe ? prev.filter((v) => v !== 'me') : prev;
+        } else {
+          // we tried to unlike → ensure add
+          return hasMe ? prev : [...prev, 'me'];
+        }
+      });
+      setLikeError(COPY.errors.generic);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    try {
+      if (!post || !user?.uid || post.userId !== user.uid || !db) return;
+      if (!window.confirm('Delete this post and its likes/comments? This cannot be undone.')) return;
+      const batch = writeBatch(db);
+      // delete likes
+      const likesQ = query(collection(db, 'post_likes'), where('postId', '==', post.id));
+      const likesSnap = await getDocs(likesQ);
+      likesSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+      // delete comments
+      const cmtsQ = query(collection(db, 'community_comments'), where('postId', '==', post.id));
+      const cmtsSnap = await getDocs(cmtsQ);
+      cmtsSnap.forEach((docSnap) => batch.delete(docSnap.ref));
+      // delete post
+      batch.delete(doc(db, 'community_posts', post.id));
+      await batch.commit();
+      goCommunityHome();
+    } catch (e) {
+      console.error('PostDetail: failed to delete post', { postId: post?.id, userId: user?.uid }, e);
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert('Failed to delete post. Please try again.');
+      } else {
+        console.error('PostDetail: window.alert unavailable to notify user of delete failure');
+      }
+    }
+  };
+
+  const handleDeleteComment = async (cmt) => {
+    try {
+      if (!cmt?.id || !user?.uid || cmt.userId !== user.uid || !db) return;
+      if (!window.confirm('Delete this comment?')) return;
+      await deleteDoc(doc(db, 'community_comments', cmt.id));
+      setComments((prev) => prev.filter((c) => c.id !== cmt.id));
+      setTimeout(() => {
+        if (typeof window.refreshWhatsGoodComments === 'function') {
+          window.refreshWhatsGoodComments(post.id);
+        }
+      }, 500);
+    } catch (e) {
+      console.error('PostDetail: failed to delete comment', { commentId: cmt?.id, postId: post?.id, userId: user?.uid }, e);
+      if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        window.alert('Failed to delete comment. Please try again.');
+      } else {
+        console.error('PostDetail: window.alert unavailable to notify user of comment delete failure');
+      }
+    }
+  };
+
+  const handleAddComment = async () => {
+    const text = newComment.trim();
+    if (!text) return;
+    // Moderate comment content before any optimistic UI
+    try {
+      const moderation = await filterPostContent({ content: text });
+      if (moderation?.isBlocked || moderation?.needsReview) {
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert('Your comment needs revision before it can be posted.');
+        } else {
+          console.error('PostDetail: moderation blocked comment but alert unavailable');
+        }
+        return;
+      }
+    } catch (err) {
+      // Fail-open: allow user to proceed if moderation service fails, but log for monitoring
+      console.error('PostDetail: moderation check failed, proceeding fail-open', err);
+    }
+    analyticsPostComment({ postId: post.id, length: text.length });
+    // Optimistic add; replace on success, mark error on failure
+    const now = new Date();
+    const optimistic = {
+      id: `local-${now.getTime()}`,
+      text,
+      createdAt: now,
+      userRole: 'you',
+      status: 'pending',
+    };
+    setComments((prev) => [...prev, optimistic]);
+    setNewComment('');
+    if (!db || !user?.uid) {
+      // no backend available → mark as ok
+      setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'ok' } : c)));
+      return;
+    }
+    try {
+      const ref = await addDoc(collection(db, 'community_comments'), {
+        postId: post.id,
+        communityId: post.communityId || 'whats-good',
+        brandId: post.brandId || null,
+        userId: user.uid,
+        userRole: user.role || 'user',
+        authorName: user?.displayName || user?.name || anonymizeEmail(user?.email) || 'Anonymous',
+        authorPhotoURL: user?.profileImage || user?.photoURL || null,
+        text,
+        createdAt: serverTimestamp(),
+      });
+      setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, id: ref.id, status: 'ok' } : c)));
+      
+      // Refresh comment count in community feed with delay for Firestore consistency
+      setTimeout(() => {
+        if (typeof window.refreshWhatsGoodComments === 'function') {
+          console.log('Refreshing comment count for post:', post.id);
+          window.refreshWhatsGoodComments(post.id);
+        } else {
+          console.warn('window.refreshWhatsGoodComments not available');
+        }
+      }, 1000); // 1 second delay to allow Firestore to propagate
+    } catch (err) {
+      console.error('PostDetail: failed to add comment', { postId: post?.id, userId: user?.uid }, err);
+      setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
+    }
+  };
+
+  const retrySendComment = async (cmt) => {
+    if (!cmt || cmt.status !== 'error') return;
+    setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'pending' } : c)));
+    try {
+      if (!db || !user?.uid) throw new Error('No database available');
+      const ref = await addDoc(collection(db, 'community_comments'), {
+        postId: post.id,
+        communityId: post.communityId || 'whats-good',
+        brandId: post.brandId || null,
+        userId: user.uid,
+        userRole: user.role || 'user',
+        authorName: user?.displayName || user?.name || anonymizeEmail(user?.email) || 'Anonymous',
+        authorPhotoURL: user?.profileImage || user?.photoURL || null,
+        text: cmt.text,
+        createdAt: serverTimestamp(),
+      });
+      setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, id: ref.id, status: 'ok' } : c)));
+    } catch (err) {
+      console.error('PostDetail: failed to resend comment', { commentId: cmt?.id, postId: post?.id, userId: user?.uid }, err);
+      setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'error' } : c)));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="animate-pulse h-5 w-24 bg-gray-200 rounded" />
+        <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
+          <div className="h-6 bg-gray-200 rounded w-3/4 mb-3" />
+          <div className="h-4 bg-gray-200 rounded w-full mb-2" />
+          <div className="h-4 bg-gray-200 rounded w-5/6" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+        <button
+          onClick={goCommunityHome}
+          className="text-sm text-gray-600 hover:text-gray-800"
+        >
+          ← Back to community
+        </button>
+        <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-600">
+          Post not found.
+        </div>
+      </div>
+    );
+  }
+
+  const timeText = post.timeAgo || '';
+  const isGenericCompany = !post?.company || GENERIC_COMPANY_REGEX.test(String(post.company));
+  const brandPillText = (!isGenericCompany && post?.company) ? post.company : (post.brand || 'General');
+  const validImageUrls = Array.isArray(post?.imageUrls)
+    ? post.imageUrls.filter((u) => !!u && !failedImages.has(u))
+    : [];
+
+  const CenterContent = () => (
+    <div className="min-h-screen bg-cool-gray" data-testid="postdetail-center">
+      <div className="max-w-2xl mx-auto px-4 py-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-sm text-gray-600 hover:text-gray-800"
+          aria-label="Go back"
+        >
+          ← Back
+        </button>
+
+        <article className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
+          {location.state?.draft && (
+            <div className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Draft preview — this post is not yet saved to the community database.
+            </div>
+          )}
+          <header className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center px-3 h-7 min-h-[28px] rounded-full text-xs font-medium border border-deep-moss/30 text-deep-moss bg-white">
+                {brandPillText}
+              </span>
+              {(post.authorName || post.authorPhotoURL) && (
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  {post.authorPhotoURL ? (
+                    <img src={post.authorPhotoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
+                      {(post.authorName || 'U').slice(0,1).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="truncate max-w-[160px]" title={post.authorName}>{post.authorName}</span>
+                  {!isGenericCompany && post.company && (
+                    <>
+                      <span className="text-gray-400">•</span>
+                      <span className="truncate max-w-[160px]" title={post.company}>{post.company}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            {timeText && (
+              <time className="text-xs text-warm-gray">{timeText}</time>
+            )}
+          </header>
+
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="mt-3 text-xl font-semibold text-gray-900"
+          >
+            {post.title || 'Update'}
+          </h1>
+
+          {post.content && (
+            <div className="mt-2 text-gray-800 whitespace-pre-wrap">{post.content}</div>
+          )}
+
+          {/* Images */}
+          {validImageUrls.length > 0 && (
+            <div className="mt-3">
+              {validImageUrls.length === 1 ? (
+                <img
+                  src={validImageUrls[0]}
+                  alt={`${post.title || 'Post'} image 1`}
+                  loading="lazy"
+                  onError={() => handleImageError(validImageUrls[0])}
+                  className="w-full max-w-2xl h-auto rounded-lg border border-gray-200"
+                />
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {validImageUrls.slice(0, 4).map((url, idx) => (
+                    <div key={idx} className="relative">
+                      <img
+                        src={url}
+                        alt={`${post.title || 'Post'} image ${idx + 1}`}
+                        loading="lazy"
+                        onError={() => handleImageError(url)}
+                        className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                      />
+                      {idx === 3 && validImageUrls.length > 4 && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center text-white font-medium">
+                          +{validImageUrls.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {post.trainingId && (
+            <section className="mt-6 border-t border-gray-100 pt-4">
+              <h2 className="text-sm font-medium text-gray-900">Related training</h2>
+              <button
+                type="button"
+                onClick={() => { postOpenTraining({ postId: post.id, trainingId: post.trainingId }); navigate(`/staff/trainings/${post.trainingId}`); }}
+                className="mt-2 inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige"
+                aria-label="View related training"
+              >
+                {COPY.buttons.viewTraining}
+              </button>
+            </section>
+          )}
+
+          <footer className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleLike}
+              className={`inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+                liked ? 'border-rose-500 text-rose-600 bg-rose-50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+              aria-pressed={liked ? 'true' : 'false'}
+              aria-label={liked ? `Unlike post (${likeIds.length} likes)` : `Like post (${likeIds.length} likes)`}
+              data-testid="like-button"
+            >
+              <span className="mr-1" aria-hidden>
+                {liked ? '❤️' : '🤍'}
+              </span>
+              <span>{COPY.buttons.like}</span>
+              <span className="ml-2 text-gray-500">{likeIds.length}</span>
+            </button>
+            {likeError && (
+              <span className="text-xs text-red-600">{likeError}</span>
+            )}
+
+            <a
+              href="#comment"
+              className="inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+              aria-label={`Jump to comments (${comments.length} comments)`}
+            >
+              <span className="mr-1" aria-hidden>💬</span>
+              <span>{COPY.buttons.comment}</span>
+              <span className="ml-2 text-gray-500">{comments.length}</span>
+            </a>
+            {!!user?.uid && post.userId === user.uid && !location.state?.draft && (
+              <button
+                type="button"
+                onClick={handleDeletePost}
+                className="sm:ml-auto inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-rose-500 text-sm text-rose-600 hover:bg-rose-50 w-full sm:w-auto"
+              >
+                Delete
+              </button>
+            )}
+          </footer>
+        </article>
+
+        {/* Comments */}
+        <section id="comments" className="mt-4">
+          <h2 className="sr-only">Comments</h2>
+          {comments.length === 0 ? (
+            <div className="text-sm text-warm-gray">No comments yet.</div>
+          ) : (
+            <ul className="space-y-3">
+              {comments.map((c) => (
+                <li key={c.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-2">
+                      {c.authorPhotoURL ? (
+                        <img src={c.authorPhotoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
+                          {(c.authorName || 'U').slice(0,1).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-gray-700">{c.authorName || 'User'}</span>
+                      <span className="text-gray-400">•</span>
+                      <span>{c.userRole || 'user'}</span>
+                    </div>
+                    <span>
+                      {typeof c.createdAt?.toDate === 'function'
+                        ? c.createdAt.toDate().toLocaleString()
+                        : (c.createdAt instanceof Date ? c.createdAt.toLocaleString() : 'Recently')}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-800">{c.text}</p>
+                  {c.status === 'error' && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-red-600">
+                      <span>{COPY.errors.generic}</span>
+              <button
+                        type="button"
+                        onClick={() => retrySendComment(c)}
+                className="mt-2 inline-flex items-center justify-center px-3 h-11 min-h-[44px] rounded-md border border-deep-moss text-sm text-deep-moss hover:bg-oat-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                  {!!user?.uid && c.userId === user.uid && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteComment(c)}
+                        className="inline-flex items-center justify-center px-2 h-8 rounded-md border border-rose-500 text-xs text-rose-600 hover:bg-rose-50"
+                      >
+                        Delete comment
+                      </button>
+                    </div>
+                  )}
+                  {c.status === 'pending' && (
+                    <div className="mt-2 text-xs text-gray-500">Sending…</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {/* Composer – sticky bottom */}
+      <div className="sticky bottom-0 inset-x-0 border-t border-gray-200 bg-white">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
+          <input
+            id="comment"
+            type="text"
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Add a comment…"
+            aria-label="Add a comment"
+            className="flex-1 px-3 py-3 h-11 min-h-[44px] border border-gray-300 rounded-md text-sm"
+            data-testid="comment-input"
+          />
+          <button
+            type="button"
+            onClick={handleAddComment}
+            className={`px-4 h-11 min-h-[44px] rounded-md text-sm transition-colors border ${
+              newComment.trim()
+                ? 'bg-brand-primary text-primary border-brand-primary hover:opacity-90'
+                : 'bg-gray-200 text-white border-gray-300 cursor-not-allowed'
+            }`}
+            disabled={!newComment.trim()}
+            data-testid="comment-submit"
+          >
+            Post
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const flag = import.meta.env.VITE_EN_DESKTOP_FEED_LAYOUT;
+  if (flag === 'linkedin' && isDesktop) {
+    return (
+      <DesktopLinkedInShell
+        topBar={<TopMenuBarDesktop />}
+        leftSidebar={<LeftSidebarSearch />}
+        center={<CenterContent />}
+        rightRail={rightRail}
+      />
+    );
+  }
+
+  return <CenterContent />;
+}
