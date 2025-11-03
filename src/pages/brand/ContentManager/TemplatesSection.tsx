@@ -14,9 +14,10 @@ export interface TemplatesSectionProps {
   // Optional external controls from shell header
   externalSearch?: string
   externalType?: TypeFilter
+  onExternalSearchChange?: (value: string) => void
 }
 
-export default function TemplatesSection({ brandId, tier, onSwitchTab, externalSearch, externalType }: TemplatesSectionProps): JSX.Element {
+export default function TemplatesSection({ brandId, tier, onSwitchTab, externalSearch, externalType, onExternalSearchChange }: TemplatesSectionProps): JSX.Element {
   const [tab, setTab] = useState<SubTab>("shared")
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [q, setQ] = useState<string>("")
@@ -107,7 +108,14 @@ export default function TemplatesSection({ brandId, tier, onSwitchTab, externalS
         <input
           aria-label="Quick search"
           value={externalSearch ?? q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            if (externalSearch !== undefined && onExternalSearchChange) {
+              onExternalSearchChange(e.target.value)
+            } else {
+              setQ(e.target.value)
+            }
+          }}
+          disabled={externalSearch !== undefined && !onExternalSearchChange}
           placeholder="Search templates"
           className="ml-auto h-9 w-64 rounded-md border border-[color:var(--divider-taupe)] bg-white px-3 text-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-pink-300"
         />

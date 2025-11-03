@@ -113,7 +113,6 @@ export default function BrandContentManager(): JSX.Element {
                 className="h-9 rounded-md border border-[color:var(--divider-taupe)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
               >
                 <option value="">All tags</option>
-                <option value="brand">Brand</option>
                 <option value="challenge">Challenge</option>
                 <option value="lesson">Lesson</option>
               </select>
@@ -143,6 +142,7 @@ export default function BrandContentManager(): JSX.Element {
               }}
               externalSearch={search}
               externalType={externalType}
+              onExternalSearchChange={setSearch}
             />
           )}
           {active === "Library" && <LibrarySection brandId={brandId} />}
