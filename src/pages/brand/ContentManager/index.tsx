@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import type { JSX } from "react"
 import { templateStore } from "@/stores/templateStore"
 import LibrarySection from "./LibrarySection"
+import TemplatesSection from "./TemplatesSection"
 
 type SectionKey = "Templates" | "Library" | "Lessons" | "Challenges" | "Announcements"
 
@@ -97,7 +98,7 @@ export default function BrandContentManagerShell(): JSX.Element {
 
         {/* Content switcher */}
         <section className="flex-1 p-5">
-          {active === "Templates" && <TemplatesSection templates={sharedTemplates} />}
+          {active === "Templates" && <TemplatesSection brandId={brandId} tier={tier} />}
           {active === "Library" && <LibrarySection brandId={brandId} />}
           {active === "Lessons" && <LessonsSection />}
           {active === "Challenges" && <ChallengesSection />}
@@ -139,35 +140,7 @@ function Kpi({ label, value }: { label: string; value: string }): JSX.Element {
   )
 }
 
-// Section components (stubs OK; replace with actual modules later)
-function TemplatesSection({ templates }: { templates: ReturnType<typeof templateStore.listShared> }): JSX.Element {
-  return (
-    <div className="space-y-3">
-      <div className="text-sm text-stone-600">Shared templates</div>
-      <div className="grid grid-cols-1 gap-3">
-        {templates.map((t) => (
-          <article
-            key={t.id}
-            className="rounded-lg border border-[color:var(--divider-taupe)] bg-white p-4"
-          >
-            <h3 className="font-medium text-stone-900">{t.title}</h3>
-            <p className="mt-1 text-sm text-stone-600 line-clamp-2">{t.body}</p>
-            <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
-              <span className="rounded-full border border-[color:var(--divider-taupe)] bg-stone-50 px-2 py-0.5">
-                {t.type}
-              </span>
-              {t.difficulty ? (
-                <span className="rounded-full border border-[color:var(--divider-taupe)] bg-stone-50 px-2 py-0.5">
-                  {t.difficulty}
-                </span>
-              ) : null}
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  )
-}
+// TemplatesSection now imported from module
 
 // LibrarySection is imported from a dedicated module
 

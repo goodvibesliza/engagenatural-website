@@ -29,7 +29,7 @@ const PROFANITY_TERMS = [
   'dick', 'dicks',
   'cunt', 'cunts'
 ]
-const PROFANITY_REGEXES = PROFANITY_TERMS.map((t) => new RegExp(`(?:^|\\W)${t}`, 'i'))
+const PROFANITY_REGEXES = PROFANITY_TERMS.map((t) => new RegExp(`(?:^|\\W)${t}(?:$|\\W)`, 'i'))
 
 const spamPatterns = [
   /\b\d{3}-\d{3}-\d{4}\b/, // Phone numbers

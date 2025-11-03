@@ -50,8 +50,9 @@ export default function EditTemplateDrawer({
     setStartDate(brandTemplate?.startDate ?? "")
     setEndDate(brandTemplate?.endDate ?? "")
     setStatus(brandTemplate?.status ?? "draft")
-    setTagsText("")
-  }, [open, brandTemplate?.id])
+    const initialTags = Array.isArray(brandTemplate?.tags) ? brandTemplate!.tags.join(", ") : ""
+    setTagsText(initialTags)
+  }, [open, brandTemplate?.id, brandTemplate?.tags])
 
   const bodyCount = useMemo(() => customBody.length, [customBody])
 
@@ -88,12 +89,17 @@ export default function EditTemplateDrawer({
   const disabled = !brandTemplate
 
   function buildPatch(nextStatus?: BrandTemplate["status"]): Partial<BrandTemplate> {
+    const parsedTags = tagsText
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
     return {
       customTitle: customTitle || undefined,
       customBody: customBody || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       status: nextStatus ?? status,
+      tags: parsedTags.length ? parsedTags : undefined,
     }
   }
 
