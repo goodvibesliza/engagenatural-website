@@ -109,7 +109,7 @@ export default function TemplatesSection({ brandId, tier, onSwitchTab }: Templat
 
       {/* Boards */}
       {tab === "shared" ? (
-        <SharedBoard rows={shared} onUse={onUse} />
+        <SharedBoard rows={shared} onUse={onUse} onClearSearch={() => setQ("")} />
       ) : (
         <CopiesBoard
           rows={copies}
@@ -159,15 +159,14 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
   )
 }
 
-function SharedBoard({ rows, onUse }: { rows: LearningTemplate[]; onUse: (id: string) => void }): JSX.Element {
+function SharedBoard({ rows, onUse, onClearSearch }: { rows: LearningTemplate[]; onUse: (id: string) => void; onClearSearch?: () => void }): JSX.Element {
   if (!rows.length) {
     return (
       <EmptyState
         title="No shared templates found"
         ctaLabel="Clear search"
         onCta={() => {
-          // noop – parent manages search; consumers can re-render with cleared query
-          // Intentionally left empty.
+          if (onClearSearch) onClearSearch()
         }}
       />
     )
@@ -249,8 +248,7 @@ function CopiesBoard({
             onSwitchTab("shared")
           } else if (typeof window !== "undefined") {
             // Backward compatibility: dispatch a CustomEvent for any legacy listeners
-            const detail: any = typeof (window as any) !== "undefined" ? ("shared" as any) : ("shared" as any)
-            const evt = new CustomEvent("brand:templates-switch", { detail })
+            const evt = new CustomEvent("brand:templates-switch", { detail: "shared" })
             window.dispatchEvent(evt)
           }
           // Always update local state to reflect the switch immediately

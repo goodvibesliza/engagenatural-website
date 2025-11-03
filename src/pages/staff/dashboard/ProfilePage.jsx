@@ -159,15 +159,14 @@ export default function ProfilePage() {
   // Upload profile image
   const uploadProfileImage = async (file) => {
     if (!file || !user?.uid) return;
-    // Basic validation prior to upload
-    const isImage = typeof file.type === 'string' ? file.type.startsWith('image/') : true;
-    const maxBytes = 10 * 1024 * 1024; // 10MB ceiling
-    if (!isImage) {
-      toast.error('Please select an image file.');
+    // Basic validation prior to upload (fail-closed)
+    const maxBytes = 5 * 1024 * 1024; // 5MB limit aligned with MediaUploader.jsx
+    if (typeof file.type !== 'string' || !file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file (PNG, JPEG, etc.).');
       return;
     }
-    if (typeof file.size === 'number' && file.size > maxBytes) {
-      toast.error('Image is too large. Please choose a file under 10MB.');
+    if (typeof file.size !== 'number' || file.size > maxBytes) {
+      toast.error('Image is too large. Please choose a file under 5MB.');
       return;
     }
 
