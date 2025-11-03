@@ -9,9 +9,11 @@ type TypeFilter = "all" | TemplateType
 export interface TemplatesSectionProps {
   brandId: string
   tier?: string
+  // Optional handler to switch the Templates sub-tab (e.g., to "shared")
+  onSwitchTab?: (tab: string) => void
 }
 
-export default function TemplatesSection({ brandId, tier }: TemplatesSectionProps): JSX.Element {
+export default function TemplatesSection({ brandId, tier, onSwitchTab }: TemplatesSectionProps): JSX.Element {
   const [tab, setTab] = useState<SubTab>("shared")
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [q, setQ] = useState<string>("")
@@ -109,7 +111,15 @@ export default function TemplatesSection({ brandId, tier }: TemplatesSectionProp
       {tab === "shared" ? (
         <SharedBoard rows={shared} onUse={onUse} />
       ) : (
-        <CopiesBoard rows={copies} onEdit={onEditCopy} onPublish={onPublish} onDuplicate={onDuplicateCopy} onDelete={onDeleteCopy} />
+        <CopiesBoard
+          rows={copies}
+          onEdit={onEditCopy}
+          onPublish={onPublish}
+          onDuplicate={onDuplicateCopy}
+          onDelete={onDeleteCopy}
+          onSwitchTab={onSwitchTab}
+          onLocalSwitchToShared={() => setTab("shared")}
+        />
       )}
     </div>
   )
@@ -217,12 +227,16 @@ function CopiesBoard({
   onPublish,
   onDuplicate,
   onDelete,
+  onSwitchTab,
+  onLocalSwitchToShared,
 }: {
   rows: BrandTemplate[]
   onEdit: (id: string) => void
   onPublish: (id: string) => void
   onDuplicate: (copy: BrandTemplate) => void
   onDelete: (id: string) => void
+  onSwitchTab?: (tab: string) => void
+  onLocalSwitchToShared: () => void
 }): JSX.Element {
   if (!rows.length) {
     return (
@@ -230,8 +244,17 @@ function CopiesBoard({
         title="No copies yet"
         ctaLabel="Browse shared"
         onCta={() => {
-          const evt = new CustomEvent("brand:templates-switch", { detail: { tab: "shared" } })
-          window.dispatchEvent(evt)
+          // Prefer explicit handler from parent when provided
+          if (onSwitchTab) {
+            onSwitchTab("shared")
+          } else if (typeof window !== "undefined") {
+            // Backward compatibility: dispatch a CustomEvent for any legacy listeners
+            const detail: any = typeof (window as any) !== "undefined" ? ("shared" as any) : ("shared" as any)
+            const evt = new CustomEvent("brand:templates-switch", { detail })
+            window.dispatchEvent(evt)
+          }
+          // Always update local state to reflect the switch immediately
+          onLocalSwitchToShared()
         }}
       />
     )

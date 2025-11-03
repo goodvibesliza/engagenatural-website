@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { templateStore } from "@/stores/templateStore"
 import LibrarySection from "./LibrarySection"
@@ -29,6 +29,40 @@ export default function BrandContentManagerShell(): JSX.Element {
   const [tag, setTag] = useState<string>("")
 
   const sharedTemplates = useMemo(() => templateStore.listShared(undefined, undefined), [])
+
+  // Listen for external requests to switch sections (legacy/custom events)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const onSwitch = (ev: Event) => {
+      try {
+        const detail: any = (ev as CustomEvent).detail
+        let next: SectionKey | undefined
+        if (typeof detail === "string") {
+          // If a valid section name is provided, honor it; otherwise map shared/copies → Templates
+          if (["Templates", "Library", "Lessons", "Challenges", "Announcements"].includes(detail)) {
+            next = detail as SectionKey
+          } else if (detail === "shared" || detail === "copies") {
+            next = "Templates"
+          }
+        } else if (detail && typeof detail === "object") {
+          const t = detail.tab
+          if (t === "Templates") next = "Templates"
+          if (t === "Library") next = "Library"
+          if (t === "Lessons") next = "Lessons"
+          if (t === "Challenges") next = "Challenges"
+          if (t === "Announcements") next = "Announcements"
+          if (t === "shared" || t === "copies") next = "Templates"
+        }
+        if (next) setActive(next)
+      } catch {
+        /* no-op */
+      }
+    }
+    window.addEventListener("brand:templates-switch", onSwitch as EventListener)
+    return () => {
+      window.removeEventListener("brand:templates-switch", onSwitch as EventListener)
+    }
+  }, [])
 
   return (
     <div className="grid grid-cols-[220px_1fr_320px] min-h-[calc(100vh-56px)] bg-stone-50 text-stone-900">
@@ -98,7 +132,16 @@ export default function BrandContentManagerShell(): JSX.Element {
 
         {/* Content switcher */}
         <section className="flex-1 p-5">
-          {active === "Templates" && <TemplatesSection brandId={brandId} tier={tier} />}
+          {active === "Templates" && (
+            <TemplatesSection
+              brandId={brandId}
+              tier={tier}
+              onSwitchTab={(tab) => {
+                // Ensure Templates section is visible if sub-tab navigation is requested
+                if (tab === "shared" || tab === "copies") setActive("Templates")
+              }}
+            />
+          )}
           {active === "Library" && <LibrarySection brandId={brandId} />}
           {active === "Lessons" && <LessonsSection />}
           {active === "Challenges" && <ChallengesSection />}

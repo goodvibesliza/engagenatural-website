@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// renamed to .tsx
+import React, { useState } from 'react'
 import { useRoleAccess } from '../../../hooks/use-role-access'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/input'
 import { Badge } from '../../ui/badge'
-import { Progress } from '../../ui/progress'
 import { 
   Table,
   TableBody,
@@ -21,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '../../ui/dialog'
 import {
   Select,
@@ -46,21 +43,16 @@ import {
 } from '../../ui/tabs'
 import { Label } from '../../ui/label'
 import { Textarea } from '../../ui/textarea'
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  Eye,
+  Edit,
   Trash2,
   Upload,
   FileText,
-  Video,
-  Image,
   Download,
-  Calendar,
-  User,
   Building,
   CheckCircle,
   Clock,
@@ -70,9 +62,8 @@ import {
   Target,
   TrendingUp,
   DollarSign,
-  Users,
   Star,
-  BarChart3
+  BarChart3,
 } from 'lucide-react'
 
 export default function ContentManagement() {
@@ -234,8 +225,11 @@ export default function ContentManagement() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
 
-  // Get unique brands for filtering
-  const brands = [...new Set(content.map(item => ({ id: item.brandId, name: item.brandName })))]
+  // Get unique brands for filtering (dedupe by brandId using Map)
+  const brands = React.useMemo(() => {
+    const pairs = content.map((item) => [item.brandId, { id: item.brandId, name: item.brandName }])
+    return Array.from(new Map(pairs).values())
+  }, [content])
 
   // Calculate summary metrics
   const summaryMetrics = {

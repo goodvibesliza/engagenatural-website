@@ -111,7 +111,7 @@ export default function ProfilePage() {
         }
       } catch (error) {
         console.error('Error loading user data:', error);
-        alert('Error loading profile data. Please try again later.');
+        toast.error('Error loading profile data. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -163,11 +163,11 @@ export default function ProfilePage() {
     const isImage = typeof file.type === 'string' ? file.type.startsWith('image/') : true;
     const maxBytes = 10 * 1024 * 1024; // 10MB ceiling
     if (!isImage) {
-      alert('Please select an image file.');
+      toast.error('Please select an image file.');
       return;
     }
     if (typeof file.size === 'number' && file.size > maxBytes) {
-      alert('Image is too large. Please choose a file under 10MB.');
+      toast.error('Image is too large. Please choose a file under 10MB.');
       return;
     }
 
@@ -192,11 +192,11 @@ export default function ProfilePage() {
 
       setProfileImage(imageURL);
       setShowAvatarSelector(false);
-      alert('Profile photo uploaded successfully!');
+      toast.success('Profile photo uploaded successfully!');
 
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      alert(`Error uploading photo: ${error.message}. Please check Firebase Storage setup.`);
+      toast.error(`Error uploading photo: ${error.message}. Please check Firebase Storage setup.`);
     } finally {
       setSaving(false);
     }
@@ -216,7 +216,7 @@ export default function ProfilePage() {
       setShowAvatarSelector(false);
     } catch (error) {
       console.error('Error selecting avatar:', error);
-      alert('Error updating avatar. Please try again.');
+      toast.error('Error updating avatar. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -235,10 +235,10 @@ export default function ProfilePage() {
       });
 
       setEditingAboutMe(false);
-      alert('About Me section updated successfully!');
+      toast.success('About Me section updated successfully!');
     } catch (error) {
       console.error('Error updating about me:', error);
-      alert('Error updating information. Please try again.');
+      toast.error('Error updating information. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -256,10 +256,10 @@ export default function ProfilePage() {
       });
       
       setEditingUserInfo(false);
-      alert('Profile information updated successfully!');
+      toast.success('Profile information updated successfully!');
     } catch (error) {
       console.error('Error updating user info:', error);
-      alert('Error updating information. Please try again.');
+      toast.error('Error updating information. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -276,7 +276,7 @@ export default function ProfilePage() {
       console.error('Failed to update notification preferences', err);
       // revert on failure
       setNotificationPreferences((prev) => ({ ...prev, [key]: !next[key] }));
-      alert('Could not save notification preference.');
+      toast.error('Could not save notification preference.');
     }
   };
 
