@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from "../../contexts/auth-context";
 
-// New content management component
-import IntegratedContentManager from './ContentManager';
+// New content management component (explicit to TSX index to avoid file/folder ambiguity)
+import IntegratedContentManager from './ContentManager/index.tsx';
 // Consistent logout hook
 import { useLogout } from '../../hooks/useLogout';
 

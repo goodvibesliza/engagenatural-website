@@ -35,8 +35,8 @@ import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-appro
 
 // Brand Manager Components
 import BrandDashboard from './pages/brand/Dashboard';
-// New Brand Content Manager Shell (TSX)
-import IntegratedContentManager from './pages/brand/ContentManager';
+// New Brand Content Manager Shell (explicit to TSX index to avoid file/folder ambiguity)
+import IntegratedContentManager from './pages/brand/ContentManager/index.tsx';
 // Brand Training Detail
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 import Communities from './pages/brand/Communities.jsx';
