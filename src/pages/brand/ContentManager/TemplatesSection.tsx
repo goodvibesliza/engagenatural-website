@@ -11,25 +11,31 @@ export interface TemplatesSectionProps {
   tier?: string
   // Optional handler to switch the Templates sub-tab (e.g., to "shared")
   onSwitchTab?: (tab: string) => void
+  // Optional external controls from shell header
+  externalSearch?: string
+  externalType?: TypeFilter
 }
 
-export default function TemplatesSection({ brandId, tier, onSwitchTab }: TemplatesSectionProps): JSX.Element {
+export default function TemplatesSection({ brandId, tier, onSwitchTab, externalSearch, externalType }: TemplatesSectionProps): JSX.Element {
   const [tab, setTab] = useState<SubTab>("shared")
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [q, setQ] = useState<string>("")
   const [refresh, setRefresh] = useState<number>(0)
 
+  const effectiveType: TypeFilter = externalType ?? typeFilter
+  const effectiveSearch: string = externalSearch ?? q
+
   const shared = useMemo(() => {
-    const kind: TemplateType | undefined = typeFilter === "all" ? undefined : typeFilter
+    const kind: TemplateType | undefined = effectiveType === "all" ? undefined : effectiveType
     const list = templateStore.listShared(kind, tier)
-    return filterByQuery(list, q)
-  }, [typeFilter, tier, q, refresh])
+    return filterByQuery(list, effectiveSearch)
+  }, [effectiveType, tier, effectiveSearch, refresh])
 
   const copies = useMemo(() => {
-    const kind: TemplateType | undefined = typeFilter === "all" ? undefined : typeFilter
+    const kind: TemplateType | undefined = effectiveType === "all" ? undefined : effectiveType
     const list = templateStore.listBrandCopies(brandId, kind)
-    return filterCopiesByQuery(list, q)
-  }, [brandId, typeFilter, q, refresh])
+    return filterCopiesByQuery(list, effectiveSearch)
+  }, [brandId, effectiveType, effectiveSearch, refresh])
 
   function onUse(sharedId: string) {
     templateStore.duplicateToBrand(sharedId, brandId)
@@ -100,7 +106,7 @@ export default function TemplatesSection({ brandId, tier, onSwitchTab }: Templat
 
         <input
           aria-label="Quick search"
-          value={q}
+          value={externalSearch ?? q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search templates"
           className="ml-auto h-9 w-64 rounded-md border border-[color:var(--divider-taupe)] bg-white px-3 text-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-pink-300"

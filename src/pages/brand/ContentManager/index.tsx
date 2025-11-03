@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { useBrandContext } from "@/hooks/useBrandContext"
 import { templateStore } from "@/stores/templateStore"
+import type { LearningTemplate, TemplateType } from "@/types/templates"
 import TemplatesSection from "./TemplatesSection"
 import LibrarySection from "./LibrarySection"
 import LessonsSection from "./LessonsSection"
@@ -22,15 +23,10 @@ export default function BrandContentManager(): JSX.Element {
   const [search, setSearch] = useState<string>("")
   const [tag, setTag] = useState<string>("")
 
-  const sharedTemplates = useMemo(() => {
-    try {
-      // Prefer brand-scoped shared templates; fallback to empty list
-      const list = (templateStore as unknown as { listShared?: (brandId?: string) => unknown[] }).listShared?.(brandId)
-      return Array.isArray(list) ? (list as unknown[]) : []
-    } catch {
-      return []
-    }
-  }, [brandId])
+  const sharedTemplates: LearningTemplate[] = useMemo(() => {
+    // Match store signature: listShared(type?, tier?)
+    return templateStore.listShared(undefined, tier)
+  }, [tier])
 
   // Listen for external requests to switch sections (custom events)
   useEffect(() => {
@@ -56,12 +52,14 @@ export default function BrandContentManager(): JSX.Element {
   }, [])
 
   const topTemplates = useMemo(() => {
-    const items = (sharedTemplates as Array<Record<string, unknown>>).slice(0, 3)
-    return items.map((t, i) => {
-      const title = typeof t?.title === "string" ? (t.title as string) : typeof t?.name === "string" ? (t.name as string) : `Template ${i + 1}`
-      return title
-    })
+    return sharedTemplates.slice(0, 3).map((t, i) => t.title || `Template ${i + 1}`)
   }, [sharedTemplates])
+
+  // Derive external type filter from the header tag dropdown
+  const externalType = useMemo<"all" | TemplateType>(() => {
+    if (tag === "lesson" || tag === "challenge") return tag
+    return "all"
+  }, [tag])
 
   return (
     <div className="grid grid-cols-[auto_1fr_auto] h-screen bg-[var(--brand-bg)] text-[var(--brand-fg)]">
@@ -121,6 +119,11 @@ export default function BrandContentManager(): JSX.Element {
               </select>
               <button
                 type="button"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("brand:new-template"))
+                  }
+                }}
                 className="h-9 rounded-md bg-stone-900 px-3 text-sm font-medium text-white hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-pink-300"
               >
                 New Template
@@ -138,6 +141,8 @@ export default function BrandContentManager(): JSX.Element {
               onSwitchTab={(tab) => {
                 if (tab === "shared" || tab === "copies") setActive("Templates")
               }}
+              externalSearch={search}
+              externalType={externalType}
             />
           )}
           {active === "Library" && <LibrarySection brandId={brandId} />}
