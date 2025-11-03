@@ -233,6 +233,31 @@ Optional: separate left-rail item for Templates beside Library
 
 Optional: swap mock store for Firebase/Mongo adapter behind same interface
 
+### 2025-11-03 – Progress Update (Brand Content Manager shell)
+
+Highlights
+
+- TemplatesSection.tsx: added optional onSwitchTab prop; wired EmptyState "Clear search" to parent via onClearSearch; simplified CustomEvent dispatch.
+- ContentManager/index.tsx: added useEffect listener for 'brand:templates-switch' with SectionKey validation to switch tabs programmatically.
+- PostDetail.jsx: replaced setTimeout refresh with CustomEvent('en:comment-added') dispatch.
+- ProfilePage.jsx: replaced alert() with toast notifications; implemented strict, fail-closed file validation (extension from name or MIME) and size checks.
+- App.jsx: routed /brand/content to new TSX shell; created ContentManagerStandalone wrapper to resolve brandId from auth/localStorage fallback.
+- content-management.jsx: removed unused imports and lint issues.
+- Docs: added docs/engagenatural-app-flow.md covering roles, flows, and earning logic.
+
+Testing/Verification
+
+- Verified EmptyState CTA clears search and switches tabs when requested.
+- Confirmed custom event wiring between TemplatesSection and index.tsx.
+- Upload validation blocks unsupported types and oversize files; toasts surface errors.
+- Preview shows new shell layout when brandId resolves from auth/localStorage.
+
+Decision log additions
+
+- 2025-11-03: Adopt CustomEvent pattern for intra-section refresh (comments/templates) instead of setTimeout.
+- 2025-11-03: Enforce toast-based UX for profile actions; deprecate alert().
+- 2025-11-03: Resolve brandId in a standalone wrapper to avoid prop drilling from legacy routes.
+
 ## 2025-10 Verification: Store Location + Auto-Scoring + System Notifications
 
 Context: Verification now relies on user-saved store location (no master store list). Admins can request more info; that triggers a system notification visible on /staff/notifications.
@@ -297,7 +322,7 @@ Notes
 - AutoScore: 100 at 0–50m → linearly to 0 by 1500m
 
 ### Store location policy update (2025-10-24)
-Status: Address geocode baseline implemented and working (2025-10-31).
+Status: Address geocode baseline implemented and working (2025-10-31). [Completed]
 - Device-only policy for storeLoc:
   - storeLoc is strictly for device GPS: { lat, lng, setAt: serverTimestamp(), source: 'device' }
   - Address coordinates are never persisted into storeLoc
