@@ -14,6 +14,20 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
+function makeId(prefix = "id"): string {
+  try {
+    // crypto.randomUUID can throw in some environments (older browsers/non-secure contexts)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const uuid = (globalThis as any)?.crypto?.randomUUID?.()
+    if (uuid) return `${prefix}-${uuid}`
+  } catch {
+    // fall through to fallback
+  }
+  const ts = Date.now().toString(36)
+  const rnd = Math.random().toString(36).slice(2, 10)
+  return `${prefix}-${ts}-${rnd}`
+}
+
 function safeLoad(): PersistShape {
   try {
     const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null
@@ -42,7 +56,7 @@ function seedShared(): SharedArr {
   const base = nowIso()
   return [
     {
-      id: `tpl-${crypto.randomUUID()}`,
+      id: makeId("tpl"),
       title: "Playfair Lesson · Petal Pink Wellness Basics",
       type: "lesson",
       body: "Intro to our Petal Pink brand accents and how to present them in lessons.",
@@ -57,7 +71,7 @@ function seedShared(): SharedArr {
       tier: "basic",
     },
     {
-      id: `tpl-${crypto.randomUUID()}`,
+      id: makeId("tpl"),
       title: "Inter Lesson · Soft Border Styling 101",
       type: "lesson",
       body: "Guide to using var(--color-soft-border) tokens across components.",
@@ -72,7 +86,7 @@ function seedShared(): SharedArr {
       tier: "pro",
     },
     {
-      id: `tpl-${crypto.randomUUID()}`,
+      id: makeId("tpl"),
       title: "Challenge · 7‑Day Petal Pink Refresh",
       type: "challenge",
       body: "Daily tasks to apply the Petal Pink theme consistently for 7 days.",
@@ -87,7 +101,7 @@ function seedShared(): SharedArr {
       tier: "basic",
     },
     {
-      id: `tpl-${crypto.randomUUID()}`,
+      id: makeId("tpl"),
       title: "Challenge · Taupe Tone Eco Habits",
       type: "challenge",
       body: "A two‑week series encouraging eco‑friendly UI/UX habits using neutral tokens.",
@@ -133,7 +147,7 @@ export const templateStore = {
   createShared(input: Omit<LearningTemplate, "id" | "createdAt" | "updatedAt">): LearningTemplate {
     const created: LearningTemplate = {
       ...input,
-      id: `tpl-${crypto.randomUUID()}`,
+      id: makeId("tpl"),
       createdAt: nowIso(),
       updatedAt: nowIso(),
     }
@@ -143,18 +157,10 @@ export const templateStore = {
   },
 
   updateShared(id: string, patch: Partial<LearningTemplate>): LearningTemplate {
-    let updated: LearningTemplate | undefined
-    state = {
-      ...state,
-      shared: state.shared.map((t) => {
-        if (t.id !== id) return t
-        updated = { ...t, ...patch, updatedAt: nowIso() }
-        return updated
-      }),
-    }
-    if (!updated) {
-      throw new Error("Shared template not found")
-    }
+    const existing = state.shared.find((t) => t.id === id)
+    if (!existing) throw new Error("Shared template not found")
+    const updated: LearningTemplate = { ...existing, ...patch, updatedAt: nowIso() }
+    state = { ...state, shared: state.shared.map((t) => (t.id === id ? updated : t)) }
     safeSave(state)
     return updated
   },
@@ -163,7 +169,7 @@ export const templateStore = {
     const src = state.shared.find((t) => t.id === sharedId)
     if (!src) throw new Error("Source template not found")
     const created: BrandTemplate = {
-      id: `btpl-${crypto.randomUUID()}`,
+      id: makeId("btpl"),
       sourceTemplateId: src.id,
       type: src.type,
       customTitle: src.title,
@@ -181,18 +187,10 @@ export const templateStore = {
   },
 
   updateBrandCopy(id: string, patch: Partial<BrandTemplate>): BrandTemplate {
-    let updated: BrandTemplate | undefined
-    state = {
-      ...state,
-      brand: state.brand.map((b) => {
-        if (b.id !== id) return b
-        updated = { ...b, ...patch }
-        return updated
-      }),
-    }
-    if (!updated) {
-      throw new Error("Brand template not found")
-    }
+    const existing = state.brand.find((b) => b.id === id)
+    if (!existing) throw new Error("Brand template not found")
+    const updated: BrandTemplate = { ...existing, ...patch }
+    state = { ...state, brand: state.brand.map((b) => (b.id === id ? updated : b)) }
     safeSave(state)
     return updated
   },
