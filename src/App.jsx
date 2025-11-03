@@ -127,6 +127,14 @@ const CommunityLinkedInRoute = () => {
   );
 };
 
+// Standalone Brand Content Manager route wrapper that resolves brandId from context/localStorage
+const ContentManagerStandalone = () => {
+  const { user } = useAuth();
+  const storedBrandId = typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
+  const brandId = storedBrandId || user?.brandId || 'demo-brand';
+  return <IntegratedContentManager brandId={brandId} />;
+};
+
 // Redirect helper to preserve dynamic :postId when moving from /staff/community/post/:postId → /community/post/:postId
 const StaffCommunityPostRedirect = () => {
   const { postId } = useParams();
@@ -505,8 +513,8 @@ function App() {
             path="/brand/content" 
             element={
               <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
-                {/* Standalone route renders the new shell directly */}
-                <IntegratedContentManager />
+                {/* Standalone route renders the new shell with resolved brandId */}
+                <ContentManagerStandalone />
               </RoleGuard>
             } 
           />

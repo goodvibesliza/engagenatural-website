@@ -178,8 +178,31 @@ export default function ProfilePage() {
       }
 
       // Upload to Firebase Storage
-      const safeName = file.name || `profile-${Date.now()}.jpg`;
-      const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${safeName}`);
+      const nowTs = Date.now();
+      // Derive a safe extension from file.name or MIME type; fallback to jpg
+      let ext = 'jpg';
+      if (typeof file.name === 'string') {
+        const match = file.name.match(/\.([a-zA-Z0-9]+)$/);
+        if (match && match[1]) {
+          ext = match[1].toLowerCase();
+        }
+      }
+      if (!ext && typeof file.type === 'string') {
+        const mimeMap = {
+          'image/jpeg': 'jpg',
+          'image/jpg': 'jpg',
+          'image/png': 'png',
+          'image/gif': 'gif',
+          'image/webp': 'webp',
+          'image/bmp': 'bmp',
+          'image/svg+xml': 'svg',
+          'image/heic': 'heic',
+          'image/heif': 'heif',
+        };
+        ext = mimeMap[file.type] || 'jpg';
+      }
+      const safeName = `profile-${nowTs}.${ext || 'jpg'}`;
+      const imageRef = ref(storage, `profile_images/${user.uid}/${nowTs}_${safeName}`);
 
       const uploadResult = await uploadBytes(imageRef, file);
       const imageURL = await getDownloadURL(uploadResult.ref);
