@@ -37,6 +37,7 @@ import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-appro
 import BrandDashboard from './pages/brand/Dashboard';
 // New Brand Content Manager Shell (explicit to TSX index to avoid file/folder ambiguity)
 import IntegratedContentManager from './pages/brand/ContentManager/index.tsx';
+import BrandContentManagementPage from './pages/brand/ContentManagementPage.tsx';
 // Brand Training Detail
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 import Communities from './pages/brand/Communities.jsx';
@@ -524,8 +525,8 @@ function App() {
             path="/brand/content" 
             element={
               <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
-                {/* Standalone route renders the new shell with resolved brandId */}
-                <ContentManagerStandalone />
+                {/* New dashboard page wrapper with left menu via layout */}
+                <BrandContentManagementPage />
               </RoleGuard>
             } 
           />
