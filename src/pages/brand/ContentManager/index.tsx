@@ -88,9 +88,11 @@ export function ContentManagerShell(): JSX.Element {
         <header className="sticky top-0 z-10 border-b border-[color:var(--divider-taupe)] bg-white">
           <div className="flex items-center gap-3 px-5 py-4">
             <h1 className="text-xl font-semibold font-serif">{brandName}</h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 border border-[color:var(--divider-taupe)]">
-              Tier: {tier}
-            </span>
+            {tier ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 border border-[color:var(--divider-taupe)]">
+                Tier: {tier}
+              </span>
+            ) : null}
 
             <div className="ml-auto flex items-center gap-2">
               <input
