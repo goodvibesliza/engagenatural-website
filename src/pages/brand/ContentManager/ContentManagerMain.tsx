@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { JSX } from "react"
 
 import { useBrandContext } from "@/hooks/useBrandContext"
@@ -31,6 +31,20 @@ export default function ContentManagerMain(): JSX.Element {
       .slice(0, 3)
       .map((t, i) => t.title || `Template ${i + 1}`)
   }, [tier])
+
+  // Listen for external section switch events from a parent/left sidebar
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent<SectionKey>).detail
+        if (detail) setActive(detail)
+      } catch {}
+    }
+    window.addEventListener("brand:content-switch" as any, handler as EventListener)
+    return () => {
+      window.removeEventListener("brand:content-switch" as any, handler as EventListener)
+    }
+  }, [])
 
   return (
     <div className="grid grid-cols-[1fr_20rem] min-h-[calc(100vh-0px)] bg-[var(--brand-bg)] text-[var(--brand-fg)]">
