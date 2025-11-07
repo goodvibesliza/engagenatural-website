@@ -17,9 +17,11 @@ type Props = {
   leftSidebar?: React.ReactNode
   headerLogo?: React.ReactNode
   hideProfileMenu?: boolean
+  /** Force rendering children even when no brands are assigned (useful for demo/preview). */
+  skipBrandGate?: boolean
 }
 
-export default function BrandManagerLayout({ children, leftSidebar, headerLogo, hideProfileMenu }: Props) {
+export default function BrandManagerLayout({ children, leftSidebar, headerLogo, hideProfileMenu, skipBrandGate }: Props) {
   const { user, signOut } = useAuth() as { user: { uid: string; email?: string } | null; signOut: () => Promise<void> }
   const location = useLocation()
   const navigate = useNavigate()
@@ -350,7 +352,7 @@ export default function BrandManagerLayout({ children, leftSidebar, headerLogo, 
                   </div>
                 </div>
               ) : brands.length === 0 ? (
-                import.meta?.env?.VITE_DEMO_BRAND_ID ? (
+                (skipBrandGate || import.meta?.env?.VITE_DEMO_BRAND_ID) ? (
                   <>{children}</>
                 ) : (
                   <div className="bg-white shadow rounded-lg p-6 text-center">

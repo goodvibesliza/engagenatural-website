@@ -33,7 +33,7 @@ export default function BrandContentManagementPage(): JSX.Element {
   )
 
   return (
-    <BrandManagerLayout leftSidebar={leftSidebar} headerLogo={<LogoWordmark size="md" />} hideProfileMenu>
+    <BrandManagerLayout leftSidebar={leftSidebar} headerLogo={<LogoWordmark size="md" />} hideProfileMenu skipBrandGate>
       <ContentManagerMain />
     </BrandManagerLayout>
   )

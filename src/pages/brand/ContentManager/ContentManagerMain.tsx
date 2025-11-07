@@ -81,6 +81,7 @@ export default function ContentManagerMain(): JSX.Element {
               <button
                 type="button"
                 onClick={() => {
+                  setActive("Templates")
                   if (typeof window !== "undefined") {
                     window.dispatchEvent(new CustomEvent("brand:new-template"))
                   }
