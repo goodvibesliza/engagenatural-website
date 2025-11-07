@@ -47,7 +47,7 @@ export default function ContentManagerMain(): JSX.Element {
   }, [])
 
   return (
-    <div className="grid grid-cols-[1fr_20rem] min-h-[calc(100vh-0px)] bg-[var(--brand-bg)] text-[var(--brand-fg)]">
+    <div className="grid grid-cols-[1fr_20rem] min-h-[calc(100vh-64px)] bg-[var(--brand-bg)] text-[var(--brand-fg)]">
       {/* Center column */}
       <main className="flex min-h-0 flex-col">
         {/* Header */}

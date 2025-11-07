@@ -46,7 +46,18 @@ export default function BrandManagerLayout({ children, leftSidebar, headerLogo, 
 
         const brandsQuery = query(collection(db, 'brands'), where('managers', 'array-contains', user.uid))
         const querySnapshot = await getDocs(brandsQuery)
-        const fetchedBrands: BrandDoc[] = querySnapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...(doc.data() as object) }))
+        const fetchedBrands: BrandDoc[] = querySnapshot.docs
+          .map((doc: DocumentData) => {
+            const data = doc.data() as Record<string, unknown>
+            const name = typeof data.name === 'string' ? data.name : undefined
+            const website = typeof data.website === 'string' ? data.website : undefined
+            const managers = Array.isArray((data as any).managers) ? (data as any).managers : []
+            // If managers is not an array of strings, log and continue (but don't trust its contents)
+            if (!Array.isArray(managers) || managers.some((m) => typeof m !== 'string')) {
+              console.warn('Brand document has invalid managers field', doc.id)
+            }
+            return { id: doc.id, name, website }
+          })
 
         setBrands(fetchedBrands)
 
@@ -118,7 +129,7 @@ export default function BrandManagerLayout({ children, leftSidebar, headerLogo, 
                   >
                     {brands.map((brand) => (
                       <option key={brand.id} value={brand.id}>
-                        {brand.name as string}
+                        {brand.name ?? 'Unnamed Brand'}
                       </option>
                     ))}
                   </select>
@@ -152,7 +163,7 @@ export default function BrandManagerLayout({ children, leftSidebar, headerLogo, 
                     >
                       <span className="sr-only">Open user menu</span>
                       <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
-                        {(user?.email?.charAt(0).toUpperCase() ?? 'U') as string}
+                        {user?.email?.charAt(0).toUpperCase() ?? 'U'}
                       </div>
                     </button>
                   </div>
@@ -314,9 +325,9 @@ export default function BrandManagerLayout({ children, leftSidebar, headerLogo, 
               {selectedBrand && (
                 <div className="mt-6 bg-white shadow rounded-lg p-4">
                   <h4 className="text-sm font-medium text-gray-500">Selected Brand</h4>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">{selectedBrand.name as string}</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{selectedBrand.name || ''}</p>
                   {selectedBrand.website && (
-                    <a href={String(selectedBrand.website)} target="_blank" rel="noopener noreferrer" className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                    <a href={selectedBrand.website} target="_blank" rel="noopener noreferrer" className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>

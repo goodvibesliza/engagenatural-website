@@ -20,14 +20,14 @@ export default function BrandContentManagementPage(): JSX.Element {
         <h3 className="text-lg font-semibold text-gray-900">Content Management</h3>
       </div>
       <nav className="py-2">
-        <Link to="/admin" className="flex items-center px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">
-          ← Back to Admin Dashboard
+        <Link to="/brand" className="flex items-center px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900" aria-label="Go back to Brand Dashboard">
+          ← Back to Brand Dashboard
         </Link>
-        <button onClick={() => switchSection("Templates")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Templates</button>
-        <button onClick={() => switchSection("Lessons")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Lessons</button>
-        <button onClick={() => switchSection("Challenges")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Challenges</button>
-        <button onClick={() => switchSection("Library")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">My Library</button>
-        <button onClick={() => switchSection("Announcements")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Announcements</button>
+        <button type="button" aria-label="Switch to Templates section" onClick={() => switchSection("Templates")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Templates</button>
+        <button type="button" aria-label="Switch to Lessons section" onClick={() => switchSection("Lessons")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Lessons</button>
+        <button type="button" aria-label="Switch to Challenges section" onClick={() => switchSection("Challenges")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Challenges</button>
+        <button type="button" aria-label="Switch to My Library section" onClick={() => switchSection("Library")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">My Library</button>
+        <button type="button" aria-label="Switch to Announcements section" onClick={() => switchSection("Announcements")} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">Announcements</button>
       </nav>
     </div>
   )
