@@ -163,7 +163,7 @@ export default function BrandManagerLayout({ children, leftSidebar, headerLogo, 
                     >
                       <span className="sr-only">Open user menu</span>
                       <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
-                        {user?.email?.charAt(0).toUpperCase() ?? 'U'}
+                        {user?.email?.charAt(0)?.toUpperCase() ?? 'U'}
                       </div>
                     </button>
                   </div>

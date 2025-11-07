@@ -25,12 +25,10 @@ export default function ContentManagerMain(): JSX.Element {
     return "all"
   }, [tag])
 
-  const topTemplates = useMemo(() => {
-    return templateStore
-      .listShared(undefined, tier)
-      .slice(0, 3)
-      .map((t, i) => t.title || `Template ${i + 1}`)
-  }, [tier])
+  const topTemplates = templateStore
+    .listShared(undefined, tier)
+    .slice(0, 3)
+    .map((t, i) => t.title || `Template ${i + 1}`)
 
   // Listen for external section switch events from a parent/left sidebar
   useEffect(() => {
