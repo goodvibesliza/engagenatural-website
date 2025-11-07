@@ -14,7 +14,7 @@ import {
   Timestamp,
   addDoc
 } from 'firebase/firestore';
-import BrandManagerLayout from '../../components/brand/BrandManagerLayout';
+import BrandManagerLayout from '../../components/brand/BrandManagerLayout-OLD';
 import CommunityMetricsChart from '../../components/brand/CommunityMetricsChart';
 
 // Font styles matching the updated App.css

@@ -1,0 +1,474 @@
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import type { DocumentData } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { useAuth } from '../../contexts/auth-context'
+
+type BrandDoc = {
+  id: string
+  name?: string
+  website?: string
+} & Record<string, unknown>
+
+type Props = {
+  children: React.ReactNode
+}
+
+export default function BrandManagerLayout({ children }: Props) {
+  const { user, signOut } = useAuth() as { user: { uid: string; email?: string } | null; signOut: () => Promise<void> }
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [brands, setBrands] = useState<BrandDoc[]>([])
+  const [selectedBrand, setSelectedBrand] = useState<BrandDoc | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Fetch brands associated with the user
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        setLoading(true)
+
+        if (!user?.uid) {
+          setBrands([])
+          setSelectedBrand(null)
+          setError(null)
+          return
+        }
+
+        const brandsQuery = query(
+          collection(db, 'brands'),
+          where('managers', 'array-contains', user.uid)
+        )
+
+        const querySnapshot = await getDocs(brandsQuery)
+        const fetchedBrands: BrandDoc[] = querySnapshot.docs.map((doc: DocumentData) => ({
+          id: doc.id,
+          ...(doc.data() as Record<string, unknown>),
+        }))
+
+        setBrands(fetchedBrands)
+
+        const storedBrandId = typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null
+
+        if (storedBrandId) {
+          const storedBrand = fetchedBrands.find((brand) => brand.id === storedBrandId) || null
+          if (storedBrand) {
+            setSelectedBrand(storedBrand)
+          } else if (fetchedBrands.length > 0) {
+            setSelectedBrand(fetchedBrands[0])
+            localStorage.setItem('selectedBrandId', fetchedBrands[0].id)
+          }
+        } else if (fetchedBrands.length > 0) {
+          setSelectedBrand(fetchedBrands[0])
+          localStorage.setItem('selectedBrandId', fetchedBrands[0].id)
+        }
+
+        setError(null)
+      } catch (err) {
+        console.error('Error fetching brands:', err)
+        setError('Failed to load brands')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (user) void fetchBrands()
+  }, [user])
+
+  const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const brandId = e.target.value
+    const brand = brands.find((b) => b.id === brandId)
+
+    if (brand) {
+      setSelectedBrand(brand)
+      localStorage.setItem('selectedBrandId', brandId)
+      navigate(location.pathname)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      navigate('/?logout=1')
+    } catch (e) {
+      console.error('Error signing out:', e)
+    }
+  }
+
+  const toggleProfileMenu = () => setIsProfileMenuOpen((v) => !v)
+  const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v)
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 justify-between">
+            <div className="flex">
+              <div className="flex flex-shrink-0 items-center">
+                <NavLink to="/brand" className="text-xl font-bold text-blue-600">
+                  EngageNatural
+                </NavLink>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              {brands.length > 0 && (
+                <div className="mr-4">
+                  <select
+                    value={selectedBrand?.id || ''}
+                    onChange={handleBrandChange}
+                    className="block w-48 rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  >
+                    {brands.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.name as string}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="mr-2 flex items-center sm:hidden">
+                <button
+                  onClick={toggleMobileMenu}
+                  className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                >
+                  <span className="sr-only">Open main menu</span>
+                  <svg
+                    className={`${isMobileMenuOpen ? 'hidden' : 'block'} h-6 w-6`}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  <svg
+                    className={`${isMobileMenuOpen ? 'block' : 'hidden'} h-6 w-6`}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Profile dropdown */}
+              <div className="relative ml-3">
+                <div>
+                  <button
+                    onClick={toggleProfileMenu}
+                    className="flex max-w-xs items-center rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    id="user-menu-button"
+                    aria-expanded="false"
+                    aria-haspopup="true"
+                  >
+                    <span className="sr-only">Open user menu</span>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white">
+                      {(user?.email?.charAt(0).toUpperCase() ?? 'U') as string}
+                    </div>
+                  </button>
+                </div>
+
+                {isProfileMenuOpen && (
+                  <div
+                    className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    role="menu"
+                    aria-orientation="vertical"
+                    aria-labelledby="user-menu-button"
+                    tabIndex={-1}
+                  >
+                    <div className="block border-b border-gray-200 px-4 py-2 text-sm text-gray-700">
+                      {user?.email || 'User'}
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                      tabIndex={-1}
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile menu */}
+      <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} bg-white shadow-lg sm:hidden`}>
+        <div className="space-y-1 pb-3 pt-2">
+          <NavLink
+            to="/brand"
+            className={({ isActive }) =>
+              `block border-l-4 px-4 py-2 text-base font-medium ${
+                isActive
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`
+            }
+            end
+          >
+            Dashboard
+          </NavLink>
+          <NavLink
+            to="/brand/content"
+            className={({ isActive }) =>
+              `block border-l-4 px-4 py-2 text-base font-medium ${
+                isActive
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`
+            }
+          >
+            Content
+          </NavLink>
+          <NavLink
+            to="/brand/templates"
+            className={({ isActive }) =>
+              `block border-l-4 px-4 py-2 text-base font-medium ${
+                isActive
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`
+            }
+          >
+            Templates
+          </NavLink>
+          <NavLink
+            to="/brand/analytics"
+            className={({ isActive }) =>
+              `block border-l-4 px-4 py-2 text-base font-medium ${
+                isActive
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`
+            }
+          >
+            Analytics
+          </NavLink>
+          <NavLink
+            to="/brand/community"
+            className={({ isActive }) =>
+              `block border-l-4 px-4 py-2 text-base font-medium ${
+                isActive
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`
+            }
+          >
+            Community
+          </NavLink>
+          <NavLink
+            to="/brand/roi-calculator"
+            className={({ isActive }) =>
+              `block border-l-4 px-4 py-2 text-base font-medium ${
+                isActive
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`
+            }
+          >
+            ROI Calculator
+          </NavLink>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="py-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row">
+            {/* Sidebar for desktop */}
+            <div className="mr-6 hidden w-64 sm:block">
+              <div className="overflow-hidden rounded-lg bg-white shadow">
+                <div className="border-b border-gray-200 bg-gray-50 px-4 py-5 sm:px-6">
+                  <h3 className="text-lg font-medium leading-6 text-gray-900">Brand Manager</h3>
+                </div>
+                <div className="py-2">
+                  <NavLink
+                    to="/brand"
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-3 text-sm font-medium ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                    end
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="mr-3 h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    Dashboard
+                  </NavLink>
+                  <NavLink
+                    to="/brand/content"
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-3 text-sm font-medium ${
+                        isActive || location.pathname.startsWith('/brand/content/')
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
+                    Content
+                  </NavLink>
+                  <NavLink
+                    to="/brand/templates"
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-3 text-sm font-medium ${
+                        isActive || location.pathname.startsWith('/brand/templates/')
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                    </svg>
+                    Templates
+                  </NavLink>
+                  <NavLink
+                    to="/brand/analytics"
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-3 text-sm font-medium ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Analytics
+                  </NavLink>
+                  <NavLink
+                    to="/brand/community"
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-3 text-sm font-medium ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="mr-3 h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v7a2 2 0 01-2 2H7l-4 4V10a2 2 0 012-2h2" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 3h2a2 2 0 012 2v7a2 2 0 01-2 2H5l-4 4V5a2 2 0 012-2h2" />
+                    </svg>
+                    Community
+                  </NavLink>
+                  <NavLink
+                    to="/brand/roi-calculator"
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-3 text-sm font-medium ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    ROI Calculator
+                  </NavLink>
+                </div>
+              </div>
+
+              {selectedBrand && (
+                <div className="mt-6 rounded-lg bg-white p-4 shadow">
+                  <h4 className="text-sm font-medium text-gray-500">Selected Brand</h4>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{selectedBrand.name as string}</p>
+                  {selectedBrand.website && (
+                    <a
+                      href={String(selectedBrand.website)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 flex items-center text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Visit Website
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Main content */}
+            <div className="flex-1">
+              {loading ? (
+                <div className="flex justify-center rounded-lg bg-white p-6 shadow">
+                  <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+                  <span className="sr-only">Loading...</span>
+                </div>
+              ) : error ? (
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <div className="rounded-md bg-red-50 p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-red-800">Error</h3>
+                        <div className="mt-2 text-sm text-red-700">
+                          <p>{error}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : brands.length === 0 ? (
+                // Demo fallback: allow rendering when a demo brand is configured
+                import.meta.env?.VITE_DEMO_BRAND_ID ? (
+                  <>{children}</>
+                ) : (
+                  <div className="rounded-lg bg-white p-6 text-center shadow">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No brands assigned</h3>
+                    <p className="mt-1 text-sm text-gray-500">You don't have access to any brands yet. Please contact an administrator.</p>
+                  </div>
+                )
+              ) : (
+                <>{children}</>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
