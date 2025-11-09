@@ -39,7 +39,43 @@ function nowISO(): string {
 }
 
 function uuid(): string {
-  return crypto.randomUUID()
+  // Prefer native randomUUID when available
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const c = (globalThis as any).crypto
+  if (c?.randomUUID) return c.randomUUID()
+  // RFC4122 v4 using getRandomValues if available
+  if (c?.getRandomValues) {
+    const bytes = new Uint8Array(16)
+    c.getRandomValues(bytes)
+    // Per RFC4122: set version and variant
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'))
+    return (
+      hex.slice(0, 4).join('') +
+      '-' +
+      hex.slice(4, 6).join('') +
+      '-' +
+      hex.slice(6, 8).join('') +
+      '-' +
+      hex.slice(8, 10).join('') +
+      '-' +
+      hex.slice(10, 16).join('')
+    )
+  }
+  // Last resort Math.random-based (not cryptographically strong)
+  const rnd = () => Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, '0')
+  return (
+    rnd().slice(0, 8) +
+    '-' +
+    rnd().slice(0, 4) +
+    '-' +
+    ((parseInt(rnd().slice(0, 4), 16) & 0x0fff) | 0x4000).toString(16).padStart(4, '0') +
+    '-' +
+    ((parseInt(rnd().slice(0, 4), 16) & 0x3fff) | 0x8000).toString(16).padStart(4, '0') +
+    '-' +
+    rnd() + rnd().slice(0, 4)
+  )
 }
 
 function seedIfEmpty(): void {
@@ -146,7 +182,7 @@ class LocalStorageTemplateStore implements TemplateStore {
     const { type, tier, q } = params || {}
     return this.readShared().filter((t) => {
       if (type && t.type !== type) return false
-      if (tier && t.tier && t.tier !== tier) return false
+      if (tier && (t.tier !== tier)) return false
       if (q) {
         const hay = `${t.title} ${t.body} ${(t.tags || []).join(' ')}`.toLowerCase()
         if (!hay.includes(q.toLowerCase())) return false

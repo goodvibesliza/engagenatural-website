@@ -80,7 +80,7 @@ export default function RightRail({
         >
           Need an Educator?
         </button>
-        {reviewStatus !== 'published' && (
+        {onSubmitForReview && reviewStatus !== 'published' && (
           <button
             type="button"
             onClick={onSubmitForReview}

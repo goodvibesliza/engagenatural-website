@@ -57,6 +57,7 @@ export default function ContentManagerMain({ activeSection, onChangeSection, cur
   }, [selectedCopyId])
 
   const changeSection = (s: SectionKey) => onChangeSection?.(s)
+  const externalType = useMemo(() => (tag === 'lesson' || tag === 'challenge' ? (tag as 'lesson' | 'challenge') : undefined), [tag])
 
   return (
     <div className="grid grid-cols-[1fr_20rem] gap-6 min-h-[calc(100vh-64px)]">
@@ -107,6 +108,8 @@ export default function ContentManagerMain({ activeSection, onChangeSection, cur
             <TemplatesSection
               brandId={brandId}
               tier={tier}
+              externalSearch={search}
+              externalType={externalType}
               onSelectCopy={(id) => setSelectedCopyId(id)}
             />
           )}
@@ -122,9 +125,7 @@ export default function ContentManagerMain({ activeSection, onChangeSection, cur
         brandId={brandId}
         reviewStatus={selectedStatus}
         onRequestEducator={() => setEducatorOpen(true)}
-        onSubmitForReview={() => {
-          if (selectedCopyId) setSubmitOpen(true)
-        }}
+        onSubmitForReview={selectedCopyId ? () => setSubmitOpen(true) : undefined}
       />
 
       {/* Modals */}

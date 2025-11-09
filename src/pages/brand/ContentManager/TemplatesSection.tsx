@@ -10,26 +10,28 @@ export interface TemplatesSectionProps {
   brandId: string
   tier?: string
   onSelectCopy?: (id: string) => void
+  externalSearch?: string
+  externalType?: TemplateType
 }
 
 const BTN_PRIMARY = "h-9 px-4 rounded-md bg-black text-white hover:bg-neutral-800"
 const BTN_GHOST = "h-9 px-3 rounded-md border border-neutral-300 hover:bg-neutral-50"
 const BTN_SMALL = "h-8 px-3"
 
-export default function TemplatesSection({ brandId, tier, onSelectCopy }: TemplatesSectionProps): JSX.Element {
+export default function TemplatesSection({ brandId, tier, onSelectCopy, externalSearch, externalType }: TemplatesSectionProps): JSX.Element {
   const [tab, setTab] = useState<SubTab>("shared")
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [refresh, setRefresh] = useState<number>(0)
   const [shared, setShared] = useState<LearningTemplate[]>([])
   const [copies, setCopies] = useState<BrandTemplate[]>([])
 
-  const kind: TemplateType | undefined = typeFilter === "all" ? undefined : typeFilter
+  const kind: TemplateType | undefined = externalType ?? (typeFilter === "all" ? undefined : typeFilter)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const list = await templateStore.listShared({ type: kind, tier })
+        const list = await templateStore.listShared({ type: kind, tier, q: externalSearch })
         if (!cancelled) setShared(list)
       } catch {
         if (!cancelled) setShared([])
@@ -45,7 +47,10 @@ export default function TemplatesSection({ brandId, tier, onSelectCopy }: Templa
     ;(async () => {
       try {
         const list = await templateStore.listBrandCopies(brandId, { type: kind })
-        if (!cancelled) setCopies(list)
+        const filtered = externalSearch
+          ? list.filter((b) => (b.customTitle || '').toLowerCase().includes(externalSearch.toLowerCase()))
+          : list
+        if (!cancelled) setCopies(filtered)
       } catch {
         if (!cancelled) setCopies([])
       }
@@ -53,7 +58,7 @@ export default function TemplatesSection({ brandId, tier, onSelectCopy }: Templa
     return () => {
       cancelled = true
     }
-  }, [brandId, kind, refresh])
+  }, [brandId, kind, refresh, externalSearch])
 
   const onUse = async (sharedId: string) => {
     const created = await templateStore.duplicateToBrand(sharedId, brandId)

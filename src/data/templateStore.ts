@@ -33,7 +33,7 @@ class MockTemplateStore implements TemplateStore {
     const { type, tier, q } = params || {}
     return this.shared.filter((t) => {
       if (type && t.type !== type) return false
-      if (tier && t.tier && t.tier !== tier) return false
+      if (tier && (!t.tier || t.tier !== tier)) return false
       if (q) {
         const hay = `${t.title} ${t.body} ${(t.tags || []).join(' ')}`.toLowerCase()
         if (!hay.includes(q.toLowerCase())) return false
@@ -112,23 +112,33 @@ class MockTemplateStore implements TemplateStore {
     this.copies = this.copies.filter((c) => c.id !== id)
   }
 
-  async submitForReview(copyId: string, _note?: string): Promise<BrandTemplate> {
-    // No dedicated review status in BrandTemplate; keep as-is in mock
+  async submitForReview(copyId: string, note?: string): Promise<BrandTemplate> {
     const copy = await this.getBrandCopy(copyId)
     if (!copy) throw new Error('Brand copy not found')
-    return copy
+    return this.updateBrandCopy(copyId, {
+      reviewStatus: 'submitted',
+      submittedAt: new Date().toISOString(),
+      reviewerNote: note,
+    })
   }
 
-  async markChangesRequested(copyId: string, _note: string): Promise<BrandTemplate> {
+  async markChangesRequested(copyId: string, note: string): Promise<BrandTemplate> {
     const copy = await this.getBrandCopy(copyId)
     if (!copy) throw new Error('Brand copy not found')
-    return copy
+    return this.updateBrandCopy(copyId, {
+      reviewStatus: 'changes_requested',
+      reviewerNote: note,
+    })
   }
 
-  async approveCopy(copyId: string, _note?: string): Promise<BrandTemplate> {
+  async approveCopy(copyId: string, note?: string): Promise<BrandTemplate> {
     const copy = await this.getBrandCopy(copyId)
     if (!copy) throw new Error('Brand copy not found')
-    return copy
+    return this.updateBrandCopy(copyId, {
+      reviewStatus: 'approved',
+      approvedAt: new Date().toISOString(),
+      reviewerNote: note,
+    })
   }
 
   async publishCopy(copyId: string): Promise<BrandTemplate> {
