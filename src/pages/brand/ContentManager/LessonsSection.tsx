@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { JSX } from "react"
-import { templateStore } from "@/data"
+import { templateStore } from "@/stores/templateStore"
 import type { BrandTemplate } from "@/types/templates"
 
 export interface LessonsSectionProps {
@@ -16,21 +16,14 @@ export default function LessonsSection({ brandId }: LessonsSectionProps): JSX.El
   const [rows, setRows] = useState<BrandTemplate[]>([])
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const all = await templateStore.listBrandCopies(brandId, { type: 'lesson' })
-        let list = all
-        const query = q.trim().toLowerCase()
-        if (query) list = list.filter((b) => (b.customTitle ?? "").toLowerCase().includes(query))
-        if (status !== "all") list = list.filter((b) => (status === 'draft' ? b.reviewStatus === 'draft' : b.reviewStatus === 'published'))
-        if (!cancelled) setRows(list)
-      } catch {
-        if (!cancelled) setRows([])
-      }
-    })()
-    return () => {
-      cancelled = true
+    try {
+      let list = templateStore.listBrandCopies(brandId, 'lesson')
+      const query = q.trim().toLowerCase()
+      if (query) list = list.filter((b: any) => (b.customTitle ?? "").toLowerCase().includes(query))
+      if (status !== "all") list = list.filter((b: any) => b.status === status)
+      setRows(list as unknown as BrandTemplate[])
+    } catch {
+      setRows([])
     }
   }, [brandId, q, status])
 
@@ -80,7 +73,7 @@ export default function LessonsSection({ brandId }: LessonsSectionProps): JSX.El
               {rows.map((b) => (
                 <tr key={b.id} className="hover:bg-stone-50">
                   <td className="px-3 py-2 font-medium text-stone-900">{b.customTitle ?? "Untitled"}</td>
-                  <td className="px-3 py-2 capitalize">{b.reviewStatus}</td>
+                  <td className="px-3 py-2 capitalize">{(b as any).status}</td>
                   <td className="px-3 py-2">{b.startDate ?? "—"}</td>
                   <td className="px-3 py-2">{b.endDate ?? "—"}</td>
                   <td className="px-3 py-2 text-right">

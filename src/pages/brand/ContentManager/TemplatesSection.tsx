@@ -40,7 +40,7 @@ export default function TemplatesSection({ brandId, tier, onSelectCopy, external
     return () => {
       cancelled = true
     }
-  }, [kind, tier, refresh])
+  }, [kind, tier, refresh, externalSearch])
 
   useEffect(() => {
     let cancelled = false
@@ -81,7 +81,8 @@ export default function TemplatesSection({ brandId, tier, onSelectCopy, external
     await templateStore.updateBrandCopy(created.id, {
       customTitle: copy.customTitle ?? created.customTitle,
       customBody: copy.customBody ?? created.customBody,
-      reviewStatus: copy.reviewStatus,
+      // Start duplicated copies in draft state to follow review workflow
+      reviewStatus: 'draft',
       tier: copy.tier,
     })
     setRefresh((v) => v + 1)

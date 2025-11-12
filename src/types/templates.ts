@@ -1,4 +1,4 @@
-export type TemplateType = 'lesson' | 'challenge'
+export type TemplateType = 'lesson' | 'challenge' | 'community'
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
@@ -22,6 +22,9 @@ export interface LearningTemplate {
   updatedAt?: string
   tier?: string
 }
+
+// Backward-compat alias for admin/mocks modules
+export type BaseTemplate = LearningTemplate
 
 export type ReviewStatus =
   | 'draft'
