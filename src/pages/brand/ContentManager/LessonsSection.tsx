@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { JSX } from "react"
-import { templateStore } from "@/stores/templateStore"
+import { templateStore } from "@/data"
 import type { BrandTemplate } from "@/types/templates"
 
 export interface LessonsSectionProps {
@@ -13,13 +13,25 @@ export default function LessonsSection({ brandId }: LessonsSectionProps): JSX.El
   const [q, setQ] = useState<string>("")
   const [status, setStatus] = useState<StatusFilter>("all")
   const [preview, setPreview] = useState<BrandTemplate | null>(null)
+  const [rows, setRows] = useState<BrandTemplate[]>([])
 
-  const rows = useMemo(() => {
-    let list = templateStore.listBrandCopies(brandId, "lesson")
-    const query = q.trim().toLowerCase()
-    if (query) list = list.filter((b) => (b.customTitle ?? "").toLowerCase().includes(query))
-    if (status !== "all") list = list.filter((b) => b.status === status)
-    return list
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const all = await templateStore.listBrandCopies(brandId, { type: 'lesson' })
+        let list = all
+        const query = q.trim().toLowerCase()
+        if (query) list = list.filter((b) => (b.customTitle ?? "").toLowerCase().includes(query))
+        if (status !== "all") list = list.filter((b) => (status === 'draft' ? b.reviewStatus === 'draft' : b.reviewStatus === 'published'))
+        if (!cancelled) setRows(list)
+      } catch {
+        if (!cancelled) setRows([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [brandId, q, status])
 
   function openEdit(id: string) {
@@ -68,7 +80,7 @@ export default function LessonsSection({ brandId }: LessonsSectionProps): JSX.El
               {rows.map((b) => (
                 <tr key={b.id} className="hover:bg-stone-50">
                   <td className="px-3 py-2 font-medium text-stone-900">{b.customTitle ?? "Untitled"}</td>
-                  <td className="px-3 py-2 capitalize">{b.status}</td>
+                  <td className="px-3 py-2 capitalize">{b.reviewStatus}</td>
                   <td className="px-3 py-2">{b.startDate ?? "—"}</td>
                   <td className="px-3 py-2">{b.endDate ?? "—"}</td>
                   <td className="px-3 py-2 text-right">
