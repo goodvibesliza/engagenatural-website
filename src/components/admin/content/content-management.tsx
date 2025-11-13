@@ -326,7 +326,10 @@ export default function ContentManagement(): JSX.Element {
         setDetailsDialogOpen(true)
         break
       case 'download':
-        window.open(item.contentUrl, '_blank')
+        {
+          const newWin = window.open(item.contentUrl, '_blank', 'noopener,noreferrer')
+          if (newWin) newWin.opener = null
+        }
         break
       case 'delete':
         if (confirm(`Delete "${item.title}"?`)) setContent((prev) => prev.filter((c) => c.id !== contentId))
