@@ -1,28 +1,76 @@
-import React, { useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { useRoleAccess } from '../../../hooks/use-role-access'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/input'
 import { Badge } from '../../ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../../ui/dropdown-menu'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../ui/dropdown-menu'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '../../ui/tabs'
 import { Label } from '../../ui/label'
 import { Textarea } from '../../ui/textarea'
-import { 
-  Search, Filter, Plus, MoreHorizontal, Eye, Edit, Trash2, Upload, FileText, 
-  Download, Building, CheckCircle, Clock, XCircle, Play, BookOpen, Target, 
-  TrendingUp, DollarSign, Star, BarChart3
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  Upload,
+  FileText,
+  Download,
+  Building,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Play,
+  BookOpen,
+  Target,
+  TrendingUp,
+  DollarSign,
+  Star,
+  BarChart3,
 } from 'lucide-react'
 
-// Simple props interface (no props currently)
-export interface ContentManagementProps {}
+type ContentKind = 'lesson' | 'challenge'
+type ContentStatus = 'published' | 'draft' | 'pending_approval' | 'rejected'
+type BillingCycle = 'monthly' | 'yearly'
 
-// Minimal types used within this component
-type ContentKind = 'lesson' | 'challenge' | string
-type ContentStatus = 'published' | 'draft' | 'pending_approval' | 'rejected' | string
+type BrandInfo = { id: string; name: string }
 
 interface ContentMetrics {
   totalViews: number
@@ -36,7 +84,7 @@ interface ContentMetrics {
 interface ContentPricing {
   isAdditional: boolean
   priceCharged: number
-  billingCycle: 'monthly' | 'yearly' | string
+  billingCycle: BillingCycle
 }
 
 interface ContentItem {
@@ -62,12 +110,18 @@ interface ContentItem {
   targetAudience: string
 }
 
-interface RoleAccessResult {
-  canAccess: (permissions: string[]) => boolean
+interface UploadFormState {
+  title: string
+  type: ContentKind | ''
+  description: string
+  brandId: string | ''
+  category: string | ''
+  tags: string
+  file: File | null
 }
 
-export default function ContentManagement(_props: ContentManagementProps): JSX.Element {
-  const { canAccess } = (useRoleAccess() as unknown) as RoleAccessResult
+export default function ContentManagement(): JSX.Element {
+  const { canAccess } = useRoleAccess()
 
   const [content, setContent] = useState<ContentItem[]>([
     {
@@ -86,19 +140,8 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
       fileType: 'video/mp4',
       thumbnailUrl: '/content/thumbnails/sustainable-living.jpg',
       contentUrl: '/content/videos/sustainable-living-basics.mp4',
-      metrics: {
-        totalViews: 1247,
-        completions: 973,
-        completionRate: 78.1,
-        avgRating: 4.6,
-        totalRevenue: 3500,
-        userEngagement: 85.3,
-      },
-      pricing: {
-        isAdditional: true,
-        priceCharged: 1000,
-        billingCycle: 'monthly',
-      },
+      metrics: { totalViews: 1247, completions: 973, completionRate: 78.1, avgRating: 4.6, totalRevenue: 3500, userEngagement: 85.3 },
+      pricing: { isAdditional: true, priceCharged: 1000, billingCycle: 'monthly' },
       tags: ['sustainability', 'beginner', 'lifestyle'],
       category: 'Environmental',
       targetAudience: 'General Public',
@@ -119,19 +162,8 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
       fileType: 'application/pdf',
       thumbnailUrl: '/content/thumbnails/zero-waste.jpg',
       contentUrl: '/content/challenges/zero-waste-30day.pdf',
-      metrics: {
-        totalViews: 892,
-        completions: 234,
-        completionRate: 26.2,
-        avgRating: 4.8,
-        totalRevenue: 7020,
-        userEngagement: 92.1,
-      },
-      pricing: {
-        isAdditional: true,
-        priceCharged: 1000,
-        billingCycle: 'monthly',
-      },
+      metrics: { totalViews: 892, completions: 234, completionRate: 26.2, avgRating: 4.8, totalRevenue: 7020, userEngagement: 92.1 },
+      pricing: { isAdditional: true, priceCharged: 1000, billingCycle: 'monthly' },
       tags: ['challenge', 'waste-reduction', 'advanced'],
       category: 'Environmental',
       targetAudience: 'Eco Enthusiasts',
@@ -152,19 +184,8 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
       fileType: 'video/mp4',
       thumbnailUrl: '/content/thumbnails/nutrition-guide.jpg',
       contentUrl: '/content/videos/organic-nutrition-guide.mp4',
-      metrics: {
-        totalViews: 0,
-        completions: 0,
-        completionRate: 0,
-        avgRating: 0,
-        totalRevenue: 0,
-        userEngagement: 0,
-      },
-      pricing: {
-        isAdditional: true,
-        priceCharged: 1000,
-        billingCycle: 'monthly',
-      },
+      metrics: { totalViews: 0, completions: 0, completionRate: 0, avgRating: 0, totalRevenue: 0, userEngagement: 0 },
+      pricing: { isAdditional: true, priceCharged: 1000, billingCycle: 'monthly' },
       tags: ['nutrition', 'health', 'organic'],
       category: 'Health & Wellness',
       targetAudience: 'Health Conscious',
@@ -185,19 +206,8 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
       fileType: 'video/mp4',
       thumbnailUrl: '/content/thumbnails/ecotech-workshop.jpg',
       contentUrl: '/content/videos/ecotech-innovation.mp4',
-      metrics: {
-        totalViews: 0,
-        completions: 0,
-        completionRate: 0,
-        avgRating: 0,
-        totalRevenue: 0,
-        userEngagement: 0,
-      },
-      pricing: {
-        isAdditional: false,
-        priceCharged: 0,
-        billingCycle: 'yearly',
-      },
+      metrics: { totalViews: 0, completions: 0, completionRate: 0, avgRating: 0, totalRevenue: 0, userEngagement: 0 },
+      pricing: { isAdditional: false, priceCharged: 0, billingCycle: 'yearly' },
       tags: ['technology', 'innovation', 'workshop'],
       category: 'Technology',
       targetAudience: 'Tech Professionals',
@@ -207,15 +217,15 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | ContentKind>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | ContentStatus>('all')
-  const [filterBrand, setFilterBrand] = useState<string>('all')
+  const [filterBrand, setFilterBrand] = useState<'all' | string>('all')
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
 
-  // Get unique brands for filtering (kept simple)
-  const brands: { id: string; name: string }[] = [
-    ...new Set(content.map((item) => ({ id: item.brandId, name: item.brandName } as const))),
-  ] as unknown as { id: string; name: string }[]
+  const brands: BrandInfo[] = useMemo(() => {
+    const pairs = content.map((item) => [item.brandId, { id: item.brandId, name: item.brandName } as BrandInfo])
+    return Array.from(new Map<string, BrandInfo>(pairs as [string, BrandInfo][]).values())
+  }, [content])
 
   const summaryMetrics = {
     totalContent: content.length,
@@ -223,18 +233,15 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
     totalViews: content.reduce((sum, item) => sum + item.metrics.totalViews, 0),
     totalRevenue: content.reduce((sum, item) => sum + item.metrics.totalRevenue, 0),
     avgCompletionRate:
-      content.filter((item) => item.metrics.totalViews > 0).reduce((sum, item, _idx, arr) => sum + item.metrics.completionRate / arr.length, 0),
+      content.filter((item) => item.metrics.totalViews > 0).reduce((sum, item, _, arr) => sum + item.metrics.completionRate / arr.length, 0),
     additionalContentRevenue: content
       .filter((item) => item.pricing.isAdditional && item.status === 'published')
       .reduce((sum, item) => sum + item.pricing.priceCharged, 0),
   }
 
   const filteredContent = content.filter((item) => {
-    const needle = searchTerm.toLowerCase()
-    const matchesSearch =
-      item.title.toLowerCase().includes(needle) ||
-      item.description.toLowerCase().includes(needle) ||
-      item.tags.some((tag) => tag.toLowerCase().includes(needle))
+    const q = searchTerm.trim().toLowerCase()
+    const matchesSearch = !q || item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || item.tags.some((tag) => tag.toLowerCase().includes(q))
     const matchesType = filterType === 'all' || item.type === filterType
     const matchesStatus = filterStatus === 'all' || item.status === filterStatus
     const matchesBrand = filterBrand === 'all' || item.brandId === filterBrand
@@ -287,7 +294,10 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
     }
   }
 
-  const formatFileSize = (sizeInMB: number) => (sizeInMB < 1 ? `${(sizeInMB * 1024).toFixed(0)} KB` : `${sizeInMB.toFixed(1)} MB`)
+  const formatFileSize = (sizeInMB: number) => {
+    if (sizeInMB < 1) return `${Math.round(sizeInMB * 1024)} KB`
+    return `${sizeInMB.toFixed(1)} MB`
+  }
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount)
@@ -295,11 +305,6 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set'
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  }
-
-  const handleContentAction = (action: string, contentId: string) => {
-    // eslint-disable-next-line no-console
-    console.log(`${action} content:`, contentId)
   }
 
   const handleApproveContent = (contentId: string) => {
@@ -310,6 +315,80 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
 
   const handleRejectContent = (contentId: string) => {
     setContent((prev) => prev.map((item) => (item.id === contentId ? { ...item, status: 'rejected' } : item)))
+  }
+
+  const handleContentAction = (action: 'edit' | 'download' | 'delete', contentId: string) => {
+    const item = content.find((c) => c.id === contentId)
+    if (!item) return
+    switch (action) {
+      case 'edit':
+        setSelectedContent(item)
+        setDetailsDialogOpen(true)
+        break
+      case 'download':
+        window.open(item.contentUrl, '_blank')
+        break
+      case 'delete':
+        if (confirm(`Delete "${item.title}"?`)) setContent((prev) => prev.filter((c) => c.id !== contentId))
+        break
+    }
+  }
+
+  // Upload form (controlled)
+  const [upload, setUpload] = useState<UploadFormState>({
+    title: '',
+    type: '',
+    description: '',
+    brandId: '',
+    category: '',
+    tags: '',
+    file: null,
+  })
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const onChooseFile = () => fileInputRef.current?.click()
+  const onFileSelected: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const f = e.target.files?.[0] || null
+    setUpload((s) => ({ ...s, file: f }))
+  }
+
+  const onSubmitUpload = () => {
+    if (!upload.title || !upload.type || !upload.brandId) return
+    const id = Math.random().toString(36).slice(2)
+    const now = new Date().toISOString().split('T')[0]
+    const brandName = brands.find((b) => b.id === upload.brandId)?.name || upload.brandId
+    const sizeMB = upload.file ? Math.max(0.01, upload.file.size / (1024 * 1024)) : 1
+    const fileType = upload.file?.type || 'application/octet-stream'
+    const tags = upload.tags
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+
+    const newItem: ContentItem = {
+      id,
+      title: upload.title,
+      type: upload.type as ContentKind,
+      brandId: upload.brandId,
+      brandName,
+      description: upload.description,
+      status: 'draft',
+      createdDate: now,
+      publishedDate: null,
+      lastModified: now,
+      duration: upload.type === 'challenge' ? 7 : 30,
+      fileSize: Number(sizeMB.toFixed(2)),
+      fileType,
+      thumbnailUrl: '/content/thumbnails/placeholder.jpg',
+      contentUrl: '#',
+      metrics: { totalViews: 0, completions: 0, completionRate: 0, avgRating: 0, totalRevenue: 0, userEngagement: 0 },
+      pricing: { isAdditional: true, priceCharged: 1000, billingCycle: 'monthly' },
+      tags,
+      category: upload.category || 'General',
+      targetAudience: 'General',
+    }
+    setContent((prev) => [newItem, ...prev])
+    setUploadDialogOpen(false)
+    setUpload({ title: '', type: '', description: '', brandId: '', category: '', tags: '', file: null })
   }
 
   return (
@@ -328,7 +407,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
         )}
       </div>
 
-      {/* Summary */}
+      {/* Content Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -397,7 +476,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
         </Card>
       </div>
 
-      {/* Library */}
+      {/* Content Table */}
       <Card>
         <CardHeader>
           <CardTitle>Content Library</CardTitle>
@@ -407,16 +486,11 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search content by title, description, or tags..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+              <Input placeholder="Search content by title, description, or tags..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
 
             <div className="flex gap-2">
-              <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
+              <Select value={filterType} onValueChange={(v) => setFilterType(v as 'all' | ContentKind)}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
@@ -427,7 +501,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
                 </SelectContent>
               </Select>
 
-              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | ContentStatus)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -440,7 +514,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
                 </SelectContent>
               </Select>
 
-              <Select value={filterBrand} onValueChange={setFilterBrand}>
+              <Select value={filterBrand} onValueChange={(v) => setFilterBrand(v as 'all' | string)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Brand" />
                 </SelectTrigger>
@@ -474,9 +548,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                          {getTypeIcon(item.type)}
-                        </div>
+                        <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">{getTypeIcon(item.type)}</div>
                         <div>
                           <div className="font-medium">{item.title}</div>
                           <div className="text-sm text-muted-foreground">
@@ -517,12 +589,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedContent(item)
-                              setDetailsDialogOpen(true)
-                            }}
-                          >
+                          <DropdownMenuItem onClick={() => { setSelectedContent(item); setDetailsDialogOpen(true) }}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
@@ -578,7 +645,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
         </CardContent>
       </Card>
 
-      {/* Details Dialog */}
+      {/* Content Details Dialog */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -835,7 +902,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
         </DialogContent>
       </Dialog>
 
-      {/* Upload Dialog */}
+      {/* Upload Content Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -847,11 +914,11 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="content-title">Title</Label>
-                <Input id="content-title" placeholder="Enter content title" />
+                <Input id="content-title" placeholder="Enter content title" value={upload.title} onChange={(e) => setUpload((s) => ({ ...s, title: e.target.value }))} />
               </div>
               <div>
                 <Label htmlFor="content-type">Type</Label>
-                <Select>
+                <Select value={upload.type} onValueChange={(v) => setUpload((s) => ({ ...s, type: v as ContentKind }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select content type" />
                   </SelectTrigger>
@@ -865,13 +932,13 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
 
             <div>
               <Label htmlFor="content-description">Description</Label>
-              <Textarea id="content-description" placeholder="Describe the content and learning objectives" rows={3} />
+              <Textarea id="content-description" placeholder="Describe the content and learning objectives" rows={3} value={upload.description} onChange={(e) => setUpload((s) => ({ ...s, description: e.target.value }))} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="content-brand">Brand</Label>
-                <Select>
+                <Select value={upload.brandId} onValueChange={(v) => setUpload((s) => ({ ...s, brandId: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select brand" />
                   </SelectTrigger>
@@ -886,7 +953,7 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
               </div>
               <div>
                 <Label htmlFor="content-category">Category</Label>
-                <Select>
+                <Select value={upload.category} onValueChange={(v) => setUpload((s) => ({ ...s, category: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -905,23 +972,22 @@ export default function ContentManagement(_props: ContentManagementProps): JSX.E
               <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="mt-2">
-                  <Button variant="outline">Choose File</Button>
+                  <Button variant="outline" onClick={onChooseFile}>Choose File</Button>
+                  <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelected} />
                 </div>
-                <p className="mt-2 text-sm text-gray-500">Upload video, PDF, or other content files</p>
+                <p className="mt-2 text-sm text-gray-500">{upload.file ? `${upload.file.name} (${formatFileSize(upload.file.size / (1024 * 1024))})` : 'Upload video, PDF, or other content files'}</p>
               </div>
             </div>
 
             <div>
               <Label htmlFor="content-tags">Tags</Label>
-              <Input id="content-tags" placeholder="Enter tags separated by commas" />
+              <Input id="content-tags" placeholder="Enter tags separated by commas" value={upload.tags} onChange={(e) => setUpload((s) => ({ ...s, tags: e.target.value }))} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setUploadDialogOpen(false)}>Upload Content</Button>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
+            <Button onClick={onSubmitUpload} disabled={!upload.title || !upload.type || !upload.brandId}>Upload Content</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -350,7 +350,7 @@ export default function BrandSidebar({ sidebarOpen, setSidebarOpen, onSectionCha
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0">
+      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 z-30">
         <div className="flex flex-col flex-1 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <SidebarContent />
         </div>
