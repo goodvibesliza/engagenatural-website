@@ -596,7 +596,12 @@ export default function ContentManagement(): JSX.Element {
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.open(item.contentUrl, '_blank')}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const newWin = window.open(item.contentUrl, '_blank', 'noopener,noreferrer')
+                              if (newWin) newWin.opener = null
+                            }}
+                          >
                             <Play className="mr-2 h-4 w-4" />
                             Preview Content
                           </DropdownMenuItem>
