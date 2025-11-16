@@ -127,12 +127,38 @@ const CommunityLinkedInRoute = () => {
   );
 };
 
-// Standalone Brand Content Manager route wrapper that resolves brandId from context/localStorage
+// Standalone Brand Content Manager route wrapper
+// Security: prefer authenticated user's brandId; DO NOT allow localStorage to override
+// - If localStorage exists but doesn't match the authenticated brand, ignore and clear it
+// - If user has no brand, block with a safe redirect/error (no implicit demo fallback)
 const ContentManagerStandalone = () => {
   const { user } = useAuth();
+
+  const authBrandId = user?.brandId || null;
   const storedBrandId = typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
-  const brandId = storedBrandId || user?.brandId || 'demo-brand';
-  return <IntegratedContentManager brandId={brandId} />;
+
+  // If a stored brand exists but doesn't match the authenticated brand, clear it
+  if (typeof window !== 'undefined') {
+    if (authBrandId) {
+      if (storedBrandId && storedBrandId !== authBrandId) {
+        try { localStorage.removeItem('selectedBrandId'); } catch {}
+      }
+    } else {
+      // No authenticated brand: never trust stored value
+      if (storedBrandId) {
+        try { localStorage.removeItem('selectedBrandId'); } catch {}
+      }
+    }
+  }
+
+  // Authorization gate: require an authenticated brandId
+  if (!authBrandId) {
+    // Redirect to pending approval or a brand selection/error page
+    return <Navigate to="/pending" replace />;
+  }
+
+  // Use only the authenticated brandId
+  return <IntegratedContentManager brandId={authBrandId} />;
 };
 
 // Brand entry route switcher that preserves legacy query param behavior
