@@ -157,8 +157,8 @@ export default function PostDetail() {
             commentIds: [],
           };
           feedType = wg ? 'whatsGood' : 'pro';
-        } else {
-          // Try Firestore lookup
+        } else if (db) {
+          // Try Firestore lookup (only if db is available)
           const ref = doc(db, 'community_posts', postId);
           const snap = await getDoc(ref);
           if (snap.exists()) {
@@ -212,6 +212,9 @@ export default function PostDetail() {
               console.error('Failed to populate author/company from user doc', err);
             }
           }
+        } else {
+          // No Firestore available; leave mappedPost as null to show not found state
+          mappedPost = null;
         }
 
         // Set the post if we found it (either stub or Firestore)
@@ -308,7 +311,7 @@ export default function PostDetail() {
   useEffect(() => {
     let cancelled = false;
     async function refreshLiked() {
-      if (!postId) return;
+      if (!postId || !db) return;
       // On logout, clear liked state immediately
       if (!user?.uid) {
         setLiked(false);
@@ -413,7 +416,7 @@ export default function PostDetail() {
 
   const handleDeletePost = async () => {
     try {
-      if (!post || !user?.uid || post.userId !== user.uid) return;
+      if (!post || !user?.uid || post.userId !== user.uid || !db) return;
       if (!window.confirm('Delete this post and its likes/comments? This cannot be undone.')) return;
       const batch = writeBatch(db);
       // delete likes
@@ -440,7 +443,7 @@ export default function PostDetail() {
 
   const handleDeleteComment = async (cmt) => {
     try {
-      if (!cmt?.id || !user?.uid || cmt.userId !== user.uid) return;
+      if (!cmt?.id || !user?.uid || cmt.userId !== user.uid || !db) return;
       if (!window.confirm('Delete this comment?')) return;
       await deleteDoc(doc(db, 'community_comments', cmt.id));
       setComments((prev) => prev.filter((c) => c.id !== cmt.id));
@@ -508,15 +511,10 @@ export default function PostDetail() {
       });
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, id: ref.id, status: 'ok' } : c)));
       
-      // Refresh comment count in community feed with delay for Firestore consistency
-      setTimeout(() => {
-        if (typeof window.refreshWhatsGoodComments === 'function') {
-          console.log('Refreshing comment count for post:', post.id);
-          window.refreshWhatsGoodComments(post.id);
-        } else {
-          console.warn('window.refreshWhatsGoodComments not available');
-        }
-      }, 1000); // 1 second delay to allow Firestore to propagate
+      // Notify feeds via a custom event; feeds should handle refresh via listeners/snapshots
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('en:comment-added', { detail: { postId: post.id } }))
+      }
     } catch (err) {
       console.error('PostDetail: failed to add comment', { postId: post?.id, userId: user?.uid }, err);
       setComments((prev) => prev.map((c) => (c.id === optimistic.id ? { ...c, status: 'error' } : c)));
@@ -527,6 +525,7 @@ export default function PostDetail() {
     if (!cmt || cmt.status !== 'error') return;
     setComments((prev) => prev.map((c) => (c.id === cmt.id ? { ...c, status: 'pending' } : c)));
     try {
+      if (!db || !user?.uid) throw new Error('No database available');
       const ref = await addDoc(collection(db, 'community_comments'), {
         postId: post.id,
         communityId: post.communityId || 'whats-good',

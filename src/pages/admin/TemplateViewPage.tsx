@@ -32,7 +32,9 @@ export default function TemplateViewPage() {
         <div>
           <h1 className="text-3xl font-semibold font-serif text-stone-900">{template.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-stone-600">
-            <span className="capitalize">{template.type}</span>
+            <span className="capitalize">
+              {template.type === 'lesson' ? 'Lesson Template' : template.type === 'challenge' ? 'Challenge Template' : 'Community Template'}
+            </span>
             <span>• {template.duration} min</span>
             <span className="capitalize">• {template.difficulty}</span>
             {template.tags.length > 0 && (

@@ -111,7 +111,7 @@ export default function ProfilePage() {
         }
       } catch (error) {
         console.error('Error loading user data:', error);
-        alert('Error loading profile data. Please try again later.');
+        toast.error('Error loading profile data. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -159,32 +159,66 @@ export default function ProfilePage() {
   // Upload profile image
   const uploadProfileImage = async (file) => {
     if (!file || !user?.uid) return;
-    
+    // Basic validation prior to upload (fail-closed)
+    const maxBytes = 5 * 1024 * 1024; // 5MB limit aligned with MediaUploader.jsx
+    if (typeof file.type !== 'string' || !file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file (PNG, JPEG, etc.).');
+      return;
+    }
+    if (typeof file.size !== 'number' || file.size > maxBytes) {
+      toast.error('Image is too large. Please choose a file under 5MB.');
+      return;
+    }
+
     setSaving(true);
     try {
       // Check if storage is available
       if (!storage) {
         throw new Error('Firebase Storage not initialized');
       }
-  
+
       // Upload to Firebase Storage
-      const imageRef = ref(storage, `profile_images/${user.uid}/${Date.now()}_${file.name}`);
-      
+      const nowTs = Date.now();
+      // Derive a safe extension from file.name or MIME type; fallback to jpg
+      let ext = 'jpg';
+      if (typeof file.name === 'string') {
+        const match = file.name.match(/\.([a-zA-Z0-9]+)$/);
+        if (match && match[1]) {
+          ext = match[1].toLowerCase();
+        }
+      }
+      if (!ext && typeof file.type === 'string') {
+        const mimeMap = {
+          'image/jpeg': 'jpg',
+          'image/jpg': 'jpg',
+          'image/png': 'png',
+          'image/gif': 'gif',
+          'image/webp': 'webp',
+          'image/bmp': 'bmp',
+          'image/svg+xml': 'svg',
+          'image/heic': 'heic',
+          'image/heif': 'heif',
+        };
+        ext = mimeMap[file.type] || 'jpg';
+      }
+      const safeName = `profile-${nowTs}.${ext || 'jpg'}`;
+      const imageRef = ref(storage, `profile_images/${user.uid}/${nowTs}_${safeName}`);
+
       const uploadResult = await uploadBytes(imageRef, file);
       const imageURL = await getDownloadURL(uploadResult.ref);
-      
+
       // Update user profile
       await updateDoc(doc(db, 'users', user.uid), {
         profileImage: imageURL
       });
-      
+
       setProfileImage(imageURL);
       setShowAvatarSelector(false);
-      alert('Profile photo uploaded successfully!');
-      
+      toast.success('Profile photo uploaded successfully!');
+
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      alert(`Error uploading photo: ${error.message}. Please check Firebase Storage setup.`);
+      toast.error(`Error uploading photo: ${error.message}. Please check Firebase Storage setup.`);
     } finally {
       setSaving(false);
     }
@@ -204,7 +238,7 @@ export default function ProfilePage() {
       setShowAvatarSelector(false);
     } catch (error) {
       console.error('Error selecting avatar:', error);
-      alert('Error updating avatar. Please try again.');
+      toast.error('Error updating avatar. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -223,10 +257,10 @@ export default function ProfilePage() {
       });
 
       setEditingAboutMe(false);
-      alert('About Me section updated successfully!');
+      toast.success('About Me section updated successfully!');
     } catch (error) {
       console.error('Error updating about me:', error);
-      alert('Error updating information. Please try again.');
+      toast.error('Error updating information. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -244,10 +278,10 @@ export default function ProfilePage() {
       });
       
       setEditingUserInfo(false);
-      alert('Profile information updated successfully!');
+      toast.success('Profile information updated successfully!');
     } catch (error) {
       console.error('Error updating user info:', error);
-      alert('Error updating information. Please try again.');
+      toast.error('Error updating information. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -264,7 +298,7 @@ export default function ProfilePage() {
       console.error('Failed to update notification preferences', err);
       // revert on failure
       setNotificationPreferences((prev) => ({ ...prev, [key]: !next[key] }));
-      alert('Could not save notification preference.');
+      toast.error('Could not save notification preference.');
     }
   };
 

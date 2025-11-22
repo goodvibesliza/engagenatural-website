@@ -35,7 +35,8 @@ import PendingApproval from './pages/PendingApproval';   // ⬅️ pending-appro
 
 // Brand Manager Components
 import BrandDashboard from './pages/brand/Dashboard';
-import BrandContentManager from './pages/brand/BrandContentManager';
+// New Brand Content Manager Shell (explicit to TSX index to avoid file/folder ambiguity)
+import IntegratedContentManager from './pages/brand/ContentManager/index.tsx';
 // Brand Training Detail
 import BrandTrainingDetail from './pages/brand/TrainingDetail.jsx';
 import Communities from './pages/brand/Communities.jsx';
@@ -124,6 +125,51 @@ const CommunityLinkedInRoute = () => {
       <Community hideTopTabs />
     </RoleGuard>
   );
+};
+
+// Standalone Brand Content Manager route wrapper
+// Security: prefer authenticated user's brandId; DO NOT allow localStorage to override
+// - If localStorage exists but doesn't match the authenticated brand, ignore and clear it
+// - If user has no brand, block with a safe redirect/error (no implicit demo fallback)
+const ContentManagerStandalone = () => {
+  const { user } = useAuth();
+
+  const authBrandId = user?.brandId || null;
+  const storedBrandId = typeof window !== 'undefined' ? localStorage.getItem('selectedBrandId') : null;
+
+  // If a stored brand exists but doesn't match the authenticated brand, clear it
+  if (typeof window !== 'undefined') {
+    if (authBrandId) {
+      if (storedBrandId && storedBrandId !== authBrandId) {
+        try { localStorage.removeItem('selectedBrandId'); } catch {}
+      }
+    } else {
+      // No authenticated brand: never trust stored value
+      if (storedBrandId) {
+        try { localStorage.removeItem('selectedBrandId'); } catch {}
+      }
+    }
+  }
+
+  // Authorization gate: require an authenticated brandId
+  if (!authBrandId) {
+    // Redirect to pending approval or a brand selection/error page
+    return <Navigate to="/pending" replace />;
+  }
+
+  // Use only the authenticated brandId
+  return <IntegratedContentManager brandId={authBrandId} />;
+};
+
+// Brand entry route switcher that preserves legacy query param behavior
+const BrandEntrySwitch = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const section = params.get('section');
+  if (section === 'content') {
+    return <Navigate to="/brand/content" replace />;
+  }
+  return <BrandDashboard />;
 };
 
 // Redirect helper to preserve dynamic :postId when moving from /staff/community/post/:postId → /community/post/:postId
@@ -481,7 +527,7 @@ function App() {
             path="/brand" 
             element={
               <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
-                <BrandDashboard />
+                <BrandEntrySwitch />
               </RoleGuard>
             } 
           />
@@ -504,7 +550,8 @@ function App() {
             path="/brand/content" 
             element={
               <RoleGuard allowedRoles={['brand_manager']} requireApprovedBrandManager>
-                <BrandContentManager />
+                {/* Route to TSX ContentManager shell per AGENTS Phase 8.9 */}
+                <ContentManagerStandalone />
               </RoleGuard>
             } 
           />

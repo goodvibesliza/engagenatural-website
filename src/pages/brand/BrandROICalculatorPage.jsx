@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, getDocs, doc, deleteDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../contexts/auth-context';
-import BrandManagerLayout from '../../components/brand/BrandManagerLayout';
+import BrandManagerLayout from '../../components/brand/BrandManagerLayout-OLD';
 import { Line, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { 

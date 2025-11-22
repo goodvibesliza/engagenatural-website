@@ -1,0 +1,27 @@
+/*
+  Design Tokens – brand palette (placeholder values)
+  These CSS variables are runtime-consumable and Tailwind-friendly.
+  Use with arbitrary values, e.g. `bg-[var(--brand-bg)]` or `text-[var(--accent-contrast)]`.
+*/
+
+:root {
+  /* Brand surface colors */
+  --brand-bg: #faf8f6;         /* TODO: replace with final HEX */
+  --brand-fg: #1f2937;         /* TODO: replace with final HEX */
+
+  /* Dividers */
+  --divider-taupe: #e7dfd7;    /* TODO: replace with final HEX */
+
+  /* Accents */
+  --accent: #ec4899;           /* TODO: replace with final HEX */
+  --accent-soft: #fde1ee;      /* TODO: replace with final HEX */
+  --accent-contrast: #ffffff;  /* TODO: replace with final HEX */
+}
+
+/* Optional helpers (non-intrusive) */
+.bg-brand { background-color: var(--brand-bg); }
+.text-brand { color: var(--brand-fg); }
+.border-divider { border-color: var(--divider-taupe); }
+.bg-accent { background-color: var(--accent); }
+.bg-accent-soft { background-color: var(--accent-soft); }
+.text-accent-contrast { color: var(--accent-contrast); }

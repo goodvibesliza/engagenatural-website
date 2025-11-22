@@ -473,15 +473,20 @@ export default function BrandManagerLayout({ children }) {
                   </div>
                 </div>
               ) : brands.length === 0 ? (
-                <div className="bg-white shadow rounded-lg p-6 text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No brands assigned</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    You don't have access to any brands yet. Please contact an administrator.
-                  </p>
-                </div>
+                // Demo fallback: when no assigned brands but a demo brand id is configured, render children
+                (import.meta?.env?.VITE_DEMO_BRAND_ID ? (
+                  children
+                ) : (
+                  <div className="bg-white shadow rounded-lg p-6 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No brands assigned</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      You don't have access to any brands yet. Please contact an administrator.
+                    </p>
+                  </div>
+                ))
               ) : (
                 children
               )}

@@ -1,5 +1,110 @@
 # AGENTS – Next Steps and Operating Guide
 
+Phase 8.9 - Brand Content Manager refactor |🟢 In progress | TSX shell routing, custom event wiring, standalone brandId resolver|
+
+coming soon: When we switch from Firestore to Mongo DB:
+
+- Drop in src/data/adapters/templateStore-mongo.ts (client that hits your API routes).
+- Add Netlify/Express functions: templates-list, brand-copies-*, educator-request-create, etc.
+- Set VITE_DATA_BACKEND=mongo and you’re live—no UI changes.
+
+## Phase 8.9 – Content Management Refactor Progress & Direction
+
+Last updated: 2025-11-13 - feat/brand-content-shell-tsx-2025-11-02
+
+Owner: @Liza
+
+1. Objective
+
+Unify all brand-side learning tools (Templates, Lessons, Challenges, Library, Announcements) under one consistent Content Management page.
+
+Ensure MongoDB readiness, introduce the Educator support system, and create a gated review workflow before publishing content.
+
+2. Completed
+
+✅ New /brand/content layout with:
+
+- Global header (LogoWordmark + global user dropdown)
+- Left menu: Back to Admin Dashboard, Templates, Lessons, Challenges, My Library, Announcements
+- Unified neutral layout matching Brand Dashboard
+- Right rail placeholder for KPI cards and educator actions
+
+✅ New TypeScript foundation:
+
+- TemplateStore interface (Mongo-ready)
+- Mock adapter templateStore-mock.ts)
+- Central switcher src/data/index.ts)
+- Updated LearningTemplate / BrandTemplate / EducatorRequest types
+
+✅ Review workflow defined:
+
+Draft → Submitted → (Changes Requested | Approved) → Published
+
+✅ Templates section rebuilt:
+
+- Shared | My Copies tabs
+- Standardized button styles
+- “Use” → duplicates a brand copy
+- “Edit”, “Publish”, “Delete” actions
+- No redundant top navigation pills
+
+✅ New right rail actions:
+
+- “Need an Educator?” → opens request modal
+- “Submit for Review” → opens confirmation dialog
+- KPI + Top Templates sections
+
+3. Next Steps
+
+🔹 Fix: content not rendering in center panel under /brand/content tabs
+
+🔹 Add: educator requests visible to Admin for approval and assignment
+
+🔹 Add: MongoDB adapter + serverless API routes templateStore-mongo.ts)
+
+🔹 Add: review queue for Admin /admin/content/review)
+
+🔹 QA: finalize button alignment and spacing across Templates/Lessons/Challenges
+
+🔹 Docs: add final screenshots for UI consistency
+
+4. Direction
+
+The entire brand content experience will remain front-end driven via the TemplateStore interface, allowing you to switch between mock, Firestore, or Mongo by changing one env variable VITE_DATA_BACKEND).
+
+Mongo migration will include:
+
+- learning_templates, brand_templates, educator_requests collections
+- Text search + tier-based filtering
+- Secure review approvals handled server-side
+
+The goal is to make EngageNatural fully self-service for brand managers, with human review handled through the Educator portal.
+
+5. Validation Checklist
+
+- [ ] Left menu loads correct section (Templates/Lessons/Challenges/Library/Announcements)
+- [ ] Selected tab shows associated content in the center scroll
+- [ ] Right rail actions work and display correct state
+- [ ] Review statuses sync correctly between brand and admin
+- [ ] “Need an Educator” form submits to mock store without errors
+- [ ] All primary buttons match unified style guide
+
+6. Future Phases
+
+Phase 9.1 – Educator Services Dashboard
+
+Allow educators to pick up and fulfill brand requests.
+
+Phase 9.2 – Mongo Migration (Backend Adapter)
+
+Swap from Firestore to MongoDB, retaining identical UI.
+
+Phase 9.3 – Review Queue Automation
+
+Add email/Telegram notifications when new content is submitted for review.
+
+Reference: see AGENTS.md for architecture; Learning_And_Challenges_Implementation.md for template structure.
+
 This document captures the exact next steps to finish and validate the current workstream.
 
 ## 2025-11 Brand Content Templates – Status + Refactor Plan
@@ -439,7 +544,7 @@ Util: `src/lib/postAuthRedirect.js` (wired in `src/pages/auth/Login.jsx`)
 - Package manager: pnpm (via Corepack)
 
 Commands:
-```sh
+```
 node -v
 corepack enable
 pnpm -v
@@ -462,7 +567,7 @@ netlify.toml is configured to use a clean pnpm install and Node 20.
   2) Deploys → Trigger deploy → Clear cache and deploy site.
 
 ## Local Verification
-```sh
+```
 corepack enable
 pnpm install --no-frozen-lockfile
 pnpm run build
@@ -470,7 +575,7 @@ pnpm run preview
 ```
 
 Optional (emulator):
-```sh
+```
 # .env.local → VITE_USE_EMULATOR=true
 pnpm run dev
 ```
@@ -528,7 +633,7 @@ Context: A series of fixes were made to stabilize community feeds and post detai
 
 ## Linting and Quality
 Run lint and address errors before merge:
-```sh
+```
 pnpm run lint
 ```
 Typical fixes:
@@ -801,4 +906,4 @@ src/pages/brand/dashboard/
 - Current Dashboard.jsx is functional and not blocking - this is a quality-of-life improvement
 - Consider doing this refactoring on a separate feature branch
 - Can be done incrementally without breaking changes
-- BrandDesktopLayout.jsx is a bare-bones shell and doesn't have the section callback wiring needed
+- BrandDesktopLayout.jsx is a bare-bones shell and doesn't have the section callback wiring needs

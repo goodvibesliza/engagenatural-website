@@ -74,26 +74,28 @@ Acceptance Criteria
 - Notifications fire for create and each status change.
 - Rules prevent unauthorized updates and invalid transitions.
 
-## 3) Notifications (Telegram Integration — see /docs/Notification-System.md)
+## 3) Notifications (MVP — Email + Push)
+- Email (provider: SendGrid or SES)
+  - Add provider config to functions (env): SENDGRID_API_KEY or AWS creds.
+  - Create function helper `sendEmail({ to, templateId|subject+html, data })`.
+  - Triggers: verification Request Info, sampling request create/approve/deny/ship, admin messages.
+  - Store delivery logs in `notifications_meta/{uid}/emails` with status and error if any.
+- Push (Firebase Cloud Messaging)
+  - Service worker: `public/firebase-messaging-sw.js` with messaging handler; ensure Vite copies it.
+  - Client: request permission from Profile toggle; register token and save to `users/{uid}.fcmTokens[token]={ createdAt, platform }`.
+  - Functions: topic or direct sends via `sendPush({ tokens|topic, title, body, data })`.
+  - Handle token refresh and invalidation (clean up on 404/410 from FCM).
+- App integration
+  - Wire events to a `notify()` facade that picks push when available else email.
+  - UI: system notifications tab continues to show in-app items; emails/push complement it.
+- Open PR follow-up
+  - Fix build on branch `feature/push-notifications-only` and merge into MVP.
 
-We’re moving notifications from Email + Push to a Telegram-based system tied to @EngageNaturalBot.
-
-### Summary
-- Core logic and triggers stay the same, but output channels change:
-  - Replace `sendEmail()` and `sendPush()` helpers with `sendTelegram()` facade.
-  - Use Telegram `chat_id` from linked user profiles instead of FCM tokens.
-- Add a user-linking flow (deep link `t.me/EngageNaturalBot?start=link_<uid>`) in Profile.
-- Cloud Functions now enqueue and deliver via Bot API instead of SendGrid/FCM.
-- In-app notifications remain as secondary (no UI change required).
-
-### Next steps
-1. Review **/docs/Notification-System.md** for full setup, env vars, and function paths.  
-2. Refactor current notification helpers to route through Telegram.  
-3. Update Firestore schema (`users/{uid}/telegram`, `notifications_meta/...`) per spec.  
-4. Test quiz pass + reward confirmation messages end-to-end.
-
-Acceptance criteria unchanged — messages must still log success/failure and respect rate limits.
-
+Acceptance Criteria
+- Profile toggle controls push permission; token saved/removed accordingly.
+- Receiving devices show push notifications in foreground and background.
+- Emails are sent for verification request info and sampling status changes.
+- All notifications log success/failure.
 
 ## 4) Analytics PII Gate (pre‑vendor)
 - Implement helpers in `src/lib/analytics.js`: `getAnonymousId`, `getHashedId`, `shouldSendIdentity` (salt via `VITE_ANALYTICS_SALT`).
@@ -126,6 +128,53 @@ Acceptance criteria unchanged — messages must still log success/failure and re
 - `pnpm run build` succeeds (Vite)
 - `pnpm run lint` passes (or only acknowledged warnings)
 - Netlify preview green
+
+## 10) Rewards System — Signup Spin + Learn & Earn (Telegram)
+
+### Overview
+Add a **Rewards** module on the staff homepage highlighting two paths:
+1. **Signup + Daily Spin** — users get one welcome spin after linking Telegram, then one spin per day.
+2. **Learn & Earn** — verified staff earn TON for passing quizzes or completing brand challenges.
+
+Both reward types deliver TON payouts via @EngageNaturalBot and reinforce daily engagement through Telegram notifications.
+
+### Goals
+- Increase daily active users by rewarding logins and completions.
+- Drive Telegram adoption for future push + wallet features.
+- Make rewards visible and aspirational directly on the staff homepage.
+
+### Implementation Notes
+- New pages/components: `/rewards/spin`, `/components/home/HomeRewards.tsx`, `/components/home/RewardCard.tsx`.
+- Server logic in Functions:
+  - `spin/canSpin.ts` + `spin/doSpin.ts` (daily spin RNG + payout)
+  - `ton/transfer.ts` (existing TON reward utility)
+- Firestore fields under `users/{uid}/spin` and `rewards/logs`.
+- Use shared TON treasury with per-day and per-month caps.
+
+### Homepage Layout
+- Hero section: “Earn as you learn.” CTA changes based on state (Connect Telegram / Verify / Spin Now).
+- Two cards side-by-side:
+  - **Daily Spin:** “Get a welcome spin when you link Telegram, then one spin every day.”
+  - **Learn & Earn:** “Pass the quiz to get paid. Bonus ‘easter eggs’ in brand challenges.”
+- Right rail: lifetime rewards, today’s spin timer, active challenges.
+
+### Dependencies
+- Telegram Notification System (Phase 10)
+- TON Treasury + transfer utility
+- Verified staff profile (required for payouts)
+
+### References
+- `/docs/Notification-System.md`
+- `/docs/spin-and-win.md` *(to be created after spin MVP launch)*
+- `/docs/Implementation-Progress.md` (Phase 10 + 11 entries)
+
+### Acceptance Criteria
+- First-time Telegram link triggers a one-time signup spin.
+- Users can spin once per day (UTC reset).
+- Quiz/challenge completions trigger TON payouts automatically.
+- Rewards and messages delivered via Telegram; all logged under `rewards/logs`.
+- Homepage module dynamically reflects user state (not linked / linked / verified / rewarded).
+
 
 ---
 

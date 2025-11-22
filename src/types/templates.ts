@@ -4,27 +4,61 @@ export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
 export type Visibility = 'internal' | 'shared'
 
-export interface BaseTemplate {
+// Optional: current tier plan variants available in the app
+export type BrandTier = 'basic' | 'pro' | 'enterprise'
+
+export interface LearningTemplate {
   id: string
   title: string
   type: TemplateType
-  duration: number
-  difficulty: Difficulty
-  tags: string[]
   body: string
-  approved: boolean
+  tags: string[]
+  difficulty?: Difficulty
+  duration?: number
+  authorId: string
   visibility: Visibility
-  createdAt: string
-  updatedAt: string
+  approved: boolean
+  createdAt?: string
+  updatedAt?: string
+  tier?: string
 }
 
-export type LearningTemplate = BaseTemplate
+// Backward-compat alias for admin/mocks modules
+export type BaseTemplate = LearningTemplate
 
-// BrandTemplate extends BaseTemplate with brand-specific metadata
-export interface BrandTemplate extends BaseTemplate {
+export type ReviewStatus =
+  | 'draft'
+  | 'submitted'
+  | 'changes_requested'
+  | 'approved'
+  | 'published'
+
+export interface BrandTemplate {
+  id: string
+  sourceTemplateId: string
+  type: TemplateType
+  customTitle?: string
+  customBody?: string
+  reviewStatus: ReviewStatus
+  reviewerNote?: string
+  submittedAt?: string
+  approvedAt?: string
+  startDate?: string
+  endDate?: string
+  metrics?: { completions?: number; views?: number }
   brandId: string
-  // source template id this brand template was derived from
-  sourceId: string
-  // optional tier for assignment context
-  tier?: 'basic' | 'pro' | 'enterprise'
+  tier?: string
+}
+
+export interface EducatorRequest {
+  id: string
+  brandId: string
+  templateId?: string
+  topic: string
+  skus?: string[]
+  goals?: string
+  budgetRange?: string
+  contactEmail: string
+  status: 'open' | 'in_progress' | 'closed'
+  createdAt: string
 }
